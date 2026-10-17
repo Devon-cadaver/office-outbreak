@@ -1,0 +1,34 @@
+// The player's car: a chunky sedan in the town's style, with headlights, dents and smoke as it takes damage.
+import * as THREE from 'three';
+
+const box = new THREE.BoxGeometry(1, 1, 1);
+const cyl = new THREE.CylinderGeometry(0.5, 0.5, 1, 10);
+const M = (c) => new THREE.MeshLambertMaterial({ color: c });
+
+export function makeCar(color = 0x3f6fd8) {
+  const g = new THREE.Group();
+  const body = M(color), glass = M(0x5a86a8), dark = M(0x101416), head = new THREE.MeshBasicMaterial({ color: 0xffe27a }), tail = new THREE.MeshBasicMaterial({ color: 0xff3a3a });
+  const part = (geo, mat, sx, sy, sz, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.scale.set(sx, sy, sz); m.position.set(x, y, z); g.add(m); return m; };
+  part(box, body, 0.95, 0.38, 1.9, 0, 0.38, 0);
+  part(box, body, 0.85, 0.12, 0.5, 0, 0.62, 0.6);
+  part(box, glass, 0.82, 0.36, 1.0, 0, 0.72, -0.15);
+  part(box, body, 0.86, 0.06, 1.02, 0, 0.93, -0.15);
+  for (const [wx, wz] of [[-0.47, 0.6], [0.47, 0.6], [-0.47, -0.6], [0.47, -0.6]]) { const w = part(cyl, dark, 0.36, 0.16, 0.36, wx, 0.18, wz); w.rotation.z = Math.PI / 2; }
+  for (const hx of [-0.32, 0.32]) { part(box, head, 0.18, 0.1, 0.05, hx, 0.44, 0.96); part(box, tail, 0.18, 0.08, 0.05, hx, 0.44, -0.96); }
+  // headlight beams on the road ahead
+  const beam = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 3.2), new THREE.MeshBasicMaterial({ color: 0xfff2b0, transparent: true, opacity: 0.14, depthWrite: false }));
+  beam.rotation.x = -Math.PI / 2; beam.position.set(0, 0.03, 2.5); g.add(beam);
+  // smoke puffs appear as damage mounts
+  const smokeMat = new THREE.MeshLambertMaterial({ color: 0x2a2a2e, transparent: true, opacity: 0.55, depthWrite: false });
+  const smokes = []; for (let i = 0; i < 4; i++) { const s = new THREE.Mesh(box, smokeMat); s.visible = false; g.add(s); smokes.push({ m: s, t: Math.random() }); }
+  g.userData = { smokes, body, hp: 5, maxHp: 5, t: 0 };
+  return g;
+}
+
+export function animateCar(g, dt, moving) {
+  const u = g.userData; u.t += dt;
+  // engine shake and damage smoke
+  g.position.y = moving ? Math.sin(u.t * 40) * 0.01 : 0;
+  const dmg = 1 - u.hp / u.maxHp; const n = Math.round(dmg * 4);
+  u.smokes.forEach((s, i) => { s.m.visible = i < n; if (!s.m.visible) return; s.t += dt * 0.8; if (s.t > 1) s.t = 0; s.m.position.set(0.2 + Math.sin(u.t * 2 + i) * 0.15, 0.75 + s.t * 1.2, 0.5 - i * 0.2); s.m.scale.setScalar(0.2 + s.t * 0.5); s.m.material.opacity = 0.55 * (1 - s.t); });
+}

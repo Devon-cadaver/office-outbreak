@@ -5,6 +5,50 @@ import { createInput } from './input.js';
 import { unlockAudio, sfx, startMusic, stopMusic, setMusicTension, setMuted, isMuted, audioState } from './audio.js';
 import { makeChopper, animateChopper } from './chopper.js';
 import { buildRuins } from './ruins.js';
+import { makeCar, animateCar } from './car.js';
+// ---------- economy / store ----------
+let cash = 0, cashThisDistrict = 0;
+const inv = { shoes: 0, vest: false, flare: false, ammo: false, car: null, carHp: 0 };
+const STORE = [
+  { id: 'ammo', name: 'Ammo crate', desc: 'Start the next district with a rifle, 20 shots.', price: 60, once: true },
+  { id: 'medkit', name: 'Medkit', desc: 'One extra life (max 5).', price: 120 },
+  { id: 'vest', name: 'Kevlar vest', desc: 'Absorbs one zombie touch next district.', price: 150, once: true },
+  { id: 'shoes', name: 'Running shoes', desc: '+10% speed, permanent. Stacks 3 times.', price: 200, max: 3 },
+  { id: 'flare', name: 'Flare pack', desc: 'Sprinting drops a flare that lures zombies for 6 s.', price: 90, once: true },
+  { id: 'car', name: 'Car keys', desc: 'Drive the next district. Run zombies down. 5 hits wrecks it.', price: 600 },
+  { id: 'repair', name: 'Repair car', desc: 'Restore the car to full health.', price: 150 },
+];
+let car = null, driving = false, carHits = 0;
+function earn(n) { cash += n; cashThisDistrict += n; }
+function ownedCount(id) { return id === 'shoes' ? inv.shoes : id === 'vest' ? +inv.vest : id === 'flare' ? +inv.flare : id === 'ammo' ? +inv.ammo : id === 'car' ? +!!inv.car : 0; }
+function canBuy(it) {
+  if (cash < it.price) return false;
+  if (it.id === 'medkit') return lives < 5;
+  if (it.id === 'shoes') return inv.shoes < 3;
+  if (it.id === 'car') return !inv.car;
+  if (it.id === 'repair') return !!inv.car && inv.carHp < 5;
+  if (it.once) return !ownedCount(it.id);
+  return true;
+}
+function buy(it) {
+  if (!canBuy(it)) return; cash -= it.price; sfx.pickup();
+  if (it.id === 'medkit') lives = Math.min(5, lives + 1);
+  else if (it.id === 'shoes') inv.shoes++;
+  else if (it.id === 'vest') inv.vest = true;
+  else if (it.id === 'flare') inv.flare = true;
+  else if (it.id === 'ammo') inv.ammo = true;
+  else if (it.id === 'car') { inv.car = true; inv.carHp = 5; }
+  else if (it.id === 'repair') inv.carHp = 5;
+  renderStore();
+}
+function renderStore() {
+  const el = $('store'); if (!el) return;
+  el.innerHTML = '<div class="cash">Cash: $' + cash + '</div>' + STORE.filter((it) => it.id !== 'repair' || inv.car).map((it) => {
+    const owned = ownedCount(it.id); const tag = it.id === 'shoes' ? ' (' + inv.shoes + '/3)' : it.id === 'car' && inv.car ? ' (owned, ' + inv.carHp + '/5)' : it.id === 'repair' && inv.car ? ' (' + inv.carHp + '/5)' : owned && it.once ? ' (owned)' : it.id === 'medkit' ? ' (' + lives + '/5 lives)' : '';
+    return '<button class="item" data-id="' + it.id + '"' + (canBuy(it) ? '' : ' disabled') + '><span class="iname">' + it.name + tag + '</span><span class="iprice">$' + it.price + '</span><span class="idesc">' + it.desc + '</span></button>';
+  }).join('');
+  for (const b of el.querySelectorAll('.item')) b.addEventListener('click', () => buy(STORE.find((it) => it.id === b.dataset.id)));
+}
 let ruins = null, stragglerTimer = 0;
 const FINAL_LEVEL = 10;
 
@@ -51,6 +95,7 @@ const pool = { civ: [], zom: [] };
 let weapon = null, ammo = 0, fireTimer = 0, flow = null, flowTimer = 0, invuln = 0, totalPeople = 0, kills = 0;
 // player route: list of [cx, cy] cells to walk through
 let route = [], routeEndCell = null, stepTimer = 0, groanTimer = 1, tipStage = 0, followers = [], rescuedTotal = 0;
+let vestUp = false, flare = null, flareT = 0, noisePos = new THREE.Vector3(), noiseT = 0;
 let sprint = 0, sprintCd = 0, lastTapT = 0, lastTapW = null, streak = 0, streakT = 0, respawnCell = null, previewT = 0;
 const previewGeo = new THREE.CylinderGeometry(0.16, 0.16, 0.04, 8), previewMat = new THREE.MeshBasicMaterial({ color: 0x7fd0ff, transparent: true, opacity: 0.5 });
 const previews = []; for (let i = 0; i < 140; i++) { const mk = new THREE.Mesh(previewGeo, previewMat); mk.visible = false; scene.add(mk); previews.push(mk); }
@@ -73,7 +118,7 @@ function updateBubbles(dt) {
   }
 }
 function objectiveCell() { return gate && !gate.open ? (gate.found ? switchCell : gate) : exitCell; }
-function addScore(base) { const mult = Math.min(5, 1 + streak); score += base * mult; streak++; streakT = 8; updateHud(); }
+function addScore(base) { const mult = Math.min(5, 1 + streak); score += base * mult; earn(Math.round(base * mult / 2)); streak++; streakT = 8; updateHud(); }
 const tipEl = document.getElementById('tip');
 function setTip(t) { if (tip === t) return; tip = t; tipEl.textContent = t; tipEl.classList.toggle('hidden', !t); }
 const markerGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.05, 10), markerMat = new THREE.MeshBasicMaterial({ color: 0x7dff6a, transparent: true, opacity: 0.75 });
@@ -96,7 +141,7 @@ function extendRoute(w, first) {
 }
 input.on('tap', (w) => {
   const now = performance.now();
-  if (lastTapW && now - lastTapT < 380 && Math.hypot(w.x - lastTapW.x, w.z - lastTapW.z) < 2.5 && sprintCd <= 0 && state === 'play') { sprint = 3; sprintCd = 7; sfx.wave(); say(player, ['Run!', 'Go go go!', 'Move it!'][(Math.random() * 3) | 0], 1.2); }
+  if (lastTapW && now - lastTapT < 380 && Math.hypot(w.x - lastTapW.x, w.z - lastTapW.z) < 2.5 && sprintCd <= 0 && state === 'play') { sprint = 3; sprintCd = 7; sfx.wave(); if (inv.flare) dropFlare(); say(player, ['Run!', 'Go go go!', 'Move it!'][(Math.random() * 3) | 0], 1.2); }
   lastTapT = now; lastTapW = w; camPan.set(0, 0, 0); setRouteTo(w);
 });
 input.on('drag', extendRoute);
@@ -146,15 +191,15 @@ function buildLevel(n) {
   clearLevel();
   const portrait = innerWidth < innerHeight;
   const tutorial = n === 1;
-  const grow = Math.min(10, Math.max(0, n - 2) * 2);
-  let c = (portrait ? (tutorial ? 9 : 13) : (tutorial ? 15 : 21)) + grow, r = (portrait ? (tutorial ? 15 : 21) : (tutorial ? 9 : 13)) + grow;
+  const grow = Math.min(12, Math.max(0, n - 2) * 2);
+  let c = (portrait ? (tutorial ? 15 : 19) : (tutorial ? 23 : 29)) + grow, r = (portrait ? (tutorial ? 23 : 29) : (tutorial ? 15 : 19)) + grow;
   if (c % 2 === 0) c++; if (r % 2 === 0) r++;
   cols = c; rows = r;
   const rng = mulberry32(n * 1337 + 42);
   // tutorial district is wide open: many extra openings so zombies stay visible
-  const loops = tutorial ? Math.floor(cols * rows * 0.22) : Math.floor(cols * rows * 0.1) + n * 2;
+  const loops = tutorial ? Math.floor(cols * rows * 0.16) : Math.floor(cols * rows * 0.1) + n * 2;
   maze = generateMaze(cols, rows, loops, rng);
-  if (!tutorial) {
+  if (true) {
     // main avenues: one straight across and one straight down, through the middle of town
     const ay = 1 + 2 * Math.floor((rows - 2) / 4), ax = 1 + 2 * Math.floor((cols - 2) / 4);
     for (let x = 1; x < cols - 1; x++) maze[ay][x] = false;
@@ -234,7 +279,7 @@ function buildLevel(n) {
   const pick = (filter) => { const arr = streets.filter(filter); if (!arr.length) return null; const i = (rng() * arr.length) | 0; const s = arr[i]; streets.splice(streets.indexOf(s), 1); return s; };
 
   // crowds
-  const crowdCount = tutorial ? 3 : Math.min(26, 5 + n * 2 + Math.floor(cols * rows / 60)); totalPeople = 0;
+  const crowdCount = tutorial ? 6 : Math.min(40, 6 + n * 2 + Math.floor(cols * rows / 45)); totalPeople = 0;
   for (let i = 0; i < crowdCount; i++) {
     const s = pick(() => true); if (!s) break;
     const w = toWorld(s.x, s.y, cols, rows); const size = 2 + ((rng() * 3) | 0);
@@ -245,10 +290,10 @@ function buildLevel(n) {
     }
   }
   // starter zombies: far from player
-  const zCount = tutorial ? 1 : 2 + Math.floor(n / 2);
+  const zCount = tutorial ? 2 : 3 + Math.floor(n / 2) + Math.floor(cols * rows / 250);
   for (let i = 0; i < zCount; i++) { const s = pick((s) => s.ds > Math.max(cols, rows) * (tutorial ? 0.45 : 0.6)); if (s) spawnZombie(toWorld(s.x, s.y, cols, rows), n, rng); }
   // weapons
-  const wCount = 2 + Math.floor(n / 2);
+  const wCount = 3 + Math.floor(n / 2) + Math.floor(cols * rows / 200);
   const names = Object.keys(WEAPONS);
   for (let i = 0; i < wCount; i++) {
     const s = (tutorial && i === 0) ? (pick((s) => s.ds <= 6) || pick(() => true)) : pick(() => true); if (!s) break;
@@ -260,7 +305,9 @@ function buildLevel(n) {
 
   const sp = toWorld(startCell.cx, startCell.cy, cols, rows);
   player.position.set(sp.x, 0, sp.z); player.rotation.y = 0; player.visible = true; player.scale.setScalar(0.55);
-  weapon = 'pistol'; ammo = 6; flow = null; flowTimer = 0; invuln = 1; kills = 0; respawnCell = null; sprint = 0; sprintCd = 0; streak = 0; previewT = 0; showPreview([]); camTarget.copy(player.position); route = []; routeEndCell = null; showRoute();
+  weapon = inv.ammo ? 'rifle' : 'pistol'; ammo = inv.ammo ? 20 : 6; inv.ammo = false; vestUp = inv.vest; inv.vest = false; carHits = 0;
+  if (inv.car && inv.carHp > 0 && n > 1) startDriving(); else if (driving) parkCar();
+  flow = null; flowTimer = 0; invuln = 1; kills = 0; respawnCell = null; sprint = 0; sprintCd = 0; streak = 0; previewT = 0; showPreview([]); camTarget.copy(player.position); route = []; routeEndCell = null; showRoute();
   tipStage = 0; setTip(''); fitCamera(); updateHud();
 }
 
@@ -293,7 +340,7 @@ function fire(target) {
     m.userData = { vel: dir.multiplyScalar(w.speed), life: w.range / w.speed, dmg: w.dmg };
     m.lookAt(m.position.clone().add(dir)); scene.add(m); projectiles.push(m);
   }
-  ammo--; sfx.throw(); fireTimer = w.rate;
+  ammo--; sfx.throw(); fireTimer = w.rate; noisePos.copy(player.position); noiseT = 4;
   if (ammo <= 0) weapon = null;
   updateHud();
 }
@@ -303,12 +350,12 @@ function updateHud() {
   ui.lives.textContent = '♥'.repeat(Math.max(0, lives)) + (sprintCd <= 0 ? '  ⚡' : '');
   ui.level.textContent = level === 1 ? 'Duvallville: Tutorial' : level === FINAL_LEVEL ? 'Duvallville ' + level + ': Evac' : 'Duvallville ' + level + '/' + FINAL_LEVEL;
   const fol = civilians.filter((c) => c.userData.follow).length; ui.people.textContent = 'People safe: ' + civilians.length + '/' + totalPeople + (fol ? '  ·  Following: ' + fol : '');
-  ui.weapon.textContent = weapon ? WEAPONS[weapon].name + ' x' + ammo : 'Unarmed';
+  ui.weapon.textContent = (driving ? '🚗 ' + inv.carHp + '/5  ·  ' : '') + (weapon ? WEAPONS[weapon].name + ' x' + ammo : 'Unarmed') + '  ·  $' + cash;
 }
 
 function show(screen) { if (screen) setTip(''); for (const s of [ui.start, ui.cleared, ui.over, $('won'), $('howto')]) s.classList.add('hidden'); if (screen) screen.classList.remove('hidden'); ui.hud.classList.toggle('hidden', !!screen); }
 
-function startRun() { seen = true; unlockAudio(); startMusic(); level = 1; score = 0; lives = 3; time = 0; buildLevel(level); show(null); state = 'play'; }
+function startRun() { seen = true; unlockAudio(); startMusic(); level = 1; score = 0; lives = 3; time = 0; cash = 0; cashThisDistrict = 0; Object.assign(inv, { shoes: 0, vest: false, flare: false, ammo: false, car: null, carHp: 0 }); if (car) { scene.remove(car); car = null; } driving = false; buildLevel(level); show(null); state = 'play'; }
 function nextLevel() { if (state !== "cleared") return; level++; buildLevel(level); show(null); state = 'play'; }
 function loseLife() {
   lives--; sfx.caught(); invuln = 2;
@@ -320,14 +367,30 @@ function loseLife() {
   for (const z of zombies) { const c = toCell(z.position.x, z.position.z, cols, rows); if (Math.abs(c.cx - rc.cx) + Math.abs(c.cy - rc.cy) < 6) z.userData.stun = 2.5; }
   updateHud();
 }
+function startDriving() {
+  if (!car) { car = makeCar(); scene.add(car); }
+  car.userData.hp = inv.carHp; driving = true; car.visible = true; player.visible = false;
+  say(car, 'Buckle up!'); setTip('Driving. Zombies you hit go down, but every hit dents the car.');
+}
+function parkCar() { driving = false; if (car) car.visible = false; player.visible = true; }
+function wreckCar() {
+  for (let k = 0; k < 16; k++) particle(car.position, k % 2 ? projMat : puffMat); sfx.over(); say(player, 'The car is done!');
+  inv.car = null; inv.carHp = 0; parkCar(); invuln = 1.5;
+}
+function dropFlare() {
+  if (!flare) { flare = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.25, 8), new THREE.MeshBasicMaterial({ color: 0xff5a3a })); scene.add(flare); }
+  flare.position.copy(player.position); flare.position.y = 0.12; flare.visible = true; flareT = 6;
+}
 function clearDistrict() {
   if (level === FINAL_LEVEL) { state = 'rescue'; input.reset(); route = []; showRoute(); chopperT = 0; sfx.wave(); setTip('The chopper is coming. Hold on!'); return; }
   state = 'cleared'; input.reset(); sfx.wave();
   const rescued = civilians.filter((c) => c.userData.follow && c.position.distanceTo(player.position) < 6).length;
   const saved = civilians.length - rescued, timeBonus = Math.max(0, 60 - Math.floor(time)) * 2;
   const gained = saved * 100 + rescued * 250 + kills * 10 + timeBonus; score += gained;
-  ui.clearedText.innerHTML = `Rescued with you: <b>${rescued}</b> (+${rescued * 250})<br>Still alive: ${saved}/${totalPeople} (+${saved * 100})<br>Zombies dropped: ${kills} (+${kills * 10})<br>Speed bonus: +${timeBonus}<br><br>Score: <b>${score}</b>`;
-  show(ui.cleared); updateHud();
+  const pay = rescued * 60 + saved * 10 + 100; earn(pay);
+  ui.clearedText.innerHTML = 'Rescued with you: <b>' + rescued + '</b> (+' + (rescued * 250) + ')<br>Still alive: ' + saved + '/' + totalPeople + ' (+' + (saved * 100) + ')<br>Zombies dropped: ' + kills + ' (+' + (kills * 10) + ')<br>Speed bonus: +' + timeBonus + '<br>Score: <b>' + score + '</b><br><span class="pay">Paid out: $' + cashThisDistrict + '</span>';
+  cashThisDistrict = 0; if (driving) parkCar();
+  renderStore(); show(ui.cleared); updateHud();
 }
 // ---------- how to play slides ----------
 const SLIDES = [
@@ -391,14 +454,17 @@ function frame(now) {
       const w = toWorld(route[0][0], route[0][1], cols, rows);
       const dx = w.x - player.position.x, dz = w.z - player.position.z, d = Math.hypot(dx, dz);
       if (d < 0.35) { route.shift(); showRoute(); }
-      else { const spd = PLAYER_SPEED * (sprint > 0 ? 1.6 : 1); const step = Math.min(d, spd * dt); player.position.x += dx / d * step; player.position.z += dz / d * step; player.rotation.y = Math.atan2(dx, dz); moving = 1; if (sprint > 0 && Math.random() < 0.5) particle(player.position, markerMat); }
+      else { const spd = PLAYER_SPEED * (1 + inv.shoes * 0.1) * (sprint > 0 ? 1.6 : 1) * (driving ? 1.7 : 1); const step = Math.min(d, spd * dt); player.position.x += dx / d * step; player.position.z += dz / d * step; player.rotation.y = Math.atan2(dx, dz); moving = 1; if (sprint > 0 && Math.random() < 0.5) particle(player.position, markerMat); }
     }
+    if (driving && car) { car.position.copy(player.position); car.rotation.y = player.rotation.y; animateCar(car, dt, moving); car.userData.hp = inv.carHp; }
+    if (flare) { flareT -= dt; if (flareT <= 0) flare.visible = false; else { flare.scale.setScalar(1 + Math.sin(now * 0.03) * 0.3); if (Math.random() < 0.3) particle(flare.position, flare.material); } }
+    noiseT -= dt;
     sprint -= dt; sprintCd -= dt; streakT -= dt; if (streakT <= 0 && streak) { streak = 0; updateHud(); }
     previewT -= dt; if (previewT <= 0 && previews[0].visible) showPreview([]);
     collide(player.position, R); animateWalk(player, dt, Math.min(1, moving));
     stepTimer -= dt; if (moving && stepTimer <= 0) { sfx.step(); stepTimer = 0.28; }
     groanTimer -= dt; if (groanTimer <= 0) { groanTimer = 2 + Math.random() * 3; let close = 0; for (const z of zombies) if (z.position.distanceTo(player.position) < 9) close++; if (close) sfx.groan(); setMusicTension(close); }
-    player.visible = invuln <= 0 || Math.sin(now * 0.03) > 0;
+    player.visible = !driving && (invuln <= 0 || Math.sin(now * 0.03) > 0);
 
     // exit
     const pc = toCell(player.position.x, player.position.z, cols, rows);
@@ -454,29 +520,50 @@ function frame(now) {
       const z = zombies[i];
       if (z.userData.hp <= 0) { scene.remove(z); zombies.splice(i, 1); pool.zom.push(z); kills++; addScore(10); sfx.kill(); for (let k = 0; k < 5; k++) particle(z.position, puffMat); updateHud(); continue; }
       if (z.userData.stun > 0) { z.userData.stun -= dt; animateWalk(z, dt, 0); continue; }
-      // follow flow field: head to the neighbouring cell with the lowest distance
       const c = toCell(z.position.x, z.position.z, cols, rows);
       const here = flow[c.cy * cols + c.cx];
       let tx = player.position.x, tz = player.position.z;
+      const zu = z.userData; zu.alert = (zu.alert || 0) - dt;
+      const dPlayer = z.position.distanceTo(player.position);
+      // senses: sight of the player, gunfire, a flare, or a nearby alerted zombie
+      if (dPlayer < 9 && lineClear(z.position, player.position)) zu.alert = 6;
+      if (noiseT > 0 && noisePos.distanceTo(z.position) < 14) { zu.alert = Math.max(zu.alert, 4); zu.noise = noisePos.clone(); }
+      if (zu.alert <= 0) for (const o of zombies) if (o !== z && o.userData.alert > 2 && o.position.distanceTo(z.position) < 4) { zu.alert = 3; break; }
       // prey: nearest civilian in sight comes first, the player second
       let prey = null, pd = 9;
       for (const civ of civilians) { const d = civ.position.distanceTo(z.position); if (d < pd && lineClear(z.position, civ.position)) { pd = d; prey = civ; } }
-      if (prey) { tx = prey.position.x; tz = prey.position.z; }
+      let speedMul = 1;
+      if (flare && flareT > 0 && flare.position.distanceTo(z.position) < 12) { tx = flare.position.x; tz = flare.position.z; }
+      else if (prey) { tx = prey.position.x; tz = prey.position.z; }
+      else if (zu.alert <= 0) {
+        // shamble: drift toward a random nearby street cell, slowly
+        if (!zu.wander || zu.wanderT <= 0 || (Math.abs(zu.wander.x - z.position.x) + Math.abs(zu.wander.z - z.position.z) < 0.4)) {
+          const nx = c.cx + ((Math.random() * 7) | 0) - 3, ny = c.cy + ((Math.random() * 7) | 0) - 3; const ok = openCell({ cx: nx, cy: ny }) ? { cx: nx, cy: ny } : c;
+          const w = toWorld(ok.cx, ok.cy, cols, rows); zu.wander = new THREE.Vector3(w.x, 0, w.z); zu.wanderT = 3 + Math.random() * 4;
+        }
+        zu.wanderT -= dt; tx = zu.wander.x; tz = zu.wander.z; speedMul = 0.45;
+      }
+      else if (zu.noise && dPlayer > 9 && !lineClear(z.position, player.position)) { tx = zu.noise.x; tz = zu.noise.z; if (zu.noise.distanceTo(z.position) < 0.8) zu.noise = null; }
       else if (here > 1) {
         let bestD = here, bx = c.cx, by = c.cy;
         for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = c.cx + dx, ny = c.cy + dy; const d = flow[ny * cols + nx]; if (d >= 0 && d < bestD) { bestD = d; bx = nx; by = ny; } }
         const w = toWorld(bx, by, cols, rows); tx = w.x; tz = w.z;
       } else if (here < 0) { const w = toWorld(c.cx, c.cy, cols, rows); tx = w.x; tz = w.z; }
       tmp.set(tx - z.position.x, 0, tz - z.position.z); const dl = tmp.length(); if (dl > 0.001) tmp.divideScalar(dl);
-      z.position.addScaledVector(tmp, z.userData.speed * dt);
+      z.position.addScaledVector(tmp, z.userData.speed * speedMul * dt);
       z.rotation.y = Math.atan2(tmp.x, tmp.z);
       for (const o of zombies) if (o !== z) { const dx = z.position.x - o.position.x, dz = z.position.z - o.position.z, dd = Math.hypot(dx, dz); if (dd < 0.45 && dd > 0.001) { z.position.x += dx / dd * (0.45 - dd) * 0.5; z.position.z += dz / dd * (0.45 - dd) * 0.5; } }
-      collide(z.position, R * 0.8); animateWalk(z, dt, 1);
+      collide(z.position, R * 0.8); animateWalk(z, dt, speedMul);
       if (z.userData.flash > 0) { z.userData.flash -= dt; z.position.y = 0.1; } else z.position.y = 0;
       // infect civilians
       for (const civ of civilians) if (Math.hypot(civ.position.x - z.position.x, civ.position.z - z.position.z) < 0.7) civ.userData.infect += dt * 2;
       // touch player
-      if (invuln <= 0 && Math.hypot(z.position.x - player.position.x, z.position.z - player.position.z) < R * 2) { loseLife(); if (state !== 'play') return render(dt); }
+      const touchD = Math.hypot(z.position.x - player.position.x, z.position.z - player.position.z);
+      if (driving && touchD < 1.1) {
+        scene.remove(z); zombies.splice(i, 1); pool.zom.push(z); kills++; addScore(10); sfx.kill(); for (let k = 0; k < 6; k++) particle(z.position, puffMat);
+        inv.carHp--; carHits++; sfx.hit(); if (inv.carHp <= 0) wreckCar(); updateHud(); continue;
+      }
+      if (invuln <= 0 && touchD < R * 2) { if (vestUp) { vestUp = false; invuln = 1.2; sfx.hit(); say(player, 'Vest took it!'); for (let k = 0; k < 6; k++) particle(player.position, projMat); } else { loseLife(); if (state !== 'play') return render(dt); } }
     }
     if (level > 1) { stragglerTimer -= dt; if (stragglerTimer <= 0 && zombies.length < 10 + level * 3) { stragglerTimer = 22 - Math.min(12, level); const edges = []; for (let y = 1; y < rows - 1; y++) for (let x = 1; x < cols - 1; x++) if (!maze[y][x] && (x === 1 || y === 1 || x === cols - 2 || y === rows - 2)) edges.push([x, y]); const far = edges.filter(([x, y]) => Math.abs(x - pc.cx) + Math.abs(y - pc.cy) > 8); if (far.length) { const [x, y] = far[(Math.random() * far.length) | 0]; spawnZombie(toWorld(x, y, cols, rows), level); } } }
     // civilians turning / following
@@ -496,7 +583,15 @@ function frame(now) {
         continue;
       }
       let threat = null, td = 4.5; for (const z of zombies) { const d = z.position.distanceTo(civ.position); if (d < td) { td = d; threat = z; } }
+      if (threat && civ.position.distanceTo(player.position) < 7 && !driving) {
+        // run to the player for protection
+        const dx = player.position.x - civ.position.x, dz = player.position.z - civ.position.z, d = Math.hypot(dx, dz) || 1;
+        civ.position.x += dx / d * 2.8 * dt; civ.position.z += dz / d * 2.8 * dt; collide(civ.position, 0.2); civ.rotation.y = Math.atan2(dx, dz); animateWalk(civ, dt, 1);
+        if (!u.yelled) { u.yelled = true; say(civ, ['Help!', 'Over here!', 'Wait for me!'][(Math.random() * 3) | 0], 1.5); }
+        u.goal = null; continue;
+      }
       if (threat) {
+        if (!u.yelled && Math.random() < 0.3) { u.yelled = true; say(civ, ['Run!', 'Zombies!', 'Get away!'][(Math.random() * 3) | 0], 1.4); }
         const dx = civ.position.x - threat.position.x, dz = civ.position.z - threat.position.z, d = Math.hypot(dx, dz) || 1;
         const nx = civ.position.x + dx / d * 2.4 * dt, nz = civ.position.z + dz / d * 2.4 * dt; const nc = toCell(nx, nz, cols, rows);
         if (openCell(nc)) { civ.position.x = nx; civ.position.z = nz; } collide(civ.position, 0.2);
@@ -507,7 +602,8 @@ function frame(now) {
         if (d < 0.1) { u.goal = null; u.wait = 1.5 + Math.random() * 4; animateWalk(civ, dt, 0); }
         else { const st = Math.min(d, 1.1 * dt); civ.position.x += dx / d * st; civ.position.z += dz / d * st; civ.rotation.y = Math.atan2(dx, dz); collide(civ.position, 0.2); animateWalk(civ, dt, 0.5); }
       } else {
-        u.wait -= dt; animateWalk(civ, dt, 0);
+        u.wait -= dt; animateWalk(civ, dt, 0); u.yelled = false;
+        if (Math.random() < dt * 0.02) say(civ, ['Did you hear that?', "We should go.", 'Is it safe?', 'Where is everyone?', "I'm scared."][(Math.random() * 5) | 0], 1.6);
         // chat: face the nearest neighbour while waiting
         let near = null, nd = 1.6; for (const o of civilians) if (o !== civ) { const d = o.position.distanceTo(civ.position); if (d < nd) { nd = d; near = o; } }
         if (near) civ.rotation.y = Math.atan2(near.position.x - civ.position.x, near.position.z - civ.position.z);
@@ -569,4 +665,4 @@ resize();
 requestAnimationFrame(frame);
 
 // Debug hook for automated testing (harmless in production).
-window.__oo = { get chopper() { return chopper; }, get chopperT() { return chopperT; }, set chopperT(v) { chopperT = v; }, routeTo: (cx, cy) => setRouteTo(toWorld(cx, cy, cols, rows)), get civilians() { return civilians; }, get maze() { return maze; }, get player() { return player; }, get gate() { return gate; }, get switchCell() { return switchCell; }, get cols() { return cols; }, get rows() { return rows; }, toWorld: (cx, cy) => toWorld(cx, cy, cols, rows), get pickups() { return pickups; }, get zombies() { return zombies; }, get exit() { return toWorld(exitCell.cx, exitCell.cy, cols, rows); }, get state() { return state; } };
+window.__oo = { get cash() { return cash; }, set cash(v) { cash = v; renderStore(); }, get driving() { return driving; }, get inv() { return inv; }, get chopper() { return chopper; }, get chopperT() { return chopperT; }, set chopperT(v) { chopperT = v; }, routeTo: (cx, cy) => setRouteTo(toWorld(cx, cy, cols, rows)), get civilians() { return civilians; }, get maze() { return maze; }, get player() { return player; }, get gate() { return gate; }, get switchCell() { return switchCell; }, get cols() { return cols; }, get rows() { return rows; }, toWorld: (cx, cy) => toWorld(cx, cy, cols, rows), get pickups() { return pickups; }, get zombies() { return zombies; }, get exit() { return toWorld(exitCell.cx, exitCell.cy, cols, rows); }, get state() { return state; } };

@@ -30,3 +30,13 @@ button.ghost { background: transparent; color: #ffd24a; border: 2px solid #ffd24
 .row-btns { display: flex; gap: 12px; }
 .bubble { position: fixed; left: 0; top: 0; max-width: 180px; padding: 6px 10px; background: #fff; color: #1b1f2a; font-size: 13px; font-weight: 700; border-radius: 12px; pointer-events: none; white-space: nowrap; box-shadow: 0 2px 6px #0008; }
 .bubble::after { content: ''; position: absolute; left: 50%; bottom: -6px; width: 10px; height: 10px; background: #fff; transform: translateX(-50%) rotate(45deg); }
+#cleared h1 { font-size: clamp(28px, 7vw, 48px); }
+#cleared p { font-size: 14px; }
+#cleared .pay { color: #ffd24a; font-weight: 700; }
+#store { width: min(92vw, 420px); display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-height: 42vh; overflow-y: auto; }
+#store .cash { grid-column: 1 / -1; font-size: 18px; font-weight: 800; color: #ffd24a; }
+#store .item { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; text-align: left; padding: 8px 10px; font-size: 13px; font-weight: 600; background: #1f3a3a; color: #fff; border: 1px solid #ffd24a55; border-radius: 10px; box-shadow: none; }
+#store .item:disabled { opacity: .45; }
+#store .iname { font-weight: 800; }
+#store .iprice { color: #ffd24a; font-weight: 800; }
+#store .idesc { grid-column: 1 / -1; font-weight: 400; opacity: .85; font-size: 12px; }
