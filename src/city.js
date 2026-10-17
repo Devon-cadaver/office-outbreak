@@ -122,15 +122,23 @@ function makeTextures() {
 const box = new THREE.BoxGeometry(1, 1, 1);
 // gabled roof prism, unit size: width 1 (x), depth 1 (z), height 1 (y), base at y=0, ridge along z
 const roofGeo = (() => {
-  const g = new THREE.BufferGeometry();
+  // Gabled roof, unit size: x width, z depth (ridge runs along z), y height. Base at y=0.
+  // Built from explicit outward-facing triangles (counter-clockwise seen from outside) and a closed underside.
+  const L = -0.5, Rr = 0.5, F = 0.5, B = -0.5, T = 1;
+  const tri = (a, b, cc) => [...a, ...b, ...cc];
   const v = [
-    // left slope
-    -0.5, 0, -0.5,  0, 1, -0.5,  0, 1, 0.5,   -0.5, 0, -0.5,  0, 1, 0.5,  -0.5, 0, 0.5,
-    // right slope
-    0.5, 0, -0.5,   0.5, 0, 0.5,  0, 1, 0.5,   0.5, 0, -0.5,  0, 1, 0.5,  0, 1, -0.5,
-    // gables
-    -0.5, 0, 0.5,  0, 1, 0.5,  0.5, 0, 0.5,    0.5, 0, -0.5,  0, 1, -0.5,  -0.5, 0, -0.5,
+    // left slope (faces -x): normal (-1, 0.5, 0)
+    ...tri([L, 0, B], [0, T, F], [0, T, B]), ...tri([L, 0, B], [L, 0, F], [0, T, F]),
+    // right slope (faces +x)
+    ...tri([Rr, 0, B], [0, T, B], [0, T, F]), ...tri([Rr, 0, B], [0, T, F], [Rr, 0, F]),
+    // front gable (faces +z)
+    ...tri([L, 0, F], [Rr, 0, F], [0, T, F]),
+    // back gable (faces -z)
+    ...tri([Rr, 0, B], [L, 0, B], [0, T, B]),
+    // underside (faces -y)
+    ...tri([L, 0, B], [Rr, 0, B], [Rr, 0, F]), ...tri([L, 0, B], [Rr, 0, F], [L, 0, F]),
   ];
+  const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); g.computeVertexNormals(); return g;
 })();
 const cyl = new THREE.CylinderGeometry(0.5, 0.5, 1, 10);
@@ -240,15 +248,17 @@ export function buildCity(scene, wall, level) {
     }
   };
   const HOUSE_WALLS = [0xe8d54a, 0x3f6fb0, 0xb8473a, 0x8a5a3a, 0xd9c7a8, 0x6a8f5a], HOUSE_ROOFS = [0x4a3324, 0x3a3a44, 0x5a2e2a, 0x2f3d4a];
-  const brickMat = M({ color: 0xb8473a }), litWin = new THREE.MeshBasicMaterial({ color: 0xf6e94a }), darkWin = M({ color: 0x34506e }), doorMatH = M({ color: 0x2a2320 });
+  const roofTrim = M({ color: 0x2a2a30 }), brickMat = M({ color: 0xb8473a }), litWin = new THREE.MeshBasicMaterial({ color: 0xf6e94a }), darkWin = M({ color: 0x34506e }), doorMatH = M({ color: 0x2a2320 });
   const house = (w, x, y, openFaces) => {
     const wall = new THREE.Color(HOUSE_WALLS[(rng() * HOUSE_WALLS.length) | 0]), roofC = HOUSE_ROOFS[(rng() * HOUSE_ROOFS.length) | 0];
     const bw = 2.1, bd = 1.9, bh = 1.0 + (rng() < 0.3 ? 0.9 : 0), rh = 0.9;
     const ry = openFaces.length ? openFaces[(rng() * openFaces.length) | 0][2] : 0; // face the street
     const g = new THREE.Group(); g.position.set(w.x, 0, w.z); g.rotation.y = ry; group.add(g);
-    const wallMat = M({ color: wall, transparent: true }), roofMat = M({ color: roofC, transparent: true });
+    const wallMat = M({ color: wall, transparent: true }), roofMat = new THREE.MeshLambertMaterial({ color: roofC, transparent: true, side: THREE.DoubleSide, flatShading: true });
     const body = new THREE.Mesh(box, wallMat); body.scale.set(bw, bh, bd); body.position.y = bh / 2; g.add(body);
-    const roof = new THREE.Mesh(roofGeo, roofMat); roof.scale.set(bw + 0.3, rh, bd + 0.3); roof.position.y = bh; g.add(roof);
+    const roof = new THREE.Mesh(roofGeo, roofMat); roof.scale.set(bw + 0.5, rh, bd + 0.5); roof.position.y = bh - 0.04; g.add(roof);
+    const ridge = new THREE.Mesh(box, roofTrim); ridge.scale.set(0.12, 0.08, bd + 0.56); ridge.position.y = bh + rh - 0.02; g.add(ridge);
+    const soffit = new THREE.Mesh(box, roofTrim); soffit.scale.set(bw + 0.5, 0.06, bd + 0.5); soffit.position.y = bh - 0.07; g.add(soffit);
     const chim = new THREE.Mesh(box, brickMat); chim.scale.set(0.25, 0.7, 0.25); chim.position.set(bw * 0.3, bh + rh * 0.6, -bd * 0.2); g.add(chim);
     // door + windows on the street face (local +z)
     const door = new THREE.Mesh(box, doorMatH); door.scale.set(0.42, 0.7, 0.06); door.position.set(-0.55, 0.35, bd / 2 + 0.03); g.add(door);
