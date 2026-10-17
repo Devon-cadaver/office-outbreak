@@ -21,7 +21,7 @@ export function createInput(canvas, camera) {
   });
   canvas.addEventListener('pointermove', (e) => {
     if (pointers.has(e.pointerId)) pointers.set(e.pointerId, [e.clientX, e.clientY]);
-    if (pinching && pointers.size === 2) { const [a, b] = [...pointers.values()]; const d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (pinchDist > 0 && d > 0) for (const f of listeners.zoom) f(pinchDist / d); pinchDist = d; return; }
+    if (pinching && pointers.size === 2) { const [a, b] = [...pointers.values()]; const d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (e.pointerType !== 'touch' && pinchDist > 0 && d > 0) for (const f of listeners.zoom) f(pinchDist / d); pinchDist = d; return; }
     if (!down || e.pointerId !== id) return;
     if (!dragged && Math.hypot(e.clientX - startX, e.clientY - startY) > 14) dragged = true;
     if (dragged) { const w = toWorld(e.clientX, e.clientY); if (w) for (const f of listeners.drag) f(w, false); }
@@ -36,6 +36,13 @@ export function createInput(canvas, camera) {
   };
   canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
   canvas.addEventListener('wheel', (e) => { e.preventDefault(); for (const f of listeners.zoom) f(e.deltaY > 0 ? 1.1 : 0.9); }, { passive: false });
+  // Touch pinch (iOS Safari would otherwise zoom the whole page): read two-finger distance directly
+  let touchDist = 0;
+  const dist2 = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+  canvas.addEventListener('touchstart', (e) => { if (e.touches.length >= 2) { e.preventDefault(); touchDist = dist2(e.touches); pinching = true; down = false; id = null; for (const f of listeners.dragEnd) f(); } }, { passive: false });
+  canvas.addEventListener('touchmove', (e) => { if (e.touches.length >= 2) { e.preventDefault(); const d = dist2(e.touches); if (touchDist > 0 && d > 0) for (const f of listeners.zoom) f(touchDist / d); touchDist = d; } }, { passive: false });
+  canvas.addEventListener('touchend', (e) => { if (e.touches.length < 2) touchDist = 0; if (e.touches.length === 0) pinching = false; });
+  for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, (e) => e.preventDefault(), { passive: false });
   return {
     on(type, f) { listeners[type].push(f); },
     reset() { down = false; id = null; dragged = false; pinching = false; pointers.clear(); },
