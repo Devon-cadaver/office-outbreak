@@ -34,7 +34,7 @@ function buildWorld() {
   }
   if (!startCell) startCell = { cx: 1, cy: rows - 2 }; if (!exitCell) exitCell = { cx: cols - 2, cy: 1 };
   const have = maze.custom ? new Set(maze.custom.landmarks.values()) : new Set(); maze.extraLandmarks = ['base', 'cemetery', 'lab'].filter((k) => !have.has(k));
-  city = buildCity(scene, maze, 3); obstacles = city.obstacles; rainLine = city.group.children.find((c) => c.isLineSegments && c.material.color.getHex() === 0xcfeaea); clearTornadoes(); clearCans(); clearGuns(); gasCans = 0; setWeather('clear'); weather.next = 30 + Math.random() * 20;
+  city = buildCity(scene, maze, 3); obstacles = city.obstacles; rainLine = city.group.children.find((c) => c.isLineSegments && c.material.color.getHex() === 0xcfeaea); clearTornadoes(); clearCans(); clearGuns(); clearCorpses(); gasCans = 0; setWeather('clear'); weather.next = 30 + Math.random() * 20;
   for (const hz of city.hazards) { const c = toCell(hz.pos.x, hz.pos.z, cols, rows); maze[c.cy][c.cx] = false;
     const i = obstacles.findIndex((o) => Math.abs(o.x - hz.pos.x) < 0.01 && Math.abs(o.z - hz.pos.z) < 0.01 && o.hw > 1); if (i >= 0) obstacles.splice(i, 1);
     if (hz.type === 'base') obstacles.push({ x: hz.pos.x, z: hz.pos.z - 0.4, hw: 1.15, hd: 0.8 }); if (hz.type === 'lab') obstacles.push({ x: hz.pos.x, z: hz.pos.z - 0.3, hw: 1.15, hd: 0.9 });
@@ -74,7 +74,16 @@ const keys = {}; addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] 
 // ---------- zombies ----------
 const zombies = [], pool = [];
 function spawnZombie(pos, strong) { const z = pool.pop() || makeCharacter(['worker', 'vest', 'suit', 'punk'][(Math.random() * 4) | 0], { zombie: true }); z.position.set(pos.x, 0, pos.z); z.scale.setScalar(SCALE); z.rotation.set(0, 0, 0); Object.assign(z.userData, { hp: strong ? 5 : 3, speed: 1.0 + Math.random() * 0.3 + night * 0.3, charged: 0, rag: null, stun: 0, slow: 0, poison: 0, alert: 0 }); scene.add(z); zombies.push(z); return z; }
-function killZombie(i) { const z = zombies[i]; scene.remove(z); zombies.splice(i, 1); pool.push(z); kills++; sfx.kill(); if (Math.random() < 0.06) dropCan(z.position); }
+// death: fall over, bleach to bones, sink away, then back to the pool
+const corpses = []; const boneMat = new THREE.MeshLambertMaterial({ color: 0xe8e2c8 });
+function killZombie(i) { const z = zombies[i]; zombies.splice(i, 1); kills++; sfx.kill(); if (Math.random() < 0.06) dropCan(z.position); const lying = !!z.userData.rag; z.userData.rag = null; z.position.y = Math.max(0, z.position.y); corpses.push({ z, t: 0, rx0: z.rotation.x, lying, bones: false }); }
+function setBones(z, on) { z.traverse((m) => { if (!m.isMesh) return; if (on) { m.userData.orig = m.material; if (m.material.transparent) m.visible = false; else m.material = boneMat; } else if (m.userData.orig) { m.material = m.userData.orig; m.visible = true; m.userData.orig = null; } }); }
+function updateCorpses(dt) { for (let i = corpses.length - 1; i >= 0; i--) { const c = corpses[i], z = c.z; c.t += dt;
+  if (c.t < 0.6) { const k = Math.min(1, c.t / 0.6); z.rotation.x = c.lying ? c.rx0 : c.rx0 + (-Math.PI / 2 - c.rx0) * k; z.position.y = c.lying ? 0.12 : 0.12 * k; }
+  else if (c.t < 3.5) { if (!c.bones) { c.bones = true; setBones(z, true); } }
+  else if (c.t < 5) { z.position.y = 0.12 - (c.t - 3.5) / 1.5 * 0.9; }
+  else { scene.remove(z); setBones(z, false); z.rotation.set(0, 0, 0); z.position.y = 0; pool.push(z); corpses.splice(i, 1); } } }
+function clearCorpses() { for (const c of corpses) { scene.remove(c.z); setBones(c.z, false); c.z.rotation.set(0, 0, 0); pool.push(c.z); } corpses.length = 0; }
 // gas cans: rare drops that refill an empty car on their own
 const cans = []; let gasCans = 0; const canGeo = new THREE.BoxGeometry(0.3, 0.36, 0.2), canMat = new THREE.MeshLambertMaterial({ color: 0xe03a2a });
 function dropCan(p) { const m = new THREE.Mesh(canGeo, canMat); m.position.set(p.x, 0.2, p.z); scene.add(m); cans.push(m); }
@@ -303,7 +312,7 @@ function frame(now) {
     player.visible = !driving && (invuln <= 0 || Math.sin(now * 0.03) > 0);
     for (let i = books.length - 1; i >= 0; i--) { const b = books[i]; b.mesh.rotation.y += dt * 2; b.mesh.position.y = 0.5 + Math.sin(now * 0.004 + i) * 0.1; if (b.mesh.position.distanceTo(player.position) < 0.9) { scene.remove(b.mesh); books.splice(i, 1); booksFound++; const free = slots.indexOf(null); slots[free >= 0 ? free : booksFound % 3] = b.key; say('Spell book: ' + SPELLS[b.key].name); sfx.pickup(); $('books').textContent = '📖 ' + booksFound; } }
     if (riding) updateRide(dt);
-    updateZombies(dt); if (state !== 'play') return; updateShots(dt); updateGuns(dt); updateCans(dt); updateTornadoes(dt); updateWeather(dt); updateNights(dt); updateMissions(dt); fx.update(dt); updateActs();
+    updateZombies(dt); if (state !== 'play') return; updateShots(dt); updateGuns(dt); updateCans(dt); updateCorpses(dt); updateTornadoes(dt); updateWeather(dt); updateNights(dt); updateMissions(dt); fx.update(dt); updateActs();
     flashT -= dt; flashMesh.position.copy(player.position).setY(1); flashMesh.scale.setScalar(1 + (0.3 - Math.max(0, flashT)) * 20); flashMesh.material.opacity = Math.max(0, flashT) * 2;
     if (city) city.updateRain(dt);
   }
