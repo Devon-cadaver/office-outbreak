@@ -33,6 +33,18 @@ button:active { transform: translateY(3px); box-shadow: 0 1px 0 #b8902a; }
 #wgLights { font-size: 26px; letter-spacing: 6px; color: #ffd24a; text-shadow: 0 0 8px #ffd24a88; }
 #wgLights.bad { color: #ff5c5c; }
 #wgHit { min-width: 180px; }
+#coasterGame, #carouselGame { background: #0e2222ee; }
+#coasterGame h2, #carouselGame h2 { color: #ffd24a; font-size: 24px; letter-spacing: 1px; }
+#coasterGame p, #carouselGame p { max-width: 320px; font-size: 15px; }
+.cgFill { position: absolute; top: 0; bottom: 0; left: 0; width: 0; background: linear-gradient(90deg, #8a4fb8, #ffd24a); box-shadow: 0 0 12px #ffd24a; transition: width .05s linear; }
+#cgTime { font-size: 22px; font-weight: 800; color: #ffd24a; }
+#cgHit { min-width: 180px; }
+.mgGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.mgBtn { width: 110px; height: 90px; padding: 0; border-radius: 14px; background: color-mix(in srgb, var(--c) 35%, #0e2222); border: 3px solid var(--c); box-shadow: none; }
+.mgBtn.lit { background: var(--c); box-shadow: 0 0 22px var(--c); }
+.mgBtn::after { content: '🐴'; font-size: 34px; }
+#mgLights { font-size: 24px; letter-spacing: 6px; color: #ffd24a; }
+#mgLights.bad { color: #ff5c5c; }
 #puzzle h2 { color: #ffd24a; font-size: 24px; letter-spacing: 1px; }
 #puzzle p { max-width: 320px; font-size: 15px; }
 .pzWrap { display: flex; align-items: stretch; gap: 6px; }

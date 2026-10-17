@@ -6,7 +6,7 @@ import { unlockAudio, sfx, startMusic, stopMusic, setMusicTension, setMuted, isM
 import { makeChopper, animateChopper } from './chopper.js';
 import { buildRuins } from './ruins.js';
 import { makeCar, animateCar } from './car.js';
-import { ferris } from './landmarks.js';
+import { rides } from './landmarks.js';
 // ---------- economy / store ----------
 let cash = 0, cashThisDistrict = 0;
 const inv = { shoes: 0, vest: false, flare: false, ammo: false, car: null, carHp: 0 };
@@ -90,6 +90,7 @@ let state = 'start', level = 1, score = 0, lives = 3, time = 0;
 let maze = null, city = null, cols = 0, rows = 0, obstacles = [];
 let chopper = null, chopperT = 0, padMesh = null;
 let flyby = null, flybyT = 30, riding = null, rideCd = 0, playerInfect = 0, puzzle = null, ferrisHinted = false;
+const rideAt = (x, z, rad) => { let best = null, bd = rad; for (const rr of rides) { const d = Math.hypot(x - rr.pos.x, z - rr.pos.z); if (d < bd) { bd = d; best = rr; } } return best; };
 let infected = 0, antidote = null, goo = [];
 const rideAnchor = new THREE.Object3D(); scene.add(rideAnchor);
 const gooGeo = new THREE.CircleGeometry(0.2, 10); gooGeo.rotateX(-Math.PI / 2);
@@ -172,13 +173,14 @@ function extendRoute(w, first) {
 }
 input.on('tap', (w) => {
   const now = performance.now();
-  if (ferris.pos && state === 'play' && !riding && Math.hypot(w.x - ferris.pos.x, w.z - ferris.pos.z) < 2.8) {
-    const near = player.position.distanceTo(ferris.pos) < CELL * 1.3;
+  const tappedRide = state === 'play' && !riding ? rideAt(w.x, w.z, 2.8) : null;
+  if (tappedRide) {
+    const near = player.position.distanceTo(tappedRide.pos) < CELL * 1.3;
     if (lastTapW && now - lastTapT < 380 && Math.hypot(w.x - lastTapW.x, w.z - lastTapW.z) < 2.5) {
       lastTapT = 0; lastTapW = null;
       if (!near) { say(player, 'Get closer first.', 1.4); return; }
-      if (rideCd > 0) { say(player, 'Motor is cooling.', 1.4); return; }
-      openWheelGame(); return;
+      if (rideCd > 0) { say(player, 'Rides are cooling.', 1.4); return; }
+      openRideGame(tappedRide); return;
     }
     lastTapT = now; lastTapW = w; if (near) say(player, 'Double-tap to ride.', 1.2); return;
   }
@@ -360,11 +362,17 @@ function buildLevel(n) {
   if (inv.car && inv.carHp > 0 && n > 1) startDriving(); else if (driving) parkCar();
   flow = null; flowTimer = 0; invuln = 1; kills = 0; respawnCell = null; sprint = 0; sprintCd = 0; streak = 0; previewT = 0; showPreview([]); camTarget.copy(player.position); route = []; routeEndCell = null; showRoute();
   tipStage = 0; setTip(''); fitCamera(); updateHud();
-  parked = false; ferrisHinted = false; ferris.speed = 1; clearAntidote(); for (const g of goo) scene.remove(g); goo = []; if (flyby) { scene.remove(flyby); flyby = null; } flybyT = 20 + Math.random() * 20; riding = null; rideCd = 0; playerInfect = 0; $('puzzle').classList.add('hidden'); puzzle = null; closeWheelGame();
+  parked = false; ferrisHinted = false; for (const rr of rides) rr.speed = 1; clearAntidote(); for (const g of goo) scene.remove(g); goo = []; if (flyby) { scene.remove(flyby); flyby = null; } flybyT = 20 + Math.random() * 20; riding = null; rideCd = 0; playerInfect = 0; $('puzzle').classList.add('hidden'); puzzle = null; closeWheelGame(); closeCoasterGame(); closeCarouselGame();
 }
 
 function spawnZombie(pos, n, rng = Math.random) {
-  const z = pool.zom.pop() || makeCharacter(CIV_OUTFITS[(rng() * CIV_OUTFITS.length) | 0], { zombie: true });
+  // clown zombies haunt the fairground rides; a few wander elsewhere
+  const nearRide = rides.some((rr) => Math.hypot(rr.pos.x - pos.x, rr.pos.z - pos.z) < 9);
+  const wantClown = rng() < (nearRide ? 0.7 : 0.08) ? (rng() < 0.5 ? 'hammer' : 'balloons') : null;
+  let z = null;
+  if (wantClown) { const i = pool.zom.findIndex((p) => p.userData.clown === wantClown); if (i >= 0) z = pool.zom.splice(i, 1)[0]; }
+  else { const i = pool.zom.findIndex((p) => !p.userData.clown); if (i >= 0) z = pool.zom.splice(i, 1)[0]; }
+  if (!z) z = makeCharacter(CIV_OUTFITS[(rng() * CIV_OUTFITS.length) | 0], { zombie: true, clown: wantClown });
   z.position.set(pos.x, 0, pos.z); z.scale.setScalar(0.55); z.rotation.set(0, 0, 0); z.userData.rag = null; z.userData.stun = 0; z.userData.alert = 0;
   z.userData.hp = 2 + Math.floor(n / 3); z.userData.speed = Math.min(PLAYER_SPEED * 0.85, (n === 1 ? 1.6 : 2.3 + n * 0.15) + rng() * 0.3); z.userData.flash = 0;
   scene.add(z); zombies.push(z); return z;
@@ -397,27 +405,76 @@ function updateFlyby(dt) {
     if (k >= 1) { scene.remove(flyby); flyby = null; flybyT = 45 + Math.random() * 45; }
   }
 }
-function startRide() {
-  const pc = playerCell(); riding = { t: 0, ang: 0, spins: 3, cell: pc, back: player.position.clone(), world: toWorld(pc.cx, pc.cy, cols, rows), hits: 0 };
-  ferris.speed = 4; route = []; routeEndCell = null; showRoute(); input.reset(); sfx.pickup(); say(player, 'Wheee!', 2); setTip('Three spins. Zombies swarm the wheel and get knocked flying.');
+function startRide(ride) {
+  const pc = playerCell(); riding = { ride, t: 0, ang: 0, spins: 3, cell: pc, back: player.position.clone(), world: toWorld(pc.cx, pc.cy, cols, rows), hits: 0 };
+  ride.speed = ride.type === 'coaster' ? 6 : ride.type === 'carousel' ? 5 : 4;
+  route = []; routeEndCell = null; showRoute(); input.reset(); sfx.pickup(); say(player, ride.type === 'coaster' ? 'Hold on!' : 'Wheee!', 2);
+  const unit = ride.type === 'ferris' ? 'spins' : ride.type === 'coaster' ? 'laps' : 'turns';
+  setTip('Three ' + unit + '. Zombies swarm the ride and get knocked flying.');
 }
 function updateRide(dt) {
-  riding.t += dt; const w = ferris.wheel; if (!w) { riding = null; ferris.speed = 1; return; }
-  riding.ang += dt * 0.35 * ferris.speed; const done = Math.floor(riding.ang / (Math.PI * 2));
-  const a = w.rotation.z; w.updateWorldMatrix(true, false); const p = w.localToWorld(new THREE.Vector3(Math.cos(a) * 1.45, Math.sin(a) * 1.45, 0));
-  // sit in the cabin: lowered, legs out, facing the camera
-  player.position.set(p.x, p.y - 0.42, p.z + 0.1); player.rotation.y = CAM_YAW + Math.PI; animateWalk(player, dt, 0);
-  const pu = player.userData; pu.legL.rotation.x = pu.legR.rotation.x = -1.45; pu.armL.rotation.x = pu.armR.rotation.x = -0.5;
-  rideAnchor.position.set(w.position.x, w.position.y + 1.3, w.position.z);
-  const exiting = done >= riding.spins; say(rideAnchor, exiting ? 'Exiting' : 'Spin ' + Math.min(riding.spins, done + 1) + '/' + riding.spins, 0.4);
-  if (exiting) { ferris.speed = Math.max(1, ferris.speed - dt * 3); }
-  for (let i = zombies.length - 1; i >= 0; i--) { const z = zombies[i]; if (z.userData.rag) continue; const dx = z.position.x - ferris.pos.x, dz = z.position.z - ferris.pos.z; if (Math.hypot(dx, dz) < 2.1) { flingZombie(z, { x: dx, z: dz }, 7 + Math.random() * 3); riding.hits++; } }
-  if (done >= riding.spins && ferris.speed <= 1) { ferris.speed = 1; player.position.copy(riding.back); player.position.y = 0; invuln = 1.5; rideCd = 25; say(player, riding.hits ? 'Strike! ' + riding.hits + ' down.' : 'Fun ride.', 2); setTip(''); riding = null; }
+  riding.t += dt; const ride = riding.ride; const unit = ride.type === 'ferris' ? 'Spin' : ride.type === 'coaster' ? 'Lap' : 'Turn';
+  let done = 0; const pu = player.userData;
+  if (ride.type === 'ferris') {
+    const w = ride.wheel; riding.ang += dt * 0.35 * ride.speed; done = Math.floor(riding.ang / (Math.PI * 2));
+    const a = w.rotation.z; w.updateWorldMatrix(true, false); const p = w.localToWorld(new THREE.Vector3(Math.cos(a) * 1.45, Math.sin(a) * 1.45, 0));
+    player.position.set(p.x, p.y - 0.42, p.z + 0.1); player.rotation.y = CAM_YAW + Math.PI; animateWalk(player, dt, 0);
+    pu.legL.rotation.x = pu.legR.rotation.x = -1.45; pu.armL.rotation.x = pu.armR.rotation.x = -0.5;
+    rideAnchor.position.set(w.position.x, w.position.y + 1.3, w.position.z);
+  } else if (ride.type === 'coaster') {
+    riding.ang += dt * 0.05 * ride.speed; done = Math.floor(riding.ang);
+    const u = ride.u; const p = ride.curve.getPointAt(u), t = ride.curve.getTangentAt(u);
+    player.position.set(p.x, p.y + 0.02, p.z); player.rotation.y = Math.atan2(t.x, t.z); animateWalk(player, dt, 0);
+    pu.legL.rotation.x = pu.legR.rotation.x = -1.45; pu.armL.rotation.x = pu.armR.rotation.x = Math.PI + 0.3; // arms up!
+    rideAnchor.position.set(ride.pos.x, 3.3, ride.pos.z);
+  } else {
+    const pl = ride.platform; riding.ang += dt * 0.3 * ride.speed; done = Math.floor(riding.ang / (Math.PI * 2));
+    pl.updateWorldMatrix(true, false); const h = ride.horses[0]; const p = h.getWorldPosition(new THREE.Vector3());
+    player.position.set(p.x, p.y - 0.1, p.z); player.rotation.y = pl.rotation.y + Math.PI; animateWalk(player, dt, 0);
+    pu.legL.rotation.x = -1.2; pu.legR.rotation.x = -1.2; pu.armL.rotation.x = pu.armR.rotation.x = -0.9;
+    rideAnchor.position.set(ride.pos.x, 2.9, ride.pos.z);
+  }
+  const exiting = done >= riding.spins; say(rideAnchor, exiting ? 'Exiting' : unit + ' ' + Math.min(riding.spins, done + 1) + '/' + riding.spins, 0.4);
+  if (exiting) ride.speed = Math.max(1, ride.speed - dt * 3);
+  for (let i = zombies.length - 1; i >= 0; i--) { const z = zombies[i]; if (z.userData.rag) continue; const dx = z.position.x - ride.pos.x, dz = z.position.z - ride.pos.z; if (Math.hypot(dx, dz) < 2.1) { flingZombie(z, { x: dx, z: dz }, 7 + Math.random() * 3); riding.hits++; } }
+  if (exiting && ride.speed <= 1) { ride.speed = 1; player.position.copy(riding.back); player.position.y = 0; invuln = 1.5; rideCd = 25; say(player, riding.hits ? 'Strike! ' + riding.hits + ' down.' : 'Fun ride.', 2); setTip(''); riding = null; }
 }
+function openRideGame(ride) { if (ride.type === 'ferris') openWheelGame(ride); else if (ride.type === 'coaster') openCoasterGame(ride); else openCarouselGame(ride); }
+// ---- launch pump (coaster): tap fast to fill a leaking meter before time runs out ----
+let cg = null;
+function openCoasterGame(ride) { cg = { ride, fill: 0, time: 8 }; $('coasterGame').classList.remove('hidden'); $('cgText').textContent = 'Tap PUMP fast to charge the launch. It leaks, so keep tapping until it is full.'; $('cgFill').style.width = '0%'; state = 'wheel'; input.reset(); route = []; routeEndCell = null; showRoute(); }
+function updateCoasterGame(dt) {
+  cg.time -= dt; cg.fill = Math.max(0, cg.fill - dt * 0.3); $('cgFill').style.width = (cg.fill * 100) + '%'; $('cgTime').textContent = Math.max(0, cg.time).toFixed(1) + ' s';
+  if (cg.time <= 0) { cg.time = 8; cg.fill = 0; sfx.hit(); $('cgText').textContent = 'Out of steam. Try again, faster!'; }
+}
+function closeCoasterGame() { $('coasterGame').classList.add('hidden'); cg = null; if (state === 'wheel' && !wg && !mg) state = 'play'; }
+$('cgHit').addEventListener('click', () => { if (!cg || cg.done) return; cg.fill += 0.11; sfx.throw(); if (cg.fill >= 1) { cg.done = true; $('cgFill').style.width = '100%'; $('cgText').textContent = 'Launch ready!'; sfx.wave(); const ride = cg.ride; setTimeout(() => { closeCoasterGame(); if (driving) leaveCar('Ooh, a ride!'); startRide(ride); }, 600); } });
+$('cgClose').addEventListener('click', closeCoasterGame);
+// ---- ticket booth (carousel): repeat the sequence of lit horses ----
+let mg = null;
+function openCarouselGame(ride) {
+  mg = { ride, seq: Array.from({ length: 4 }, () => (Math.random() * 4) | 0), step: 0, showing: true };
+  $('carouselGame').classList.remove('hidden'); $('mgText').textContent = 'Watch which horses light up, then tap them in the same order.'; $('mgLights').textContent = '○ ○ ○ ○'; $('mgLights').classList.remove('bad');
+  state = 'wheel'; input.reset(); route = []; routeEndCell = null; showRoute(); showSequence();
+}
+function showSequence() {
+  if (!mg) return; mg.showing = true; const btns = [...document.querySelectorAll('.mgBtn')];
+  mg.seq.forEach((i, k) => { setTimeout(() => { if (!mg) return; btns[i].classList.add('lit'); sfx.throw(); }, 500 + k * 600); setTimeout(() => { if (!mg) return; btns[i].classList.remove('lit'); }, 500 + k * 600 + 380); });
+  setTimeout(() => { if (mg) { mg.showing = false; $('mgText').textContent = 'Your turn. Tap the horses in order.'; } }, 500 + mg.seq.length * 600);
+}
+function closeCarouselGame() { $('carouselGame').classList.add('hidden'); mg = null; if (state === 'wheel' && !wg && !cg) state = 'play'; }
+for (const b of document.querySelectorAll('.mgBtn')) b.addEventListener('click', () => {
+  if (!mg || mg.showing || mg.done) return; const i = +b.dataset.i; b.classList.add('lit'); setTimeout(() => b.classList.remove('lit'), 200);
+  if (i === mg.seq[mg.step]) {
+    mg.step++; sfx.pickup(); $('mgLights').textContent = '● '.repeat(mg.step).trim() + (mg.step < 4 ? ' ' + '○ '.repeat(4 - mg.step).trim() : '');
+    if (mg.step >= mg.seq.length) { mg.done = true; $('mgText').textContent = 'Ticket punched!'; sfx.wave(); const ride = mg.ride; setTimeout(() => { closeCarouselGame(); if (driving) leaveCar('Ooh, a ride!'); startRide(ride); }, 600); }
+  } else { mg.step = 0; sfx.hit(); $('mgLights').textContent = '○ ○ ○ ○'; $('mgLights').classList.add('bad'); $('mgText').textContent = 'Wrong horse. Watch again.'; setTimeout(() => { if (mg) { $('mgLights').classList.remove('bad'); showSequence(); } }, 700); }
+});
+$('mgClose').addEventListener('click', closeCarouselGame);
 // ---- ride operator: hit the needle in the yellow three times to start the motor ----
 let wg = null;
-function openWheelGame() {
-  wg = { t: 0, speed: 2.2, hits: 0, zoneC: 0.5, zoneW: 0.28, flash: 0 };
+function openWheelGame(ride) {
+  wg = { ride, t: 0, speed: 2.2, hits: 0, zoneC: 0.5, zoneW: 0.28, flash: 0 };
   $('wheelGame').classList.remove('hidden'); $('wgLights').textContent = '○ ○ ○'; $('wgLights').classList.remove('bad'); $('wgText').textContent = 'Tap START when the needle is in the yellow. Three good hits start the motor.';
   state = 'wheel'; input.reset(); route = []; routeEndCell = null; showRoute(); placeZone();
 }
@@ -427,12 +484,12 @@ function updateWheelGame(dt) {
   $('wgNeedle').style.left = (wg.pos * 100) + '%';
   if (wg.flash <= 0) $('wgLights').classList.remove('bad');
 }
-function closeWheelGame() { $('wheelGame').classList.add('hidden'); wg = null; if (state === 'wheel') state = 'play'; }
+function closeWheelGame() { $('wheelGame').classList.add('hidden'); wg = null; if (state === 'wheel' && !cg && !mg) state = 'play'; }
 $('wgHit').addEventListener('click', () => {
   if (!wg) return;
   if (Math.abs(wg.pos - wg.zoneC) < wg.zoneW / 2) {
     wg.hits++; sfx.pickup(); $('wgLights').textContent = '● '.repeat(wg.hits).trim() + (wg.hits < 3 ? ' ' + '○ '.repeat(3 - wg.hits).trim() : '');
-    if (wg.hits >= 3) { $('wgText').textContent = 'Motor running!'; sfx.wave(); setTimeout(() => { closeWheelGame(); if (driving) leaveCar('Ooh, a ride!'); startRide(); }, 600); return; }
+    if (wg.hits >= 3) { $('wgText').textContent = 'Motor running!'; sfx.wave(); const ride = wg.ride; setTimeout(() => { closeWheelGame(); if (driving) leaveCar('Ooh, a ride!'); startRide(ride); }, 600); return; }
     wg.speed += 0.9; wg.zoneW = Math.max(0.14, wg.zoneW - 0.06); placeZone();
   } else { wg.hits = 0; sfx.hit(); $('wgLights').textContent = '○ ○ ○'; $('wgLights').classList.add('bad'); wg.flash = 0.4; $('wgText').textContent = 'Missed. The motor stalls. Try again.'; }
 });
@@ -517,7 +574,7 @@ function show(screen) { if (screen) setTip(''); for (const s of [ui.start, ui.cl
 function startRun() { seen = true; unlockAudio(); startMusic(); level = 1; score = 0; lives = 3; time = 0; cash = 0; cashThisDistrict = 0; Object.assign(inv, { shoes: 0, vest: false, flare: false, ammo: false, car: null, carHp: 0 }); if (car) { scene.remove(car); car = null; } driving = false; buildLevel(level); show(null); state = 'play'; }
 function nextLevel() { if (state !== "cleared") return; level++; buildLevel(level); show(null); state = 'play'; }
 function loseLife() {
-  lives--; sfx.caught(); invuln = 2; riding = null; ferris.speed = 1; playerInfect = 0; clearAntidote();
+  lives--; sfx.caught(); invuln = 2; if (riding) { riding.ride.speed = 1; riding = null; } playerInfect = 0; clearAntidote();
   for (let i = 0; i < 8; i++) particle(player.position, projMat);
   if (lives <= 0) { state = 'over'; input.reset(); stopMusic(); sfx.over(); const best = Math.max(getBest(), score); setBest(best);
     ui.finalScore.textContent = 'Score: ' + score + '  ·  District ' + level; ui.finalBest.textContent = 'Best: ' + best; show(ui.over); return; }
@@ -568,7 +625,7 @@ const SLIDES = [
   ['howto/3-crowd.jpg', 'Zombies go for people before you. Any crowd they reach turns and joins the horde, so lead the horde away from crowds.'],
   ['howto/6-follow.jpg', 'Walk up to people and they follow you. Get them to the safe zone for 250 points each. Or keep them between you and the horde: zombies take the nearest person first. Careful: a bitten follower spreads it down the line, and then to you.'],
   ['howto/4-gate.jpg', 'From district 2 the way out is gated. Glowing beams mark your goal: red for the gate, yellow for the power box. Rotate the wires to power the gate open.'],
-  ['howto/5-exit.jpg', 'Follow the green arrow to the safe zone. One touch from a zombie costs a life. Ten districts, then the chopper pulls you out. Tap the binoculars to look around without walking. Double-tap the ferris wheel for a ride.'],
+  ['howto/5-exit.jpg', 'Follow the green arrow to the safe zone. One touch from a zombie costs a life. Ten districts, then the chopper pulls you out. Tap the binoculars to look around without walking. Double-tap a fairground ride (wheel, coaster, carousel) to ride it.'],
 ];
 let slide = 0;
 function showSlide(i) { slide = i; $('slideImg').src = SLIDES[i][0]; $('slideText').textContent = SLIDES[i][1]; $('slideDots').textContent = SLIDES.map((_, k) => k === i ? '●' : '○').join(' '); $('slideNext').textContent = i === SLIDES.length - 1 ? 'START SHIFT' : 'NEXT'; }
@@ -615,6 +672,7 @@ function frame(now) {
   }
   if (chopper && state === 'play') animateChopper(chopper, dt, time);
   if (state === 'wheel' && wg) updateWheelGame(dt);
+  if (state === 'wheel' && cg) updateCoasterGame(dt);
   if (state === 'play') {
     time += dt; invuln -= dt; fireTimer -= dt; flowTimer -= dt;
 
@@ -648,7 +706,7 @@ function frame(now) {
     updateFlyby(dt); rideCd -= dt;
     if (riding) updateRide(dt);
 
-    if (ferris.pos && !riding && !ferrisHinted && player.position.distanceTo(ferris.pos) < 9) { ferrisHinted = true; say(player, 'Ferris wheel! Double-tap it.', 2.4); }
+    if (!riding && !ferrisHinted) { const nr = rideAt(player.position.x, player.position.z, 9); if (nr) { ferrisHinted = true; say(player, nr.name + '! Double-tap it.', 2.4); } }
     updateParkedCar(dt);
     playerInfect = Math.max(0, playerInfect - dt * 0.12);
     if (playerInfect >= 1) { playerInfect = 0; infectPlayer(); }
@@ -721,7 +779,7 @@ function frame(now) {
       for (const civ of civilians) { const d = civ.position.distanceTo(z.position); if (d < pd && lineClear(z.position, civ.position)) { pd = d; prey = civ; } }
       let speedMul = 1;
       if (flare && flareT > 0 && flare.position.distanceTo(z.position) < 12) { tx = flare.position.x; tz = flare.position.z; }
-      else if (riding) { const rw = riding.world; if (Math.abs(ferris.pos.x - z.position.x) + Math.abs(ferris.pos.z - z.position.z) < 3.5) { tx = ferris.pos.x; tz = ferris.pos.z; } else if (here > 1) { let best = here, bx = c.cx, by = c.cy; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = c.cx + dx, ny = c.cy + dy; const v = flow[ny * cols + nx]; if (v >= 0 && v < best) { best = v; bx = nx; by = ny; } } const w = toWorld(bx, by, cols, rows); tx = w.x; tz = w.z; } else { tx = rw.x; tz = rw.z; } }
+      else if (riding) { const rw = riding.world, rp = riding.ride.pos; if (Math.abs(rp.x - z.position.x) + Math.abs(rp.z - z.position.z) < 3.5) { tx = rp.x; tz = rp.z; } else if (here > 1) { let best = here, bx = c.cx, by = c.cy; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = c.cx + dx, ny = c.cy + dy; const v = flow[ny * cols + nx]; if (v >= 0 && v < best) { best = v; bx = nx; by = ny; } } const w = toWorld(bx, by, cols, rows); tx = w.x; tz = w.z; } else { tx = rw.x; tz = rw.z; } }
       else if (prey) { tx = prey.position.x; tz = prey.position.z; }
       else if (zu.alert <= 0) {
         // shamble: drift toward a random nearby street cell, slowly
@@ -875,4 +933,4 @@ resize();
 requestAnimationFrame(frame);
 
 // Debug hook for automated testing (harmless in production).
-window.__oo = { get cash() { return cash; }, set cash(v) { cash = v; renderStore(); }, get driving() { return driving; }, get inv() { return inv; }, get chopper() { return chopper; }, get chopperT() { return chopperT; }, set chopperT(v) { chopperT = v; }, routeTo: (cx, cy) => setRouteTo(toWorld(cx, cy, cols, rows)), get civilians() { return civilians; }, get maze() { return maze; }, get player() { return player; }, get gate() { return gate; }, get switchCell() { return switchCell; }, get cols() { return cols; }, get rows() { return rows; }, toWorld: (cx, cy) => toWorld(cx, cy, cols, rows), get pickups() { return pickups; }, get zombies() { return zombies; }, get exit() { return toWorld(exitCell.cx, exitCell.cy, cols, rows); }, get state() { return state; }, get ferris() { return ferris; }, get riding() { return riding; }, startRide, openPuzzle, flyby: () => { flybyT = 0; }, get flybyObj() { return flyby; }, get puzzle() { return puzzle; }, flingZombie, leaveCar, get parked() { return parked; }, infectPlayer, get infected() { return infected; }, get goo() { return goo; }, dropGoo, openWheelGame, get wg() { return wg; }, camera };
+window.__oo = { get cash() { return cash; }, set cash(v) { cash = v; renderStore(); }, get driving() { return driving; }, get inv() { return inv; }, get chopper() { return chopper; }, get chopperT() { return chopperT; }, set chopperT(v) { chopperT = v; }, routeTo: (cx, cy) => setRouteTo(toWorld(cx, cy, cols, rows)), get civilians() { return civilians; }, get maze() { return maze; }, get player() { return player; }, get gate() { return gate; }, get switchCell() { return switchCell; }, get cols() { return cols; }, get rows() { return rows; }, toWorld: (cx, cy) => toWorld(cx, cy, cols, rows), get pickups() { return pickups; }, get zombies() { return zombies; }, get exit() { return toWorld(exitCell.cx, exitCell.cy, cols, rows); }, get state() { return state; }, get rides() { return rides; }, get riding() { return riding; }, startRide, openRideGame, openPuzzle, flyby: () => { flybyT = 0; }, get flybyObj() { return flyby; }, get puzzle() { return puzzle; }, flingZombie, leaveCar, get parked() { return parked; }, infectPlayer, get infected() { return infected; }, get goo() { return goo; }, dropGoo, openWheelGame, get wg() { return wg; }, get mg() { return mg; }, camera };

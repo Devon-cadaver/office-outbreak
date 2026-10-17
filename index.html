@@ -31,6 +31,21 @@
     <button id="wgHit">START</button>
     <button class="ghost" id="wgClose">Step away</button>
   </div>
+  <div id="coasterGame" class="screen hidden">
+    <h2>LAUNCH PUMP</h2>
+    <p id="cgText">Tap PUMP fast to charge the launch. It leaks, so keep tapping until it is full.</p>
+    <div class="wgBar"><div class="cgFill" id="cgFill"></div></div>
+    <div id="cgTime">8.0 s</div>
+    <button id="cgHit">PUMP</button>
+    <button class="ghost" id="cgClose">Step away</button>
+  </div>
+  <div id="carouselGame" class="screen hidden">
+    <h2>TICKET BOOTH</h2>
+    <p id="mgText">Watch which horses light up, then tap them in the same order.</p>
+    <div class="mgGrid"><button class="mgBtn" data-i="0" style="--c:#f0f0f0"></button><button class="mgBtn" data-i="1" style="--c:#4f8fd6"></button><button class="mgBtn" data-i="2" style="--c:#e85aa0"></button><button class="mgBtn" data-i="3" style="--c:#3fbf4a"></button></div>
+    <div id="mgLights">○ ○ ○ ○</div>
+    <button class="ghost" id="mgClose">Step away</button>
+  </div>
   <div id="puzzle" class="screen hidden">
     <h2>POWER BOX</h2>
     <p id="puzzleText">Tap the wires to turn them. Connect the power on the left to the gate on the right.</p>

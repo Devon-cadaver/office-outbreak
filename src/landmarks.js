@@ -5,11 +5,20 @@ import { CELL } from './city.js';
 const box = new THREE.BoxGeometry(1, 1, 1);
 const cyl = new THREE.CylinderGeometry(0.5, 0.5, 1, 10);
 const ball = new THREE.IcosahedronGeometry(0.5, 1);
-export const LANDMARKS = ['gas', 'ferris', 'slime', 'school', 'skate'];
-const spinners = [];
-export const ferris = { pos: null, wheel: null, speed: 1 };
-export function resetLandmarks() { spinners.length = 0; ferris.pos = null; ferris.wheel = null; }
-export function updateLandmarks(dt) { for (const s of spinners) s.rotation.z += dt * 0.35 * (s === ferris.wheel ? ferris.speed : 1); }
+export const LANDMARKS = ['ferris', 'coaster', 'carousel', 'gas', 'slime', 'school', 'skate'];
+// rides: { type, pos, speed, ...parts }. speed is 1 while idle; the game raises it during a ride.
+export const rides = [];
+export function resetLandmarks() { rides.length = 0; }
+export function updateLandmarks(dt) {
+  for (const r of rides) {
+    if (r.type === 'ferris') r.wheel.rotation.z += dt * 0.35 * r.speed;
+    else if (r.type === 'carousel') { r.platform.rotation.y += dt * 0.3 * r.speed; r.bob = (r.bob || 0) + dt * 2 * r.speed; r.horses.forEach((h, i) => { h.position.y = 0.55 + Math.sin(r.bob + i) * 0.1; }); }
+    else if (r.type === 'coaster') { r.u = ((r.u || 0) + dt * 0.05 * r.speed) % 1; placeCoasterCars(r); }
+  }
+}
+export function placeCoasterCars(r) {
+  r.cars.forEach((car, i) => { const u = (r.u + i * 0.035) % 1; const p = r.curve.getPointAt(u), t = r.curve.getTangentAt(u); car.position.copy(p); car.position.y += 0.12; car.rotation.set(0, Math.atan2(t.x, t.z), 0); car.rotateX(-Math.asin(Math.max(-1, Math.min(1, t.y)))); });
+}
 
 export function pickLandmarks(wall, rng) {
   const rows = wall.length, cols = wall[0].length, picked = new Map(), spots = [];
@@ -36,6 +45,7 @@ export function buildLandmark(type, group, w, rng, M, add) {
   const F = CELL - 0.3;
   const slab = (color, h = 0.08) => add(box, M({ color }), F, h, F, w.x, h / 2, w.z);
   const glowMat = (color) => new THREE.MeshBasicMaterial({ color });
+  const ridesSign = (x, z, ry) => { const s = signMesh('RIDES OPEN', '#ffe27a', '#6a3f8a', 320, 64, 1.6, 0.32, 'bold 44px sans-serif'); s.position.set(x, 0.95, z); s.rotation.y = ry; group.add(s); };
 
   if (type === 'gas') {
     slab(0x56707a, 0.06);
@@ -56,12 +66,42 @@ export function buildLandmark(type, group, w, rng, M, add) {
     for (let i = 0; i < 8; i++) { const sp = new THREE.Mesh(box, frame); sp.scale.set(0.05, 2.9, 0.05); sp.rotation.z = i * Math.PI / 8; wheel.add(sp); }
     const cab = M({ color: 0x8c2d6b }), cab2 = M({ color: 0x2f8a6c });
     for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; const cm = new THREE.Mesh(box, i % 2 ? cab : cab2); cm.scale.set(0.42, 0.38, 0.35); cm.position.set(Math.cos(a) * 1.45, Math.sin(a) * 1.45, 0); wheel.add(cm); }
-    spinners.push(wheel); ferris.pos = new THREE.Vector3(w.x, 0, w.z); ferris.wheel = wheel;
+    rides.push({ type: 'ferris', name: 'Ferris wheel', pos: new THREE.Vector3(w.x, 0, w.z), speed: 1, wheel });
     add(box, M({ color: 0x9a3a4a }), 1.0, 0.7, 0.6, w.x + 0.9, 0.35, w.z + 0.8);
     const bulbs = glowMat(0xffe27a); for (let i = 0; i < 6; i++) add(ball, bulbs, 0.12, 0.12, 0.12, w.x - 1.2 + i * 0.48, 1.1, w.z + 1.25);
-    const rides = signMesh('RIDES OPEN', '#ffe27a', '#6a3f8a', 320, 64, 1.6, 0.32, 'bold 44px sans-serif'); rides.position.set(w.x + 0.9, 0.95, w.z + 1.12); group.add(rides);
-    const rides2 = signMesh('RIDES OPEN', '#ffe27a', '#6a3f8a', 320, 64, 1.6, 0.32, 'bold 44px sans-serif'); rides2.position.set(w.x + 1.32, 0.95, w.z + 0.8); rides2.rotation.y = Math.PI / 2; group.add(rides2);
-  } else if (type === 'slime') {
+    ridesSign(w.x + 0.9, w.z + 1.12, 0); ridesSign(w.x + 1.32, w.z + 0.8, Math.PI / 2);
+  } else if (type === 'coaster') {
+    // the poster's coaster: purple track with ties on dark tower supports, looping round a dark spire
+    slab(0x2d3a4a, 0.06);
+    const track = M({ color: 0x8a4fb8 }), tie = M({ color: 0x5a2f80 }), tower = M({ color: 0x1b2238 }), carMat = M({ color: 0x9a3fa0 });
+    const pts = [[-1.15, 0.5, -1.1], [-0.2, 1.9, -1.25], [1.05, 1.0, -1.05], [1.25, 1.6, 0.1], [0.95, 0.5, 1.1], [-0.2, 1.75, 1.15], [-1.25, 0.9, 0.45]].map(([x, y, z]) => new THREE.Vector3(w.x + x, y, w.z + z));
+    const curve = new THREE.CatmullRomCurve3(pts, true, 'catmullrom', 0.6);
+    group.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 90, 0.045, 6, true), track));
+    for (let i = 0; i < 56; i++) { const u = i / 56; const p = curve.getPointAt(u), t = curve.getTangentAt(u); const m = new THREE.Mesh(box, tie); m.scale.set(0.3, 0.04, 0.09); m.position.copy(p); m.position.y -= 0.03; m.rotation.y = Math.atan2(t.x, t.z); group.add(m); }
+    for (let i = 0; i < 9; i++) { const p = curve.getPointAt(i / 9); const m = new THREE.Mesh(box, tower); m.scale.set(0.14, p.y, 0.14); m.position.set(p.x, p.y / 2, p.z); group.add(m); }
+    const spire = new THREE.Mesh(new THREE.ConeGeometry(0.5, 2.8, 5), tower); spire.position.set(w.x, 1.4, w.z); group.add(spire);
+    add(box, tower, 0.9, 1.1, 0.9, w.x, 0.55, w.z);
+    const lamp = glowMat(0xffe27a); add(ball, lamp, 0.12, 0.12, 0.12, w.x + 0.5, 1.15, w.z + 0.5); add(ball, lamp, 0.12, 0.12, 0.12, w.x - 0.5, 1.15, w.z - 0.5);
+    const cars = []; for (let i = 0; i < 3; i++) { const c = new THREE.Mesh(box, carMat); c.scale.set(0.3, 0.22, 0.42); group.add(c); cars.push(c); }
+    const r = { type: 'coaster', name: 'Roller coaster', pos: new THREE.Vector3(w.x, 0, w.z), speed: 1, curve, cars, u: 0 }; placeCoasterCars(r); rides.push(r);
+    ridesSign(w.x + 0.2, w.z + 1.3, 0); ridesSign(w.x + 1.3, w.z + 0.2, Math.PI / 2);
+  } else if (type === 'carousel') {
+    slab(0x3e5a5a, 0.06);
+    const platform = new THREE.Group(); platform.position.set(w.x, 0.12, w.z); group.add(platform);
+    const base = new THREE.Mesh(cyl, M({ color: 0xd04a7a })); base.scale.set(2.4, 0.12, 2.4); platform.add(base);
+    const pole = M({ color: 0xffd24a }); const cp = new THREE.Mesh(cyl, pole); cp.scale.set(0.16, 1.7, 0.16); cp.position.y = 0.85; platform.add(cp);
+    const horseC = [0xf0f0f0, 0x4f8fd6, 0xe85aa0, 0x3fbf4a, 0xff8a2a, 0x9a3fa0]; const horses = [];
+    for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; const hp = new THREE.Mesh(cyl, pole); hp.scale.set(0.05, 1.5, 0.05); hp.position.set(Math.cos(a) * 0.85, 0.75, Math.sin(a) * 0.85); platform.add(hp);
+      const h = new THREE.Group(); h.position.set(Math.cos(a) * 0.85, 0.55, Math.sin(a) * 0.85); h.rotation.y = -a + Math.PI / 2; const hm = M({ color: horseC[i] });
+      const bd = new THREE.Mesh(box, hm); bd.scale.set(0.22, 0.22, 0.5); h.add(bd); const hd = new THREE.Mesh(box, hm); hd.scale.set(0.16, 0.22, 0.2); hd.position.set(0, 0.2, 0.3); h.add(hd);
+      for (const [lx, lz] of [[-0.07, 0.18], [0.07, 0.18], [-0.07, -0.18], [0.07, -0.18]]) { const lg = new THREE.Mesh(box, hm); lg.scale.set(0.05, 0.24, 0.05); lg.position.set(lx, -0.2, lz); h.add(lg); }
+      platform.add(h); horses.push(h); }
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(1.4, 0.7, 12), new THREE.MeshLambertMaterial({ color: 0xe8445a, transparent: true, opacity: 0.72 })); roof.position.y = 1.95; platform.add(roof);
+    const trim = new THREE.Mesh(new THREE.TorusGeometry(1.35, 0.05, 6, 24), pole); trim.rotation.x = Math.PI / 2; trim.position.y = 1.62; platform.add(trim);
+    const bulbs = glowMat(0xffe27a); for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6; const b = new THREE.Mesh(ball, bulbs); b.scale.setScalar(0.09); b.position.set(Math.cos(a) * 1.35, 1.62, Math.sin(a) * 1.35); platform.add(b); }
+    rides.push({ type: 'carousel', name: 'Carousel', pos: new THREE.Vector3(w.x, 0, w.z), speed: 1, platform, horses });
+    ridesSign(w.x + 0.2, w.z + 1.3, 0); ridesSign(w.x + 1.3, w.z + 0.2, Math.PI / 2);
+  } else if (type === 'slime') {  } else if (type === 'slime') {
     slab(0x2a4a44, 0.04);
     const glow = glowMat(0x6fff3a);
     const pond = new THREE.Mesh(new THREE.CircleGeometry(1.05, 18), glow); pond.rotation.x = -Math.PI / 2; pond.position.set(w.x - 0.2, 0.06, w.z + 0.1); pond.scale.set(1.15, 0.8, 1); group.add(pond);
