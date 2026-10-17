@@ -239,6 +239,7 @@ function startBuild() {
     else if (v === 'import') { const s = prompt('Paste map text:'); try { const mm = JSON.parse(s); if (mm && mm.cells) { bMap = mm; saveMap(bMap); buildRefresh(); } } catch { alert('That is not a map.'); } }
     else if (v === 'random') { const wall = generateMaze(bMap.cols, bMap.rows, Math.floor(bMap.cols * bMap.rows * 0.08)); bMap.cells = wall.map((row) => row.map((x) => (x ? 1 : 0))); bMap.cells[bMap.rows - 2][1] = 11; bMap.cells[1][bMap.cols - 2] = 12; saveMap(bMap); buildRefresh(); }
     else if (v === 'clear') { bMap = blankMap(bMap.cols, bMap.rows); bMap.cells[bMap.rows - 2][1] = 11; bMap.cells[1][bMap.cols - 2] = 12; saveMap(bMap); buildRefresh(); }
+    else if (v === 'border') { bMap.border = (bMap.border || 0) + 1; saveMap(bMap); buildRefresh(); setTip('New border style ' + bMap.border); }
     else if (v === 'grid') location.href = 'editor.html';
     else if (v === 'exit') location.href = 'index.html'; });
   // phones: the plain click event is the most reliable tap; place from it too (duplicates are ignored)
@@ -340,7 +341,7 @@ function buildLevel(n) {
     // open: road 0, park 3, start 11, exit 12, avenue 13, crosswalk 14, plaza 15, bench 18, parked car 19. Blocked: building 1, house 2, tower 16, tree 17, landmarks 4..10
     const OPEN = new Set([0, 3, 11, 12, 13, 14, 15, 18, 19]);
     maze = custom.cells.map((row) => row.map((v) => !OPEN.has(v)));
-    maze.custom = { landmarks: new Map(), houses: new Set(), parks: new Set(), avenue: new Set(), cross: new Set(), plaza: new Set(), towers: new Set(), trees: new Set(), benches: new Set(), cars: new Set(), conn: new Map() }; let sc = null, ec = null;
+    maze.custom = { landmarks: new Map(), houses: new Set(), parks: new Set(), avenue: new Set(), cross: new Set(), plaza: new Set(), towers: new Set(), trees: new Set(), benches: new Set(), cars: new Set(), conn: new Map(), border: custom.border || 0 }; let sc = null, ec = null;
     if (custom.conn) for (const k in custom.conn) { const [kx, ky] = k.split(',').map(Number); maze.custom.conn.set(ky * cols + kx, custom.conn[k]); }
     custom.cells.forEach((row, y) => row.forEach((v, x) => { const i = y * cols + x; const cu = maze.custom;
       if (LM[v]) cu.landmarks.set(i, LM[v]); if (v === 2) cu.houses.add(i); if (v === 3 || v === 18) cu.parks.add(i); if (v === 13) cu.avenue.add(i); if (v === 14) cu.cross.add(i); if (v === 15) cu.plaza.add(i);

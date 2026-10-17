@@ -308,7 +308,9 @@ export function buildCity(scene, wall, level) {
   // ---------- buildings ----------
   const roofMat = M({ color: NIGHT.roof }), corniceMat = M({ color: 0x8aa0a4 }), doorMat = new THREE.MeshBasicMaterial({ color: 0xf6e94a }), frameMat = M({ color: 0x2a3a40 });
   const awningMats = [M({ color: 0x9a3a4a }), M({ color: 0x2f6f8a }), M({ color: 0x7a3f8a })];
-  const perimeterSeed = rng();
+  // the border has its own random stream so editing the map inside does not reshuffle it; the builder can bump the seed
+  const borderSeed = wall.custom ? 1000 + (wall.custom.border || 0) : level; const prng = mulberry32(borderSeed * 9176 + 5);
+  const perimeterSeed = prng();
   const perimeterStyle = (seg, orient) => { const r = ((Math.sin(seg * 12.9898 + (orient === 'v' ? 7 : 3) + perimeterSeed * 100) * 43758.5453) % 1 + 1) % 1; return r < 0.4 ? 'fence' : r < 0.65 ? 'wall' : 'building'; };
   const pfenceMat = M({ color: 0x6a7a80 }), meshMat = new THREE.MeshBasicMaterial({ color: 0x8fa3a8, transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false }), barrierMat = M({ color: 0x9aa4a8 }), sandMat = M({ color: 0x8a7a55 }), wallMat2 = M({ color: 0x5a6a70 }), wireMat2 = M({ color: 0x3a4448 });
   const perimeterPiece = (style, w, x, y) => {
@@ -356,6 +358,7 @@ export function buildCity(scene, wall, level) {
     const lm = landmarkCells.get(y * cols + x);
     if (lm) { buildLandmark(lm, group, w, rng, M, add); obstacles.push({ x: w.x, z: w.z, hw: CELL / 2 - 0.05, hd: CELL / 2 - 0.05 }); hazards.push({ type: lm, pos: new THREE.Vector3(w.x, 0, w.z) }); continue; }
     const edge = x === 0 || y === 0 || x === cols - 1 || y === rows - 1;
+    const R = edge ? mulberry32(x * 131 + y * 17 + borderSeed * 7) : rng; // border buildings stay the same whatever happens inside
     if (wall.custom && wall.custom.trees.has(y * cols + x)) {
       // a tree cell: grass lot with a big tree, blocks the way like a building would
       add(box, M({ color: 0x2f5a38 }), CELL - 0.3, 0.06, CELL - 0.3, w.x, 0.03, w.z);
@@ -370,18 +373,18 @@ export function buildCity(scene, wall, level) {
     // zoning: downtown blocks north, mixed middle, houses south
     const zone = y < rows * 0.35 ? 'downtown' : y > rows * 0.6 ? 'houses' : 'mixed';
     const wantHouse = zone === 'houses' ? 0.85 : zone === 'mixed' ? 0.45 : 0.08;
-    if (!edge && (wall.custom ? wall.custom.houses.has(y * cols + x) : rng() < wantHouse)) {
+    if (!edge && (wall.custom ? wall.custom.houses.has(y * cols + x) : R() < wantHouse)) {
       const facesH = [[0, 1, 0], [1, 0, Math.PI / 2], [0, -1, Math.PI], [-1, 0, -Math.PI / 2]].filter(([dx, dz]) => open(x + dx, y + dz));
       house(w, x, y, facesH); obstacles.push({ x: w.x, z: w.z, hw: CELL / 2 - 0.05, hd: CELL / 2 - 0.05 }); continue;
     }
-    const tower = wall.custom ? wall.custom.towers.has(y * cols + x) : (!edge && zone === 'downtown' && rng() < 0.14);
-    const floors = edge ? 2 : tower ? 6 + ((rng() * 6) | 0) : zone === 'downtown' ? 2 + ((rng() * 2) | 0) + (rng() < 0.25 ? 1 : 0) : 1 + ((rng() * 2) | 0);
+    const tower = wall.custom ? wall.custom.towers.has(y * cols + x) : (!edge && zone === 'downtown' && R() < 0.14);
+    const floors = edge ? 2 : tower ? 6 + ((R() * 6) | 0) : zone === 'downtown' ? 2 + ((R() * 2) | 0) + (R() < 0.25 ? 1 : 0) : 1 + ((R() * 2) | 0);
     const fh = 1.1, h = floors * fh + 0.25;
-    const base = new THREE.Color(NIGHT.buildings[(rng() * NIGHT.buildings.length) | 0]); if (edge) base.multiplyScalar(0.7);
-    const useA = rng() < 0.6;
+    const base = new THREE.Color(NIGHT.buildings[(R() * NIGHT.buildings.length) | 0]); if (edge) base.multiplyScalar(0.7);
+    const useA = R() < 0.6;
     const map = (useA ? T.facadeA : T.facadeB).clone(), glow = (useA ? T.glowA : T.glowB).clone();
     map.needsUpdate = glow.needsUpdate = true;
-    map.repeat.set(1, floors); glow.repeat.set(1, floors); const ox = rng() < 0.5 ? 0 : 0.5; map.offset.set(ox, 0); glow.offset.set(ox, 0);
+    map.repeat.set(1, floors); glow.repeat.set(1, floors); const ox = R() < 0.5 ? 0 : 0.5; map.offset.set(ox, 0); glow.offset.set(ox, 0);
     const side = M({ color: base, map, emissive: 0xffffff, emissiveMap: glow, emissiveIntensity: 1, transparent: true });
     const footprint = CELL - 0.7;
     const roofM = roofMat.clone(); roofM.transparent = true; const extras = []; const addX = (...a) => { const m = add(...a); extras.push(m); return m; };
@@ -390,14 +393,14 @@ export function buildCity(scene, wall, level) {
     if (tower) { addX(box, M({ color: 0x3a4a52 }), 0.3, 1.6, 0.3, w.x, h + 0.8, w.z); addX(box, new THREE.MeshBasicMaterial({ color: 0xff3a3a }), 0.14, 0.14, 0.14, w.x, h + 1.65, w.z); }
     const edges = new THREE.LineSegments(new THREE.EdgesGeometry(box), outlineMat); edges.scale.copy(mesh.scale); edges.position.copy(mesh.position); edges.visible = false; group.add(edges); mesh.userData.edges = edges;
     addX(box, corniceMat, footprint + 0.15, 0.12, footprint + 0.15, w.x, h + 0.02, w.z);
-    if (!edge && rng() < 0.4) addX(box, M({ color: 0x4f6366 }), 0.5, 0.35, 0.5, w.x + (rng() - 0.5) * 1.4, h + 0.25, w.z + (rng() - 0.5) * 1.4);
-    if (!edge && rng() < 0.25) addX(cyl, M({ color: 0x5c6f73 }), 0.5, 0.6, 0.5, w.x + (rng() - 0.5) * 1.2, h + 0.38, w.z + (rng() - 0.5) * 1.2);
+    if (!edge && R() < 0.4) addX(box, M({ color: 0x4f6366 }), 0.5, 0.35, 0.5, w.x + (R() - 0.5) * 1.4, h + 0.25, w.z + (R() - 0.5) * 1.4);
+    if (!edge && R() < 0.25) addX(cyl, M({ color: 0x5c6f73 }), 0.5, 0.6, 0.5, w.x + (R() - 0.5) * 1.2, h + 0.38, w.z + (R() - 0.5) * 1.2);
     const faces = [[0, 1, 0], [1, 0, Math.PI / 2], [0, -1, Math.PI], [-1, 0, -Math.PI / 2]].filter(([dx, dz]) => open(x + dx, y + dz));
     if (faces.length && !edge) {
-      const [dx, dz, ry] = faces[(rng() * faces.length) | 0];
+      const [dx, dz, ry] = faces[(R() * faces.length) | 0];
       const fx = w.x + dx * (footprint / 2 + 0.03), fz = w.z + dz * (footprint / 2 + 0.03);
       addX(box, frameMat, 0.7, 0.95, 0.06, fx, 0.48, fz, ry); addX(box, doorMat, 0.5, 0.8, 0.07, fx, 0.42, fz, ry);
-      if (rng() < 0.5) addX(box, awningMats[(rng() * 3) | 0], 1.3, 0.08, 0.5, fx + dx * 0.25, 1.05, fz + dz * 0.25, ry);
+      if (R() < 0.5) addX(box, awningMats[(R() * 3) | 0], 1.3, 0.08, 0.5, fx + dx * 0.25, 1.05, fz + dz * 0.25, ry);
     }
     obstacles.push({ x: w.x, z: w.z, hw: CELL / 2 - 0.05, hd: CELL / 2 - 0.05 });
     buildings.push(mesh);
