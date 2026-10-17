@@ -648,7 +648,7 @@ function finishGame() {
   const rescued = civilians.filter((c) => c.userData.follow && c.position.distanceTo(player.position) < 8).length;
   const saved = civilians.length - rescued, gained = saved * 100 + rescued * 250 + kills * 10 + 500; score += gained;
   const best = Math.max(getBest(), score); setBest(best);
-  $('wonText').innerHTML = 'You escaped Duvallville.<br>On the chopper with you: <b>' + rescued + '</b> (+' + rescued * 250 + ')<br>Still alive: ' + saved + '/' + totalPeople + '<br>Rescue bonus: +500<br><br>Final score: <b>' + score + '</b><br>Best: ' + best;
+  $('wonText').innerHTML = 'Extracted from Zombieville.<br>On the chopper with you: <b>' + rescued + '</b> (+' + rescued * 250 + ')<br>Still alive: ' + saved + '/' + totalPeople + '<br>Rescue bonus: +500<br><br>Final score: <b>' + score + '</b><br>Best: ' + best;
   show($('won'));
 }
 $('wonBtn').addEventListener('click', startRun);
@@ -894,6 +894,10 @@ function render(dt = 0.016) {
   if (cols) {
     const lim = { x: cols * CELL / 2, z: rows * CELL / 2 };
     const want = player.position.clone().add(camPan);
+    // keep the view inside the walls (plus a strip of ruins) instead of centring on the player at the edge
+    { const halfW = camera.right, halfH = camera.top / Math.sin(CAM_ELEV); const ext = (halfW + halfH) * Math.SQRT1_2 * 0.92;
+      const bx = cols * CELL / 2 + 5, bz = rows * CELL / 2 + 5;
+      want.x = ext >= bx ? 0 : Math.max(-bx + ext, Math.min(bx - ext, want.x)); want.z = ext >= bz ? 0 : Math.max(-bz + ext, Math.min(bz - ext, want.z)); }
     camTarget.lerp(want, state === 'play' ? 1 - Math.pow(0.002, dt) : 1);
     camera.position.copy(camTarget).addScaledVector(camDir, 60); camera.lookAt(camTarget);
     // buildings between the camera and the player go see-through

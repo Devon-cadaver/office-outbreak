@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#16302f" />
-  <title>Conga of the Dead</title>
+  <title>Extract from Zombieville</title>
   <link rel="icon" href="data:," />
   <link rel="stylesheet" href="/src/style.css" />
 </head>
@@ -55,13 +55,48 @@
 
     <div id="exitArrow" class="hidden">➤</div>
   <button id="lookBtn" class="hidden" title="Look around (pan and zoom without walking)" aria-label="Look mode">
-    <svg viewBox="0 0 64 40" width="30" height="20" aria-hidden="true"><path fill="currentColor" d="M20 2h8v8h-8zM36 2h8v8h-8zM16 10h16l4 6 4-6h16l4 24a6 6 0 0 1-6 6H44a6 6 0 0 1-6-6v-8h-4v8a6 6 0 0 1-6 6H12a6 6 0 0 1-6-6zM14 22a7 7 0 1 0 0 .1zM50 22a7 7 0 1 0 0 .1z"/><circle cx="17" cy="27" r="5" fill="#0e2222"/><circle cx="47" cy="27" r="5" fill="#0e2222"/></svg>
+    <span class="eye"><span class="pupil"></span></span><span class="eye"><span class="pupil"></span></span>
   </button>
   <div id="tip" class="hidden"></div>
 
   <div id="start" class="screen">
-    <h1>CONGA<br>OF THE DEAD</h1>
-    <p>Escape from Zombieville. Lead a line of survivors through the maze to the safe zone.</p>
+    <svg id="logo" viewBox="0 0 420 250" role="img" aria-label="Extract from Zombieville">
+      <defs>
+        <linearGradient id="lgSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a1449"/><stop offset="1" stop-color="#120a1f"/></linearGradient>
+        <filter id="lgGlow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      </defs>
+      <rect x="4" y="4" width="412" height="242" rx="22" fill="url(#lgSky)" stroke="#7dff3a" stroke-width="3"/>
+      <!-- ground -->
+      <path d="M4 196 Q210 180 416 196 L416 224 Q210 240 4 224 Z" fill="#1d1033"/>
+      <!-- ferris wheel -->
+      <g stroke="#9a5fd6" stroke-width="4" fill="none">
+        <circle cx="300" cy="108" r="58"/><circle cx="300" cy="108" r="6" fill="#9a5fd6"/>
+        <path d="M300 50 V166 M242 108 H358 M259 67 L341 149 M341 67 L259 149"/>
+        <path d="M300 108 L262 196 M300 108 L338 196" stroke="#6a3f8a" stroke-width="6"/>
+      </g>
+      <g fill="#d04a7a"><rect x="291" y="40" width="18" height="14" rx="3"/><rect x="291" y="162" width="18" height="14" rx="3"/><rect x="233" y="101" width="18" height="14" rx="3"/><rect x="349" y="101" width="18" height="14" rx="3"/></g>
+      <g fill="#3fbf6c"><rect x="250" y="58" width="18" height="14" rx="3"/><rect x="332" y="58" width="18" height="14" rx="3"/><rect x="250" y="140" width="18" height="14" rx="3"/><rect x="332" y="140" width="18" height="14" rx="3"/></g>
+      <!-- zombies knocked flying -->
+      <g fill="#7dff3a" filter="url(#lgGlow)">
+        <g transform="translate(372 56) rotate(-40)"><circle cx="0" cy="-10" r="6"/><rect x="-5" y="-4" width="10" height="16" rx="3"/><rect x="-14" y="-2" width="9" height="4" rx="2"/><rect x="5" y="-2" width="9" height="4" rx="2"/></g>
+        <g transform="translate(396 94) rotate(120)"><circle cx="0" cy="-10" r="6"/><rect x="-5" y="-4" width="10" height="16" rx="3"/><rect x="-14" y="-2" width="9" height="4" rx="2"/><rect x="5" y="-2" width="9" height="4" rx="2"/></g>
+        <g transform="translate(222 44) rotate(210)"><circle cx="0" cy="-10" r="6"/><rect x="-5" y="-4" width="10" height="16" rx="3"/><rect x="-14" y="-2" width="9" height="4" rx="2"/><rect x="5" y="-2" width="9" height="4" rx="2"/></g>
+      </g>
+      <g stroke="#7dff3a" stroke-width="2" stroke-linecap="round" opacity=".7"><path d="M348 70 l12 -14 M352 80 l16 -12 M240 62 l-12 -12 M236 72 l-14 -8 M382 110 l14 4 M380 120 l13 8"/></g>
+      <!-- line of survivors -->
+      <g>
+        <g transform="translate(40 178)"><circle cx="0" cy="-26" r="8" fill="#f0c9a6"/><rect x="-7" y="-20" width="14" height="20" rx="4" fill="#4f8fd6"/><rect x="-6" y="0" width="5" height="12" fill="#3b3f55"/><rect x="1" y="0" width="5" height="12" fill="#3b3f55"/></g>
+        <g transform="translate(70 182)"><circle cx="0" cy="-26" r="8" fill="#f0c9a6"/><rect x="-7" y="-20" width="14" height="20" rx="4" fill="#ff8a2a"/><rect x="-6" y="0" width="5" height="12" fill="#2c3148"/><rect x="1" y="0" width="5" height="12" fill="#2c3148"/></g>
+        <g transform="translate(98 180)"><circle cx="0" cy="-26" r="8" fill="#e9c39e"/><rect x="-7" y="-20" width="14" height="20" rx="4" fill="#c23b6b"/><rect x="-6" y="0" width="5" height="12" fill="#2f4f6a"/><rect x="1" y="0" width="5" height="12" fill="#2f4f6a"/></g>
+        <g transform="translate(126 184)"><circle cx="0" cy="-26" r="8" fill="#f0c9a6"/><rect x="-7" y="-20" width="14" height="20" rx="4" fill="#d8f03a"/><rect x="-6" y="0" width="5" height="12" fill="#2c3148"/><rect x="1" y="0" width="5" height="12" fill="#2c3148"/></g>
+        <g transform="translate(154 181)"><circle cx="0" cy="-26" r="8" fill="#f0c9a6"/><rect x="-7" y="-20" width="14" height="20" rx="4" fill="#2a2730"/><rect x="-6" y="0" width="5" height="12" fill="#3a5fa8"/><rect x="1" y="0" width="5" height="12" fill="#3a5fa8"/></g>
+        <g transform="translate(184 178)"><circle cx="0" cy="-26" r="8" fill="#f0c9a6"/><rect x="-7" y="-20" width="14" height="20" rx="4" fill="#9a3a4a"/><rect x="-6" y="0" width="5" height="12" fill="#2b3a2b"/><rect x="1" y="0" width="5" height="12" fill="#2b3a2b"/></g>
+      </g>
+      <!-- title -->
+      <text x="210" y="226" text-anchor="middle" font-family="system-ui, Segoe UI, sans-serif" font-weight="800" font-size="15" letter-spacing="5" fill="#c9a6ff">EXTRACT FROM</text>
+      <text x="210" y="44" text-anchor="middle" font-family="system-ui, Segoe UI, sans-serif" font-weight="900" font-size="44" letter-spacing="2" fill="#7dff3a" stroke="#2a1449" stroke-width="2" filter="url(#lgGlow)">ZOMBIEVILLE</text>
+    </svg>
+    <p>Lead a line of survivors through the maze to the extraction point.</p>
     <p class="small">Zombies infect every crowd they reach, so lead them away from people.<br>Grab weapons to fight back. One touch costs a life.</p>
     <p class="small">Tap where to go, or drag a route. Works with finger or mouse.</p>
     <button id="startBtn">START RUN</button>
