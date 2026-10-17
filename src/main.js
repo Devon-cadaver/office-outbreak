@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { makeCharacter, animateWalk, OUTFITS } from './characters.js';
 import { generateMaze, buildCity, flowField, findPath, toWorld, toCell, CELL, mulberry32, NIGHT } from './city.js';
 import { createInput } from './input.js';
-import { unlockAudio, sfx, startMusic, stopMusic, setMusicTension } from './audio.js';
+import { unlockAudio, sfx, startMusic, stopMusic, setMusicTension, setMuted, isMuted, audioState } from './audio.js';
 
 // ---------- renderer / scene ----------
 const canvas = document.getElementById('game');
@@ -222,6 +222,12 @@ function clearDistrict() {
   show(ui.cleared); updateHud();
 }
 $('startBtn').addEventListener('click', startRun);
+// unlock audio on the very first touch anywhere, and offer a mute toggle
+const soundBtn = $('soundBtn');
+const refreshSoundBtn = () => { soundBtn.textContent = isMuted() ? '🔇 Sound: off' : '🔊 Sound: on' + (audioState() === 'running' ? '' : ' (tap to enable)'); };
+refreshSoundBtn();
+addEventListener('pointerdown', () => { unlockAudio(); setTimeout(refreshSoundBtn, 150); }, { passive: true });
+soundBtn.addEventListener('click', () => { unlockAudio(); setMuted(!isMuted()); if (!isMuted()) sfx.pickup(); refreshSoundBtn(); });
 $('retryBtn').addEventListener('click', startRun);
 $('nextBtn').addEventListener('click', nextLevel);
 

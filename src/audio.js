@@ -1,9 +1,13 @@
 // Tiny synthesized audio via WebAudio: sound effects and a looping music track. No audio files.
-let ctx = null, master = null, musicGain = null, noiseBuf = null;
+let ctx = null, master = null, musicGain = null, noiseBuf = null, muted = false;
+export function setMuted(v) { muted = v; if (master) master.gain.value = muted ? 0 : 0.9; try { localStorage.setItem("oo_mute", muted ? "1" : "0"); } catch { /* ignore */ } }
+export function isMuted() { return muted; }
+export function audioState() { return ctx ? ctx.state : "none"; }
+try { muted = localStorage.getItem("oo_mute") === "1"; } catch { /* ignore */ }
 export function unlockAudio() {
   if (!ctx) {
     ctx = new (window.AudioContext || window.webkitAudioContext)();
-    master = ctx.createGain(); master.gain.value = 0.9; master.connect(ctx.destination);
+    master = ctx.createGain(); master.gain.value = muted ? 0 : 0.9; master.connect(ctx.destination);
     musicGain = ctx.createGain(); musicGain.gain.value = 0.35; musicGain.connect(master);
     const len = ctx.sampleRate * 0.5; noiseBuf = ctx.createBuffer(1, len, ctx.sampleRate);
     const d = noiseBuf.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
