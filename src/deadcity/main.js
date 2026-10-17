@@ -270,7 +270,7 @@ function dawnStore() { state = 'cleared'; setMusicChase(false); sfx.wave(); cons
 $('dcNext').addEventListener('click', () => { if (state !== 'cleared') return; $('dcCleared').classList.add('hidden'); $('dc').classList.remove('hidden'); state = 'play'; clock = 0; addSurvivors(2); scans = 3; hudScan(); saveGame(); say('Day ' + (night + 1) + '. Get ready before dark.'); });
 // ---------- nights ----------
 const DAY = 55, NIGHT_LEN = 45, NIGHTS = 6;
-const nightTotal = (n) => Math.round(20 * Math.pow(1.6, n - 1)); const fastFrac = (n) => Math.min(1, (n - 1) * 0.2); const nightLen = () => NIGHT_LEN + night * 5; let nightLeft = 0;
+const nightTotal = (n) => Math.round(20 * Math.pow(1.5, n - 1)); const fastFrac = (n) => Math.min(1, (n - 1) * 0.18); const nightLen = () => NIGHT_LEN + night * 5; let nightLeft = 0;
 // ---------- the base computer and the night missions (Dead City's six, simplified) ----------
 const MISSIONS = [
   { title: 'RESCUE', brief: 'Find two survivors and lead them to the green zone.', kind: 'rescue', need: 2, reward: '+1 heart', apply() { addHeart(); } },
