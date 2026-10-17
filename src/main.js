@@ -97,10 +97,11 @@ function extendRoute(w, first) {
 input.on('tap', (w) => {
   const now = performance.now();
   if (lastTapW && now - lastTapT < 380 && Math.hypot(w.x - lastTapW.x, w.z - lastTapW.z) < 2.5 && sprintCd <= 0 && state === 'play') { sprint = 3; sprintCd = 7; sfx.wave(); say(player, ['Run!', 'Go go go!', 'Move it!'][(Math.random() * 3) | 0], 1.2); }
-  lastTapT = now; lastTapW = w; setRouteTo(w);
+  lastTapT = now; lastTapW = w; camPan.set(0, 0, 0); setRouteTo(w);
 });
 input.on('drag', extendRoute);
 input.on('hold', (w) => { if (state !== 'play') return; const path = findPath(maze, playerCell(), objectiveCell()); showPreview(path); previewT = 3; void w; });
+input.on('pan', (dx, dy) => { const k = (camera.top - camera.bottom) / innerHeight; camPan.x += (screenRight.x * -dx + screenUp.x * dy) * k; camPan.z += (screenRight.y * -dx + screenUp.y * dy) * k; const lim = Math.max(cols, rows) * CELL * 0.6; camPan.x = Math.max(-lim, Math.min(lim, camPan.x)); camPan.z = Math.max(-lim, Math.min(lim, camPan.z)); });
 input.on('zoom', (f) => { zoom = Math.max(0.5, Math.min(2.2, zoom * f)); try { localStorage.setItem('oo_zoom', String(zoom)); } catch { /* ignore */ } fitCamera(); });
 
 const projGeo = new THREE.BoxGeometry(0.1, 0.07, 0.28), projMat = new THREE.MeshBasicMaterial({ color: 0xffe28a });
@@ -111,7 +112,7 @@ const puffGeo = new THREE.BoxGeometry(0.15, 0.15, 0.15), puffMat = new THREE.Mes
 const CAM_YAW = Math.PI / 4, CAM_ELEV = 0.72;
 const camDir = new THREE.Vector3(Math.sin(CAM_YAW) * Math.cos(CAM_ELEV), Math.sin(CAM_ELEV), Math.cos(CAM_YAW) * Math.cos(CAM_ELEV)).normalize();
 const screenUp = new THREE.Vector2(-Math.sin(CAM_YAW), -Math.cos(CAM_YAW)), screenRight = new THREE.Vector2(Math.cos(CAM_YAW), -Math.sin(CAM_YAW));
-const camTarget = new THREE.Vector3();
+const camTarget = new THREE.Vector3(), camPan = new THREE.Vector3();
 let zoom = 1; try { zoom = +localStorage.getItem('oo_zoom') || 1; } catch { /* ignore */ }
 function fitCamera() {
   const aspect = innerWidth / innerHeight; camera.aspect = aspect;
@@ -535,7 +536,7 @@ const arrowEl = document.getElementById('exitArrow');
 function render(dt = 0.016) {
   if (cols) {
     const lim = { x: cols * CELL / 2, z: rows * CELL / 2 };
-    const want = player.visible || state !== 'play' ? player.position : player.position;
+    const want = player.position.clone().add(camPan);
     camTarget.lerp(want, state === 'play' ? 1 - Math.pow(0.002, dt) : 1);
     camera.position.copy(camTarget).addScaledVector(camDir, 60); camera.lookAt(camTarget);
     // buildings between the camera and the player go see-through

@@ -61,7 +61,7 @@ const pickGeo = new THREE.BoxGeometry(0.6, 0.2, 0.2);
 const puffGeo = new THREE.BoxGeometry(0.16, 0.16, 0.16), puffMat = new THREE.MeshBasicMaterial({ color: 0x9fc58a });
 const markerGeo = new THREE.CylinderGeometry(0.22, 0.22, 0.05, 10), markerMat = new THREE.MeshBasicMaterial({ color: 0x7dff6a, transparent: true, opacity: 0.8 });
 const markers = []; for (let i = 0; i < 80; i++) { const mk = new THREE.Mesh(markerGeo, markerMat); mk.visible = false; scene.add(mk); markers.push(mk); }
-const camTarget = new THREE.Vector3();
+const camTarget = new THREE.Vector3(), camPan = new THREE.Vector3();
 let potato = null; // { mesh, route, speed, w, h, t }
 async function makePotato() {
   const meta = await (await fetch('poster/potato.json')).json().catch(() => null); if (!meta) return;
@@ -93,7 +93,8 @@ function extendRoute(w, first) {
   if (routeEndCell && t.cx === routeEndCell.cx && t.cy === routeEndCell.cy) return;
   const seg = findPath(world, routeEndCell || playerCell(), t); if (seg.length && route.length + seg.length <= 80) { route.push(...seg); routeEndCell = t; showRoute(); }
 }
-input.on('tap', setRouteTo); input.on('drag', extendRoute);
+input.on('tap', (w) => { camPan.set(0, 0, 0); setRouteTo(w); }); input.on('drag', extendRoute);
+input.on('pan', (dx, dy) => { const k = (camera.top - camera.bottom) / innerHeight; camPan.addScaledVector(RIGHT, -dx * k); camPan.x += -UP.x * dy * k * 0; camPan.z += 0; camPan.addScaledVector(new THREE.Vector3(UP.x, 0, UP.z).normalize(), dy * k / Math.hypot(UP.x, UP.z)); const lim = 80; camPan.x = Math.max(-lim, Math.min(lim, camPan.x)); camPan.z = Math.max(-lim, Math.min(lim, camPan.z)); });
 input.on('zoom', (f) => { zoom = Math.max(0.5, Math.min(2.2, zoom * f)); try { localStorage.setItem('dv_zoom', String(zoom)); } catch { /* ignore */ } fitCamera(); });
 
 // collision: stay on walkable cells (cheap: push back toward last good position)
@@ -257,7 +258,7 @@ function frame(now) {
 }
 function render(dt = 0.016) {
   if (world) {
-    camTarget.lerp(player.position, state === 'play' ? 1 - Math.pow(0.002, dt) : 1);
+    camTarget.lerp(player.position.clone().add(camPan), state === 'play' ? 1 - Math.pow(0.002, dt) : 1);
     camera.position.copy(camTarget).addScaledVector(CAM_DIR, 120); camera.lookAt(camTarget);
     if (state === 'play' && exitMesh) {
       const v = exitMesh.position.clone().project(camera); const onScreen = Math.abs(v.x) < 0.9 && Math.abs(v.y) < 0.85;

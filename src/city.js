@@ -102,19 +102,13 @@ function makeTextures() {
 
   const asphalt = (g) => { g.fillStyle = '#3e5257'; g.fillRect(0, 0, 96, 96); g.fillStyle = '#445a60'; for (let i = 0; i < 60; i++) g.fillRect((Math.random() * 96) | 0, (Math.random() * 96) | 0, 2, 2); };
   const [sc, sg] = canvas(96, 96); asphalt(sg);
-  sg.fillStyle = '#a7b9bc'; sg.fillRect(0, 0, 96, 12); sg.fillRect(0, 84, 96, 12);
-  sg.fillStyle = '#5b7579'; sg.fillRect(0, 11, 96, 2); sg.fillRect(0, 83, 96, 2);
-  sg.fillStyle = '#e0cf6a'; for (let x = 6; x < 96; x += 24) sg.fillRect(x, 46, 12, 3); sg.fillStyle = '#d8e4e6'; sg.fillRect(0, 14, 96, 1); sg.fillRect(0, 81, 96, 1);
+  sg.fillStyle = '#e0cf6a'; sg.fillRect(0, 44, 96, 2); sg.fillRect(0, 50, 96, 2); // avenue: double yellow line
   const roadStraight = tex(sc);
   const [ssc, ssg] = canvas(96, 96); asphalt(ssg);
-  ssg.fillStyle = '#a7b9bc'; ssg.fillRect(0, 0, 96, 12); ssg.fillRect(0, 84, 96, 12); ssg.fillStyle = '#5b7579'; ssg.fillRect(0, 11, 96, 2); ssg.fillRect(0, 83, 96, 2);
   const roadSide = tex(ssc);
   const [jc, jg] = canvas(96, 96); asphalt(jg);
-  jg.fillStyle = '#a7b9bc'; for (const [x, y] of [[0, 0], [84, 0], [0, 84], [84, 84]]) jg.fillRect(x, y, 12, 12);
-  jg.fillStyle = '#e8e8e8'; for (let i = 16; i < 80; i += 12) { jg.fillRect(i, 2, 6, 10); jg.fillRect(i, 84, 6, 10); jg.fillRect(2, i, 10, 6); jg.fillRect(84, i, 10, 6); }
   const roadJunction = tex(jc);
   const [cc, cg] = canvas(96, 96); asphalt(cg);
-  cg.fillStyle = '#a7b9bc'; cg.fillRect(0, 0, 96, 12); cg.fillRect(0, 84, 96, 12); cg.fillRect(0, 0, 12, 96); cg.fillRect(84, 0, 12, 96);
   const roadCorner = tex(cc);
 
   const [lc, lg] = canvas(64, 64);
@@ -183,15 +177,27 @@ export function buildCity(scene, wall, level) {
     const curbs = []; // [x, z, w, d]
     for (const [x, y] of streetCells) {
       const w = toWorld(x, y, cols, rows); const h = CELL / 2;
-      if (!open(x, y - 1)) curbs.push([w.x, w.z - h + 0.22, CELL, 0.44]);
-      if (!open(x, y + 1)) curbs.push([w.x, w.z + h - 0.22, CELL, 0.44]);
-      if (!open(x - 1, y)) curbs.push([w.x - h + 0.22, w.z, 0.44, CELL]);
-      if (!open(x + 1, y)) curbs.push([w.x + h - 0.22, w.z, 0.44, CELL]);
+      const SW = 0.6; // sidewalk width
+      if (!open(x, y - 1)) curbs.push([w.x, w.z - h + SW / 2, CELL, SW]);
+      if (!open(x, y + 1)) curbs.push([w.x, w.z + h - SW / 2, CELL, SW]);
+      if (!open(x - 1, y)) curbs.push([w.x - h + SW / 2, w.z, SW, CELL]);
+      if (!open(x + 1, y)) curbs.push([w.x + h - SW / 2, w.z, SW, CELL]);
+      // inside corner fill where two street cells meet around a building corner
+      for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) if (open(x + dx, y) && open(x, y + dz) && !open(x + dx, y + dz)) curbs.push([w.x + dx * (h - SW / 2), w.z + dz * (h - SW / 2), SW, SW]);
     }
-    const curbMesh = new THREE.InstancedMesh(box, M({ color: 0xb9c9cc }), curbs.length);
+    const curbMesh = new THREE.InstancedMesh(box, M({ color: 0xaab9bd }), curbs.length);
     const cm = new THREE.Matrix4(), cq = new THREE.Quaternion(), cs = new THREE.Vector3(), cp = new THREE.Vector3();
-    curbs.forEach(([cx, cz, cw, cd], i) => { cm.compose(cp.set(cx, 0.06, cz), cq, cs.set(cw, 0.12, cd)); curbMesh.setMatrixAt(i, cm); });
+    curbs.forEach(([cx, cz, cw, cd], i) => { cm.compose(cp.set(cx, 0.05, cz), cq, cs.set(cw, 0.1, cd)); curbMesh.setMatrixAt(i, cm); });
     curbMesh.instanceMatrix.needsUpdate = true; group.add(curbMesh);
+    // crosswalks: white stripes across each entry of an avenue junction
+    const stripes = [];
+    if (wall.avenues) for (const [x, y] of streetCells) {
+      const onAve = x === wall.avenues.col || y === wall.avenues.row; if (!onAve) continue;
+      const n = open(x, y - 1), s = open(x, y + 1), e = open(x + 1, y), wv = open(x - 1, y); if (n + s + e + wv < 3) continue;
+      const w = toWorld(x, y, cols, rows);
+      for (const [dx, dz, ok] of [[0, -1, n], [0, 1, s], [1, 0, e], [-1, 0, wv]]) { if (!ok) continue; for (let k = -2; k <= 2; k++) { const across = k * 0.5; stripes.push(dx ? [w.x + dx * 1.25, w.z + across, 0.35, 0.28] : [w.x + across, w.z + dz * 1.25, 0.28, 0.35]); } }
+    }
+    if (stripes.length) { const sm = new THREE.InstancedMesh(box, M({ color: 0xe6ecec }), stripes.length); stripes.forEach(([sx, sz, sw, sd], i) => { cm.compose(cp.set(sx, 0.012, sz), cq, cs.set(sw, 0.02, sd)); sm.setMatrixAt(i, cm); }); sm.instanceMatrix.needsUpdate = true; group.add(sm); }
     // street lights: a post on a building-side corner of every junction cell, every other junction
     const postMat = M({ color: 0x2a3438 }), headMat = M({ color: 0x1e2a2c }), lightMat = new THREE.MeshBasicMaterial({ color: NIGHT.lamp });
     const poolMat2 = new THREE.MeshBasicMaterial({ map: T.lampPool, transparent: true, depthWrite: false });

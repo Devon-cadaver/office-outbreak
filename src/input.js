@@ -5,7 +5,8 @@ import * as THREE from 'three';
 export function createInput(canvas, camera) {
   const ray = new THREE.Raycaster(), ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), hit = new THREE.Vector3(), ndc = new THREE.Vector2();
   let down = false, startX = 0, startY = 0, dragged = false, id = null;
-  const listeners = { tap: [], drag: [], dragEnd: [], zoom: [], hold: [] };
+  const listeners = { tap: [], drag: [], dragEnd: [], zoom: [], hold: [], pan: [] };
+  let touchMid = null;
   let holdTimer = null, held = false;
   const pointers = new Map(); let pinchDist = 0, pinching = false;
   const toWorld = (x, y) => {
@@ -38,13 +39,18 @@ export function createInput(canvas, camera) {
     else if (w) { for (const f of listeners.tap) f(w); }
   };
   canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
+  let mousePan = null; canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+  canvas.addEventListener('mousedown', (e) => { if (e.button === 2 || e.button === 1) mousePan = [e.clientX, e.clientY]; });
+  addEventListener('mousemove', (e) => { if (mousePan) { for (const f of listeners.pan) f(e.clientX - mousePan[0], e.clientY - mousePan[1]); mousePan = [e.clientX, e.clientY]; } });
+  addEventListener('mouseup', () => { mousePan = null; });
   canvas.addEventListener('wheel', (e) => { e.preventDefault(); for (const f of listeners.zoom) f(e.deltaY > 0 ? 1.1 : 0.9); }, { passive: false });
   // Touch pinch (iOS Safari would otherwise zoom the whole page): read two-finger distance directly
   let touchDist = 0;
   const dist2 = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
-  canvas.addEventListener('touchstart', (e) => { if (e.touches.length >= 2) { e.preventDefault(); touchDist = dist2(e.touches); pinching = true; down = false; id = null; for (const f of listeners.dragEnd) f(); } }, { passive: false });
-  canvas.addEventListener('touchmove', (e) => { if (e.touches.length >= 2) { e.preventDefault(); const d = dist2(e.touches); if (touchDist > 0 && d > 0) for (const f of listeners.zoom) f(touchDist / d); touchDist = d; } }, { passive: false });
-  canvas.addEventListener('touchend', (e) => { if (e.touches.length < 2) touchDist = 0; if (e.touches.length === 0) pinching = false; });
+  const mid2 = (t) => [(t[0].clientX + t[1].clientX) / 2, (t[0].clientY + t[1].clientY) / 2];
+  canvas.addEventListener('touchstart', (e) => { if (e.touches.length >= 2) { e.preventDefault(); touchDist = dist2(e.touches); touchMid = mid2(e.touches); pinching = true; down = false; id = null; for (const f of listeners.dragEnd) f(); } }, { passive: false });
+  canvas.addEventListener('touchmove', (e) => { if (e.touches.length >= 2) { e.preventDefault(); const d = dist2(e.touches); if (touchDist > 0 && d > 0) for (const f of listeners.zoom) f(touchDist / d); touchDist = d; const mm = mid2(e.touches); if (touchMid) for (const f of listeners.pan) f(mm[0] - touchMid[0], mm[1] - touchMid[1]); touchMid = mm; } }, { passive: false });
+  canvas.addEventListener('touchend', (e) => { if (e.touches.length < 2) { touchDist = 0; touchMid = null; } if (e.touches.length === 0) pinching = false; });
   for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, (e) => e.preventDefault(), { passive: false });
   return {
     on(type, f) { listeners[type].push(f); },
