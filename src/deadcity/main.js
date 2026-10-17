@@ -36,7 +36,7 @@ function buildWorld() {
   }
   if (!startCell) startCell = { cx: 1, cy: rows - 2 }; if (!exitCell) exitCell = { cx: cols - 2, cy: 1 };
   const have = maze.custom ? new Set(maze.custom.landmarks.values()) : new Set(); maze.extraLandmarks = ['base', 'cemetery', 'lab'].filter((k) => !have.has(k));
-  city = buildCity(scene, maze, 3); obstacles = city.obstacles; city.season.light(hemi, sun, scene); rainLine = city.group.children.find((c) => c.isLineSegments && c.material.color.getHex() === 0xcfeaea); clearTornadoes(); clearCans(); clearGuns(); clearCorpses(); flame = 0; gasCans = 0; setWeather('clear'); weather.next = 30 + Math.random() * 20;
+  city = buildCity(scene, maze, 3); obstacles = city.obstacles; city.season.light(hemi, sun, scene); rainLine = city.group.children.find((c) => c.isLineSegments && c.material.color.getHex() === 0xcfeaea); clearTornadoes(); clearCans(); clearGuns(); clearCorpses(); flame = 0; stillT = 0; stillWarned = false; gasCans = 0; setWeather('clear'); weather.next = 30 + Math.random() * 20;
   houseDoors = []; for (const b of city.buildings) { if (b.parent === city.group) continue; const dr = b.parent.localToWorld(new THREE.Vector3(-0.55, 0, 1.6)); if (openCell(toCell(dr.x, dr.z, cols, rows))) houseDoors.push({ x: dr.x, z: dr.z }); } spawnRate = 1;
   for (const hz of city.hazards) { const c = toCell(hz.pos.x, hz.pos.z, cols, rows); maze[c.cy][c.cx] = false;
     const i = obstacles.findIndex((o) => Math.abs(o.x - hz.pos.x) < 0.01 && Math.abs(o.z - hz.pos.z) < 0.01 && o.hw > 1); if (i >= 0) obstacles.splice(i, 1);
@@ -90,6 +90,15 @@ const keys = {}; addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] 
 // ---------- zombies ----------
 const zombies = [], pool = [];
 let houseDoors = [], spawnRate = 1;
+// standing still is a bad idea: the longer you stay put, the more crawl out of the ground around you
+let stillT = 0, stillSpawnT = 0, stillWarned = false; const stillPos = new THREE.Vector3();
+function updateStill(dt) {
+  if (driving || riding || game) { stillT = 0; stillPos.copy(player.position); return; }
+  if (player.position.distanceTo(stillPos) > 1.5) { stillT = 0; stillPos.copy(player.position); stillWarned = false; return; }
+  stillT += dt; const grace = isNight ? 5 : 10; if (stillT < grace) return;
+  if (!stillWarned) { stillWarned = true; say('The ground stirs under you. Keep moving.'); sfx.hurt(); }
+  stillSpawnT -= dt; if (stillSpawnT <= 0 && zombies.length < 140) { stillSpawnT = Math.max(1.2, 6 - (stillT - grace) * 0.4); const a = Math.random() * Math.PI * 2, rr = 2.5 + Math.random() * 2.5; const w = { x: player.position.x + Math.cos(a) * rr, z: player.position.z + Math.sin(a) * rr }; if (openCell(toCell(w.x, w.z, cols, rows))) spawnZombie(w, Math.random() < fastFrac(Math.max(1, night)), 'ground'); }
+}
 function spawnSite() { const r = Math.random(); if (r < 0.4 && houseDoors.length) { const dr = houseDoors[(Math.random() * houseDoors.length) | 0]; if (Math.hypot(dr.x - player.position.x, dr.z - player.position.z) > 5) return { pos: dr, mode: 'house' }; }
   if (isNight && r > 0.8) { const cem = poi('cemetery'); return { pos: { x: cem.x + (Math.random() - 0.5) * 3, z: cem.z + 2.2 }, mode: 'ground' }; } return { pos: randomOpen(10), mode: 'ground' }; }
 function spawnFrom(fast) { const s = spawnSite(); return spawnZombie(s.pos, fast, s.mode); }
@@ -263,14 +272,14 @@ function buy(it) { if (!canBuy(it)) return; cash -= it.price; sfx.pickup();
 function renderStore() { const el = $('store'); el.innerHTML = '<div class="cash">Cash: $' + cash + '</div>' + STORE.map((it) => { const tag = it.id === 'heart' ? ' (' + hearts + '/' + maxHearts + ')' : it.id === 'shoes' ? ' (' + shoes + '/3)' : it.id === 'flak' && armor ? ' (' + armor + ' on)' : GUNS[it.id] && gun === it.id ? ' (carried)' : it.id === 'focus' && cdMul <= 0.7 ? ' (owned)' : it.id === 'can' && gasCans ? ' (' + gasCans + ')' : '';
   return '<button class="item" data-id="' + it.id + '"' + (canBuy(it) ? '' : ' disabled') + '><span class="iname">' + it.name + tag + '</span><span class="iprice">$' + it.price + '</span><span class="idesc">' + it.desc + '</span></button>'; }).join('');
   for (const b of el.querySelectorAll('.item')) b.addEventListener('click', () => buy(STORE.find((it) => it.id === b.dataset.id))); }
-function dawnStore() { state = 'cleared'; setMusicChase(false); sfx.wave(); const pay = 150 + night * 50; earn(pay); if (driving) leaveCar();
+function dawnStore() { state = 'cleared'; setMusicChase(false); sfx.wave(); const failed = mission && !nightDone; const pay = failed ? Math.round((150 + night * 50) / 2) : 150 + night * 50; earn(pay); if (failed) missionDebt *= 1.25; nightDone = false; if (driving) leaveCar();
   for (const z of zombies) { scene.remove(z); pool.push(z); } zombies.length = 0;
-  $('dcClearedTitle').innerHTML = 'NIGHT ' + night + '<br>SURVIVED'; $('dcClearedText').innerHTML = 'Zombies dropped: ' + kills + ' · Rescued: ' + rescued + '<br>Next night: about ' + nightTotal(night + 1) + ' zombies, ' + Math.round(fastFrac(night + 1) * 100) + '% fast.<br><span class="pay">Paid out: $' + pay + '</span>';
+  $('dcClearedTitle').innerHTML = 'NIGHT ' + night + '<br>SURVIVED'; $('dcClearedText').innerHTML = 'Zombies dropped: ' + kills + ' · Rescued: ' + rescued + (failed ? '<br><span style="color:#ff6a6a">Mission not finished: half pay, and 25% more of them next night.</span>' : '<br><span style="color:#7dff3a">Night mission done: full pay.</span>') + '<br>Next night: about ' + nightTotal(night + 1) + ' zombies, ' + Math.round(fastFrac(night + 1) * 100) + '% fast.<br><span class="pay">Paid out: $' + pay + '</span>';
   renderStore(); $('dc').classList.add('hidden'); $('dcCleared').classList.remove('hidden'); }
 $('dcNext').addEventListener('click', () => { if (state !== 'cleared') return; $('dcCleared').classList.add('hidden'); $('dc').classList.remove('hidden'); state = 'play'; clock = 0; addSurvivors(2); scans = 3; hudScan(); saveGame(); say('Day ' + (night + 1) + '. Get ready before dark.'); });
 // ---------- nights ----------
 const DAY = 55, NIGHT_LEN = 45, NIGHTS = 6;
-const nightTotal = (n) => Math.round(20 * Math.pow(1.5, n - 1)); const fastFrac = (n) => Math.min(1, (n - 1) * 0.18); const nightLen = () => NIGHT_LEN + night * 5; let nightLeft = 0;
+const nightTotal = (n) => Math.round(20 * Math.pow(1.5, n - 1) * missionDebt); const fastFrac = (n) => Math.min(1, (n - 1) * 0.18); const nightLen = () => NIGHT_LEN + night * 5; let nightLeft = 0;
 // ---------- the base computer and the night missions (Dead City's six, simplified) ----------
 const MISSIONS = [
   { title: 'RESCUE', brief: 'Find two survivors and lead them to the green zone.', kind: 'rescue', need: 2, reward: '+1 heart', apply() { addHeart(); } },
@@ -330,7 +339,8 @@ function startMission(i) {
   if (mission.kind === 'collect') { const p = poi(mission.at); for (let k = 0; k < mission.need; k++) { const c = new THREE.Mesh(crateGeo, crateMat); const a = k * 2.1; c.position.set(p.x + Math.cos(a) * 2.2, 0.2, p.z + Math.sin(a) * 2.2); scene.add(c); crates.push(c); } }
   say('Mission: ' + mission.title + '. ' + mission.brief); $('mission').textContent = mission.title + ': ' + mission.brief;
 }
-function completeMission() { say('Mission complete! ' + mission.reward); mission.apply(); sfx.wave(); mIndex++; drawHearts(); startMission(mIndex); }
+let nightDone = false, missionDebt = 1;
+function completeMission() { say('Mission complete! ' + mission.reward); mission.apply(); sfx.wave(); mIndex++; if (isNight && !nightDone) { nightDone = true; earn(250); hearts = maxHearts; say('Night mission done: +$250 and hearts restored.'); } drawHearts(); startMission(mIndex); }
 function updateMissions(dt) {
   const base = lz; const nearBase = Math.hypot(player.position.x - base.x, player.position.z - base.z) < 2.6; updateLZ(dt); updateSignals(dt); updateScan(dt);
   // survivors: walk up to recruit, lead them home
@@ -368,7 +378,7 @@ let night = 0, clock = 0, isNight = false, chopper = null, chopperT = 0, extract
 function callChopper() { if (chopper) return; chopper = makeChopper(); chopper.scale.setScalar(0.6); chopperT = 0; const ep = toWorld(exitCell.cx, exitCell.cy, cols, rows); chopper.position.set(ep.x, 14, ep.z); scene.add(chopper); beacon.visible = true; beacon.position.set(ep.x, 5, ep.z); say('Dawn. The chopper is landing at the helipad!'); sfx.wave(); }
 function updateNights(dt) {
   clock += dt;
-  if (!isNight && clock > DAY && night < NIGHTS) { isNight = true; night++; clock = 0; nightLeft = nightTotal(night); if (night > 1) spawnRate *= 1.1 + Math.random() * 0.2; say('Night ' + night + ' falls. ' + nightLeft + ' of them are coming.'); sfx.wave(); for (let k = 0; k < Math.round(nightLeft * 0.2); k++) { nightLeft--; spawnFrom(Math.random() < fastFrac(night)); } }
+  if (!isNight && clock > DAY && night < NIGHTS) { isNight = true; night++; clock = 0; nightDone = false; nightLeft = nightTotal(night); if (mission) setTimeout(() => say('Tonight: ' + mission.title + '. Finish it before dawn for a bonus.'), 3200); if (night > 1) spawnRate *= 1.1 + Math.random() * 0.2; say('Night ' + night + ' falls. ' + nightLeft + ' of them are coming.'); sfx.wave(); for (let k = 0; k < Math.round(nightLeft * 0.2); k++) { nightLeft--; spawnFrom(Math.random() < fastFrac(night)); } }
   if (isNight && clock > nightLen()) { isNight = false; clock = 0; nightLeft = 0; if (night >= NIGHTS) callChopper(); else { dawnStore(); return; } }
   const dark = isNight ? Math.min(1, clock / 6) : Math.max(0, 1 - clock / 6);
   hemi.intensity = 1.7 - dark * 1.1; sun.intensity = 0.9 - dark * 0.6; const fogFar = iso ? 50 : 0; scene.fog.near = fogFar + 30 - dark * 14; scene.fog.far = fogFar + 70 - dark * 30;
@@ -445,7 +455,7 @@ function frame(now) {
     player.visible = !driving && (invuln <= 0 || Math.sin(now * 0.03) > 0);
     for (let i = books.length - 1; i >= 0; i--) { const b = books[i]; b.mesh.rotation.y += dt * 2; b.mesh.position.y = 0.5 + Math.sin(now * 0.004 + i) * 0.1; if (b.mesh.position.distanceTo(player.position) < 0.9) { scene.remove(b.mesh); books.splice(i, 1); booksFound++; const free = slots.indexOf(null); slots[free >= 0 ? free : booksFound % 3] = b.key; say('Spell book: ' + SPELLS[b.key].name); sfx.pickup(); hudBooks(); } }
     if (riding) updateRide(dt);
-    updateZombies(dt); if (state !== 'play') return; updateShots(dt); updateGuns(dt); updateFlame(dt); updateChains(dt); updateCans(dt); updateCorpses(dt); updateTornadoes(dt); updateWeather(dt); updateNights(dt); updateMissions(dt); fx.update(dt); updateActs();
+    updateZombies(dt); if (state !== 'play') return; updateShots(dt); updateStill(dt); updateGuns(dt); updateFlame(dt); updateChains(dt); updateCans(dt); updateCorpses(dt); updateTornadoes(dt); updateWeather(dt); updateNights(dt); updateMissions(dt); fx.update(dt); updateActs();
     flashT -= dt; flashMesh.position.copy(player.position).setY(1); flashMesh.scale.setScalar(1 + (0.3 - Math.max(0, flashT)) * 20); flashMesh.material.opacity = Math.max(0, flashT) * 2;
     if (city) city.updateRain(dt);
   }
@@ -480,7 +490,7 @@ addEventListener('keydown', (e) => { if (e.key === 'Escape' || e.key === 'p') { 
 { const sv = loadGame(); if (sv) { $('dcContinue').classList.remove('hidden'); $('dcContinue').textContent = 'CONTINUE · DAY ' + ((sv.night || 0) + 1); $('dcContinue').addEventListener('click', () => startRun(sv)); } }
 function startRun(save) {
   unlockAudio(); startMusic(); buildWorld(); for (const z of zombies) scene.remove(z); zombies.length = 0; fx.clear(); if (chopper) { scene.remove(chopper); chopper = null; } extracting = false;
-  driving = false; car = null; hearts = maxHearts = 3; armor = 0; drawHearts(); cdMul = 1; carArmor = false; trashDmg = 1; rescued = 0; mIndex = 0; invuln = 0; night = 0; clock = 0; isNight = false; kills = 0; booksFound = 0; cash = 0; shoes = 0; nightLeft = 0; slots.fill(null); cds.fill(0); hudBooks(); $('dcCleared').classList.add('hidden');
+  driving = false; car = null; hearts = maxHearts = 3; armor = 0; drawHearts(); cdMul = 1; carArmor = false; trashDmg = 1; rescued = 0; mIndex = 0; invuln = 0; night = 0; clock = 0; isNight = false; kills = 0; booksFound = 0; cash = 0; shoes = 0; nightLeft = 0; missionDebt = 1; nightDone = false; slots.fill(null); cds.fill(0); hudBooks(); $('dcCleared').classList.add('hidden');
   const sp = toWorld(startCell.cx, startCell.cy, cols, rows); player.position.set(sp.x, 0, sp.z); camYaw = yaw = 0; findLZ(); buildSigns(); placeBooks(); placeSurvivors(); startMission(0); scans = 3; hudScan();
   if (new URLSearchParams(location.search).get('horde')) { const n = +new URLSearchParams(location.search).get('horde') || 100; for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, rr = 5 + Math.random() * 10; const w = { x: player.position.x + Math.cos(a) * rr, z: player.position.z + Math.sin(a) * rr }; if (openCell(toCell(w.x, w.z, cols, rows))) spawnZombie(w, false); else spawnZombie(randomOpen(6), false); } say('Horde test: ' + zombies.length + ' zombies.'); }
   if (save && save.night != null) applySave(save); else saveGame();
@@ -489,6 +499,6 @@ function startRun(save) {
 function gameOver(won) { state = 'over'; clearGame(); if (won) addCoins(1); stopMusic(); (won ? sfx.wave : sfx.over)(); $('dcOverTitle').textContent = won ? 'EXTRACTED' : 'OVERRUN'; $('dcOverText').textContent = (won ? 'You survived all six nights and made the chopper. +1 coin for the skin shop. Cash: $' + cash + ' · ' : 'The dead got you on night ' + night + '. ') + 'Kills: ' + kills + ' · Books: ' + booksFound + ' · Rescued: ' + rescued; $('dc').classList.add('hidden'); $('dcOver').classList.remove('hidden'); }
 $('dcPlay').addEventListener('click', () => startRun()); $('dcAgain').addEventListener('click', () => startRun());
 requestAnimationFrame(frame);
-window.__dc = { get cars() { return city.cars; }, get driving() { return driving; }, get game() { return game; }, openGame, enterCar, get riding() { return riding; }, rides, setWeather, get weather() { return weather; }, spawnTornado, strike, dropCan, dropLoot, hurt, get hearts() { return [hearts, maxHearts, armor]; }, spawnFrom, doScan, get houseDoors() { return houseDoors; }, get spawnRate() { return spawnRate; }, dropGun, get gun() { return gun; }, get gasCans() { return gasCans; }, get tornadoes() { return tornadoes; }, set iso(v) { iso = v; }, setZoom, get zoom() { return zoom; }, get iso() { return iso; }, get city() { return city; }, get zombies() { return zombies; }, get player() { return player; }, get state() { return state; }, get slots() { return slots; }, spawnZombie, castSlot, throwTrash, get night() { return night; }, set clock(v) { clock = v; }, get books() { return books; }, get hp() { return hearts; }, set clock(v) { clock = v; }, get clock() { return clock; }, get night() { return night; }, get isNight() { return isNight; }, get nightLeft() { return nightLeft; }, get cash() { return cash; }, set cash(v) { cash = v; hudBooks(); }, get lz() { return lz; }, get survivors() { return survivors; }, get chopper() { return chopper; }, get lzChopper() { return lzChopper; }, get extracting() { return extracting; }, get exit() { return toWorld(exitCell.cx, exitCell.cy, cols, rows); }, buy, STORE, get rescued() { return rescued; } };
+window.__dc = { get cars() { return city.cars; }, get driving() { return driving; }, get game() { return game; }, openGame, enterCar, get riding() { return riding; }, rides, setWeather, get weather() { return weather; }, spawnTornado, strike, dropCan, dropLoot, hurt, get hearts() { return [hearts, maxHearts, armor]; }, spawnFrom, doScan, get houseDoors() { return houseDoors; }, get spawnRate() { return spawnRate; }, get stillT() { return stillT; }, dropGun, get gun() { return gun; }, get gasCans() { return gasCans; }, get tornadoes() { return tornadoes; }, set iso(v) { iso = v; }, setZoom, get zoom() { return zoom; }, get iso() { return iso; }, get city() { return city; }, get zombies() { return zombies; }, get player() { return player; }, get state() { return state; }, get slots() { return slots; }, spawnZombie, castSlot, throwTrash, get night() { return night; }, set clock(v) { clock = v; }, get books() { return books; }, get hp() { return hearts; }, set clock(v) { clock = v; }, get clock() { return clock; }, get night() { return night; }, get isNight() { return isNight; }, get nightLeft() { return nightLeft; }, get cash() { return cash; }, set cash(v) { cash = v; hudBooks(); }, get lz() { return lz; }, get survivors() { return survivors; }, get chopper() { return chopper; }, get lzChopper() { return lzChopper; }, get extracting() { return extracting; }, get exit() { return toWorld(exitCell.cx, exitCell.cy, cols, rows); }, buy, STORE, get rescued() { return rescued; } };
 
 bindSeasonSelect(document.getElementById('seasonSel'));
