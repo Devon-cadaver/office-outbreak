@@ -12,8 +12,8 @@
     #hp2 { height: 100%; width: 100%; background: linear-gradient(#7dff3a, #3f9a1f); transition: width .15s; }
     #night { font-weight: 800; font-size: 16px; }
     #clock { font-size: 13px; opacity: .85; }
-    #stick { position: absolute; left: 24px; bottom: calc(28px + env(safe-area-inset-bottom, 0)); width: 130px; height: 130px; border-radius: 50%; background: #ffffff18; border: 2px solid #ffffff44; }
-    #knob { position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; border-radius: 50%; background: #7dff3acc; transform: translate(-50%, -50%); box-shadow: 0 0 12px #7dff3a88; }
+    #dcStick { position: absolute; left: 24px; bottom: calc(28px + env(safe-area-inset-bottom, 0)); width: 130px; height: 130px; border-radius: 50%; background: #ffffff22; border: 2px solid #ffffff66; box-shadow: 0 0 0 1px #0006 inset; }
+    #dcKnob { position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; border-radius: 50%; background: #7dff3acc; transform: translate(-50%, -50%); box-shadow: 0 0 12px #7dff3a88; }
     #acts { position: absolute; right: 16px; bottom: calc(24px + env(safe-area-inset-bottom, 0)); display: grid; grid-template-columns: 1fr 1fr; gap: 10px; pointer-events: auto; }
     .act { width: 70px; height: 70px; border-radius: 50%; border: 2px solid #9a5fd6; background: #1a0f2ecc; color: #fff; font-size: 12px; font-weight: 800; padding: 0; box-shadow: none; position: relative; overflow: hidden; }
     .act .cd { position: absolute; left: 0; right: 0; bottom: 0; background: #000a; height: 0; }
@@ -28,13 +28,13 @@
   <div id="dc" class="hidden">
     <div class="top"><div><div id="hpbar2"><div id="hp2"></div></div><div id="clock">Day</div></div><div id="night">Night 0 / 3</div><div id="books">📖 0</div></div>
     <div id="msg"></div>
-    <div id="stick"><div id="knob"></div></div>
+    <div id="dcStick"><div id="dcKnob"></div></div>
     <div id="acts"><button class="act empty" data-slot="0">—</button><button class="act empty" data-slot="1">—</button><button class="act empty" data-slot="2">—</button><button class="act trash" id="trash">TRASH</button></div>
   </div>
   <div id="dcStart" class="screen">
     <h1>DEAD CITY<br>NIGHTS</h1>
     <p>Third-person. Survive three nights in Zombieville, find the spell books, then make the helipad at dawn.</p>
-    <p class="small">Left thumb: joystick. Drag the right side to turn the camera. Buttons cast spells and throw trash.</p>
+    <p class="small">Left thumb: joystick. Drag the right side to turn the camera. Buttons cast spells and throw trash. Double-tap next to a car to drive it, double-tap again to get out.</p>
     <button id="dcPlay">PLAY</button>
     <p class="small"><a href="index.html" style="color:#c9a6ff">Back to Extract from Zombieville</a></p>
   </div>

@@ -33,22 +33,27 @@ function buildWorld() {
     startCell = { cx: 1, cy: rows - 2 }; exitCell = { cx: cols - 2, cy: 1 };
   }
   if (!startCell) startCell = { cx: 1, cy: rows - 2 }; if (!exitCell) exitCell = { cx: cols - 2, cy: 1 };
-  city = buildCity(scene, maze, 3); obstacles = city.obstacles;
+  city = buildCity(scene, maze, 3); obstacles = city.obstacles; for (const c of city.cars) { c.userData.ox = c.position.x; c.userData.oz = c.position.z; }
   const ep = toWorld(exitCell.cx, exitCell.cy, cols, rows);
   const pad = new THREE.Mesh(new THREE.CircleGeometry(1.3, 24), new THREE.MeshBasicMaterial({ color: 0x7dff3a, transparent: true, opacity: 0.35 })); pad.rotation.x = -Math.PI / 2; pad.position.set(ep.x, 0.03, ep.z); city.group.add(pad);
 }
 function collide(pos, r) { for (const o of obstacles) { const dx = pos.x - o.x, dz = pos.z - o.z; if (Math.abs(dx) > o.hw + r || Math.abs(dz) > o.hd + r) continue; const px = o.hw + r - Math.abs(dx), pz = o.hd + r - Math.abs(dz); if (px < pz) pos.x += Math.sign(dx || 1) * px; else pos.z += Math.sign(dz || 1) * pz; } }
 const openCell = (c) => maze[c.cy]?.[c.cx] === false;
+function collideCar(pos) { for (const o of obstacles) { if (car && Math.abs(o.x - car.userData.ox) < 0.01 && Math.abs(o.z - car.userData.oz) < 0.01) continue; const dx = pos.x - o.x, dz = pos.z - o.z; if (Math.abs(dx) > o.hw + 0.6 || Math.abs(dz) > o.hd + 0.6) continue; const px = o.hw + 0.6 - Math.abs(dx), pz = o.hd + 0.6 - Math.abs(dz); if (px < pz) pos.x += Math.sign(dx || 1) * px; else pos.z += Math.sign(dz || 1) * pz; } }
 function lineClear(a, b) { const n = Math.ceil(a.distanceTo(b) / 0.8); for (let i = 1; i < n; i++) { const t = i / n; if (!openCell(toCell(a.x + (b.x - a.x) * t, a.z + (b.z - a.z) * t, cols, rows))) return false; } return true; }
 function randomOpen(minDist) { for (let k = 0; k < 200; k++) { const c = { cx: 1 + ((Math.random() * (cols - 2)) | 0), cy: 1 + ((Math.random() * (rows - 2)) | 0) }; if (!openCell(c)) continue; const w = toWorld(c.cx, c.cy, cols, rows); if (Math.hypot(w.x - player.position.x, w.z - player.position.z) >= minDist) return w; } return toWorld(startCell.cx, startCell.cy, cols, rows); }
 
 // ---------- player, camera, controls ----------
-const player = makeCharacter('hoodie'); player.scale.setScalar(0.55); scene.add(player);
-let hp = 100, invuln = 0, yaw = 0, camYaw = 0, state = 'start';
+const SCALE = 0.38; const player = makeCharacter('hoodie'); player.scale.setScalar(SCALE); scene.add(player);
+let hp = 100, invuln = 0, yaw = 0, camYaw = 0, state = 'start', driving = false, car = null, carHp = 5;
+function enterCar(c) { car = c; driving = true; carHp = 5; player.visible = false; yaw = car.rotation.y; say('Buckle up. Double-tap to get out.'); sfx.pickup(); }
+function leaveCar() { if (!car) return; driving = false; player.visible = true; player.position.set(car.position.x + Math.cos(yaw) * 1.2, 0, car.position.z - Math.sin(yaw) * 1.2); collide(player.position, 0.25); if (carHp <= 0) car.userData.wrecked = true; car = null; }
 const stick = { x: 0, y: 0, id: null, cx: 0, cy: 0 }; const look = { id: null, lx: 0 };
-const knob = $('knob');
-addEventListener('pointerdown', (e) => { if (e.target.closest('button')) return; if (state !== 'play') return; if (e.clientX < innerWidth / 2 && stick.id === null) { stick.id = e.pointerId; stick.cx = e.clientX; stick.cy = e.clientY; } else if (look.id === null) { look.id = e.pointerId; look.lx = e.clientX; } });
+const knob = $('dcKnob'), stickEl = $('dcStick');
+addEventListener('pointerdown', (e) => { if (e.target.closest('button')) return; if (state !== 'play') return; if (e.clientX < innerWidth / 2 && stick.id === null) { stick.id = e.pointerId; stick.cx = e.clientX; stick.cy = e.clientY; stickEl.style.left = (e.clientX - 65) + 'px'; stickEl.style.top = (e.clientY - 65) + 'px'; stickEl.style.bottom = 'auto'; } else if (look.id === null) { look.id = e.pointerId; look.lx = e.clientX; } });
 addEventListener('pointermove', (e) => { if (e.pointerId === stick.id) { const dx = e.clientX - stick.cx, dy = e.clientY - stick.cy; const d = Math.hypot(dx, dy) || 1, m = Math.min(d, 55); stick.x = dx / d * m / 55; stick.y = dy / d * m / 55; knob.style.transform = 'translate(calc(-50% + ' + (stick.x * 40) + 'px), calc(-50% + ' + (stick.y * 40) + 'px))'; } if (e.pointerId === look.id) { camYaw -= (e.clientX - look.lx) * 0.008; look.lx = e.clientX; } });
+let lastTap = 0, lastTapX = 0, lastTapY = 0;
+addEventListener('pointerdown', (e) => { if (e.target.closest('button') || state !== 'play') return; const now = performance.now(); if (now - lastTap < 350 && Math.hypot(e.clientX - lastTapX, e.clientY - lastTapY) < 30) { lastTap = 0; if (driving) leaveCar(); else { let best = null, bd = 2.2; for (const c of city.cars) { if (c.userData.wrecked) continue; const d = Math.hypot(c.position.x - player.position.x, c.position.z - player.position.z); if (d < bd) { bd = d; best = c; } } if (best) enterCar(best); else say('No car close enough.'); } } else { lastTap = now; lastTapX = e.clientX; lastTapY = e.clientY; } });
 const release = (e) => { if (e.pointerId === stick.id) { stick.id = null; stick.x = stick.y = 0; knob.style.transform = 'translate(-50%, -50%)'; } if (e.pointerId === look.id) look.id = null; };
 addEventListener('pointerup', release); addEventListener('pointercancel', release);
 // keyboard for the PC crowd
@@ -56,7 +61,7 @@ const keys = {}; addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] 
 
 // ---------- zombies ----------
 const zombies = [], pool = [];
-function spawnZombie(pos, strong) { const z = pool.pop() || makeCharacter(['worker', 'vest', 'suit', 'punk'][(Math.random() * 4) | 0], { zombie: true }); z.position.set(pos.x, 0, pos.z); z.scale.setScalar(0.55); z.rotation.set(0, 0, 0); Object.assign(z.userData, { hp: strong ? 5 : 3, speed: 1.9 + Math.random() * 0.6 + night * 0.25, rag: null, stun: 0, slow: 0, poison: 0, alert: 0 }); scene.add(z); zombies.push(z); return z; }
+function spawnZombie(pos, strong) { const z = pool.pop() || makeCharacter(['worker', 'vest', 'suit', 'punk'][(Math.random() * 4) | 0], { zombie: true }); z.position.set(pos.x, 0, pos.z); z.scale.setScalar(SCALE); z.rotation.set(0, 0, 0); Object.assign(z.userData, { hp: strong ? 5 : 3, speed: 1.9 + Math.random() * 0.6 + night * 0.25, rag: null, stun: 0, slow: 0, poison: 0, alert: 0 }); scene.add(z); zombies.push(z); return z; }
 function killZombie(i) { const z = zombies[i]; scene.remove(z); zombies.splice(i, 1); pool.push(z); kills++; sfx.kill(); }
 function fling(z, dir, power) { const d = Math.hypot(dir.x, dir.z) || 1; z.userData.rag = { vel: new THREE.Vector3(dir.x / d * power, 5, dir.z / d * power), t: 0 }; }
 function updateZombies(dt) {
@@ -81,7 +86,8 @@ function updateZombies(dt) {
     if (dl > 0.05) { const sp = u.speed * mul * (u.slow > 0 ? 0.4 : 1) * dt; z.position.x += dx / dl * sp; z.position.z += dz / dl * sp; z.rotation.y = Math.atan2(dx, dz); }
     for (const o of zombies) if (o !== z) { const ox = z.position.x - o.position.x, oz = z.position.z - o.position.z, od = Math.hypot(ox, oz); if (od < 0.5 && od > 0.001) { z.position.x += ox / od * (0.5 - od) * 0.5; z.position.z += oz / od * (0.5 - od) * 0.5; } }
     collide(z.position, 0.22); animateWalk(z, dt, mul);
-    if (d < 0.6 && invuln <= 0) { hp -= 20; invuln = 1; sfx.hurt(); $('hp2').style.width = Math.max(0, hp) + '%'; if (hp <= 0) return gameOver(false); }
+    if (driving && d < 1.2 && !u.rag) { fling(z, { x: z.position.x - player.position.x, z: z.position.z - player.position.z }, 8); carHp--; sfx.hit(); if (carHp <= 0) { fx.ignite(new THREE.Vector3(car.position.x, 0.6, car.position.z), 0.9); say('The car is done!'); leaveCar(); } continue; }
+    if (d < 0.45 && invuln <= 0) { hp -= 20; invuln = 1; sfx.hurt(); $('hp2').style.width = Math.max(0, hp) + '%'; if (hp <= 0) return gameOver(false); }
   }
   setMusicChase(hunted);
 }
@@ -139,12 +145,12 @@ function frame(now) {
     let mx = stick.x + (keys.d ? 1 : 0) - (keys.a ? 1 : 0), my = stick.y + (keys.s ? 1 : 0) - (keys.w ? 1 : 0);
     const mag = Math.min(1, Math.hypot(mx, my));
     if (mag > 0.08 && !extracting) {
-      const fwd = new THREE.Vector3(Math.sin(camYaw), 0, Math.cos(camYaw)), right = new THREE.Vector3(fwd.z, 0, -fwd.x);
+      const fwd = new THREE.Vector3(Math.sin(camYaw), 0, Math.cos(camYaw)), right = new THREE.Vector3(-fwd.z, 0, fwd.x);
       const dir = fwd.multiplyScalar(-my).add(right.multiplyScalar(mx)).normalize(); yaw = Math.atan2(dir.x, dir.z);
-      const sprint = mag > 0.95 ? 1.5 : 1; player.position.addScaledVector(dir, 4.2 * mag * sprint * dt); collide(player.position, 0.25); player.rotation.y = yaw; animateWalk(player, dt, mag * sprint);
+      const sprint = mag > 0.95 ? 1.5 : 1; if (driving) { car.position.addScaledVector(dir, 9 * mag * dt); collideCar(car.position); car.rotation.y = yaw; player.position.copy(car.position); } else { player.position.addScaledVector(dir, 4.2 * mag * sprint * dt); collide(player.position, 0.25); player.rotation.y = yaw; animateWalk(player, dt, mag * sprint); }
       if (look.id === null) { let d = yaw - camYaw; d = Math.atan2(Math.sin(d), Math.cos(d)); camYaw += d * Math.min(1, dt * 1.5); }
     } else animateWalk(player, dt, 0);
-    player.visible = invuln <= 0 || Math.sin(now * 0.03) > 0;
+    player.visible = !driving && (invuln <= 0 || Math.sin(now * 0.03) > 0);
     for (let i = books.length - 1; i >= 0; i--) { const b = books[i]; b.mesh.rotation.y += dt * 2; b.mesh.position.y = 0.5 + Math.sin(now * 0.004 + i) * 0.1; if (b.mesh.position.distanceTo(player.position) < 0.9) { scene.remove(b.mesh); books.splice(i, 1); booksFound++; const free = slots.indexOf(null); slots[free >= 0 ? free : booksFound % 3] = b.key; say('Spell book: ' + SPELLS[b.key].name); sfx.pickup(); $('books').textContent = '📖 ' + booksFound; } }
     updateZombies(dt); if (state !== 'play') return; updateShots(dt); updateNights(dt); fx.update(dt); updateActs();
     flashT -= dt; flashMesh.position.copy(player.position).setY(1); flashMesh.scale.setScalar(1 + (0.3 - Math.max(0, flashT)) * 20); flashMesh.material.opacity = Math.max(0, flashT) * 2;
@@ -152,7 +158,7 @@ function frame(now) {
   }
   // third-person camera: behind and above, buildings in between go see-through
   const back = new THREE.Vector3(-Math.sin(camYaw), 0, -Math.cos(camYaw));
-  const target = player.position.clone().setY(1.2); const want = target.clone().addScaledVector(back, 7).add(new THREE.Vector3(0, 4.2, 0));
+  const target = (driving ? car : player).position.clone().setY(driving ? 1.0 : 0.9); const want = target.clone().addScaledVector(back, driving ? 8 : 5.5).add(new THREE.Vector3(0, driving ? 4.5 : 3.2, 0));
   camera.position.lerp(want, 1 - Math.pow(0.001, dt)); camera.lookAt(target);
   if (city) { const cd = camera.position.clone().sub(target); for (const b of city.buildings) { const rel = b.position.clone().sub(target); const along = rel.dot(cd) / cd.lengthSq(); const fade = along > 0.05 && along < 1 && rel.clone().addScaledVector(cd, -along).length() < 3; const op = fade ? 0.15 : 1; for (const m of b.userData.fade) if (m.opacity !== op) m.opacity = op; if (b.userData.extras) for (const e of b.userData.extras) e.visible = !fade; if (b.userData.edges) b.userData.edges.visible = fade; } }
   renderer.render(scene, camera);
@@ -163,7 +169,7 @@ addEventListener('resize', resize); resize();
 // ---------- start / end ----------
 function startRun() {
   unlockAudio(); startMusic(); buildWorld(); for (const z of zombies) scene.remove(z); zombies.length = 0; fx.clear(); if (chopper) { scene.remove(chopper); chopper = null; } extracting = false;
-  hp = 100; invuln = 0; night = 0; clock = 0; isNight = false; kills = 0; booksFound = 0; slots.fill(null); cds.fill(0); $('hp2').style.width = '100%'; $('books').textContent = '📖 0';
+  driving = false; car = null; hp = 100; invuln = 0; night = 0; clock = 0; isNight = false; kills = 0; booksFound = 0; slots.fill(null); cds.fill(0); $('hp2').style.width = '100%'; $('books').textContent = '📖 0';
   const sp = toWorld(startCell.cx, startCell.cy, cols, rows); player.position.set(sp.x, 0, sp.z); camYaw = yaw = 0; placeBooks();
   $('dcStart').classList.add('hidden'); $('dcOver').classList.add('hidden'); $('dc').classList.remove('hidden'); state = 'play'; say('Find the spell books before dark.');
 }
