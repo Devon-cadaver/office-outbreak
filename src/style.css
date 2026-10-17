@@ -24,6 +24,10 @@ button:active { transform: translateY(3px); box-shadow: 0 1px 0 #b8902a; }
 #exitArrow { position: fixed; left: 0; top: 0; width: 44px; height: 44px; line-height: 44px; text-align: center; font-size: 30px; color: #7dff6a; text-shadow: 0 0 8px #7dff6a, 0 2px 4px #000; pointer-events: none; }
 button.ghost { background: transparent; color: #ffd24a; border: 2px solid #ffd24a88; box-shadow: none; font-size: 16px; padding: 8px 18px; }
 #soundNote { max-width: 300px; }
+#lookBtn { position: fixed; top: calc(env(safe-area-inset-top, 0) + 68px); right: 12px; width: 52px; height: 44px; padding: 0; display: flex; align-items: center; justify-content: center; background: #0e2222cc; color: #ffd24a; border: 2px solid #ffd24a88; border-radius: 12px; box-shadow: 0 2px 6px #000a; pointer-events: auto; z-index: 5; }
+#lookBtn:active { transform: none; box-shadow: 0 2px 6px #000a; }
+#lookBtn.on { background: #ffd24a; color: #222; border-color: #fff; box-shadow: 0 0 14px #ffd24a; }
+body.look #game { cursor: grab; }
 #tip { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0)); transform: translateX(-50%); max-width: 90vw; padding: 10px 16px; background: #0e2222dd; border: 1px solid #ffd24a88; border-radius: 10px; font-size: 15px; text-align: center; pointer-events: none; }
 #slideImg { width: min(78vw, 300px); max-height: 46vh; object-fit: cover; border-radius: 12px; border: 2px solid #ffd24a88; box-shadow: 0 8px 24px #000a; }
 #howto p { max-width: 320px; font-size: 16px; }

@@ -145,6 +145,16 @@ input.on('tap', (w) => {
   lastTapT = now; lastTapW = w; camPan.set(0, 0, 0); setRouteTo(w);
 });
 input.on('drag', extendRoute);
+// binoculars: look mode. One finger pans, pinch zooms, taps never route the player.
+const lookBtn = document.getElementById('lookBtn');
+function setLook(on) {
+  input.setLook(on); lookBtn.classList.toggle('on', on); document.body.classList.toggle('look', on);
+  if (on) { if (route.length) { route.length = 0; showRoute(); } say(player, 'Looking around', 1.5); }
+  else { camPan.set(0, 0, 0); }
+}
+lookBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
+lookBtn.addEventListener('click', (e) => { e.stopPropagation(); setLook(!input.look); });
+window.__setLook = setLook;
 input.on('hold', (w) => { if (state !== 'play') return; const path = findPath(maze, playerCell(), objectiveCell()); showPreview(path); previewT = 3; void w; });
 input.on('pan', (dx, dy) => { const k = (camera.top - camera.bottom) / innerHeight; camPan.x += (screenRight.x * -dx + screenUp.x * dy) * k; camPan.z += (screenRight.y * -dx + screenUp.y * dy) * k; const lim = Math.max(cols, rows) * CELL * 0.6; camPan.x = Math.max(-lim, Math.min(lim, camPan.x)); camPan.z = Math.max(-lim, Math.min(lim, camPan.z)); });
 input.on('zoom', (f) => { zoom = Math.max(0.5, Math.min(2.2, zoom * f)); try { localStorage.setItem('oo_zoom', String(zoom)); } catch { /* ignore */ } fitCamera(); });
@@ -353,7 +363,7 @@ function updateHud() {
   ui.weapon.textContent = (driving ? '🚗 ' + inv.carHp + '/5  ·  ' : '') + (weapon ? WEAPONS[weapon].name + ' x' + ammo : 'Unarmed') + '  ·  $' + cash;
 }
 
-function show(screen) { if (screen) setTip(''); for (const s of [ui.start, ui.cleared, ui.over, $('won'), $('howto')]) s.classList.add('hidden'); if (screen) screen.classList.remove('hidden'); ui.hud.classList.toggle('hidden', !!screen); }
+function show(screen) { if (screen) setTip(''); for (const s of [ui.start, ui.cleared, ui.over, $('won'), $('howto')]) s.classList.add('hidden'); if (screen) screen.classList.remove('hidden'); ui.hud.classList.toggle('hidden', !!screen); document.getElementById('lookBtn').classList.toggle('hidden', !!screen); }
 
 function startRun() { seen = true; unlockAudio(); startMusic(); level = 1; score = 0; lives = 3; time = 0; cash = 0; cashThisDistrict = 0; Object.assign(inv, { shoes: 0, vest: false, flare: false, ammo: false, car: null, carHp: 0 }); if (car) { scene.remove(car); car = null; } driving = false; buildLevel(level); show(null); state = 'play'; }
 function nextLevel() { if (state !== "cleared") return; level++; buildLevel(level); show(null); state = 'play'; }

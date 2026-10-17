@@ -29,7 +29,7 @@ const getBest = () => { try { return +localStorage.getItem('dv_best') || 0; } ca
 const setBest = (v) => { try { localStorage.setItem('dv_best', String(v)); } catch { /* ignore */ } };
 ui.best.textContent = getBest() ? 'Best: ' + getBest() : '';
 let tip = ''; function setTip(t) { if (tip === t) return; tip = t; ui.tip.textContent = t; ui.tip.classList.toggle('hidden', !t); }
-function show(screen) { if (screen) setTip(''); for (const s of [ui.start, ui.cleared, ui.over]) s.classList.add('hidden'); if (screen) screen.classList.remove('hidden'); ui.hud.classList.toggle('hidden', !!screen); }
+function show(screen) { if (screen) setTip(''); for (const s of [ui.start, ui.cleared, ui.over]) s.classList.add('hidden'); if (screen) screen.classList.remove('hidden'); ui.hud.classList.toggle('hidden', !!screen); document.getElementById('lookBtn').classList.toggle('hidden', !!screen); }
 const soundBtn = $('soundBtn');
 const refreshSoundBtn = () => { soundBtn.textContent = isMuted() ? '🔇 Sound: off' : '🔊 Sound: on' + (audioState() === 'running' ? '' : ' (tap to enable)'); };
 refreshSoundBtn(); addEventListener('pointerdown', () => { unlockAudio(); setTimeout(refreshSoundBtn, 150); }, { passive: true });
@@ -94,6 +94,11 @@ function extendRoute(w, first) {
   const seg = findPath(world, routeEndCell || playerCell(), t); if (seg.length && route.length + seg.length <= 80) { route.push(...seg); routeEndCell = t; showRoute(); }
 }
 input.on('tap', (w) => { camPan.set(0, 0, 0); setRouteTo(w); }); input.on('drag', extendRoute);
+const lookBtn = document.getElementById('lookBtn');
+function setLook(on) { input.setLook(on); lookBtn.classList.toggle('on', on); document.body.classList.toggle('look', on); if (!on) camPan.set(0, 0, 0); }
+lookBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
+lookBtn.addEventListener('click', (e) => { e.stopPropagation(); setLook(!input.look); });
+window.__setLook = setLook;
 input.on('pan', (dx, dy) => { const k = (camera.top - camera.bottom) / innerHeight; camPan.addScaledVector(RIGHT, -dx * k); camPan.x += -UP.x * dy * k * 0; camPan.z += 0; camPan.addScaledVector(new THREE.Vector3(UP.x, 0, UP.z).normalize(), dy * k / Math.hypot(UP.x, UP.z)); const lim = 80; camPan.x = Math.max(-lim, Math.min(lim, camPan.x)); camPan.z = Math.max(-lim, Math.min(lim, camPan.z)); });
 input.on('zoom', (f) => { zoom = Math.max(0.5, Math.min(2.2, zoom * f)); try { localStorage.setItem('dv_zoom', String(zoom)); } catch { /* ignore */ } fitCamera(); });
 
