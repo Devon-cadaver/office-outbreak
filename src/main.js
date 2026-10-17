@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { bindSeasonSelect } from './season.js';
 import { makeCharacter, animateWalk } from './poster/characters.js';
 import { generateMaze, buildCity, flowField, findPath, toWorld, toCell, CELL, mulberry32, NIGHT } from './city.js';
 import { createInput } from './input.js';
@@ -64,7 +65,7 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(NIGHT.sky);
 scene.fog = new THREE.Fog(NIGHT.sky, 70, 120);
 const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 200);
-scene.add(new THREE.HemisphereLight(0xb8e0d8, 0x2a4448, 1.7));
+const hemi = new THREE.HemisphereLight(0xb8e0d8, 0x2a4448, 1.7); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xd0e8ff, 0.9); sun.position.set(-6, 10, 8); scene.add(sun);
 
 function resize() { renderer.setSize(innerWidth, innerHeight, false); fitCamera(); }
@@ -388,7 +389,7 @@ function buildLevel(n) {
     if (!gate) maze[gy][gx] = false;
   }
   if (gate) maze[gate.cy][gate.cx] = false; // draw the road under the gate
-  city = buildCity(scene, maze, n); obstacles = city.obstacles;
+  city = buildCity(scene, maze, n); obstacles = city.obstacles; city.season.light(hemi, sun, scene);
   if (ruins) scene.remove(ruins.group); ruins = buildRuins(scene, cols, rows, rng);
   stragglerTimer = 20;
   if (gate) {
@@ -1044,3 +1045,5 @@ requestAnimationFrame(frame);
 
 // Debug hook for automated testing (harmless in production).
 window.__oo = { get cash() { return cash; }, set cash(v) { cash = v; renderStore(); }, get driving() { return driving; }, get inv() { return inv; }, get chopper() { return chopper; }, get chopperT() { return chopperT; }, set chopperT(v) { chopperT = v; }, routeTo: (cx, cy) => setRouteTo(toWorld(cx, cy, cols, rows)), get civilians() { return civilians; }, get maze() { return maze; }, get player() { return player; }, get gate() { return gate; }, get switchCell() { return switchCell; }, get cols() { return cols; }, get rows() { return rows; }, toWorld: (cx, cy) => toWorld(cx, cy, cols, rows), get pickups() { return pickups; }, get zombies() { return zombies; }, get exit() { return toWorld(exitCell.cx, exitCell.cy, cols, rows); }, get state() { return state; }, get rides() { return rides; }, get riding() { return riding; }, startRide, openRideGame, openPuzzle, flyby: () => { flybyT = 0; }, get flybyObj() { return flyby; }, get puzzle() { return puzzle; }, flingZombie, leaveCar, get parked() { return parked; }, infectPlayer, get infected() { return infected; }, get goo() { return goo; }, dropGoo, openWheelGame, get wg() { return wg; }, get mg() { return mg; }, camera, fx, explodeAt, burnBuilding, burnCar, get city() { return city; } };
+
+bindSeasonSelect(document.getElementById('seasonSel'));

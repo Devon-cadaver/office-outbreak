@@ -1,6 +1,7 @@
 // Dead City Nights: a third-person, joystick take on Extraction: Dead City, running on the Zombieville engine.
 // Survive three nights, collect spell books, reach the helipad at dawn. Kept deliberately small.
 import * as THREE from 'three';
+import { bindSeasonSelect } from '../season.js';
 import { generateMaze, buildCity, flowField, toWorld, toCell, CELL, mulberry32, NIGHT } from '../city.js';
 import { makeCharacter, animateWalk } from '../poster/characters.js';
 import { createFires } from '../fire.js';
@@ -34,7 +35,7 @@ function buildWorld() {
   }
   if (!startCell) startCell = { cx: 1, cy: rows - 2 }; if (!exitCell) exitCell = { cx: cols - 2, cy: 1 };
   const have = maze.custom ? new Set(maze.custom.landmarks.values()) : new Set(); maze.extraLandmarks = ['base', 'cemetery', 'lab'].filter((k) => !have.has(k));
-  city = buildCity(scene, maze, 3); obstacles = city.obstacles; rainLine = city.group.children.find((c) => c.isLineSegments && c.material.color.getHex() === 0xcfeaea); clearTornadoes(); clearCans(); clearGuns(); clearCorpses(); flame = 0; gasCans = 0; setWeather('clear'); weather.next = 30 + Math.random() * 20;
+  city = buildCity(scene, maze, 3); obstacles = city.obstacles; city.season.light(hemi, sun, scene); rainLine = city.group.children.find((c) => c.isLineSegments && c.material.color.getHex() === 0xcfeaea); clearTornadoes(); clearCans(); clearGuns(); clearCorpses(); flame = 0; gasCans = 0; setWeather('clear'); weather.next = 30 + Math.random() * 20;
   for (const hz of city.hazards) { const c = toCell(hz.pos.x, hz.pos.z, cols, rows); maze[c.cy][c.cx] = false;
     const i = obstacles.findIndex((o) => Math.abs(o.x - hz.pos.x) < 0.01 && Math.abs(o.z - hz.pos.z) < 0.01 && o.hw > 1); if (i >= 0) obstacles.splice(i, 1);
     if (hz.type === 'base') obstacles.push({ x: hz.pos.x, z: hz.pos.z - 0.4, hw: 1.15, hd: 0.8 }); if (hz.type === 'lab') obstacles.push({ x: hz.pos.x, z: hz.pos.z - 0.3, hw: 1.15, hd: 0.9 });
@@ -425,3 +426,5 @@ function gameOver(won) { state = 'over'; stopMusic(); (won ? sfx.wave : sfx.over
 $('dcPlay').addEventListener('click', startRun); $('dcAgain').addEventListener('click', startRun);
 requestAnimationFrame(frame);
 window.__dc = { get cars() { return city.cars; }, get driving() { return driving; }, get game() { return game; }, openGame, enterCar, get riding() { return riding; }, rides, setWeather, get weather() { return weather; }, spawnTornado, strike, dropCan, dropLoot, hurt, get hearts() { return [hearts, maxHearts, armor]; }, dropGun, get gun() { return gun; }, get gasCans() { return gasCans; }, get tornadoes() { return tornadoes; }, set iso(v) { iso = v; }, setZoom, get zoom() { return zoom; }, get iso() { return iso; }, get city() { return city; }, get zombies() { return zombies; }, get player() { return player; }, get state() { return state; }, get slots() { return slots; }, spawnZombie, castSlot, throwTrash, get night() { return night; }, set clock(v) { clock = v; }, get books() { return books; }, get hp() { return hearts; }, set clock(v) { clock = v; }, get clock() { return clock; }, get night() { return night; }, get isNight() { return isNight; }, get nightLeft() { return nightLeft; }, get cash() { return cash; }, set cash(v) { cash = v; hudBooks(); }, get lz() { return lz; }, get survivors() { return survivors; }, get chopper() { return chopper; }, get lzChopper() { return lzChopper; }, get extracting() { return extracting; }, get exit() { return toWorld(exitCell.cx, exitCell.cy, cols, rows); }, buy, STORE, get rescued() { return rescued; } };
+
+bindSeasonSelect(document.getElementById('seasonSel'));

@@ -3,6 +3,7 @@
 // flat shading, big glowing windows, warm street lamps, wires, trees, parked cars.
 import * as THREE from 'three';
 import { pickLandmarks, buildLandmark, resetLandmarks, updateLandmarks } from './landmarks.js';
+import { createSeason } from './season.js';
 
 export const CELL = 3; // world units per grid cell
 
@@ -160,6 +161,7 @@ export function buildCity(scene, wall, level) {
   const rng = mulberry32(level * 7919 + 13);
   const W = cols * CELL, D = rows * CELL;
   const M = (o) => new THREE.MeshLambertMaterial(o);
+  const season = createSeason(scene, group, rng, W, D);
   const add = (geo, mat, sx, sy, sz, x, y, z, ry = 0) => { const m = new THREE.Mesh(geo, mat); m.scale.set(sx, sy, sz); m.position.set(x, y, z); m.rotation.y = ry; group.add(m); return m; };
   // knockable props: each lives in its own group so a car can send the whole thing tumbling.
   // solid props block walkers until knocked; poles and lights never block anyone.
@@ -289,6 +291,7 @@ export function buildCity(scene, wall, level) {
       if (vi >= 8) { const post = new THREE.Mesh(cyl, M({ color: 0x2a3438 })); post.scale.set(0.08, 2.2, 0.08); post.position.set(-0.85, 1.1, 0); bench.add(post); const lampB = new THREE.Mesh(ball, new THREE.MeshBasicMaterial({ color: 0xffe27a })); lampB.scale.setScalar(0.2); lampB.position.set(-0.85, 2.2, 0); bench.add(lampB); } }
     if (!wall.custom) for (const [x, y] of streetCells) if (park(x, y) && park(x + 1, y) && park(x, y + 1) && park(x + 1, y + 1)) {
       const wx = toWorld(x, y, cols, rows).x + CELL / 2, wz = toWorld(x, y, cols, rows).z + CELL / 2; const r = rng();
+      if (season.park(wx, wz, prop)) continue;
       if (r < 0.55) { const tp = prop(wx, wz, 'tree', true, 0.3, 0.3); tp.add(cyl, trunk, 0.14, 0.9, 0.14, wx, 0.45, wz); tp.add(ball, r < 0.3 ? leaf : leaf2, 1.1, 1.0, 1.1, wx, 1.25, wz); tp.add(ball, leaf, 0.7, 0.6, 0.7, wx + 0.3, 1.6, wz - 0.2); }
       else if (r < 0.8) { const bp = prop(wx, wz, 'bench', true, 0.5, 0.2); bp.add(box, benchMat, 1.0, 0.08, 0.35, wx, 0.4, wz); bp.add(box, benchMat, 1.0, 0.3, 0.06, wx, 0.55, wz - 0.17); for (const bx of [-0.4, 0.4]) bp.add(box, M({ color: 0x2a3438 }), 0.08, 0.4, 0.3, wx + bx, 0.2, wz); }
     }
@@ -369,9 +372,10 @@ export function buildCity(scene, wall, level) {
     const chim = new THREE.Mesh(box, brickMat); chim.scale.set(0.25, 0.7, 0.25); chim.position.set(bw * 0.3, bh + rh * 0.6, -bd * 0.2); g.add(chim);
     // door + windows on the street face (local +z)
     const door = new THREE.Mesh(box, doorMatH); door.scale.set(0.42, 0.7, 0.06); door.position.set(-0.55, 0.35, bd / 2 + 0.03); g.add(door);
-    for (const [wx, wy] of [[0.45, 0.6], [0.45, bh > 1.2 ? 1.45 : -1]]) if (wy > 0) { const win = new THREE.Mesh(box, rr() < 0.55 ? litWin : darkWin); win.scale.set(0.5, 0.4, 0.06); win.position.set(wx, wy, bd / 2 + 0.03); g.add(win); const fr = new THREE.Mesh(box, doorMatH); fr.scale.set(0.56, 0.46, 0.04); fr.position.set(wx, wy, bd / 2 + 0.02); g.add(fr); }
-    const side = new THREE.Mesh(box, rr() < 0.4 ? litWin : darkWin); side.scale.set(0.06, 0.4, 0.5); side.position.set(bw / 2 + 0.03, 0.6, 0.2); g.add(side);
+    for (const [wx, wy] of [[0.45, 0.6], [0.45, bh > 1.2 ? 1.45 : -1]]) if (wy > 0) { const win = new THREE.Mesh(box, rr() < 0.55 ? season.win(litWin, rr) : darkWin); win.scale.set(0.5, 0.4, 0.06); win.position.set(wx, wy, bd / 2 + 0.03); g.add(win); const fr = new THREE.Mesh(box, doorMatH); fr.scale.set(0.56, 0.46, 0.04); fr.position.set(wx, wy, bd / 2 + 0.02); g.add(fr); }
+    const side = new THREE.Mesh(box, rr() < 0.4 ? season.win(litWin, rr) : darkWin); side.scale.set(0.06, 0.4, 0.5); side.position.set(bw / 2 + 0.03, 0.6, 0.2); g.add(side);
     if (rr() < 0.5) { const porch = new THREE.Mesh(box, roofMat); porch.scale.set(1.0, 0.06, 0.5); porch.position.set(-0.55, 0.95, bd / 2 + 0.25); g.add(porch); }
+    season.house(g, { bw, bd, bh, rh, rr });
     // fade + outline on the body mesh so the see-through logic works
     body.userData.fade = [wallMat, roofMat]; body.userData.h = bh + rh; body.userData.extras = g.children.filter((ch) => ch !== body && ch !== roof);
     const edges = new THREE.LineSegments(new THREE.EdgesGeometry(box), outlineMat); edges.scale.set(bw, bh + rh, bd); edges.position.set(w.x, (bh + rh) / 2, w.z); edges.rotation.y = ry; edges.visible = false; group.add(edges); body.userData.edges = edges;
@@ -448,6 +452,7 @@ export function buildCity(scene, wall, level) {
       addX(box, frameMat, 0.7, 0.95, 0.06, fx, 0.48, fz, ry); addX(box, doorMat, 0.5, 0.8, 0.07, fx, 0.42, fz, ry);
       if (R() < 0.5) addX(box, awningMats[(R() * 3) | 0], 1.3, 0.08, 0.5, fx + dx * 0.25, 1.05, fz + dz * 0.25, ry);
     }
+    season.business(w, h, footprint, addX, faces, edge);
     obstacles.push({ x: w.x, z: w.z, hw: CELL / 2 - 0.05, hd: CELL / 2 - 0.05 });
     buildings.push(mesh);
   }
@@ -555,8 +560,8 @@ export function buildCity(scene, wall, level) {
     const px = horiz ? w.x + (rng() - 0.5) * 1.6 : w.x + sideSign * 1.2, pz = horiz ? w.z + sideSign * 1.2 : w.z + (rng() - 0.5) * 1.6;
 const sp = prop(px, pz, 'street', false);
         if (r < 0.05) {
-      sp.add(cyl, trunkMat, 0.18, 1.0, 0.18, px, 0.5, pz);
-      for (let k = 0; k < 3; k++) { const l = sp.add(ball, k % 2 ? leafMat2 : leafMat, 1.1 + rng() * 0.5, 0.9 + rng() * 0.4, 1.1 + rng() * 0.5, px + (rng() - 0.5) * 0.5, 1.2 + k * 0.3, pz + (rng() - 0.5) * 0.5); l.rotation.y = rng() * 3; }
+      if (!season.tree(sp, px, pz)) { sp.add(cyl, trunkMat, 0.18, 1.0, 0.18, px, 0.5, pz);
+      for (let k = 0; k < 3; k++) { const l = sp.add(ball, k % 2 ? leafMat2 : leafMat, 1.1 + rng() * 0.5, 0.9 + rng() * 0.4, 1.1 + rng() * 0.5, px + (rng() - 0.5) * 0.5, 1.2 + k * 0.3, pz + (rng() - 0.5) * 0.5); l.rotation.y = rng() * 3; } }
       sp.ob = { x: px, z: pz, hw: 0.2, hd: 0.2 }; obstacles.push(sp.ob);
     } else if (r < 0.08) {
       for (let k = 0; k < 2 + ((rng() * 2) | 0); k++) { const bx = px + (rng() - 0.5) * 0.7, bz = pz + (rng() - 0.5) * 0.7; sp.add(cyl, barrelMat, 0.42, 0.6, 0.42, bx, 0.3, bz); sp.add(cyl, barrelTop, 0.36, 0.04, 0.36, bx, 0.61, bz); }
@@ -582,5 +587,5 @@ const sp = prop(px, pz, 'street', false);
     rainGeo.attributes.position.needsUpdate = true;
   };
 
-  return { group, obstacles, cols, rows, updateRain: (dt) => { updateRain(dt); updateLandmarks(dt); updateProps(dt); }, buildings, cars, hazards, props, knock };
+  return { group, obstacles, cols, rows, updateRain: (dt) => { updateRain(dt); updateLandmarks(dt); updateProps(dt); season.update(dt); }, season, buildings, cars, hazards, props, knock };
 }
