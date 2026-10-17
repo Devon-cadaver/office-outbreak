@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import { makeCharacter, animateWalk } from '../characters.js';
+import { makeCharacter, animateWalk } from './characters.js';
 import { createInput } from '../input.js';
 import { unlockAudio, sfx, startMusic, stopMusic, setMusicTension, setMuted, isMuted, audioState } from '../audio.js';
-import { loadWorld, flowField, findPath, nearestOpen, CAM_DIR, pxToWorld, worldToPx, PPU } from './world.js';
+import { loadWorld, flowField, findPath, nearestOpen, CAM_DIR, RIGHT, UP, pxToWorld, worldToPx, PPU } from './world.js';
 
 // ---------- renderer / scene ----------
 const canvas = document.getElementById('game');
@@ -14,9 +14,10 @@ const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 500);
 scene.add(new THREE.HemisphereLight(0xbfe6e0, 0x24383c, 1.6));
 const sun = new THREE.DirectionalLight(0xd0e8ff, 0.8); sun.position.set(-6, 10, 8); scene.add(sun);
 
+let zoom = 1; try { zoom = +localStorage.getItem('dv_zoom') || 1; } catch { /* ignore */ }
 function fitCamera() {
   const aspect = innerWidth / innerHeight; renderer.setSize(innerWidth, innerHeight, false);
-  const half = aspect < 1 ? 12 / aspect * 0.62 : 10; // portrait phones see about 600 px of painting across
+  const half = (aspect < 1 ? 12 / aspect * 0.62 : 10) * zoom; // portrait phones see about 600 px of painting across
   camera.left = -half * aspect; camera.right = half * aspect; camera.top = half; camera.bottom = -half; camera.updateProjectionMatrix();
 }
 addEventListener('resize', fitCamera); fitCamera();
@@ -36,7 +37,7 @@ soundBtn.addEventListener('click', () => { unlockAudio(); setMuted(!isMuted()); 
 
 // ---------- constants ----------
 const PLAYER_SPEED = 4.5, R = 0.3, CHAR_SCALE = 1.3;
-const CIV_OUTFITS = ['vest', 'suit', 'hoodie', 'hivis', 'punk', 'worker'];
+const CIV_OUTFITS = ['vest', 'suit', 'hoodie', 'hivis', 'punk', 'worker', 'pink', 'plaid'];
 const WEAPONS = {
   pistol:  { name: 'Pistol',  ammo: 12, rate: 0.35, range: 9,  speed: 22, pellets: 1, dmg: 1, color: 0x333333 },
   shotgun: { name: 'Shotgun', ammo: 6,  rate: 0.7,  range: 7,  speed: 18, pellets: 4, dmg: 1, color: 0x7a4a1a },
@@ -48,7 +49,7 @@ let world = null, state = 'loading', score = 0, lives = 3, time = 0, kills = 0, 
 let startCell = null, exitCell = null, exitMesh = null;
 const player = makeCharacter('worker'); scene.add(player); player.visible = false; player.scale.setScalar(CHAR_SCALE);
 // x-ray silhouette so the player stays visible behind buildings
-const ghostMat = new THREE.MeshBasicMaterial({ color: 0x9fffb0, transparent: true, opacity: 0.35, depthTest: false, depthWrite: false });
+const ghostMat = new THREE.MeshBasicMaterial({ color: 0x9fffb0, transparent: true, opacity: 0.45, depthTest: true, depthWrite: false, depthFunc: THREE.GreaterDepth });
 const ghost = makeCharacter('worker'); ghost.traverse((o) => { if (o.isMesh) { o.material = ghostMat; o.renderOrder = 999; } }); ghost.scale.setScalar(CHAR_SCALE); ghost.visible = false; scene.add(ghost);
 function syncGhost() { ghost.visible = player.visible; ghost.position.copy(player.position); ghost.rotation.copy(player.rotation); const a = player.userData, b = ghost.userData; for (const k of ['legL', 'legR', 'armL', 'armR', 'head']) b[k].rotation.copy(a[k].rotation); b.body.position.copy(a.body.position); }
 let civilians = [], zombies = [], pickups = [], projectiles = [], particles = [], followers = [];
@@ -61,6 +62,26 @@ const puffGeo = new THREE.BoxGeometry(0.16, 0.16, 0.16), puffMat = new THREE.Mes
 const markerGeo = new THREE.CylinderGeometry(0.22, 0.22, 0.05, 10), markerMat = new THREE.MeshBasicMaterial({ color: 0x7dff6a, transparent: true, opacity: 0.8 });
 const markers = []; for (let i = 0; i < 80; i++) { const mk = new THREE.Mesh(markerGeo, markerMat); mk.visible = false; scene.add(mk); markers.push(mk); }
 const camTarget = new THREE.Vector3();
+let potato = null; // { mesh, route, speed, w, h, t }
+async function makePotato() {
+  const meta = await (await fetch('poster/potato.json')).json().catch(() => null); if (!meta) return;
+  const t = await new Promise((res, rej) => new THREE.TextureLoader().load('poster/potato.png', (x) => { x.colorSpace = THREE.SRGBColorSpace; res(x); }, undefined, rej)).catch(() => null); if (!t) return;
+  const w = meta.w / PPU, h = meta.h / PPU; // world size of the sprite
+  const g = new THREE.BufferGeometry();
+  const ax = meta.ax - meta.x, ay = meta.ay - meta.y; // anchor inside the sprite (px)
+  const c = (px, py) => { const r = (px - ax) / PPU, u = (ay - py) / PPU; return [RIGHT.x * r + UP.x * u, UP.y * u, RIGHT.z * r + UP.z * u]; };
+  const pos = [...c(0, meta.h), ...c(meta.w, meta.h), ...c(0, 0), ...c(meta.w, 0)];
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 0, 1, 1, 1], 2)); g.setIndex([0, 1, 2, 2, 1, 3]);
+  const mesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: t, alphaTest: 0.5, side: THREE.DoubleSide })); scene.add(mesh);
+  potato = { mesh, route: [], speed: 0.9, t: 0, w, h, last: new THREE.Vector3() };
+}
+function updatePotato(dt) {
+  if (!potato || !world) return; const p = potato; p.t += dt;
+  if (!p.route.length) { const cells = []; const pc = world.cellOf(p.mesh.position.x, p.mesh.position.z); for (let k = 0; k < 40 && cells.length < 1; k++) { const c = pc.cx + ((Math.random() - 0.5) * 30) | 0, r = pc.cy + ((Math.random() - 0.5) * 30) | 0; if (world.open(c, r)) { const path = findPath(world, pc, { cx: c, cy: r }); if (path.length > 4) cells.push(path); } } if (cells.length) p.route = cells[0]; }
+  if (p.route.length) { const w = world.cellCenter(p.route[0][0], p.route[0][1]); const dx = w.x - p.mesh.position.x, dz = w.z - p.mesh.position.z, d = Math.hypot(dx, dz); if (d < 0.3) p.route.shift(); else { const st = Math.min(d, p.speed * dt); p.mesh.position.x += dx / d * st; p.mesh.position.z += dz / d * st; } }
+  p.mesh.scale.set(1 + Math.sin(p.t * 2.2) * 0.03, 1 - Math.sin(p.t * 2.2) * 0.03, 1); // slow breathing
+  if (state === 'play' && invuln <= 0 && Math.hypot(p.mesh.position.x - player.position.x, p.mesh.position.z - player.position.z) < 1.6) loseLife();
+}
 const input = createInput(canvas, camera);
 
 function showRoute() { markers.forEach((mk, i) => { const c = route[i]; mk.visible = !!c; if (c) { const w = world.cellCenter(c[0], c[1]); mk.position.set(w.x, 0.03, w.z); } }); }
@@ -73,6 +94,7 @@ function extendRoute(w, first) {
   const seg = findPath(world, routeEndCell || playerCell(), t); if (seg.length && route.length + seg.length <= 80) { route.push(...seg); routeEndCell = t; showRoute(); }
 }
 input.on('tap', setRouteTo); input.on('drag', extendRoute);
+input.on('zoom', (f) => { zoom = Math.max(0.5, Math.min(2.2, zoom * f)); try { localStorage.setItem('dv_zoom', String(zoom)); } catch { /* ignore */ } fitCamera(); });
 
 // collision: stay on walkable cells (cheap: push back toward last good position)
 const lastGood = new THREE.Vector3();
@@ -116,6 +138,7 @@ function buildLevel() {
   let wc = 0; const names = Object.keys(WEAPONS);
   for (const [c, r] of mid.slice().reverse()) { if (wc >= 5) break; if (dist[r * gcols + c] < 8) continue; const type = names[(rng() * 3) | 0]; const w = world.cellCenter(c, r); const mesh = new THREE.Mesh(pickGeo, new THREE.MeshLambertMaterial({ color: WEAPONS[type].color })); mesh.position.set(w.x, 0.3, w.z); scene.add(mesh); pickups.push({ mesh, type }); wc++; }
   const sp = world.cellCenter(startCell.cx, startCell.cy); player.position.set(sp.x, 0, sp.z); lastGood.copy(player.position); player.visible = true;
+  if (potato) { const spot = mid.find(([c, r]) => r > grows * 0.55 && dist[r * gcols + c] > 30); if (spot) { const w = world.cellCenter(spot[0], spot[1]); potato.mesh.position.set(w.x, 0, w.z); potato.route = []; } }
   weapon = null; ammo = 0; flow = null; invuln = 1; kills = 0; time = 0; route = []; routeEndCell = null; showRoute(); camTarget.copy(player.position);
   updateHud();
 }
@@ -228,6 +251,7 @@ function frame(now) {
     for (let i = particles.length - 1; i >= 0; i--) { const p = particles[i]; p.position.addScaledVector(p.userData.vel, dt); p.userData.vel.y -= 12 * dt; p.userData.life -= dt; if (p.userData.life <= 0) { scene.remove(p); particles.splice(i, 1); } }
   } else if (state !== 'loading') { for (const z of zombies) animateWalk(z, dt, 0.3); }
   if (rain) updateRain(dt);
+  if (state === 'play' || state === 'start') updatePotato(dt);
   syncGhost();
   render(dt);
 }
@@ -249,10 +273,10 @@ requestAnimationFrame(frame);
 (async () => {
   try {
     world = await loadWorld(scene, 'poster/');
-    makeRain();
+    makeRain(); await makePotato();
     // idle view on the title screen: middle of town
     const mid = pxToWorld(world.meta.width / 2, world.meta.height * 0.55); player.position.set(mid.x, 0, mid.z); camTarget.copy(player.position);
     state = 'start'; $('loading').textContent = 'Town loaded. ' + Math.round(world.meta.width) + '×' + Math.round(world.meta.height) + ' px of Duvallville.'; $('startBtn').disabled = false;
   } catch (e) { $('loading').textContent = 'Could not load the town: ' + e.message; }
 })();
-window.__dv = { get world() { return world; }, get player() { return player; }, get state() { return state; }, get zombies() { return zombies; }, get civilians() { return civilians; }, get pickups() { return pickups; }, get exit() { return exitMesh && exitMesh.position; }, routeTo: (c, r) => { const w = world.cellCenter(c, r); setRouteTo(w); }, px: worldToPx, toWorld: pxToWorld, PPU };
+window.__dv = { get potato() { return potato; }, get world() { return world; }, get player() { return player; }, get state() { return state; }, get zombies() { return zombies; }, get civilians() { return civilians; }, get pickups() { return pickups; }, get exit() { return exitMesh && exitMesh.position; }, routeTo: (c, r) => { const w = world.cellCenter(c, r); setRouteTo(w); }, px: worldToPx, toWorld: pxToWorld, PPU };

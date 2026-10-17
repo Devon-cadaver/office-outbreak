@@ -38,6 +38,21 @@ Upload the `dist/` folder to any static host (GitHub Pages, Netlify, itch.io, Cl
 
 Live: https://devon-cadaver.github.io/office-outbreak/ (deploys from `main` via GitHub Actions). The blocky version is also tagged `v1-blocky` / branch `blocky-classic`.
 
+## Poster version (poster.html)
+
+The painted town is the world. Assets in `public/poster/` are generated from the artist's files
+(not in the repo, see `example sprites/illustrator/`):
+
+```bash
+node --max-old-space-size=8192 tools/relight-poster.mjs 2 5   # clean vector art relit with the poster's lighting
+node --max-old-space-size=8192 tools/cut-potato.mjs            # potato monster sprite + erase its spot
+node --max-old-space-size=8192 tools/build-poster.mjs 2        # ground tiles, structure strips, walk grid
+```
+
+`tools/ai-layers.mjs` renders any set of Illustrator layers (PDF optional content groups) with pdf.js.
+`src/poster/world.js` maps image pixels to a true-isometric ground plane and batches structure strips
+as camera-facing quads so characters sort correctly behind buildings. Pinch or mouse wheel to zoom.
+
 ## Where things live
 
 - `src/main.js` – game loop, levels, civilians, infection, weapons, lives, scoring, HUD.

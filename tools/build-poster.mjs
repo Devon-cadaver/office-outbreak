@@ -6,14 +6,14 @@ import sharp from 'sharp';
 import { execFileSync } from 'child_process';
 
 const AI = 'example sprites/illustrator/ISO/_Flat_tobe main_Flat.ai';
-const NIGHT = 'example sprites/_FINAL-NIGHT2.jpg';
+const NIGHT = fs.existsSync('tools/poster/build/night-clean.png') ? 'tools/poster/build/night-clean.png' : 'example sprites/_FINAL-NIGHT2.jpg';
 const OUT = 'public/poster';
 const SCALE = +process.argv[2] || 2;
 const W = Math.round(1170 * SCALE), H = Math.round(2826 * SCALE);
 const TILESX = 2, TILESY = 4, TW = Math.ceil(W / TILESX), TH = Math.ceil(H / TILESY);
 const CELL = 24, STRIP = 40;
 fs.mkdirSync(OUT, { recursive: true });
-for (const f of fs.readdirSync(OUT)) if (f.endsWith('.png') || f.endsWith('.webp') || f.endsWith('.jpg')) fs.unlinkSync(`${OUT}/${f}`);
+for (const f of fs.readdirSync(OUT)) if ((f.startsWith('ground_') || f.startsWith('struct_')) && (f.endsWith('.png') || f.endsWith('.webp') || f.endsWith('.jpg'))) fs.unlinkSync(`${OUT}/${f}`);
 
 const render = (name, layers) => {
   const out = `tools/poster/build/${name}.png`; fs.mkdirSync('tools/poster/build', { recursive: true });
@@ -40,12 +40,14 @@ const grid = new Uint8Array(gcols * grows); let walk = 0;
 for (let gy = 0; gy < grows; gy++) for (let gx = 0; gx < gcols; gx++) {
   let road = 0, car = 0, n = 0;
   for (let y = gy * CELL + 2; y < (gy + 1) * CELL; y += 4) for (let x = gx * CELL + 2; x < (gx + 1) * CELL; x += 4) { n++; if (isRoad(x, y)) road++; if (isCar(x, y)) car++; }
-  const ok = road / n > 0.55 && car / n < 0.2; grid[gy * gcols + gx] = ok ? 1 : 0; if (ok) walk++;
+  const ok = road / n > 0.55; void car; grid[gy * gcols + gx] = ok ? 1 : 0; if (ok) walk++;
 }
 console.log('walk grid', gcols, 'x', grows, 'walkable', walk);
 
 // 3. structures: alpha from vector layers, colour from the night poster; tiles + vertical strips
-const st = await sharp(render('structures', 'Houses,upper buildings,gas station,watersuply,coaster,seans house,accedent,poster,shocking,tree,Light Poles,lower cars,free way cars')).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+const st = await sharp(render('structures2', 'Houses,upper buildings,gas station,watersuply,coaster,seans house,accedent,poster,shocking,tree,Light Poles,potato field')).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+// the potato monster roams as its own sprite: clear its region from the static structures
+for (let y = 4540; y < 5300; y++) for (let x = 1780; x < 2310; x++) st.data[(y * W + x) * 4 + 3] = 0;
 const rgba = Buffer.alloc(W * H * 4);
 for (let i = 0; i < W * H; i++) { rgba[i * 4] = night[i * 3]; rgba[i * 4 + 1] = night[i * 3 + 1]; rgba[i * 4 + 2] = night[i * 3 + 2]; rgba[i * 4 + 3] = st.data[i * 4 + 3]; }
 for (let ty = 0; ty < TILESY; ty++) for (let tx = 0; tx < TILESX; tx++) {
