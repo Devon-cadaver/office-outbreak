@@ -97,7 +97,7 @@ let maze = null, city = null, cols = 0, rows = 0, obstacles = [];
 let chopper = null, chopperT = 0, padMesh = null;
 let flyby = null, flybyT = 30, riding = null, rideCd = 0, playerInfect = 0, puzzle = null, ferrisHinted = false;
 const rideAt = (x, z, rad) => { let best = null, bd = rad; for (const rr of rides) { const d = Math.hypot(x - rr.pos.x, z - rr.pos.z); if (d < bd) { bd = d; best = rr; } } return best; };
-let infected = 0, antidote = null, goo = [];
+let infected = 0, antidote = null, goo = []; let crossWarned = false;
 const rideAnchor = new THREE.Object3D(); scene.add(rideAnchor);
 const gooGeo = new THREE.CircleGeometry(0.2, 10); gooGeo.rotateX(-Math.PI / 2);
 const gooBase = new THREE.MeshBasicMaterial({ color: 0x5cff3a, transparent: true, opacity: 0.75, depthWrite: false, blending: THREE.AdditiveBlending });
@@ -159,6 +159,10 @@ let startCell = null, exitCell = null, exitMesh = null, gate = null, switchCell 
 const player = makeCharacter('worker', { skin: equippedSkin('player') }); scene.add(player); player.visible = false;
 let civilians = [], zombies = [], pickups = [], projectiles = [], particles = [];
 const pool = { civ: [], zom: [] };
+const PACE = [0.55, 1, 1.4]; let pace = 1, autoT = 0;
+function setPace(p) { pace = Math.max(0, Math.min(2, p)); $('paceVal').textContent = ['slow', 'walk', 'fast'][pace]; }
+$('slowBtn').addEventListener('click', () => setPace(pace - 1)); $('fastBtn').addEventListener('click', () => setPace(pace + 1));
+addEventListener('keydown', (e) => { if (e.key === '-' || e.key === '_') setPace(pace - 1); if (e.key === '+' || e.key === '=') setPace(pace + 1); });
 let weapon = null, ammo = 0, fireTimer = 0, flow = null, flowTimer = 0, invuln = 0, totalPeople = 0, kills = 0;
 // player route: list of [cx, cy] cells to walk through
 let route = [], routeEndCell = null, stepTimer = 0, groanTimer = 1, tipStage = 0, followers = [], rescuedTotal = 0;
@@ -463,7 +467,7 @@ function buildLevel(n) {
   player.position.set(sp.x, 0, sp.z); player.rotation.y = 0; player.visible = true; player.scale.setScalar(0.55);
   weapon = inv.ammo ? 'rifle' : 'pistol'; ammo = inv.ammo ? 24 : 6; inv.ammo = false; vestUp = inv.vest; inv.vest = false; carHits = 0;
   if (inv.car && inv.carHp > 0 && n > 1) startDriving(); else if (driving) parkCar();
-  flow = null; flowTimer = 0; invuln = 1; kills = 0; time = 0; respawnCell = null; sprint = 0; sprintCd = 0; streak = 0; previewT = 0; showPreview([]); camTarget.copy(player.position); route = []; routeEndCell = null; showRoute();
+  flow = null; flowTimer = 0; invuln = 1; kills = 0; time = 0; autoT = 2; crossWarned = false; respawnCell = null; sprint = 0; sprintCd = 0; streak = 0; previewT = 0; showPreview([]); camTarget.copy(player.position); route = []; routeEndCell = null; showRoute();
   tipStage = 0; setTip(''); fitCamera(); updateHud();
   parked = false; ferrisHinted = false; for (const rr of rides) rr.speed = 1; clearAntidote(); fx.clear(); shake = 0; for (const g of goo) scene.remove(g); goo = []; if (flyby) { scene.remove(flyby); flyby = null; } flybyT = 20 + Math.random() * 20; riding = null; rideCd = 0; playerInfect = 0; $('puzzle').classList.add('hidden'); puzzle = null; closeWheelGame(); closeCoasterGame(); closeCarouselGame();
 }
@@ -673,7 +677,7 @@ function updateHud() {
   ui.weapon.textContent = (driving ? '🚗 ' + inv.carHp + '/5  ·  ' : '') + (weapon ? WEAPONS[weapon].name + ' x' + ammo : 'Unarmed') + '  ·  $' + cash;
 }
 
-function show(screen) { if (screen) setTip(''); for (const s of [ui.start, ui.cleared, ui.over, $('won'), $('howto'), $('pause')]) s.classList.add('hidden'); if (screen) screen.classList.remove('hidden'); ui.hud.classList.toggle('hidden', !!screen); document.getElementById('lookBtn').classList.toggle('hidden', !!screen); }
+function show(screen) { if (screen) setTip(''); for (const s of [ui.start, ui.cleared, ui.over, $('won'), $('howto'), $('pause')]) s.classList.add('hidden'); if (screen) screen.classList.remove('hidden'); ui.hud.classList.toggle('hidden', !!screen); document.getElementById('lookBtn').classList.toggle('hidden', !!screen); $('pace').classList.toggle('hidden', !!screen); }
 
 function startRun(save) { seen = true; unlockAudio(); setMusicChase(false); startMusic(); level = 1; score = 0; lives = 3; time = 0; cash = 0; cashThisDistrict = 0; Object.assign(inv, { shoes: 0, vest: false, flare: false, ammo: false, car: null, carHp: 0 }); if (car) { scene.remove(car); car = null; } driving = false;
   if (save) { level = save.level || 1; score = save.score || 0; lives = save.lives || 3; cash = save.cash || 0; Object.assign(inv, save.inv || {}); }
@@ -738,9 +742,9 @@ function clearDistrict() {
 }
 // ---------- how to play slides ----------
 const SLIDES = [
-  ['howto/1-move.jpg', 'Tap a street to walk there, or drag a route. Double-tap to sprint. Hold a finger down to preview the way to your objective.'],
+  ['howto/1-move.jpg', 'You never stop walking. Tap a street to steer there, or drag a route. − and + change your pace, double-tap to sprint. Hold a finger down to preview the way to your objective.'],
   ['howto/2-weapon.jpg', 'You start each district with a few pistol shots. Pick up more weapons on the way. They aim and fire by themselves. Chain kills and rescues quickly for a score multiplier.'],
-  ['howto/3-crowd.jpg', 'Zombies go for people before you. Any crowd they reach turns and joins the horde, so lead the horde away from crowds.'],
+  ['howto/3-crowd.jpg', 'You are immune, but you carry it. Cross your own line of followers and whoever you touch turns, except the one right behind you. Like a snake, the longer the line, the more you plan.'],
   ['howto/6-follow.jpg', 'Walk up to people and they follow you. Get them to the safe zone for 250 points each. Or keep them between you and the horde: zombies take the nearest person first. Careful: a bitten follower spreads it down the line, and then to you.'],
   ['howto/4-gate.jpg', 'From district 2 the way out is gated. Glowing beams mark your goal: red for the gate, yellow for the power box. Rotate the wires to power the gate open.'],
   ['howto/5-exit.jpg', 'Follow the green arrow to the safe zone. One touch from a zombie costs a life. Ten districts, then the chopper pulls you out. Tap the binoculars to look around without walking. Double-tap a fairground ride (wheel, coaster, carousel) to ride it.'],
@@ -796,13 +800,19 @@ function frame(now) {
   if (state === 'play') {
     time += dt; invuln -= dt; fireTimer -= dt; flowTimer -= dt;
 
-    // player
+    // player: always moving. No route means keep going the way you face
     let moving = 0;
+    autoT -= dt;
+    if (!route.length && !riding && autoT <= 0) {
+      const c = toCell(player.position.x, player.position.z, cols, rows); const ry = player.rotation.y; const f = [Math.round(Math.sin(ry)), Math.round(Math.cos(ry))];
+      const tries = [f, [f[1], -f[0]], [-f[1], f[0]], [-f[0], -f[1]]]; // straight, left, right, back
+      for (const [dx, dz] of tries) { const nx = c.cx + dx, ny = c.cy + dz; if (maze[ny] && maze[ny][nx] === false) { route = [[nx, ny]]; routeEndCell = { cx: nx, cy: ny }; break; } }
+    }
     if (route.length) {
       const w = toWorld(route[0][0], route[0][1], cols, rows);
       const dx = w.x - player.position.x, dz = w.z - player.position.z, d = Math.hypot(dx, dz);
       if (d < 0.35) { route.shift(); showRoute(); }
-      else { const spd = PLAYER_SPEED * (1 + inv.shoes * 0.1) * (sprint > 0 ? 1.6 : 1) * (driving ? 1.7 : 1) * (infected > 0 ? 0.85 : 1); const step = Math.min(d, spd * dt); player.position.x += dx / d * step; player.position.z += dz / d * step; player.rotation.y = Math.atan2(dx, dz); moving = 1; if (sprint > 0 && Math.random() < 0.5) particle(player.position, previewMat); }
+      else { const spd = PLAYER_SPEED * PACE[pace] * (1 + inv.shoes * 0.1) * (sprint > 0 ? 1.6 : 1) * (driving ? 1.7 : 1); const step = Math.min(d, spd * dt); player.position.x += dx / d * step; player.position.z += dz / d * step; player.rotation.y = Math.atan2(dx, dz); moving = 1; if (sprint > 0 && Math.random() < 0.5) particle(player.position, previewMat); }
     }
     if (driving && car) { car.position.copy(player.position); car.rotation.y = player.rotation.y; animateCar(car, dt, moving); car.userData.hp = inv.carHp;
       if (moving && city.knock(player.position.x, player.position.z, 1.2, Math.sin(player.rotation.y), Math.cos(player.rotation.y))) sfx.hit(); }
@@ -835,7 +845,7 @@ function frame(now) {
     if (playerInfect >= 1) { playerInfect = 0; infectPlayer(); }
     updateGoo(dt);
     if (infected > 0) { infected -= dt; if (Math.random() < dt * 4) particle(player.position, gooBase); if (infected <= 0) { clearAntidote(); say(player, 'Too late...', 1.5); loseLife(); if (state !== 'play') return render(dt); } }
-    if (!driving && !riding && invuln <= 0 && infected <= 0) for (const g of goo) if (Math.abs(g.position.x - player.position.x) < 0.3 && Math.abs(g.position.z - player.position.z) < 0.3) { infectPlayer(); break; }
+    // goo on the street is harmless to you: you are a carrier, not a victim
     if (gate && gate.open && gateMesh.position.y > -1.3) gateMesh.position.y -= dt * 1.5;
     if (level === 1) {
       if (tipStage === 0 && !route.length) setTip('Tap the road to walk there, or drag a route.');
@@ -952,13 +962,14 @@ function frame(now) {
         if (u.infectT > 2) {
           // two seconds in, it spreads to anyone close, and onto you if you stay near
           for (const o of civilians) if (o !== civ && !(o.userData.infect > 0) && o.position.distanceTo(civ.position) < 1.4 && (u.infectT || 0) > 4) o.userData.infect += dt * 0.3;
-          if (!driving && !riding && infected <= 0 && civ.position.distanceTo(player.position) < 1.0) { playerInfect += dt * 0.8; if (!u.warned) { u.warned = true; say(player, 'Back off! Bitten!', 1.5); if (level <= 3) setTip('Infected people spread it to anyone close, you included. Sprint away.'); } }
+          if (!u.warned && civ.position.distanceTo(player.position) < 2.5) { u.warned = true; if (level <= 3) setTip('Infected people spread it to anyone close. You are immune, but you carry it: never cross your own line.'); }
         }
       }
       if (!u.follow && civ.position.distanceTo(player.position) < 1.3 && !riding) { u.follow = true; u.goal = null; rescuedTotal++; addScore(25); sfx.pickup(); updateHud(); say(player, PLAYER_LINES[(Math.random() * PLAYER_LINES.length) | 0]); setTimeout(() => { if (civ.userData.follow) say(civ, CIV_LINES[(Math.random() * CIV_LINES.length) | 0], 1.8); }, 700); if (level === 1 && tipStage < 4) { tipStage = 4; setTip('They will follow you. Bring people to the safe zone for extra points.'); } }
       if (u.follow) {
         // target: a spot behind the player, staggered per follower
         const idx = followers.indexOf(civ); const leaderPos = idx <= 0 ? player.position : followers[idx - 1].position;
+        if (idx > 0 && !(u.infect > 0) && !riding && civ.position.distanceTo(player.position) < 0.55) { u.infect = 0.6; u.infectT = 0; sfx.hurt(); say(civ, 'You touched me!', 1.6); if (!crossWarned) { crossWarned = true; setTip('You crossed your own line. Anyone you touch turns. Plan the route.'); } }
         const dx = leaderPos.x - civ.position.x, dz = leaderPos.z - civ.position.z, d = Math.hypot(dx, dz);
         if (riding) { animateWalk(civ, dt, 0); continue; }
         if (d > 0.9) { const st = Math.min(d - 0.7, PLAYER_SPEED * (1 + inv.shoes * 0.1) * (u.infect > 0 ? 0.7 : 1.15) * dt); civ.position.x += dx / d * st; civ.position.z += dz / d * st; civ.rotation.y = Math.atan2(dx, dz); collide(civ.position, 0.2); animateWalk(civ, dt, 1); }
