@@ -232,6 +232,10 @@ function startBuild() {
     else if (v === 'exit') location.href = 'index.html'; });
   // phones: the plain click event is the most reliable tap; place from it too (duplicates are ignored)
   const bRay = new THREE.Raycaster(), bGround = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), bHit = new THREE.Vector3();
+  const placeAt = (sx, sy) => { if (performance.now() - bLastTap < 300) return; bLastTap = performance.now(); bRay.setFromCamera(new THREE.Vector2((sx / innerWidth) * 2 - 1, -(sy / innerHeight) * 2 + 1), camera); if (bRay.ray.intersectPlane(bGround, bHit)) buildPlace({ x: bHit.x, z: bHit.z }); };
+  // iPhone: touch events are the one thing Safari always delivers, so place from a clean single-finger tap
+  let tStart = null; canvas.addEventListener('touchstart', (e) => { tStart = e.touches.length === 1 ? [e.touches[0].clientX, e.touches[0].clientY, performance.now()] : null; }, { passive: true });
+  canvas.addEventListener('touchend', (e) => { if (!tStart || e.touches.length || e.changedTouches.length !== 1) { tStart = null; return; } const t = e.changedTouches[0]; const moved = Math.hypot(t.clientX - tStart[0], t.clientY - tStart[1]); const held = performance.now() - tStart[2]; tStart = null; if (moved < 12 && held < 600) { placeAt(t.clientX, t.clientY); e.preventDefault(); } }, { passive: false });
   canvas.addEventListener('click', (e) => { if (performance.now() - bLastTap < 300) return; bLastTap = performance.now(); bRay.setFromCamera(new THREE.Vector2((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1), camera); if (bRay.ray.intersectPlane(bGround, bHit)) buildPlace({ x: bHit.x, z: bHit.z }); });
   unlockAudio(); show(null); $('build').classList.remove('hidden'); ui.hud.classList.add('hidden'); $('lookBtn').classList.add('hidden');
   input.setLook(true); input.lookTap = true; buildRefresh(); zoom = 0.9; fitCamera();
