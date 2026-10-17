@@ -8,7 +8,7 @@ import { buildRuins } from './ruins.js';
 import { makeCar, animateCar } from './car.js';
 import { rides } from './landmarks.js';
 import { createFires } from './fire.js';
-import { GROUPS, OPEN_CODES, loadMap, saveMap, blankMap, fillSelect, ROAD_CODES, nextShape } from './tools.js';
+import { GROUPS, OPEN_CODES, loadMap, saveMap, blankMap, fillSelect, ROAD_CODES, nextShape, VARIANT_CODES, nextVariant } from './tools.js';
 const BUILD = new URLSearchParams(location.search).get('build') === '1';
 // ---------- economy / store ----------
 let cash = 0, cashThisDistrict = 0;
@@ -216,9 +216,10 @@ function buildPlace(w) {
   if (bMap.cells[c.cy][c.cx] === bTool) {
     // same item on the same cell: for roads, cycle the shape; otherwise nothing
     if (ROAD_CODES.has(bTool) && !bPainting) { const label = nextShape(bMap, c.cx, c.cy); setTip('Road shape: ' + label); saveMap(bMap); sfx.throw(); clearTimeout(bRebuild); bRebuild = setTimeout(buildRefresh, 120); }
+    else if (VARIANT_CODES.has(bTool) && !bPainting) { const vi = nextVariant(bMap, c.cx, c.cy, VARIANT_CODES.get(bTool)); setTip(name + ' style ' + (vi + 1) + '/' + VARIANT_CODES.get(bTool)); saveMap(bMap); sfx.throw(); clearTimeout(bRebuild); bRebuild = setTimeout(buildRefresh, 120); }
     return;
   }
-  if (bMap.conn) delete bMap.conn[c.cx + ',' + c.cy];
+  if (bMap.conn) delete bMap.conn[c.cx + ',' + c.cy]; if (bMap.vars) delete bMap.vars[c.cx + ',' + c.cy];
   bMap.cells[c.cy][c.cx] = bTool; saveMap(bMap); sfx.throw(); clearTimeout(bRebuild); bRebuild = setTimeout(buildRefresh, 120);
 }
 function buildRefresh() { const keep = camPan.clone(); buildLevel(1); for (const cv of civilians) scene.remove(cv); for (const z of zombies) scene.remove(z); civilians = []; zombies = []; for (const p of pickups) scene.remove(p.mesh); pickups = []; camPan.copy(keep); state = 'build'; player.visible = true; updateHud(); }
@@ -349,7 +350,8 @@ function buildLevel(n) {
     // open: road 0, park 3, start 11, exit 12, avenue 13, crosswalk 14, plaza 15, bench 18, parked car 19. Blocked: building 1, house 2, tower 16, tree 17, landmarks 4..10
     const OPEN = new Set([0, 3, 11, 12, 13, 14, 15, 18, 19]);
     maze = custom.cells.map((row) => row.map((v) => !OPEN.has(v)));
-    maze.custom = { landmarks: new Map(), houses: new Set(), parks: new Set(), avenue: new Set(), cross: new Set(), plaza: new Set(), towers: new Set(), trees: new Set(), benches: new Set(), cars: new Set(), conn: new Map(), border: custom.border || 0 }; let sc = null, ec = null;
+    maze.custom = { landmarks: new Map(), houses: new Set(), parks: new Set(), avenue: new Set(), cross: new Set(), plaza: new Set(), towers: new Set(), trees: new Set(), benches: new Set(), cars: new Set(), conn: new Map(), vars: new Map(), border: custom.border || 0 }; let sc = null, ec = null;
+    if (custom.vars) for (const k in custom.vars) { const [kx, ky] = k.split(',').map(Number); maze.custom.vars.set(ky * cols + kx, custom.vars[k]); }
     if (custom.conn) for (const k in custom.conn) { const [kx, ky] = k.split(',').map(Number); maze.custom.conn.set(ky * cols + kx, custom.conn[k]); }
     custom.cells.forEach((row, y) => row.forEach((v, x) => { const i = y * cols + x; const cu = maze.custom;
       if (LM[v]) cu.landmarks.set(i, LM[v]); if (v === 2) cu.houses.add(i); if (v === 3 || v === 18) cu.parks.add(i); if (v === 13) cu.avenue.add(i); if (v === 14) cu.cross.add(i); if (v === 15) cu.plaza.add(i);

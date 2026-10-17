@@ -257,8 +257,17 @@ export function buildCity(scene, wall, level) {
     roads.rotation.x = -Math.PI / 2; roads.position.y = 0.008; group.add(roads);
     // park furniture: a tree or a bench at the corner shared by four park cells, never on the paths
     const trunk = M({ color: 0x4a3324 }), leaf = M({ color: 0x2f7a3f }), leaf2 = M({ color: 0x3f9a4a }), benchMat = M({ color: 0x6a4a2a });
-    if (wall.custom) for (const i of wall.custom.benches) { const bx = i % cols, by = (i / cols) | 0; const bw = toWorld(bx, by, cols, rows); const wx = bw.x, wz = bw.z + 1.05;
-      add(box, benchMat, 1.0, 0.08, 0.35, wx, 0.4, wz); add(box, benchMat, 1.0, 0.3, 0.06, wx, 0.55, wz + 0.17); for (const ox of [-0.4, 0.4]) add(box, M({ color: 0x2a3438 }), 0.08, 0.4, 0.3, wx + ox, 0.2, wz); obstacles.push({ x: wx, z: wz, hw: 0.5, hd: 0.2 }); }
+    if (wall.custom) for (const i of wall.custom.benches) { const bx = i % cols, by = (i / cols) | 0; const bw = toWorld(bx, by, cols, rows);
+      // ten placements: which edge or corner the bench sits on, which way it faces, and what sits next to it
+      const vi = (wall.custom.vars && wall.custom.vars.get(i)) || 0;
+      const spots = [[0, 1.05, 0], [0, -1.05, Math.PI], [1.05, 0, -Math.PI / 2], [-1.05, 0, Math.PI / 2], [0.9, 0.9, -Math.PI / 4], [-0.9, 0.9, Math.PI / 4], [0, 1.05, 0], [1.05, 0, -Math.PI / 2], [0, -1.05, Math.PI], [-1.05, 0, Math.PI / 2]];
+      const [ox, oz, ry] = spots[vi]; const wx = bw.x + ox, wz = bw.z + oz;
+      const bench = new THREE.Group(); bench.position.set(wx, 0, wz); bench.rotation.y = ry; group.add(bench);
+      const seat = new THREE.Mesh(box, benchMat); seat.scale.set(1.0, 0.08, 0.35); seat.position.y = 0.4; bench.add(seat); const back = new THREE.Mesh(box, benchMat); back.scale.set(1.0, 0.3, 0.06); back.position.set(0, 0.55, 0.17); bench.add(back);
+      for (const lx of [-0.4, 0.4]) { const leg = new THREE.Mesh(box, M({ color: 0x2a3438 })); leg.scale.set(0.08, 0.4, 0.3); leg.position.set(lx, 0.2, 0); bench.add(leg); }
+      if (vi >= 6 && vi <= 7) { const bin = new THREE.Mesh(cyl, M({ color: 0x3a4a52 })); bin.scale.set(0.3, 0.5, 0.3); bin.position.set(0.85, 0.25, 0); bench.add(bin); }
+      if (vi >= 8) { const post = new THREE.Mesh(cyl, M({ color: 0x2a3438 })); post.scale.set(0.08, 2.2, 0.08); post.position.set(-0.85, 1.1, 0); bench.add(post); const lampB = new THREE.Mesh(ball, new THREE.MeshBasicMaterial({ color: 0xffe27a })); lampB.scale.setScalar(0.2); lampB.position.set(-0.85, 2.2, 0); bench.add(lampB); }
+      obstacles.push({ x: wx, z: wz, hw: 0.5, hd: 0.25 }); }
     if (!wall.custom) for (const [x, y] of streetCells) if (park(x, y) && park(x + 1, y) && park(x, y + 1) && park(x + 1, y + 1)) {
       const wx = toWorld(x, y, cols, rows).x + CELL / 2, wz = toWorld(x, y, cols, rows).z + CELL / 2; const r = rng();
       if (r < 0.55) { add(cyl, trunk, 0.14, 0.9, 0.14, wx, 0.45, wz); add(ball, r < 0.3 ? leaf : leaf2, 1.1, 1.0, 1.1, wx, 1.25, wz); add(ball, leaf, 0.7, 0.6, 0.7, wx + 0.3, 1.6, wz - 0.2); obstacles.push({ x: wx, z: wz, hw: 0.3, hd: 0.3 }); }
@@ -329,10 +338,10 @@ export function buildCity(scene, wall, level) {
   };
   const HOUSE_WALLS = [0xe8d54a, 0x3f6fb0, 0xb8473a, 0x8a5a3a, 0xd9c7a8, 0x6a8f5a], HOUSE_ROOFS = [0x4a3324, 0x3a3a44, 0x5a2e2a, 0x2f3d4a];
   const roofTrim = M({ color: 0x2a2a30 }), brickMat = M({ color: 0xb8473a }), litWin = new THREE.MeshBasicMaterial({ color: 0xf6e94a }), darkWin = M({ color: 0x34506e }), doorMatH = M({ color: 0x2a2320 });
-  const house = (w, x, y, openFaces) => {
-    const wall = new THREE.Color(HOUSE_WALLS[(rng() * HOUSE_WALLS.length) | 0]), roofC = HOUSE_ROOFS[(rng() * HOUSE_ROOFS.length) | 0];
-    const bw = 2.1, bd = 1.9, bh = 1.0 + (rng() < 0.3 ? 0.9 : 0), rh = 0.9;
-    const ry = openFaces.length ? openFaces[(rng() * openFaces.length) | 0][2] : 0; // face the street
+  const house = (w, x, y, openFaces, rr = rng, vi = -1) => {
+    const wall = new THREE.Color(HOUSE_WALLS[(rr() * HOUSE_WALLS.length) | 0]), roofC = HOUSE_ROOFS[(rr() * HOUSE_ROOFS.length) | 0];
+    const bw = 2.1, bd = 1.9, bh = 1.0 + (rr() < 0.3 ? 0.9 : 0), rh = 0.9;
+    const ry = vi >= 0 ? (openFaces.length ? openFaces[vi % openFaces.length][2] : (vi % 4) * Math.PI / 2) : openFaces.length ? openFaces[(rr() * openFaces.length) | 0][2] : 0; // face the street
     const g = new THREE.Group(); g.position.set(w.x, 0, w.z); g.rotation.y = ry; group.add(g);
     const wallMat = M({ color: wall, transparent: true }), roofMat = new THREE.MeshLambertMaterial({ color: roofC, transparent: true, side: THREE.DoubleSide, flatShading: true });
     const body = new THREE.Mesh(box, wallMat); body.scale.set(bw, bh, bd); body.position.y = bh / 2; g.add(body);
@@ -342,9 +351,9 @@ export function buildCity(scene, wall, level) {
     const chim = new THREE.Mesh(box, brickMat); chim.scale.set(0.25, 0.7, 0.25); chim.position.set(bw * 0.3, bh + rh * 0.6, -bd * 0.2); g.add(chim);
     // door + windows on the street face (local +z)
     const door = new THREE.Mesh(box, doorMatH); door.scale.set(0.42, 0.7, 0.06); door.position.set(-0.55, 0.35, bd / 2 + 0.03); g.add(door);
-    for (const [wx, wy] of [[0.45, 0.6], [0.45, bh > 1.2 ? 1.45 : -1]]) if (wy > 0) { const win = new THREE.Mesh(box, rng() < 0.55 ? litWin : darkWin); win.scale.set(0.5, 0.4, 0.06); win.position.set(wx, wy, bd / 2 + 0.03); g.add(win); const fr = new THREE.Mesh(box, doorMatH); fr.scale.set(0.56, 0.46, 0.04); fr.position.set(wx, wy, bd / 2 + 0.02); g.add(fr); }
-    const side = new THREE.Mesh(box, rng() < 0.4 ? litWin : darkWin); side.scale.set(0.06, 0.4, 0.5); side.position.set(bw / 2 + 0.03, 0.6, 0.2); g.add(side);
-    if (rng() < 0.5) { const porch = new THREE.Mesh(box, roofMat); porch.scale.set(1.0, 0.06, 0.5); porch.position.set(-0.55, 0.95, bd / 2 + 0.25); g.add(porch); }
+    for (const [wx, wy] of [[0.45, 0.6], [0.45, bh > 1.2 ? 1.45 : -1]]) if (wy > 0) { const win = new THREE.Mesh(box, rr() < 0.55 ? litWin : darkWin); win.scale.set(0.5, 0.4, 0.06); win.position.set(wx, wy, bd / 2 + 0.03); g.add(win); const fr = new THREE.Mesh(box, doorMatH); fr.scale.set(0.56, 0.46, 0.04); fr.position.set(wx, wy, bd / 2 + 0.02); g.add(fr); }
+    const side = new THREE.Mesh(box, rr() < 0.4 ? litWin : darkWin); side.scale.set(0.06, 0.4, 0.5); side.position.set(bw / 2 + 0.03, 0.6, 0.2); g.add(side);
+    if (rr() < 0.5) { const porch = new THREE.Mesh(box, roofMat); porch.scale.set(1.0, 0.06, 0.5); porch.position.set(-0.55, 0.95, bd / 2 + 0.25); g.add(porch); }
     // fade + outline on the body mesh so the see-through logic works
     body.userData.fade = [wallMat, roofMat]; body.userData.h = bh + rh; body.userData.extras = g.children.filter((ch) => ch !== body && ch !== roof);
     const edges = new THREE.LineSegments(new THREE.EdgesGeometry(box), outlineMat); edges.scale.set(bw, bh + rh, bd); edges.position.set(w.x, (bh + rh) / 2, w.z); edges.rotation.y = ry; edges.visible = false; group.add(edges); body.userData.edges = edges;
@@ -358,11 +367,30 @@ export function buildCity(scene, wall, level) {
     const lm = landmarkCells.get(y * cols + x);
     if (lm) { buildLandmark(lm, group, w, rng, M, add); obstacles.push({ x: w.x, z: w.z, hw: CELL / 2 - 0.05, hd: CELL / 2 - 0.05 }); hazards.push({ type: lm, pos: new THREE.Vector3(w.x, 0, w.z) }); continue; }
     const edge = x === 0 || y === 0 || x === cols - 1 || y === rows - 1;
-    const R = edge ? mulberry32(x * 131 + y * 17 + borderSeed * 7) : rng; // border buildings stay the same whatever happens inside
+    const vi = wall.custom && wall.custom.vars ? (wall.custom.vars.get(y * cols + x) || 0) : 0;
+    const R = edge ? mulberry32(x * 131 + y * 17 + borderSeed * 7) : wall.custom ? mulberry32(x * 131 + y * 17 + vi * 977 + 3) : rng; // border buildings stay the same whatever happens inside; builder cells get a look per variant
     if (wall.custom && wall.custom.trees.has(y * cols + x)) {
-      // a tree cell: grass lot with a big tree, blocks the way like a building would
+      // a tree cell: grass lot with trees, blocks the way like a building would. Ten looks, picked in the builder.
       add(box, M({ color: 0x2f5a38 }), CELL - 0.3, 0.06, CELL - 0.3, w.x, 0.03, w.z);
-      add(cyl, M({ color: 0x4a3324 }), 0.22, 1.3, 0.22, w.x, 0.65, w.z); add(ball, M({ color: 0x2f7a3f }), 1.9, 1.6, 1.9, w.x, 1.8, w.z); add(ball, M({ color: 0x3f9a4a }), 1.2, 1.0, 1.2, w.x + 0.5, 2.3, w.z - 0.3);
+      const vi = (wall.custom.vars && wall.custom.vars.get(y * cols + x)) || 0;
+      const trunk = M({ color: 0x4a3324 }), lf = M({ color: 0x2f7a3f }), lf2 = M({ color: 0x3f9a4a }), lf3 = M({ color: 0x1f5a2f }), pine = M({ color: 0x245a3a });
+      const treeAt = (tx, tz, s, kind) => {
+        if (kind === 'pine') { add(cyl, trunk, 0.18 * s, 1.0 * s, 0.18 * s, tx, 0.5 * s, tz); const cone = new THREE.Mesh(new THREE.ConeGeometry(0.9 * s, 2.2 * s, 7), pine); cone.position.set(tx, 1.9 * s, tz); group.add(cone); const cone2 = new THREE.Mesh(new THREE.ConeGeometry(0.65 * s, 1.5 * s, 7), lf3); cone2.position.set(tx, 2.9 * s, tz); group.add(cone2); }
+        else if (kind === 'bush') { add(ball, lf2, 1.1 * s, 0.7 * s, 1.1 * s, tx, 0.35 * s, tz); add(ball, lf, 0.8 * s, 0.6 * s, 0.8 * s, tx + 0.4 * s, 0.4 * s, tz + 0.2 * s); }
+        else { add(cyl, trunk, 0.22 * s, 1.3 * s, 0.22 * s, tx, 0.65 * s, tz); add(ball, kind === 'dark' ? lf3 : lf, 1.9 * s, 1.6 * s, 1.9 * s, tx, 1.8 * s, tz); add(ball, lf2, 1.2 * s, 1.0 * s, 1.2 * s, tx + 0.5 * s, 2.3 * s, tz - 0.3 * s); }
+      };
+      switch (vi) {
+        case 0: treeAt(w.x, w.z, 1.0, 'round'); break;
+        case 1: treeAt(w.x, w.z, 1.35, 'round'); break;
+        case 2: treeAt(w.x + 0.3, w.z - 0.2, 0.7, 'round'); break;
+        case 3: treeAt(w.x, w.z, 1.0, 'pine'); break;
+        case 4: treeAt(w.x - 0.4, w.z + 0.3, 1.3, 'pine'); break;
+        case 5: treeAt(w.x - 0.7, w.z - 0.5, 0.75, 'round'); treeAt(w.x + 0.7, w.z + 0.5, 0.9, 'dark'); break;
+        case 6: treeAt(w.x - 0.8, w.z + 0.6, 0.6, 'pine'); treeAt(w.x + 0.6, w.z - 0.6, 0.8, 'pine'); treeAt(w.x + 0.2, w.z + 0.9, 0.5, 'bush'); break;
+        case 7: treeAt(w.x, w.z, 1.0, 'bush'); treeAt(w.x - 0.9, w.z - 0.8, 0.7, 'bush'); treeAt(w.x + 0.9, w.z + 0.7, 0.8, 'bush'); break;
+        case 8: treeAt(w.x + 0.2, w.z, 1.1, 'dark'); treeAt(w.x - 0.9, w.z + 0.8, 0.5, 'bush'); break;
+        default: treeAt(w.x - 0.6, w.z + 0.2, 1.2, 'round'); treeAt(w.x + 0.8, w.z - 0.7, 0.6, 'pine'); break;
+      }
       obstacles.push({ x: w.x, z: w.z, hw: CELL / 2 - 0.05, hd: CELL / 2 - 0.05 }); continue;
     }
     if (edge) {
@@ -375,7 +403,7 @@ export function buildCity(scene, wall, level) {
     const wantHouse = zone === 'houses' ? 0.85 : zone === 'mixed' ? 0.45 : 0.08;
     if (!edge && (wall.custom ? wall.custom.houses.has(y * cols + x) : R() < wantHouse)) {
       const facesH = [[0, 1, 0], [1, 0, Math.PI / 2], [0, -1, Math.PI], [-1, 0, -Math.PI / 2]].filter(([dx, dz]) => open(x + dx, y + dz));
-      house(w, x, y, facesH); obstacles.push({ x: w.x, z: w.z, hw: CELL / 2 - 0.05, hd: CELL / 2 - 0.05 }); continue;
+      house(w, x, y, facesH, R, wall.custom ? vi : -1); obstacles.push({ x: w.x, z: w.z, hw: CELL / 2 - 0.05, hd: CELL / 2 - 0.05 }); continue;
     }
     const tower = wall.custom ? wall.custom.towers.has(y * cols + x) : (!edge && zone === 'downtown' && R() < 0.14);
     const floors = edge ? 2 : tower ? 6 + ((R() * 6) | 0) : zone === 'downtown' ? 2 + ((R() * 2) | 0) + (R() < 0.25 ? 1 : 0) : 1 + ((R() * 2) | 0);
@@ -397,7 +425,7 @@ export function buildCity(scene, wall, level) {
     if (!edge && R() < 0.25) addX(cyl, M({ color: 0x5c6f73 }), 0.5, 0.6, 0.5, w.x + (R() - 0.5) * 1.2, h + 0.38, w.z + (R() - 0.5) * 1.2);
     const faces = [[0, 1, 0], [1, 0, Math.PI / 2], [0, -1, Math.PI], [-1, 0, -Math.PI / 2]].filter(([dx, dz]) => open(x + dx, y + dz));
     if (faces.length && !edge) {
-      const [dx, dz, ry] = faces[(R() * faces.length) | 0];
+      const [dx, dz, ry] = faces[wall.custom ? vi % faces.length : (R() * faces.length) | 0];
       const fx = w.x + dx * (footprint / 2 + 0.03), fz = w.z + dz * (footprint / 2 + 0.03);
       addX(box, frameMat, 0.7, 0.95, 0.06, fx, 0.48, fz, ry); addX(box, doorMat, 0.5, 0.8, 0.07, fx, 0.42, fz, ry);
       if (R() < 0.5) addX(box, awningMats[(R() * 3) | 0], 1.3, 0.08, 0.5, fx + dx * 0.25, 1.05, fz + dz * 0.25, ry);
