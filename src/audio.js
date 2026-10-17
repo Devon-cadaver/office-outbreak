@@ -45,21 +45,29 @@ export const sfx = {
 };
 
 // ---------- music: a slow minor-key loop, scheduled a beat ahead ----------
-const BPM = 92, BEAT = 60 / BPM;
+// calm: slow A-minor loop at 92 bpm. chase: the same tune kicked up to ~128 bpm (the example clip's pulse),
+// transposed up to C minor and raised an octave, with a driving hi-hat and a bass that hits every beat.
+const CALM = { bpm: 92, shift: 1, hat: false }, CHASE = { bpm: 128, shift: 2 * Math.pow(2, 3 / 12), hat: true };
 const BASS = [55, 55, 65.4, 65.4, 49, 49, 58.3, 58.3]; // A1 A1 C2 C2 G1 G1 Bb1 Bb1 (one note per 2 beats)
 const MELODY = [220, 0, 261.6, 220, 0, 196, 0, 233.1, 220, 0, 174.6, 0, 196, 0, 0, 0]; // per half beat
-let musicOn = false, nextBeat = 0, beatIndex = 0, timer = null;
+const CHASE_MELODY = [220, 261.6, 220, 196, 233.1, 0, 220, 174.6, 220, 261.6, 293.7, 261.6, 233.1, 0, 196, 0]; // busier line for the chase
+let musicOn = false, nextBeat = 0, beatIndex = 0, timer = null, chase = false, mode = CALM;
+function hit(t, type, freq, gain, len) { const s = ctx.createBufferSource(); s.buffer = noiseBuf; const f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq; const g = ctx.createGain(); g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.001, t + len); s.connect(f).connect(g).connect(musicGain); s.start(t); s.stop(t + len + 0.02); }
 function scheduleBeat() {
   while (nextBeat < ctx.currentTime + 0.4) {
     const when = nextBeat - ctx.currentTime;
     const half = beatIndex % 16;
-    if (half % 4 === 0) tone(BASS[(beatIndex >> 2) % BASS.length], BEAT * 1.8, 'triangle', 0.18, 0, musicGain, when);
-    const m = MELODY[half]; if (m) tone(m, BEAT * 0.45, 'square', 0.035, 0, musicGain, when);
-    if (half % 8 === 0) { const t = nextBeat; const s = ctx.createBufferSource(); s.buffer = noiseBuf; const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 180; const g = ctx.createGain(); g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.18); s.connect(f).connect(g).connect(musicGain); s.start(t); s.stop(t + 0.2); }
-    if (half % 8 === 4) { const t = nextBeat; const s = ctx.createBufferSource(); s.buffer = noiseBuf; const f = ctx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 3000; const g = ctx.createGain(); g.gain.setValueAtTime(0.12, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.08); s.connect(f).connect(g).connect(musicGain); s.start(t); s.stop(t + 0.1); }
+    if (half === 0) mode = chase ? CHASE : CALM; // switch only on the bar line so the groove stays tight
+    const BEAT = 60 / mode.bpm, sh = mode.shift;
+    if (mode.hat ? half % 2 === 0 : half % 4 === 0) tone(BASS[(beatIndex >> 2) % BASS.length] * (mode.hat ? 2 : 1) * (sh > 1 ? sh / 2 : 1), BEAT * (mode.hat ? 0.9 : 1.8), 'triangle', 0.18, 0, musicGain, when);
+    const m = (mode.hat ? CHASE_MELODY : MELODY)[half]; if (m) tone(m * sh, BEAT * 0.45, 'square', mode.hat ? 0.045 : 0.035, 0, musicGain, when);
+    if (half % 8 === 0) hit(nextBeat, 'lowpass', 180, 0.5, 0.18);
+    if (half % 8 === 4) hit(nextBeat, 'highpass', 3000, 0.12, 0.08);
+    if (mode.hat && half % 2 === 1) hit(nextBeat, 'highpass', 6000, 0.07, 0.04);
     nextBeat += BEAT / 2; beatIndex++;
   }
 }
+export function setMusicChase(on) { chase = !!on; }
 export function startMusic() {
   if (!ctx || musicOn) return; musicOn = true; nextBeat = ctx.currentTime + 0.1; beatIndex = 0;
   timer = setInterval(() => { if (ctx.state === 'running') scheduleBeat(); }, 100);

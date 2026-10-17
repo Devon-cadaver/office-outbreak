@@ -18,7 +18,7 @@ export function createInput(canvas, camera) {
   canvas.addEventListener('pointerdown', (e) => {
     pointers.set(e.pointerId, [e.clientX, e.clientY]);
     if (pointers.size === 2) { const [a, b] = [...pointers.values()]; pinchDist = Math.hypot(a[0] - b[0], a[1] - b[1]); pinching = true; down = false; id = null; for (const f of listeners.dragEnd) f(); return; }
-    if (id !== null) return; id = e.pointerId; canvas.setPointerCapture(e.pointerId);
+    if (id !== null) return; id = e.pointerId; try { canvas.setPointerCapture(e.pointerId); } catch { /* synthetic or stale pointer */ }
     if (look) { lookLast = [e.clientX, e.clientY]; return; }
     down = true; dragged = false; held = false; startX = e.clientX; startY = e.clientY;
     const w = toWorld(e.clientX, e.clientY); if (w) for (const f of listeners.drag) f(w, true);

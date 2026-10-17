@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { makeCharacter, animateWalk } from './poster/characters.js';
 import { generateMaze, buildCity, flowField, findPath, toWorld, toCell, CELL, mulberry32, NIGHT } from './city.js';
 import { createInput } from './input.js';
-import { unlockAudio, sfx, startMusic, stopMusic, setMusicTension, setMuted, isMuted, audioState } from './audio.js';
+import { unlockAudio, sfx, startMusic, stopMusic, setMusicTension, setMusicChase, setMuted, isMuted, audioState } from './audio.js';
 import { makeChopper, animateChopper } from './chopper.js';
 import { buildRuins } from './ruins.js';
 import { makeCar, animateCar } from './car.js';
@@ -571,7 +571,7 @@ function updateHud() {
 
 function show(screen) { if (screen) setTip(''); for (const s of [ui.start, ui.cleared, ui.over, $('won'), $('howto')]) s.classList.add('hidden'); if (screen) screen.classList.remove('hidden'); ui.hud.classList.toggle('hidden', !!screen); document.getElementById('lookBtn').classList.toggle('hidden', !!screen); }
 
-function startRun() { seen = true; unlockAudio(); startMusic(); level = 1; score = 0; lives = 3; time = 0; cash = 0; cashThisDistrict = 0; Object.assign(inv, { shoes: 0, vest: false, flare: false, ammo: false, car: null, carHp: 0 }); if (car) { scene.remove(car); car = null; } driving = false; buildLevel(level); show(null); state = 'play'; }
+function startRun() { seen = true; unlockAudio(); setMusicChase(false); startMusic(); level = 1; score = 0; lives = 3; time = 0; cash = 0; cashThisDistrict = 0; Object.assign(inv, { shoes: 0, vest: false, flare: false, ammo: false, car: null, carHp: 0 }); if (car) { scene.remove(car); car = null; } driving = false; buildLevel(level); show(null); state = 'play'; }
 function nextLevel() { if (state !== "cleared") return; level++; buildLevel(level); show(null); state = 'play'; }
 function loseLife() {
   lives--; sfx.caught(); invuln = 2; if (riding) { riding.ride.speed = 1; riding = null; } playerInfect = 0; clearAntidote();
@@ -609,7 +609,7 @@ function dropFlare() {
 }
 function clearDistrict() {
   if (level === FINAL_LEVEL) { state = 'rescue'; input.reset(); route = []; showRoute(); chopperT = 0; sfx.wave(); setTip('The chopper is coming. Hold on!'); return; }
-  state = 'cleared'; input.reset(); sfx.wave();
+  state = 'cleared'; input.reset(); setMusicChase(false); sfx.wave();
   const rescued = civilians.filter((c) => c.userData.follow && c.position.distanceTo(player.position) < 6).length;
   const saved = civilians.length - rescued, timeBonus = Math.max(0, 60 - Math.floor(time)) * 2;
   const gained = saved * 100 + rescued * 250 + kills * 10 + timeBonus; score += gained;
@@ -691,6 +691,8 @@ function frame(now) {
     previewT -= dt; if (previewT <= 0 && previews[0].visible) showPreview([]);
     collide(player.position, R); animateWalk(player, dt, Math.min(1, moving));
     stepTimer -= dt; if (moving && stepTimer <= 0) { sfx.step(); stepTimer = 0.28; }
+    // chase music while an alerted zombie is close
+    { let hunted = false; for (const z of zombies) if (z.userData.alert > 0 && !z.userData.rag && z.position.distanceTo(player.position) < 13) { hunted = true; break; } setMusicChase(hunted); }
     groanTimer -= dt; if (groanTimer <= 0) { groanTimer = 2 + Math.random() * 3; let close = 0; for (const z of zombies) if (z.position.distanceTo(player.position) < 9) close++; if (close) sfx.groan(); setMusicTension(close); }
     player.visible = !driving && (invuln <= 0 || Math.sin(now * 0.03) > 0);
 
