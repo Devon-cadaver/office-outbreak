@@ -7,12 +7,18 @@
   <link rel="stylesheet" href="./src/style.css" />
   <style>
     #dc { position: fixed; inset: 0; pointer-events: none; }
-    #dc .top { position: absolute; top: env(safe-area-inset-top, 0); left: 0; right: 0; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; text-shadow: 0 2px 4px #000; }
-    #hpbar2 { font-size: 20px; line-height: 24px; letter-spacing: 2px; }
+    #dc .top { position: absolute; top: env(safe-area-inset-top, 0); left: 0; right: 0; padding: 6px 10px 0; text-shadow: 0 1px 3px #000; }
+    #dc .row1 { display: flex; align-items: center; gap: 6px; white-space: nowrap; min-width: 0; }
+    #dc .row2 { display: flex; gap: 8px; margin-top: 2px; font-size: 11px; line-height: 1.2; min-width: 0; }
+    #dc .btns { margin-left: auto; display: flex; gap: 4px; }
+    #dc .btns button { pointer-events: auto; font-size: 10px; padding: 4px 5px; min-width: 28px; height: 24px; line-height: 1; border-width: 1.5px; }
+    #hpbar2 { font-size: 13px; line-height: 16px; letter-spacing: -1px; }
     #hp2 { white-space: nowrap; }
-    #night { font-weight: 800; font-size: 13px; white-space: nowrap; }
-    #mission { font-size: 12px !important; line-height: 1.2; }
-    #clock { font-size: 13px; opacity: .85; }
+    #night { font-weight: 800; font-size: 12px; }
+    #books { font-size: 11px; opacity: .9; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+    #mission { color: #7dff3a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+    #veh { color: #ffd24a; white-space: nowrap; }
+    #clock { font-size: 11px; opacity: .8; }
     #dcStick { position: absolute; left: 24px; bottom: calc(28px + env(safe-area-inset-bottom, 0)); width: 130px; height: 130px; border-radius: 50%; background: #ffffff22; border: 2px solid #ffffff66; box-shadow: 0 0 0 1px #0006 inset; }
     #dcKnob { position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; border-radius: 50%; background: #7dff3acc; transform: translate(-50%, -50%); box-shadow: 0 0 12px #7dff3a88; }
     #acts { position: absolute; right: 16px; bottom: calc(24px + env(safe-area-inset-bottom, 0)); display: grid; grid-template-columns: 1fr 1fr; gap: 10px; pointer-events: auto; }
@@ -27,10 +33,8 @@
 <body>
   <canvas id="game"></canvas>
   <div id="dc" class="hidden">
-    <div class="top"><div><div id="hpbar2"><div id="hp2">❤️❤️❤️</div></div><div id="clock">Day</div></div><div id="night">Night 0 / 3</div><div id="books">📖 0</div><button id="view" class="ghost" style="pointer-events:auto;font-size:12px;padding:6px 10px">ISO</button><button id="scan" class="ghost" style="pointer-events:auto;font-size:12px;padding:6px 10px;margin-left:6px;border-color:#7dff3a">SCAN 3</button><button id="dcPause" class="ghost" style="pointer-events:auto;font-size:12px;padding:6px 10px;margin-left:6px">❚❚</button></div>
-    <div id="mission" style="position:absolute;left:14px;right:14px;top:calc(env(safe-area-inset-top,0) + 52px);font-size:13px;color:#7dff3a;text-shadow:0 2px 4px #000"></div>
+    <div class="top"><div class="row1"><div id="hpbar2"><span id="hp2">❤️❤️❤️</span></div><div id="night">Day 1 / 6</div><div id="clock">55 s</div><div id="books">📖 0 · $0</div><div class="btns"><button id="view" class="ghost">ISO</button><button id="scan" class="ghost" style="border-color:#7dff3a">SCAN 3</button><button id="dcPause" class="ghost">❚❚</button></div></div><div class="row2"><span id="mission"></span><span id="veh"></span></div></div>
     <div id="msg"></div>
-    <div id="veh" style="position:absolute;left:14px;top:calc(env(safe-area-inset-top,0) + 72px);font-size:13px;color:#ffd24a;text-shadow:0 2px 4px #000"></div>
     <div id="dcStick"><div id="dcKnob"></div></div>
     <div id="acts"><button class="act empty" data-slot="0">—</button><button class="act empty" data-slot="1">—</button><button class="act empty" data-slot="2">—</button><button class="act trash" id="trash">FIRE</button></div>
   </div>

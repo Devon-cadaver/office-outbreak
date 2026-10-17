@@ -252,7 +252,7 @@ addEventListener('pointerup', () => { fireHeld = false; });
 
 // ---------- cash and the dawn store ----------
 let cash = 0, shoes = 0;
-function hudBooks() { $('books').textContent = '📖 ' + booksFound + ' · $' + cash; }
+function hudBooks() { $('books').textContent = '📖' + booksFound + ' $' + cash; }
 function earn(n) { cash += n; hudBooks(); }
 const STORE = [
   { id: 'heart', name: 'Heart', desc: 'One more red heart (max 5).', price: 250 },
@@ -367,7 +367,7 @@ function updateMissions(dt) {
   beacon.visible = true; beacon.position.set(target.x, 5, target.z); scanTarget = target;
 }
 let scans = 3, scanTarget = null; const ripples = []; const rippleGeo = new THREE.RingGeometry(0.75, 1, 32);
-function hudScan() { $('scan').textContent = 'SCAN ' + scans; $('scan').style.opacity = scans > 0 ? '' : 0.4; }
+function hudScan() { $('scan').textContent = 'SCAN' + scans; $('scan').style.opacity = scans > 0 ? '' : 0.4; }
 function doScan() { if (state !== 'play' || scans <= 0) return; scans--; hudScan(); sfx.wave();
   let t = scanTarget; if (!t) { const idle = survivors.filter((s) => !s.userData.follow && !s.userData.saved); t = idle.length ? idle.sort((p, q) => p.position.distanceTo(player.position) - q.position.distanceTo(player.position))[0].position : lz; }
   const dir = new THREE.Vector3(t.x - player.position.x, 0, t.z - player.position.z); const dist = dir.length(); dir.normalize();
@@ -385,7 +385,7 @@ function updateNights(dt) {
   hemi.intensity = 1.7 - dark * 1.1; sun.intensity = 0.9 - dark * 0.6; const fogFar = iso ? 50 : 0; scene.fog.near = fogFar + 30 - dark * 14; scene.fog.far = fogFar + 70 - dark * 30;
   { const k = weather.k; let wn = scene.fog.near, wf = scene.fog.far; if (weather.type === 'sand') { wn = fogFar + 3; wf = fogFar + 16; } else if (weather.type === 'fog') { wn = fogFar + 1.5; wf = fogFar + 11; } else if (weather.type === 'rain' || weather.type === 'storm') { wn -= 10; wf -= 25; } scene.fog.near += (wn - scene.fog.near) * k; scene.fog.far += (wf - scene.fog.far) * k; } hemi.intensity += lightFlash * 8;
   spawnT -= dt; if (spawnT <= 0) { if (isNight && nightLeft > 0 && zombies.length < 120) { spawnT = nightLen() * 0.8 / nightTotal(night) / spawnRate; nightLeft--; spawnFrom(Math.random() < fastFrac(night)); } else if (!isNight && !chopper && zombies.length < 4) { spawnT = 6; spawnFrom(false); } else spawnT = 0.5; }
-  $('night').textContent = (isNight ? 'Night ' + night : 'Day ' + (night + 1)) + ' / ' + NIGHTS + (weather.type !== 'clear' ? ' · ' + WEATHER[weather.type] : ''); $('veh').textContent = (driving ? vstat().name + ' ♥' + carHp + ' ⛽' + Math.round(car.userData.fuel) + '%' : '') + (gasCans ? ' 🛢×' + gasCans : ''); $('clock').textContent = isNight ? ((nightLen() - clock) | 0) + ' s to dawn · ' + (zombies.length + nightLeft) + ' left' : night >= NIGHTS ? 'Get to the helipad' : ((DAY - clock) | 0) + ' s of daylight';
+  $('night').textContent = (isNight ? 'N' : 'D') + (isNight ? night : night + 1) + '/' + NIGHTS + (weather.type !== 'clear' ? ' ' + WEATHER[weather.type] : ''); $('veh').textContent = (driving ? vstat().name + ' ♥' + carHp + ' ⛽' + Math.round(car.userData.fuel) + '%' : '') + (gasCans ? ' 🛢' + gasCans : ''); $('clock').textContent = isNight ? ((nightLen() - clock) | 0) + 's · ' + (zombies.length + nightLeft) + ' left' : night >= NIGHTS ? 'helipad!' : ((DAY - clock) | 0) + 's';
   if (chopper) { chopperT += dt; animateChopper(chopper, dt, chopperT); const ep = toWorld(exitCell.cx, exitCell.cy, cols, rows); chopper.position.y = Math.max(1.1, 14 - chopperT * 4); if (!extracting && Math.hypot(player.position.x - ep.x, player.position.z - ep.z) < 1.5 && chopper.position.y <= 1.2) { extracting = true; chopperT = 0; } if (extracting) { chopper.position.y = 1.1 + chopperT * chopperT * 2; player.position.set(ep.x, chopper.position.y - 0.6, ep.z); if (chopperT > 3) gameOver(true); } }
 }
 // ---------- mini-games: PUMP (tap to fill a leaking meter) and KEYS (hit the needle in the zone three times) ----------
