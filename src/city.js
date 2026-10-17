@@ -266,7 +266,7 @@ export function buildCity(scene, wall, level) {
     const side = new THREE.Mesh(box, rng() < 0.4 ? litWin : darkWin); side.scale.set(0.06, 0.4, 0.5); side.position.set(bw / 2 + 0.03, 0.6, 0.2); g.add(side);
     if (rng() < 0.5) { const porch = new THREE.Mesh(box, roofMat); porch.scale.set(1.0, 0.06, 0.5); porch.position.set(-0.55, 0.95, bd / 2 + 0.25); g.add(porch); }
     // fade + outline on the body mesh so the see-through logic works
-    body.userData.fade = [wallMat, roofMat]; body.userData.h = bh + rh;
+    body.userData.fade = [wallMat, roofMat]; body.userData.h = bh + rh; body.userData.extras = g.children.filter((ch) => ch !== body && ch !== roof);
     const edges = new THREE.LineSegments(new THREE.EdgesGeometry(box), outlineMat); edges.scale.set(bw, bh + rh, bd); edges.position.set(w.x, (bh + rh) / 2, w.z); edges.rotation.y = ry; edges.visible = false; group.add(edges); body.userData.edges = edges;
     body.position.set(0, bh / 2, 0);
     buildings.push(body);
@@ -300,19 +300,20 @@ export function buildCity(scene, wall, level) {
     map.repeat.set(1, floors); glow.repeat.set(1, floors); const ox = rng() < 0.5 ? 0 : 0.5; map.offset.set(ox, 0); glow.offset.set(ox, 0);
     const side = M({ color: base, map, emissive: 0xffffff, emissiveMap: glow, emissiveIntensity: 1, transparent: true });
     const footprint = CELL - 0.7;
-    const mesh = add(box, [side, side, roofMat, roofMat, side, side], footprint, h, footprint, w.x, h / 2, w.z);
-    mesh.userData.fade = [side]; mesh.userData.h = h;
-    if (tower) { add(box, M({ color: 0x3a4a52 }), 0.3, 1.6, 0.3, w.x, h + 0.8, w.z); add(box, new THREE.MeshBasicMaterial({ color: 0xff3a3a }), 0.14, 0.14, 0.14, w.x, h + 1.65, w.z); }
+    const roofM = roofMat.clone(); roofM.transparent = true; const extras = []; const addX = (...a) => { const m = add(...a); extras.push(m); return m; };
+    const mesh = add(box, [side, side, roofM, roofM, side, side], footprint, h, footprint, w.x, h / 2, w.z);
+    mesh.userData.fade = [side, roofM]; mesh.userData.h = h; mesh.userData.extras = extras;
+    if (tower) { addX(box, M({ color: 0x3a4a52 }), 0.3, 1.6, 0.3, w.x, h + 0.8, w.z); addX(box, new THREE.MeshBasicMaterial({ color: 0xff3a3a }), 0.14, 0.14, 0.14, w.x, h + 1.65, w.z); }
     const edges = new THREE.LineSegments(new THREE.EdgesGeometry(box), outlineMat); edges.scale.copy(mesh.scale); edges.position.copy(mesh.position); edges.visible = false; group.add(edges); mesh.userData.edges = edges;
-    add(box, corniceMat, footprint + 0.15, 0.12, footprint + 0.15, w.x, h + 0.02, w.z);
-    if (!edge && rng() < 0.4) add(box, M({ color: 0x4f6366 }), 0.5, 0.35, 0.5, w.x + (rng() - 0.5) * 1.4, h + 0.25, w.z + (rng() - 0.5) * 1.4);
-    if (!edge && rng() < 0.25) add(cyl, M({ color: 0x5c6f73 }), 0.5, 0.6, 0.5, w.x + (rng() - 0.5) * 1.2, h + 0.38, w.z + (rng() - 0.5) * 1.2);
+    addX(box, corniceMat, footprint + 0.15, 0.12, footprint + 0.15, w.x, h + 0.02, w.z);
+    if (!edge && rng() < 0.4) addX(box, M({ color: 0x4f6366 }), 0.5, 0.35, 0.5, w.x + (rng() - 0.5) * 1.4, h + 0.25, w.z + (rng() - 0.5) * 1.4);
+    if (!edge && rng() < 0.25) addX(cyl, M({ color: 0x5c6f73 }), 0.5, 0.6, 0.5, w.x + (rng() - 0.5) * 1.2, h + 0.38, w.z + (rng() - 0.5) * 1.2);
     const faces = [[0, 1, 0], [1, 0, Math.PI / 2], [0, -1, Math.PI], [-1, 0, -Math.PI / 2]].filter(([dx, dz]) => open(x + dx, y + dz));
     if (faces.length && !edge) {
       const [dx, dz, ry] = faces[(rng() * faces.length) | 0];
       const fx = w.x + dx * (footprint / 2 + 0.03), fz = w.z + dz * (footprint / 2 + 0.03);
-      add(box, frameMat, 0.7, 0.95, 0.06, fx, 0.48, fz, ry); add(box, doorMat, 0.5, 0.8, 0.07, fx, 0.42, fz, ry);
-      if (rng() < 0.5) add(box, awningMats[(rng() * 3) | 0], 1.3, 0.08, 0.5, fx + dx * 0.25, 1.05, fz + dz * 0.25, ry);
+      addX(box, frameMat, 0.7, 0.95, 0.06, fx, 0.48, fz, ry); addX(box, doorMat, 0.5, 0.8, 0.07, fx, 0.42, fz, ry);
+      if (rng() < 0.5) addX(box, awningMats[(rng() * 3) | 0], 1.3, 0.08, 0.5, fx + dx * 0.25, 1.05, fz + dz * 0.25, ry);
     }
     obstacles.push({ x: w.x, z: w.z, hw: CELL / 2 - 0.05, hd: CELL / 2 - 0.05 });
     buildings.push(mesh);

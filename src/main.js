@@ -903,6 +903,7 @@ function render(dt = 0.016) {
       const fade = towardCam > 0.25 && dist < 5.5 + (b.userData.h || 2) * 0.9 && Math.abs(dx * camDir.z - dz * camDir.x) < 3.6;
       const op = fade ? 0.12 : 1; for (const mat of b.userData.fade) if (mat.opacity !== op) { mat.opacity = op; }
       if (b.userData.edges) b.userData.edges.visible = fade;
+      if (b.userData.extras) for (const e of b.userData.extras) e.visible = !fade;
     }
     // objective beacon + HUD line
     if ((state === 'play' || state === 'puzzle') && exitCell) {
