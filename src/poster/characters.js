@@ -39,8 +39,9 @@ export function makeCharacter(outfitName, { zombie = false } = {}) {
   const head = new THREE.Group(); head.position.y = 1.78; body.add(head);
   head.add(part(sphere, o.skin, 0.66, 0.66, 0.66, 0, 0.33, 0));
   if (o.hair) { const cap = part(sphere, o.hair, 0.7, 0.5, 0.7, 0, 0.42, -0.04); head.add(cap); }
-  const eyeC = zombie ? 0xb8ffff : 0x1a1a1a; const eyeMat = zombie ? new THREE.MeshBasicMaterial({ color: eyeC }) : mat(eyeC);
-  for (const ex of [-0.13, 0.13]) { const e = new THREE.Mesh(sphere, eyeMat); e.scale.setScalar(zombie ? 0.14 : 0.08); e.position.set(ex, 0.34, 0.3); head.add(e); }
+  const eyeC = zombie ? 0x6cff2a : 0x1a1a1a; const eyeMat = zombie ? new THREE.MeshBasicMaterial({ color: eyeC }) : mat(eyeC);
+  for (const ex of [-0.13, 0.13]) { const e = new THREE.Mesh(sphere, eyeMat); e.scale.setScalar(zombie ? 0.14 : 0.08); e.position.set(ex, 0.34, 0.3); head.add(e);
+    if (zombie) { const halo = new THREE.Mesh(sphere, new THREE.MeshBasicMaterial({ color: 0x6cff2a, transparent: true, opacity: 0.35, depthWrite: false })); halo.scale.setScalar(0.24); halo.position.set(ex, 0.34, 0.3); head.add(halo); } }
   if (zombie) { armL.rotation.x = -1.3; armR.rotation.x = -1.3; body.rotation.x = 0.12; head.rotation.z = 0.15; }
   g.userData = { body, legL, legR, armL, armR, head, zombie, phase: Math.random() * 6 };
   return g;

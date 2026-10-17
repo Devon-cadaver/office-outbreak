@@ -1,4 +1,4 @@
-# Duvallville / Office Outbreak — project notes
+# Conga of the Dead (blocky game, was Office Outbreak) / Duvallville poster — project notes
 
 Reference for continuing work after a context compaction. Everything here was true on 2026-10-17.
 

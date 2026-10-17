@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#16302f" />
-  <title>Office Outbreak</title>
+  <title>Conga of the Dead</title>
   <link rel="icon" href="data:," />
   <link rel="stylesheet" href="/src/style.css" />
 </head>
@@ -21,6 +21,13 @@
       <div id="people">People safe: 0/0</div>
       <div id="weapon">Unarmed</div>
     </div>
+    <div class="row sub"><div id="objective"></div></div>
+  </div>
+  <div id="puzzle" class="screen hidden">
+    <h2>POWER BOX</h2>
+    <p id="puzzleText">Tap the wires to turn them. Connect the power on the left to the gate on the right.</p>
+    <div class="pzWrap"><div class="pzSide" id="pzL"></div><div class="pzGrid" id="pzGrid"></div><div class="pzSide" id="pzR"></div></div>
+    <button class="ghost" id="puzzleClose">Step away</button>
   </div>
 
     <div id="exitArrow" class="hidden">➤</div>
@@ -30,8 +37,8 @@
   <div id="tip" class="hidden"></div>
 
   <div id="start" class="screen">
-    <h1>OFFICE<br>OUTBREAK</h1>
-    <p>The city is turning. Get from the start to the safe zone.</p>
+    <h1>CONGA<br>OF THE DEAD</h1>
+    <p>Escape from Zombieville. Lead a line of survivors through the maze to the safe zone.</p>
     <p class="small">Zombies infect every crowd they reach, so lead them away from people.<br>Grab weapons to fight back. One touch costs a life.</p>
     <p class="small">Tap where to go, or drag a route. Works with finger or mouse.</p>
     <button id="startBtn">START RUN</button>

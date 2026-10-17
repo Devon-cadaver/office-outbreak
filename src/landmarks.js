@@ -7,7 +7,8 @@ const cyl = new THREE.CylinderGeometry(0.5, 0.5, 1, 10);
 const ball = new THREE.IcosahedronGeometry(0.5, 1);
 export const LANDMARKS = ['gas', 'ferris', 'slime', 'school', 'skate'];
 const spinners = [];
-export function resetLandmarks() { spinners.length = 0; }
+export const ferris = { pos: null, wheel: null };
+export function resetLandmarks() { spinners.length = 0; ferris.pos = null; ferris.wheel = null; }
 export function updateLandmarks(dt) { for (const s of spinners) s.rotation.z += dt * 0.35; }
 
 export function pickLandmarks(wall, rng) {
@@ -55,7 +56,7 @@ export function buildLandmark(type, group, w, rng, M, add) {
     for (let i = 0; i < 8; i++) { const sp = new THREE.Mesh(box, frame); sp.scale.set(0.05, 2.9, 0.05); sp.rotation.z = i * Math.PI / 8; wheel.add(sp); }
     const cab = M({ color: 0x8c2d6b }), cab2 = M({ color: 0x2f8a6c });
     for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; const cm = new THREE.Mesh(box, i % 2 ? cab : cab2); cm.scale.set(0.42, 0.38, 0.35); cm.position.set(Math.cos(a) * 1.45, Math.sin(a) * 1.45, 0); wheel.add(cm); }
-    spinners.push(wheel);
+    spinners.push(wheel); ferris.pos = new THREE.Vector3(w.x, 0, w.z); ferris.wheel = wheel;
     add(box, M({ color: 0x9a3a4a }), 1.0, 0.7, 0.6, w.x + 0.9, 0.35, w.z + 0.8);
     const bulbs = glowMat(0xffe27a); for (let i = 0; i < 6; i++) add(ball, bulbs, 0.12, 0.12, 0.12, w.x - 1.2 + i * 0.48, 1.1, w.z + 1.25);
   } else if (type === 'slime') {

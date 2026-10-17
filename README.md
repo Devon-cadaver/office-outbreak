@@ -1,4 +1,4 @@
-# Office Outbreak
+# Conga of the Dead (formerly Office Outbreak)
 
 A browser game: a city maze meets Pac-Man during a zombie outbreak.
 Run from the start corner to the green safe zone. A few zombies start far away and
