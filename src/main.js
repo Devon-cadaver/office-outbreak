@@ -290,7 +290,8 @@ function clearDistrict() {
 const SLIDES = [
   ['howto/1-move.jpg', 'Tap a street to walk there, or drag a route. Green dots show your path.'],
   ['howto/2-weapon.jpg', 'You start unarmed. Pick up a pistol, shotgun or rifle. It aims and fires by itself, until the ammo runs out.'],
-  ['howto/3-crowd.jpg', 'Walk up to people and they follow you. Bring them to the safe zone for big points. Any crowd a zombie reaches turns and joins the horde.'],
+  ['howto/3-crowd.jpg', 'Zombies go for people before you. Any crowd they reach turns and joins the horde, so lead the horde away from crowds.'],
+  ['howto/6-follow.jpg', 'Walk up to people and they follow you. Get them to the safe zone for 250 points each. Or keep them between you and the horde: zombies take the nearest person first.'],
   ['howto/4-gate.jpg', 'From district 3 the route is gated. Find the yellow switch somewhere else in the district to open it.'],
   ['howto/5-exit.jpg', 'Follow the green arrow to the safe zone. One touch from a zombie costs a life. Ten districts, then the chopper pulls you out.'],
 ];
@@ -365,7 +366,7 @@ function frame(now) {
     if (level === 1) {
       if (tipStage === 0 && !route.length) setTip('Tap the road to walk there, or drag a route.');
       if (tipStage === 0 && route.length) { tipStage = 1; setTip('Nice. Grab the pistol nearby: it fires by itself.'); }
-      if (tipStage <= 1 && weapon) { tipStage = 2; setTip('Armed. Zombies turn any crowd they reach, so lead them away from people.'); }
+      if (tipStage <= 1 && weapon) { tipStage = 2; setTip('Armed. Zombies hunt people first. Walk up to a crowd to make them follow you.'); }
       if (tipStage === 2 && time > 25) { tipStage = 3; setTip('Follow the green arrow to the safe zone.'); }
     } else if (gate && !gate.open && tipStage === 0) { tipStage = 1; setTip('The route is gated. Find the yellow switch to open it.'); }
     else if (level === FINAL_LEVEL && tipStage === 0) { tipStage = 1; setTip('Last district. Reach the helipad and the chopper will pull you out.'); }

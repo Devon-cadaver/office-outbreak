@@ -47,6 +47,10 @@ const WEAPONS = {
 let world = null, state = 'loading', score = 0, lives = 3, time = 0, kills = 0, totalPeople = 0;
 let startCell = null, exitCell = null, exitMesh = null;
 const player = makeCharacter('worker'); scene.add(player); player.visible = false; player.scale.setScalar(CHAR_SCALE);
+// x-ray silhouette so the player stays visible behind buildings
+const ghostMat = new THREE.MeshBasicMaterial({ color: 0x9fffb0, transparent: true, opacity: 0.35, depthTest: false, depthWrite: false });
+const ghost = makeCharacter('worker'); ghost.traverse((o) => { if (o.isMesh) { o.material = ghostMat; o.renderOrder = 999; } }); ghost.scale.setScalar(CHAR_SCALE); ghost.visible = false; scene.add(ghost);
+function syncGhost() { ghost.visible = player.visible; ghost.position.copy(player.position); ghost.rotation.copy(player.rotation); const a = player.userData, b = ghost.userData; for (const k of ['legL', 'legR', 'armL', 'armR', 'head']) b[k].rotation.copy(a[k].rotation); b.body.position.copy(a.body.position); }
 let civilians = [], zombies = [], pickups = [], projectiles = [], particles = [], followers = [];
 const pool = { civ: [], zom: [] };
 let weapon = null, ammo = 0, fireTimer = 0, flow = null, flowTimer = 0, invuln = 0, stepTimer = 0, groanTimer = 1;
@@ -89,14 +93,17 @@ function buildLevel() {
   const { gcols, grows } = world;
   // start: bottom band, exit: top band
   const bottom = pickOpenCells((c, r) => r > grows * 0.9, rng), top = pickOpenCells((c, r) => r < grows * 0.08, rng);
-  startCell = { cx: bottom[0][0], cy: bottom[0][1] }; exitCell = { cx: top[0][0], cy: top[0][1] };
+  // start must connect to the top of town; exit is a reachable top cell
+  let distFromStart = null;
+  for (const [c, r] of bottom) { const d = flowField(world, c, r); const reach = top.filter(([tc, tr]) => d[tr * gcols + tc] >= 0); if (reach.length) { startCell = { cx: c, cy: r }; const e = reach[(rng() * reach.length) | 0]; exitCell = { cx: e[0], cy: e[1] }; distFromStart = d; break; } }
+  if (!distFromStart) { startCell = { cx: bottom[0][0], cy: bottom[0][1] }; exitCell = { cx: top[0][0], cy: top[0][1] }; distFromStart = flowField(world, startCell.cx, startCell.cy); }
   const ep = world.cellCenter(exitCell.cx, exitCell.cy);
   if (exitMesh) scene.remove(exitMesh);
   exitMesh = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 0.06, 20), new THREE.MeshBasicMaterial({ color: 0x7dff6a, transparent: true, opacity: 0.7 }));
   exitMesh.position.set(ep.x, 0.03, ep.z); scene.add(exitMesh);
   // crowds along the way
   const mid = pickOpenCells((c, r) => r > grows * 0.1 && r < grows * 0.88, rng);
-  const dist = flowField(world, startCell.cx, startCell.cy);
+  const dist = distFromStart;
   totalPeople = 0; let placed = 0;
   for (const [c, r] of mid) { if (placed >= 14) break; if (dist[r * gcols + c] < 12) continue; if (civilians.some((civ) => { const q = world.cellOf(civ.position.x, civ.position.z); return Math.abs(q.cx - c) + Math.abs(q.cy - r) < 10; })) continue;
     const w = world.cellCenter(c, r); const size = 2 + ((rng() * 3) | 0);
@@ -221,6 +228,7 @@ function frame(now) {
     for (let i = particles.length - 1; i >= 0; i--) { const p = particles[i]; p.position.addScaledVector(p.userData.vel, dt); p.userData.vel.y -= 12 * dt; p.userData.life -= dt; if (p.userData.life <= 0) { scene.remove(p); particles.splice(i, 1); } }
   } else if (state !== 'loading') { for (const z of zombies) animateWalk(z, dt, 0.3); }
   if (rain) updateRain(dt);
+  syncGhost();
   render(dt);
 }
 function render(dt = 0.016) {
