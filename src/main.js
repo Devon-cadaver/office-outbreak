@@ -127,7 +127,7 @@ const objectiveEl = document.getElementById('objective');
 const fx = createFires(scene);
 let fireCheck = 0, shake = 0;
 const burntMat = new THREE.MeshLambertMaterial({ color: 0x1a1c1e });
-function burnCar(car) { if (car.userData.burning) return; car.userData.burning = true; car.traverse((o) => { if (o.isMesh && o.material && o.material.color && o.material.color.getHex() !== 0x5a86a8) o.material = burntMat; }); fx.ignite(new THREE.Vector3(car.position.x, 0.6, car.position.z), 0.8); sfx.whoosh(); }
+function burnCar(car) { if (car.userData.burning) return; car.userData.burning = true; car.traverse((o) => { if (o.isMesh && o.material && o.material.color && o.material.color.getHex() !== 0x5a86a8) o.material = burntMat; }); const cp = car.userData.worldPos(); fx.ignite(new THREE.Vector3(cp.x, 0.6, cp.z), 0.8); sfx.whoosh(); }
 function burnBuilding(b) { if (b.userData.burning) return; b.userData.burning = true; const h = b.userData.h || 2; fx.ignite(new THREE.Vector3(b.position.x + (Math.random() - 0.5) * 0.8, Math.min(h, 2.2), b.position.z + (Math.random() - 0.5) * 0.8), 1.1 + Math.random() * 0.5); if (b.userData.fade) for (const mat of b.userData.fade) if (mat.emissive) { mat.emissive.set(0xff5a1a); mat.emissiveIntensity = 0.35; } }
 function explodeAt(pos, size, label) {
   fx.explode(pos, size); sfx.boom(); shake = 0.7; say(player, label || 'Whoa!', 1.4);
@@ -141,7 +141,7 @@ function updateFires(dt) {
   fx.update(dt); fireCheck -= dt; if (fireCheck > 0) return; fireCheck = 0.5;
   const hot = zombies.filter((z) => z.userData.alert > 0 && !z.userData.rag);
   // parked cars catch fire when zombies pass them
-  for (const car of city.cars) if (!car.userData.burning) for (const z of zombies) if (Math.abs(z.position.x - car.position.x) < 1.4 && Math.abs(z.position.z - car.position.z) < 1.4 && Math.random() < 0.35) { burnCar(car); break; }
+  for (const car of city.cars) if (!car.userData.burning) { const cp = car.userData.worldPos(); for (const z of zombies) if (Math.abs(z.position.x - cp.x) < 1.4 && Math.abs(z.position.z - cp.z) < 1.4 && Math.random() < 0.35) { burnCar(car); break; } }
   // the gas station blows when the horde reaches it
   for (const hz of city.hazards) if (hz.type === 'gas' && !hz.done) { let near = 0; for (const z of zombies) if (z.position.distanceTo(hz.pos) < 3.2) near++; if (near >= 2 || (near && Math.random() < 0.15)) { hz.done = true; explodeAt(hz.pos, 1.6, 'The gas station!'); } }
   // a lingering horde sets buildings alight; fire spreads next door now and then
@@ -794,7 +794,8 @@ function frame(now) {
       if (d < 0.35) { route.shift(); showRoute(); }
       else { const spd = PLAYER_SPEED * (1 + inv.shoes * 0.1) * (sprint > 0 ? 1.6 : 1) * (driving ? 1.7 : 1) * (infected > 0 ? 0.85 : 1); const step = Math.min(d, spd * dt); player.position.x += dx / d * step; player.position.z += dz / d * step; player.rotation.y = Math.atan2(dx, dz); moving = 1; if (sprint > 0 && Math.random() < 0.5) particle(player.position, previewMat); }
     }
-    if (driving && car) { car.position.copy(player.position); car.rotation.y = player.rotation.y; animateCar(car, dt, moving); car.userData.hp = inv.carHp; }
+    if (driving && car) { car.position.copy(player.position); car.rotation.y = player.rotation.y; animateCar(car, dt, moving); car.userData.hp = inv.carHp;
+      if (moving && city.knock(player.position.x, player.position.z, 1.2, Math.sin(player.rotation.y), Math.cos(player.rotation.y))) sfx.hit(); }
     if (flare) { flareT -= dt; if (flareT <= 0) flare.visible = false; else { flare.scale.setScalar(1 + Math.sin(now * 0.03) * 0.3); if (Math.random() < 0.3) particle(flare.position, flare.material); } }
     noiseT -= dt;
     sprint -= dt; sprintCd -= dt; streakT -= dt; if (streakT <= 0 && streak) { streak = 0; updateHud(); }

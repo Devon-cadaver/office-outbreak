@@ -161,6 +161,26 @@ export function buildCity(scene, wall, level) {
   const W = cols * CELL, D = rows * CELL;
   const M = (o) => new THREE.MeshLambertMaterial(o);
   const add = (geo, mat, sx, sy, sz, x, y, z, ry = 0) => { const m = new THREE.Mesh(geo, mat); m.scale.set(sx, sy, sz); m.position.set(x, y, z); m.rotation.y = ry; group.add(m); return m; };
+  // knockable props: each lives in its own group so a car can send the whole thing tumbling.
+  // solid props block walkers until knocked; poles and lights never block anyone.
+  const props = [];
+  const prop = (x, z, kind, solid, hw = 0.2, hd = 0.2) => {
+    const pg = new THREE.Group(); pg.position.set(x, 0, z); group.add(pg);
+    const ob = solid ? { x, z, hw, hd } : null; if (ob) obstacles.push(ob);
+    const p = { g: pg, x, z, kind, ob, knocked: false, t: 0 }; props.push(p);
+    p.add = (geo, mat, sx, sy, sz, ax, ay, az, ry = 0) => { const m = new THREE.Mesh(geo, mat); m.scale.set(sx, sy, sz); m.position.set(ax - x, ay, az - z); m.rotation.y = ry; pg.add(m); return m; };
+    return p;
+  };
+  const knock = (x, z, radius, dx, dz) => {
+    let n = 0;
+    for (const p of props) { if (p.knocked || Math.hypot(p.x - x, p.z - z) > radius) continue; p.knocked = true; n++;
+      const ax = p.x - x, az = p.z - z, al = Math.hypot(ax, az) || 1; p.dir = { x: (dx * 0.6 + ax / al * 0.4), z: (dz * 0.6 + az / al * 0.4) };
+      if (p.ob) { const i = obstacles.indexOf(p.ob); if (i >= 0) obstacles.splice(i, 1); } }
+    return n;
+  };
+  const updateProps = (dt) => { for (const p of props) { if (!p.knocked || p.t >= 1) continue; p.t = Math.min(1, p.t + dt * 2.2); const k = p.t; const lift = p.kind === 'car' ? 0.6 : 0.25;
+    p.g.position.x = p.x + p.dir.x * k * (p.kind === 'car' ? 2.2 : 1.2); p.g.position.z = p.z + p.dir.z * k * (p.kind === 'car' ? 2.2 : 1.2); p.g.position.y = Math.sin(k * Math.PI) * lift;
+    const ang = k * (p.kind === 'car' ? Math.PI : 1.45); p.g.rotation.x = p.dir.z * ang; p.g.rotation.z = -p.dir.x * ang; } };
 
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(W + 16, D + 16), M({ color: NIGHT.ground }));
   ground.rotation.x = -Math.PI / 2; ground.position.y = -0.02; group.add(ground);
@@ -262,16 +282,15 @@ export function buildCity(scene, wall, level) {
       const vi = (wall.custom.vars && wall.custom.vars.get(i)) || 0;
       const spots = [[0, 1.05, 0], [0, -1.05, Math.PI], [1.05, 0, -Math.PI / 2], [-1.05, 0, Math.PI / 2], [0.9, 0.9, -Math.PI / 4], [-0.9, 0.9, Math.PI / 4], [0, 1.05, 0], [1.05, 0, -Math.PI / 2], [0, -1.05, Math.PI], [-1.05, 0, Math.PI / 2]];
       const [ox, oz, ry] = spots[vi]; const wx = bw.x + ox, wz = bw.z + oz;
-      const bench = new THREE.Group(); bench.position.set(wx, 0, wz); bench.rotation.y = ry; group.add(bench);
+      const bprop = prop(wx, wz, 'bench', true, 0.5, 0.25); const bench = new THREE.Group(); bench.rotation.y = ry; bprop.g.add(bench);
       const seat = new THREE.Mesh(box, benchMat); seat.scale.set(1.0, 0.08, 0.35); seat.position.y = 0.4; bench.add(seat); const back = new THREE.Mesh(box, benchMat); back.scale.set(1.0, 0.3, 0.06); back.position.set(0, 0.55, 0.17); bench.add(back);
       for (const lx of [-0.4, 0.4]) { const leg = new THREE.Mesh(box, M({ color: 0x2a3438 })); leg.scale.set(0.08, 0.4, 0.3); leg.position.set(lx, 0.2, 0); bench.add(leg); }
       if (vi >= 6 && vi <= 7) { const bin = new THREE.Mesh(cyl, M({ color: 0x3a4a52 })); bin.scale.set(0.3, 0.5, 0.3); bin.position.set(0.85, 0.25, 0); bench.add(bin); }
-      if (vi >= 8) { const post = new THREE.Mesh(cyl, M({ color: 0x2a3438 })); post.scale.set(0.08, 2.2, 0.08); post.position.set(-0.85, 1.1, 0); bench.add(post); const lampB = new THREE.Mesh(ball, new THREE.MeshBasicMaterial({ color: 0xffe27a })); lampB.scale.setScalar(0.2); lampB.position.set(-0.85, 2.2, 0); bench.add(lampB); }
-      obstacles.push({ x: wx, z: wz, hw: 0.5, hd: 0.25 }); }
+      if (vi >= 8) { const post = new THREE.Mesh(cyl, M({ color: 0x2a3438 })); post.scale.set(0.08, 2.2, 0.08); post.position.set(-0.85, 1.1, 0); bench.add(post); const lampB = new THREE.Mesh(ball, new THREE.MeshBasicMaterial({ color: 0xffe27a })); lampB.scale.setScalar(0.2); lampB.position.set(-0.85, 2.2, 0); bench.add(lampB); } }
     if (!wall.custom) for (const [x, y] of streetCells) if (park(x, y) && park(x + 1, y) && park(x, y + 1) && park(x + 1, y + 1)) {
       const wx = toWorld(x, y, cols, rows).x + CELL / 2, wz = toWorld(x, y, cols, rows).z + CELL / 2; const r = rng();
-      if (r < 0.55) { add(cyl, trunk, 0.14, 0.9, 0.14, wx, 0.45, wz); add(ball, r < 0.3 ? leaf : leaf2, 1.1, 1.0, 1.1, wx, 1.25, wz); add(ball, leaf, 0.7, 0.6, 0.7, wx + 0.3, 1.6, wz - 0.2); obstacles.push({ x: wx, z: wz, hw: 0.3, hd: 0.3 }); }
-      else if (r < 0.8) { add(box, benchMat, 1.0, 0.08, 0.35, wx, 0.4, wz); add(box, benchMat, 1.0, 0.3, 0.06, wx, 0.55, wz - 0.17); for (const bx of [-0.4, 0.4]) add(box, M({ color: 0x2a3438 }), 0.08, 0.4, 0.3, wx + bx, 0.2, wz); obstacles.push({ x: wx, z: wz, hw: 0.5, hd: 0.2 }); }
+      if (r < 0.55) { const tp = prop(wx, wz, 'tree', true, 0.3, 0.3); tp.add(cyl, trunk, 0.14, 0.9, 0.14, wx, 0.45, wz); tp.add(ball, r < 0.3 ? leaf : leaf2, 1.1, 1.0, 1.1, wx, 1.25, wz); tp.add(ball, leaf, 0.7, 0.6, 0.7, wx + 0.3, 1.6, wz - 0.2); }
+      else if (r < 0.8) { const bp = prop(wx, wz, 'bench', true, 0.5, 0.2); bp.add(box, benchMat, 1.0, 0.08, 0.35, wx, 0.4, wz); bp.add(box, benchMat, 1.0, 0.3, 0.06, wx, 0.55, wz - 0.17); for (const bx of [-0.4, 0.4]) bp.add(box, M({ color: 0x2a3438 }), 0.08, 0.4, 0.3, wx + bx, 0.2, wz); }
     }
   }
 
@@ -304,13 +323,12 @@ export function buildCity(scene, wall, level) {
       // pick a corner that touches a building diagonal so the post is on the sidewalk, not in the road
       const corners = [[-1, -1], [1, -1], [-1, 1], [1, 1]].filter(([dx, dz]) => !open(x + dx, y + dz));
       if (!corners.length) continue; const [dx, dz] = corners[(rng() * corners.length) | 0];
-      const px = w.x + dx * 1.15, pz = w.z + dz * 1.15;
-      add(cyl, postMat, 0.09, 2.3, 0.09, px, 1.15, pz);
-      add(cyl, postMat, 0.09, 0.09, 0.9, px - dx * 0.4, 2.3, pz - dz * 0.4).rotation.set(Math.PI / 2 * Math.abs(dz), 0, Math.PI / 2 * Math.abs(dx) * (dz === 0 ? 1 : 0));
-      add(box, headMat, 0.42, 0.14, 0.42, px - dx * 0.8, 2.26, pz - dz * 0.8);
-      add(box, lightMat, 0.3, 0.04, 0.3, px - dx * 0.8, 2.18, pz - dz * 0.8);
+      const px = w.x + dx * 1.15, pz = w.z + dz * 1.15; const lp = prop(px, pz, 'light', false);
+      lp.add(cyl, postMat, 0.09, 2.3, 0.09, px, 1.15, pz);
+      lp.add(cyl, postMat, 0.09, 0.09, 0.9, px - dx * 0.4, 2.3, pz - dz * 0.4).rotation.set(Math.PI / 2 * Math.abs(dz), 0, Math.PI / 2 * Math.abs(dx) * (dz === 0 ? 1 : 0));
+      lp.add(box, headMat, 0.42, 0.14, 0.42, px - dx * 0.8, 2.26, pz - dz * 0.8);
+      lp.add(box, lightMat, 0.3, 0.04, 0.3, px - dx * 0.8, 2.18, pz - dz * 0.8);
       const pool = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 3.6), poolMat2); pool.rotation.x = -Math.PI / 2; pool.position.set(px - dx * 0.8, 0.13, pz - dz * 0.8); group.add(pool);
-      obstacles.push({ x: px, z: pz, hw: 0.1, hd: 0.1 });
     }
   }
 
@@ -453,9 +471,10 @@ export function buildCity(scene, wall, level) {
       const roofC = new THREE.Mesh(box, bodyMat); roofC.scale.set(0.82, 0.06, 0.97); roofC.position.set(0, 0.9, -0.15); car.add(roofC);
       for (const [wx, wz] of [[-0.44, 0.58], [0.44, 0.58], [-0.44, -0.58], [0.44, -0.58]]) { const wh = new THREE.Mesh(cyl, wheelMat); wh.rotation.z = Math.PI / 2; wh.scale.set(0.34, 0.14, 0.34); wh.position.set(wx, 0.17, wz); car.add(wh); }
       for (const hx of [-0.3, 0.3]) { const hl = new THREE.Mesh(box, headMat); hl.scale.set(0.16, 0.1, 0.05); hl.position.set(hx, 0.42, 0.91); car.add(hl); const tl = new THREE.Mesh(box, tailMat); tl.scale.set(0.16, 0.08, 0.05); tl.position.set(hx, 0.42, -0.91); car.add(tl); }
-      if (straightH || (!straightV && (e || w0))) { car.rotation.y = Math.PI / 2 * (rng() < 0.5 ? 1 : -1); car.position.set(w.x, 0, w.z + sideSign * 0.95); obstacles.push({ x: w.x, z: w.z + sideSign * 0.95, hw: 0.9, hd: 0.45 }); }
-      else { car.rotation.y = rng() < 0.5 ? 0 : Math.PI; car.position.set(w.x + sideSign * 0.95, 0, w.z); obstacles.push({ x: w.x + sideSign * 0.95, z: w.z, hw: 0.45, hd: 0.9 }); }
-      group.add(car); cars.push(car);
+      const horizCar = straightH || (!straightV && (e || w0)); const cx = horizCar ? w.x : w.x + sideSign * 0.95, czz = horizCar ? w.z + sideSign * 0.95 : w.z;
+      car.rotation.y = horizCar ? Math.PI / 2 * (rng() < 0.5 ? 1 : -1) : (rng() < 0.5 ? 0 : Math.PI); car.position.set(cx, 0, czz);
+      const cp = prop(cx, czz, 'car', true, horizCar ? 0.9 : 0.45, horizCar ? 0.45 : 0.9); cp.g.add(car); car.position.set(0, 0, 0); car.userData.prop = cp; car.userData.worldPos = () => cp.g.position;
+      cars.push(car);
     }
   }
 
@@ -468,15 +487,15 @@ export function buildCity(scene, wall, level) {
   const SPACING = 2; // cells between poles
   const makePole = (px, pz, facing) => {
     // facing: +1 lamp arm points to +x (east), -1 to -x, +2 to +z, -2 to -z
-    add(cyl, poleMat, 0.1, 2.8, 0.1, px, 1.4, pz);
-    add(box, poleMat, 0.8, 0.06, 0.06, px, 2.45, pz).rotation.y = Math.abs(facing) === 2 ? Math.PI / 2 : 0; // crossbar along the street
+    const pp = prop(px, pz, 'pole', false);
+    pp.add(cyl, poleMat, 0.1, 2.8, 0.1, px, 1.4, pz);
+    pp.add(box, poleMat, 0.8, 0.06, 0.06, px, 2.45, pz).rotation.y = Math.abs(facing) === 2 ? Math.PI / 2 : 0; // crossbar along the street
     const ax = facing === 1 ? 0.5 : facing === -1 ? -0.5 : 0, az = facing === 2 ? 0.5 : facing === -2 ? -0.5 : 0;
-    const arm = add(box, poleMat, 0.55, 0.07, 0.07, px + ax * 0.55, 2.75, pz + az * 0.55); arm.rotation.y = Math.abs(facing) === 2 ? Math.PI / 2 : 0;
-    add(cone, poleMat, 0.36, 0.22, 0.36, px + ax, 2.7, pz + az).rotation.x = Math.PI;
-    const bulb = add(cyl, bulbMat.clone(), 0.18, 0.06, 0.18, px + ax, 2.58, pz + az);
+    const arm = pp.add(box, poleMat, 0.55, 0.07, 0.07, px + ax * 0.55, 2.75, pz + az * 0.55); arm.rotation.y = Math.abs(facing) === 2 ? Math.PI / 2 : 0;
+    pp.add(cone, poleMat, 0.36, 0.22, 0.36, px + ax, 2.7, pz + az).rotation.x = Math.PI;
+    const bulb = pp.add(cyl, bulbMat.clone(), 0.18, 0.06, 0.18, px + ax, 2.58, pz + az);
     const pool = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 3.4), poolMat.clone()); pool.rotation.x = -Math.PI / 2; pool.position.set(px + ax, 0.02, pz + az); group.add(pool);
     if (rng() < 0.3) lamps.push({ bulb, pool, t: rng() * 10, on: true });
-    obstacles.push({ x: px, z: pz, hw: 0.1, hd: 0.1 });
     return new THREE.Vector3(px, 2.47, pz);
   };
   const wire = (a, b) => { const segs = 8; const sag = (t) => -Math.sin(t * Math.PI) * 0.35; for (let k = 0; k < segs; k++) { const t0 = k / segs, t1 = (k + 1) / segs; for (const off of [-0.12, 0.12]) { const ox = Math.abs(a.x - b.x) > Math.abs(a.z - b.z) ? 0 : off, oz = Math.abs(a.x - b.x) > Math.abs(a.z - b.z) ? off : 0; wirePts.push(a.x + (b.x - a.x) * t0 + ox, a.y + sag(t0), a.z + (b.z - a.z) * t0 + oz, a.x + (b.x - a.x) * t1 + ox, a.y + sag(t1), a.z + (b.z - a.z) * t1 + oz); } } };
@@ -529,18 +548,19 @@ export function buildCity(scene, wall, level) {
     const w = toWorld(x, y, cols, rows); const r = rng();
     const sideSign = rng() < 0.5 ? -1 : 1; const horiz = e && w0;
     const px = horiz ? w.x + (rng() - 0.5) * 1.6 : w.x + sideSign * 1.2, pz = horiz ? w.z + sideSign * 1.2 : w.z + (rng() - 0.5) * 1.6;
-    if (r < 0.05) {
-      add(cyl, trunkMat, 0.18, 1.0, 0.18, px, 0.5, pz);
-      for (let k = 0; k < 3; k++) { const l = add(ball, k % 2 ? leafMat2 : leafMat, 1.1 + rng() * 0.5, 0.9 + rng() * 0.4, 1.1 + rng() * 0.5, px + (rng() - 0.5) * 0.5, 1.2 + k * 0.3, pz + (rng() - 0.5) * 0.5); l.rotation.y = rng() * 3; }
-      obstacles.push({ x: px, z: pz, hw: 0.2, hd: 0.2 });
+const sp = prop(px, pz, 'street', false);
+        if (r < 0.05) {
+      sp.add(cyl, trunkMat, 0.18, 1.0, 0.18, px, 0.5, pz);
+      for (let k = 0; k < 3; k++) { const l = sp.add(ball, k % 2 ? leafMat2 : leafMat, 1.1 + rng() * 0.5, 0.9 + rng() * 0.4, 1.1 + rng() * 0.5, px + (rng() - 0.5) * 0.5, 1.2 + k * 0.3, pz + (rng() - 0.5) * 0.5); l.rotation.y = rng() * 3; }
+      sp.ob = { x: px, z: pz, hw: 0.2, hd: 0.2 }; obstacles.push(sp.ob);
     } else if (r < 0.08) {
-      for (let k = 0; k < 2 + ((rng() * 2) | 0); k++) { const bx = px + (rng() - 0.5) * 0.7, bz = pz + (rng() - 0.5) * 0.7; add(cyl, barrelMat, 0.42, 0.6, 0.42, bx, 0.3, bz); add(cyl, barrelTop, 0.36, 0.04, 0.36, bx, 0.61, bz); }
-      obstacles.push({ x: px, z: pz, hw: 0.45, hd: 0.45 });
+      for (let k = 0; k < 2 + ((rng() * 2) | 0); k++) { const bx = px + (rng() - 0.5) * 0.7, bz = pz + (rng() - 0.5) * 0.7; sp.add(cyl, barrelMat, 0.42, 0.6, 0.42, bx, 0.3, bz); sp.add(cyl, barrelTop, 0.36, 0.04, 0.36, bx, 0.61, bz); }
+      sp.ob = { x: px, z: pz, hw: 0.45, hd: 0.45 }; obstacles.push(sp.ob);
     } else if (r < 0.1) {
-      add(cyl, hydrantMat, 0.2, 0.5, 0.2, px, 0.25, pz); add(box, hydrantMat, 0.36, 0.1, 0.12, px, 0.35, pz); add(ball, hydrantMat, 0.24, 0.2, 0.24, px, 0.55, pz);
+      sp.add(cyl, hydrantMat, 0.2, 0.5, 0.2, px, 0.25, pz); sp.add(box, hydrantMat, 0.36, 0.1, 0.12, px, 0.35, pz); sp.add(ball, hydrantMat, 0.24, 0.2, 0.24, px, 0.55, pz);
     } else if (r < 0.13) {
-      for (let k = -2; k <= 2; k++) add(box, fenceMat, 0.08, 0.5, 0.08, px + k * 0.3 * (horiz ? 1 : 0), 0.25, pz + k * 0.3 * (horiz ? 0 : 1));
-      add(box, fenceMat, horiz ? 1.4 : 0.06, 0.06, horiz ? 0.06 : 1.4, px, 0.35, pz);
+      for (let k = -2; k <= 2; k++) sp.add(box, fenceMat, 0.08, 0.5, 0.08, px + k * 0.3 * (horiz ? 1 : 0), 0.25, pz + k * 0.3 * (horiz ? 0 : 1));
+      sp.add(box, fenceMat, horiz ? 1.4 : 0.06, 0.06, horiz ? 0.06 : 1.4, px, 0.35, pz);
     }
   }
 
@@ -557,5 +577,5 @@ export function buildCity(scene, wall, level) {
     rainGeo.attributes.position.needsUpdate = true;
   };
 
-  return { group, obstacles, cols, rows, updateRain: (dt) => { updateRain(dt); updateLandmarks(dt); }, buildings, cars, hazards };
+  return { group, obstacles, cols, rows, updateRain: (dt) => { updateRain(dt); updateLandmarks(dt); updateProps(dt); }, buildings, cars, hazards, props, knock };
 }
