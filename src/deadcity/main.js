@@ -71,6 +71,14 @@ addEventListener('pointermove', (e) => { if (e.pointerId === stick.id) { const d
 let lastTap = 0, lastTapX = 0, lastTapY = 0;
 addEventListener('pointerdown', (e) => { if (e.target.closest('button') || state !== 'play') return; const now = performance.now(); if (now - lastTap < 350 && Math.hypot(e.clientX - lastTapX, e.clientY - lastTapY) < 30) { lastTap = 0; const nearRide = !driving && !riding && rides.find((rr) => Math.hypot(rr.pos.x - player.position.x, rr.pos.z - player.position.z) < 3.4); if (nearRide) { openGame('ride', nearRide); return; }
     if (driving) { const g = city.hazards.find((x) => x.type === 'gas'); if (g && Math.hypot(g.pos.x - car.position.x, g.pos.z - car.position.z) < 4) openGame('pump', car); else leaveCar(); } else { let best = null, bd = 2.2; for (const c of city.cars) { if (c.userData.wrecked || (c.userData.prop.knocked && !c.userData.prop.detached)) continue; const wp = c.userData.worldPos(); const d = Math.hypot(wp.x - player.position.x, wp.z - player.position.z); if (d < bd) { bd = d; best = c; } } if (best) enterCar(best); else say('No car close enough.'); } } else { lastTap = now; lastTapX = e.clientX; lastTapY = e.clientY; } });
+// zoom: pinch or mouse wheel, remembered between runs; starts closer than before
+let zoom = 0.7; try { zoom = +localStorage.getItem('dc_zoom') || 0.7; } catch { /* ignore */ }
+function setZoom(z) { zoom = Math.max(0.45, Math.min(1.6, z)); try { localStorage.setItem('dc_zoom', String(zoom)); } catch { /* ignore */ } resize(); }
+let pinchD = 0; const dist2 = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+addEventListener('touchstart', (e) => { if (e.touches.length >= 2) { e.preventDefault(); pinchD = dist2(e.touches); stick.id = null; stick.x = stick.y = 0; knob.style.transform = 'translate(-50%, -50%)'; look.id = null; } }, { passive: false });
+addEventListener('touchmove', (e) => { if (e.touches.length >= 2) { e.preventDefault(); const d = dist2(e.touches); if (pinchD > 0 && d > 0) setZoom(zoom * pinchD / d); pinchD = d; } }, { passive: false });
+addEventListener('touchend', (e) => { if (e.touches.length < 2) pinchD = 0; });
+addEventListener('wheel', (e) => { e.preventDefault(); setZoom(zoom * (e.deltaY > 0 ? 1.1 : 0.9)); }, { passive: false });
 const release = (e) => { if (e.pointerId === stick.id) { stick.id = null; stick.x = stick.y = 0; knob.style.transform = 'translate(-50%, -50%)'; } if (e.pointerId === look.id) look.id = null; };
 addEventListener('pointerup', release); addEventListener('pointercancel', release);
 // keyboard for the PC crowd
@@ -347,7 +355,7 @@ function frame(now) {
   }
   // third-person camera: behind and above, buildings in between go see-through
   const back = new THREE.Vector3(-Math.sin(camYaw), 0, -Math.cos(camYaw));
-  const target = (driving ? car : player).position.clone().setY(driving ? 1.0 : 0.9); const want = target.clone().addScaledVector(back, driving ? 8 : 5.5).add(new THREE.Vector3(0, driving ? 4.5 : 3.2, 0));
+  const target = (driving ? car : player).position.clone().setY(driving ? 1.0 : 0.9); const want = target.clone().addScaledVector(back, (driving ? 8 : 5.5) * zoom).add(new THREE.Vector3(0, (driving ? 4.5 : 3.2) * zoom, 0));
   camera.position.lerp(want, 1 - Math.pow(0.001, dt)); camera.lookAt(target);
   isoCam.position.copy(target).addScaledVector(isoDir, 60); isoCam.lookAt(target); const cam = iso ? isoCam : camera;
   if (city) { const cd = cam.position.clone().sub(target); const ch = Math.hypot(cd.x, cd.z) || 1, ux = cd.x / ch, uz = cd.z / ch, slope = cd.y / ch;
@@ -355,7 +363,7 @@ function frame(now) {
       const fade = d > 0.3 && d < ch + 1 && perp < 2.2 && h > target.y + d * slope - 0.6; const op = fade ? 0.15 : 1; for (const m of b.userData.fade) if (m.opacity !== op) m.opacity = op; if (b.userData.extras) for (const e of b.userData.extras) e.visible = !fade; if (b.userData.edges) b.userData.edges.visible = fade; } }
   renderer.render(scene, cam);
 }
-function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); const a = innerWidth / innerHeight, half = a < 1 ? 8 / a * 0.8 : 8; isoCam.left = -half * a; isoCam.right = half * a; isoCam.top = half; isoCam.bottom = -half; isoCam.updateProjectionMatrix(); }
+function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); const a = innerWidth / innerHeight, half = (a < 1 ? 8 / a * 0.8 : 8) * zoom; isoCam.left = -half * a; isoCam.right = half * a; isoCam.top = half; isoCam.bottom = -half; isoCam.updateProjectionMatrix(); }
 $('view').addEventListener('pointerdown', (e) => { e.stopPropagation(); iso = !iso; $('view').textContent = iso ? 'ISO' : '3RD'; });
 addEventListener('resize', resize); resize();
 
@@ -370,4 +378,4 @@ function startRun() {
 function gameOver(won) { state = 'over'; stopMusic(); (won ? sfx.wave : sfx.over)(); $('dcOverTitle').textContent = won ? 'EXTRACTED' : 'OVERRUN'; $('dcOverText').textContent = (won ? 'You survived all six nights and made the chopper. ' : 'The dead got you on night ' + night + '. ') + 'Kills: ' + kills + ' · Books: ' + booksFound + ' · Rescued: ' + rescued; $('dc').classList.add('hidden'); $('dcOver').classList.remove('hidden'); }
 $('dcPlay').addEventListener('click', startRun); $('dcAgain').addEventListener('click', startRun);
 requestAnimationFrame(frame);
-window.__dc = { get cars() { return city.cars; }, get driving() { return driving; }, get game() { return game; }, openGame, enterCar, get riding() { return riding; }, rides, setWeather, get weather() { return weather; }, spawnTornado, strike, dropCan, dropLoot, hurt, get hearts() { return [hearts, maxHearts, armor]; }, dropGun, get gun() { return gun; }, get gasCans() { return gasCans; }, get tornadoes() { return tornadoes; }, set iso(v) { iso = v; }, get iso() { return iso; }, get city() { return city; }, get zombies() { return zombies; }, get player() { return player; }, get state() { return state; }, get slots() { return slots; }, spawnZombie, castSlot, throwTrash, get night() { return night; }, set clock(v) { clock = v; }, get books() { return books; }, get hp() { return hearts; } };
+window.__dc = { get cars() { return city.cars; }, get driving() { return driving; }, get game() { return game; }, openGame, enterCar, get riding() { return riding; }, rides, setWeather, get weather() { return weather; }, spawnTornado, strike, dropCan, dropLoot, hurt, get hearts() { return [hearts, maxHearts, armor]; }, dropGun, get gun() { return gun; }, get gasCans() { return gasCans; }, get tornadoes() { return tornadoes; }, set iso(v) { iso = v; }, setZoom, get zoom() { return zoom; }, get iso() { return iso; }, get city() { return city; }, get zombies() { return zombies; }, get player() { return player; }, get state() { return state; }, get slots() { return slots; }, spawnZombie, castSlot, throwTrash, get night() { return night; }, set clock(v) { clock = v; }, get books() { return books; }, get hp() { return hearts; } };
