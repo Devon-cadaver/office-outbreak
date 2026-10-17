@@ -16,10 +16,6 @@
     "three": "^0.170.0"
   },
   "devDependencies": {
-    "@napi-rs/canvas": "^0.1.65",
-    "ag-psd": "^31.0.3",
-    "pdfjs-dist": "^4.10.38",
-    "sharp": "^0.33.5",
     "vite": "^6.0.0"
   }
 }
