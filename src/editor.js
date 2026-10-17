@@ -65,6 +65,8 @@ cv.addEventListener('pointerup', () => { down = false; }); cv.addEventListener('
 const toolSel = $('toolSel');
 for (const [gname, items] of GROUPS) { const og = document.createElement('optgroup'); og.label = gname; for (const [name, code] of items) { const o = document.createElement('option'); o.value = code; o.textContent = name; og.appendChild(o); } toolSel.appendChild(og); }
 toolSel.value = String(tool); toolSel.addEventListener('change', () => { tool = +toolSel.value; });
+$('eErase').addEventListener('click', () => { tool = 1; toolSel.value = '1'; });
+$('eRestart').addEventListener('click', () => { if (confirm('Clear the whole map and start over?')) { cells = blank(cols, rows); save(); draw(); } });
 const menu = $('menu');
 menu.addEventListener('change', () => { const v = menu.value; menu.value = ''; if (v === 'help') $('help').classList.toggle('hidden'); else if (v === 'resize') { const c = +prompt('Width (9-41)', cols) || cols, r = +prompt('Height (9-41)', rows) || rows; $('w').value = c; $('h').value = r; $('resize').click(); } else if (v) $(v).click(); });
 // hidden buttons the menu drives

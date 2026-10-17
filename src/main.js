@@ -218,6 +218,8 @@ function buildRefresh() { const keep = camPan.clone(); buildLevel(1); for (const
 function startBuild() {
   bMap = loadMap(); fillSelect($('bTool')); $('bTool').value = '0'; $('bTool').addEventListener('change', () => { bTool = +$('bTool').value; });
   $('bView').addEventListener('click', () => { setTopView(!topView); $('bView').textContent = topView ? 'Angle' : 'Top'; });
+  $('bErase').addEventListener('click', () => { bTool = 1; $('bTool').value = '1'; });
+  $('bRestart').addEventListener('click', () => { if (!confirm('Clear the whole map and start over?')) return; bMap = blankMap(bMap.cols, bMap.rows); bMap.cells[bMap.rows - 2][1] = 11; bMap.cells[1][bMap.cols - 2] = 12; saveMap(bMap); buildRefresh(); });
   $('bMenu').addEventListener('change', () => { const v = $('bMenu').value; $('bMenu').value = '';
     if (v === 'play') location.href = 'index.html?custom=1';
     else if (v === 'export') { const s = JSON.stringify(bMap); try { navigator.clipboard.writeText(s); } catch { /* ignore */ } prompt('Map text (copied). Paste it to Claude:', s); }
