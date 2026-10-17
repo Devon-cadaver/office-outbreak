@@ -208,8 +208,10 @@ function extendRoute(w, first) {
 }
 // ---- in-world build mode (index.html?build=1): tap a cell to place the selected item on the real map ----
 let bTool = 0, bMap = null, bRebuild = 0;
+let bLastTap = 0;
 function buildPlace(w) {
-  const c = toCell(w.x, w.z, cols, rows); if (c.cx <= 0 || c.cy <= 0 || c.cx >= cols - 1 || c.cy >= rows - 1) return;
+  const c = toCell(w.x, w.z, cols, rows); if (c.cx <= 0 || c.cy <= 0 || c.cx >= cols - 1 || c.cy >= rows - 1) { setTip('Edge cells stay buildings.'); return; }
+  const name = (GROUPS.flatMap(([, it]) => it).find((t) => t[1] === bTool) || ['?'])[0]; setTip(name + ' at ' + c.cx + ', ' + c.cy);
   if (bTool === 11 || bTool === 12) for (const row of bMap.cells) for (let x = 0; x < row.length; x++) if (row[x] === bTool) row[x] = 0;
   if (bMap.cells[c.cy][c.cx] === bTool) return;
   bMap.cells[c.cy][c.cx] = bTool; saveMap(bMap); sfx.throw(); clearTimeout(bRebuild); bRebuild = setTimeout(buildRefresh, 120);
@@ -228,12 +230,15 @@ function startBuild() {
     else if (v === 'clear') { bMap = blankMap(bMap.cols, bMap.rows); bMap.cells[bMap.rows - 2][1] = 11; bMap.cells[1][bMap.cols - 2] = 12; saveMap(bMap); buildRefresh(); }
     else if (v === 'grid') location.href = 'editor.html';
     else if (v === 'exit') location.href = 'index.html'; });
+  // phones: the plain click event is the most reliable tap; place from it too (duplicates are ignored)
+  const bRay = new THREE.Raycaster(), bGround = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), bHit = new THREE.Vector3();
+  canvas.addEventListener('click', (e) => { if (performance.now() - bLastTap < 300) return; bLastTap = performance.now(); bRay.setFromCamera(new THREE.Vector2((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1), camera); if (bRay.ray.intersectPlane(bGround, bHit)) buildPlace({ x: bHit.x, z: bHit.z }); });
   unlockAudio(); show(null); $('build').classList.remove('hidden'); ui.hud.classList.add('hidden'); $('lookBtn').classList.add('hidden');
   input.setLook(true); input.lookTap = true; buildRefresh(); zoom = 0.9; fitCamera();
   setTip('Build mode: tap to place, drag to pan, pinch to zoom. The start marker is where you stand.');
 }
 input.on('tap', (w) => {
-  if (BUILD) { buildPlace(w); return; }
+  if (BUILD) { if (performance.now() - bLastTap > 300) { bLastTap = performance.now(); buildPlace(w); } return; }
   const now = performance.now();
   const tappedRide = state === 'play' && !riding ? rideAt(w.x, w.z, 2.8) : null;
   if (tappedRide) {
