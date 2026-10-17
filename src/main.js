@@ -236,7 +236,7 @@ function startBuild() {
   canvas.addEventListener('pointerup', () => { bLastCell = ''; }); canvas.addEventListener('touchend', () => { bLastCell = ''; });
   $('bRestart').addEventListener('click', () => { if (!confirm('Clear the whole map and start over?')) return; bMap = blankMap(bMap.cols, bMap.rows); bMap.cells[bMap.rows - 2][1] = 11; bMap.cells[1][bMap.cols - 2] = 12; saveMap(bMap); buildRefresh(); });
   $('bMenu').addEventListener('change', () => { const v = $('bMenu').value; $('bMenu').value = '';
-    if (v === 'play') location.href = 'index.html?custom=1';
+    if (v === 'play') location.href = 'zombieville.html?custom=1';
     else if (v === 'playdc') location.href = 'deadcity.html?custom=1';
     else if (v === 'export') { const s = JSON.stringify(bMap); try { navigator.clipboard.writeText(s); } catch { /* ignore */ } prompt('Map text (copied). Paste it to Claude:', s); }
     else if (v === 'import') { const s = prompt('Paste map text:'); try { const mm = JSON.parse(s); if (mm && mm.cells) { bMap = mm; saveMap(bMap); buildRefresh(); } } catch { alert('That is not a map.'); } }
@@ -244,7 +244,7 @@ function startBuild() {
     else if (v === 'clear') { bMap = blankMap(bMap.cols, bMap.rows); bMap.cells[bMap.rows - 2][1] = 11; bMap.cells[1][bMap.cols - 2] = 12; saveMap(bMap); buildRefresh(); }
     else if (v === 'border') { bMap.border = (bMap.border || 0) + 1; saveMap(bMap); buildRefresh(); setTip('New border style ' + bMap.border); }
     else if (v === 'grid') location.href = 'editor.html';
-    else if (v === 'exit') location.href = 'index.html'; });
+    else if (v === 'exit') location.href = 'zombieville.html'; });
   // phones: the plain click event is the most reliable tap; place from it too (duplicates are ignored)
   const placeAt = (sx, sy) => { if (performance.now() - bLastTap < 300) return; bLastTap = performance.now(); bRay.setFromCamera(new THREE.Vector2((sx / innerWidth) * 2 - 1, -(sy / innerHeight) * 2 + 1), camera); if (bRay.ray.intersectPlane(bGround, bHit)) buildPlace({ x: bHit.x, z: bHit.z }); };
   // iPhone: touch events are the one thing Safari always delivers, so place from a clean single-finger tap
@@ -670,14 +670,28 @@ function updateHud() {
   ui.weapon.textContent = (driving ? '🚗 ' + inv.carHp + '/5  ·  ' : '') + (weapon ? WEAPONS[weapon].name + ' x' + ammo : 'Unarmed') + '  ·  $' + cash;
 }
 
-function show(screen) { if (screen) setTip(''); for (const s of [ui.start, ui.cleared, ui.over, $('won'), $('howto')]) s.classList.add('hidden'); if (screen) screen.classList.remove('hidden'); ui.hud.classList.toggle('hidden', !!screen); document.getElementById('lookBtn').classList.toggle('hidden', !!screen); }
+function show(screen) { if (screen) setTip(''); for (const s of [ui.start, ui.cleared, ui.over, $('won'), $('howto'), $('pause')]) s.classList.add('hidden'); if (screen) screen.classList.remove('hidden'); ui.hud.classList.toggle('hidden', !!screen); document.getElementById('lookBtn').classList.toggle('hidden', !!screen); }
 
-function startRun() { seen = true; unlockAudio(); setMusicChase(false); startMusic(); level = 1; score = 0; lives = 3; time = 0; cash = 0; cashThisDistrict = 0; Object.assign(inv, { shoes: 0, vest: false, flare: false, ammo: false, car: null, carHp: 0 }); if (car) { scene.remove(car); car = null; } driving = false; buildLevel(level); show(null); state = 'play'; }
-function nextLevel() { if (state !== "cleared") return; level++; buildLevel(level); show(null); state = 'play'; }
+function startRun(save) { seen = true; unlockAudio(); setMusicChase(false); startMusic(); level = 1; score = 0; lives = 3; time = 0; cash = 0; cashThisDistrict = 0; Object.assign(inv, { shoes: 0, vest: false, flare: false, ammo: false, car: null, carHp: 0 }); if (car) { scene.remove(car); car = null; } driving = false;
+  if (save) { level = save.level || 1; score = save.score || 0; lives = save.lives || 3; cash = save.cash || 0; Object.assign(inv, save.inv || {}); }
+  buildLevel(level); snapshot(); show(null); state = 'play'; }
+function nextLevel() { if (state !== "cleared") return; level++; buildLevel(level); snapshot(); show(null); state = 'play'; }
+// ---- save: the run as it stood at the start of this district ----
+const SAVE_KEY = 'oo_save_zv'; let levelStart = null;
+function snapshot() { levelStart = { level, score, lives, cash, inv: { ...inv, car: inv.car ? true : null } }; }
+function saveRun() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(levelStart)); } catch { /* ignore */ } }
+function loadRun() { try { return JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch { return null; } }
+function clearRun() { try { localStorage.removeItem(SAVE_KEY); } catch { /* ignore */ } }
+// ---- pause ----
+function pauseRun() { if (state !== 'play') return; state = 'paused'; input.reset(); setMusicChase(false); $('pauseText').textContent = 'District ' + level + ' · Score ' + score + ' · $' + cash + '. Saving keeps your score, lives, cash and gear from the start of this district.'; show($('pause')); }
+$('pauseBtn').addEventListener('click', pauseRun); $('resumeBtn').addEventListener('click', () => { if (state !== 'paused') return; show(null); state = 'play'; });
+$('saveBtn').addEventListener('click', () => { saveRun(); location.href = 'index.html'; }); $('quitBtn').addEventListener('click', () => { location.href = 'index.html'; });
+addEventListener('keydown', (e) => { if (e.key === 'Escape' || e.key === 'p') { if (state === 'play') pauseRun(); else if (state === 'paused') { show(null); state = 'play'; } } });
+{ const sv = loadRun(); if (sv) { $('continueBtn').classList.remove('hidden'); $('continueBtn').textContent = 'CONTINUE · DISTRICT ' + sv.level; $('continueBtn').addEventListener('click', () => { unlockAudio(); startRun(sv); }); } }
 function loseLife() {
   lives--; sfx.caught(); invuln = 2; if (riding) { riding.ride.speed = 1; riding = null; } playerInfect = 0; clearAntidote();
   for (let i = 0; i < 8; i++) particle(player.position, projMat);
-  if (lives <= 0) { state = 'over'; input.reset(); stopMusic(); sfx.over(); const best = Math.max(getBest(), score); setBest(best);
+  if (lives <= 0) { state = 'over'; clearRun(); input.reset(); stopMusic(); sfx.over(); const best = Math.max(getBest(), score); setBest(best);
     ui.finalScore.textContent = 'Score: ' + score + '  ·  District ' + level; ui.finalBest.textContent = 'Best: ' + best; show(ui.over); return; }
   const rc = respawnCell || startCell; const sp = toWorld(rc.cx, rc.cy, cols, rows); player.position.set(sp.x, 0, sp.z); route = []; routeEndCell = null; showRoute();
   // push zombies back a bit so the respawn is fair
@@ -745,7 +759,7 @@ addEventListener('pointerdown', () => { unlockAudio(); setTimeout(refreshSoundBt
 soundBtn.addEventListener('click', () => { unlockAudio(); setMuted(!isMuted()); if (!isMuted()) sfx.pickup(); refreshSoundBtn(); });
 $('retryBtn').addEventListener('click', startRun);
 $('nextBtn').addEventListener('click', nextLevel);
-function finishGame() {
+function finishGame() { clearRun();
   state = 'won'; stopMusic();
   const rescued = civilians.filter((c) => c.userData.follow && c.position.distanceTo(player.position) < 8).length;
   const saved = civilians.length - rescued, gained = saved * 100 + rescued * 250 + kills * 10 + 500; score += gained;

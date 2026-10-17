@@ -26,7 +26,7 @@
 <body>
   <canvas id="game"></canvas>
   <div id="dc" class="hidden">
-    <div class="top"><div><div id="hpbar2"><div id="hp2">❤️❤️❤️</div></div><div id="clock">Day</div></div><div id="night">Night 0 / 3</div><div id="books">📖 0</div><button id="view" class="ghost" style="pointer-events:auto;font-size:12px;padding:6px 10px">ISO</button></div>
+    <div class="top"><div><div id="hpbar2"><div id="hp2">❤️❤️❤️</div></div><div id="clock">Day</div></div><div id="night">Night 0 / 3</div><div id="books">📖 0</div><button id="view" class="ghost" style="pointer-events:auto;font-size:12px;padding:6px 10px">ISO</button><button id="dcPause" class="ghost" style="pointer-events:auto;font-size:12px;padding:6px 10px;margin-left:6px">❚❚</button></div>
     <div id="mission" style="position:absolute;left:14px;right:14px;top:calc(env(safe-area-inset-top,0) + 52px);font-size:13px;color:#7dff3a;text-shadow:0 2px 4px #000"></div>
     <div id="msg"></div>
     <div id="veh" style="position:absolute;left:14px;top:calc(env(safe-area-inset-top,0) + 72px);font-size:13px;color:#ffd24a;text-shadow:0 2px 4px #000"></div>
@@ -38,14 +38,16 @@
     <p>Survive six nights. About 20 slow zombies the first night, 60% more each night after, and they get faster. Lead survivors to the green zone and a chopper lifts them out. Spend your cash at dawn. After night six, the chopper comes for you.</p>
     <p class="small">Left thumb: joystick. Drag the right side to turn the camera. Guns aim and fire on their own; FIRE throws by hand. Double-tap next to a vehicle to drive it, double-tap again to get out. Vehicles burn fuel and take hits; refuel at the gas station. The tank needs its keys and fires shells from the FIRE button.</p>
     <button id="dcPlay">PLAY</button>
+    <button id="dcContinue" class="hidden">CONTINUE SAVED GAME</button>
     <p class="small">Season: <select id="seasonSel" class="ghost" style="font-size:13px;padding:4px 8px"></select></p>
     <button class="ghost" onclick="location.href='deadcity.html?horde=100'">HORDE TEST (100)</button>
-    <p class="small"><a href="index.html" style="color:#c9a6ff">Back to Extract from Zombieville</a></p>
+    <p class="small"><a href="index.html" style="color:#c9a6ff">Main menu</a></p>
   </div>
   <div id="dcGame" class="screen hidden"><h2 id="gTitle" style="color:#7dff3a">GAS PUMP</h2><p id="gText"></p>
     <div class="wgBar" style="position:relative;width:min(84vw,320px);height:34px;background:#16302f;border:2px solid #6a3f8a;border-radius:17px;overflow:hidden"><div id="gFill" style="position:absolute;left:0;top:0;bottom:0;width:0;background:linear-gradient(90deg,#8a4fb8,#7dff3a)"></div><div id="gZone" style="position:absolute;top:0;bottom:0;background:#7dff3a;opacity:.8"></div><div id="gNeedle" style="position:absolute;top:-2px;bottom:-2px;width:5px;margin-left:-2px;background:#fff"></div></div>
     <button id="gHit">PUMP</button><button id="gClose" class="ghost">Step away</button></div>
   <div id="dcCleared" class="screen hidden"><h1 id="dcClearedTitle">NIGHT 1<br>SURVIVED</h1><p id="dcClearedText"></p><div id="store"></div><button id="dcNext">NEXT NIGHT</button></div>
+  <div id="dcPaused" class="screen hidden"><h1>PAUSED</h1><p id="dcPauseText" class="small"></p><button id="dcResume">RESUME</button><button id="dcSave" class="ghost">SAVE &amp; MAIN MENU</button><button id="dcQuit" class="ghost">MAIN MENU (no save)</button></div>
   <div id="dcOver" class="screen hidden"><h1 id="dcOverTitle">OVERRUN</h1><p id="dcOverText"></p><button id="dcAgain">TRY AGAIN</button></div>
   <script type="module" src="./src/deadcity/main.js"></script>
 </body>

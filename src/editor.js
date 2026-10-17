@@ -88,6 +88,6 @@ $('play').addEventListener('click', () => {
   if (tool === 11 || tool === 12) { /* fine */ }
   const hasStart = cells.some((r) => r.includes(11)), hasExit = cells.some((r) => r.includes(12));
   if (!hasStart || !hasExit) { alert('Place a Start and an Exit first.'); return; }
-  save(); location.href = './index.html?custom=1';
+  save(); location.href = './zombieville.html?custom=1';
 });
 load(); $('w').value = cols; $('h').value = rows; fit(); addEventListener('resize', fit);

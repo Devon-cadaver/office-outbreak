@@ -40,7 +40,7 @@ Upload the `dist/` folder to any static host (GitHub Pages, Netlify, itch.io, Cl
 
 Live: https://devon-cadaver.github.io/office-outbreak/ (deploys from `main` via GitHub Actions). The blocky version is also tagged `v1-blocky` / branch `blocky-classic`.
 
-## Poster version (poster.html)
+## Poster version (removed 2026-10-17; characters.js kept in src/poster/)
 
 The painted town is the world. Assets in `public/poster/` are generated from the artist's files
 (not in the repo, see `example sprites/illustrator/`):

@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#16302f" />
+  <title>Extract from Zombieville</title>
+  <link rel="icon" href="data:," />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <div id="build" class="hidden">
+    <select id="bTool" title="What to place"></select>
+    <button id="bErase" class="ghost" title="Erase tool">Erase</button><button id="bPaint" class="ghost" title="Pan: drag moves the view. Paint: drag lays cells">Pan</button><button id="bView" class="ghost" title="Switch between the angled game view and a top-down view">View: Angle</button><button id="bRestart" class="ghost" title="Clear the whole map">↺</button>
+    <select id="bMenu" title="Menu"><option value="">Menu…</option><option value="play">▶ Play this map</option><option value="playdc">▶ Play in Dead City</option><option value="export">Export map text</option><option value="import">Import map text</option><option value="border">Change border style</option><option value="random">Random maze</option><option value="clear">Clear (open grass)</option><option value="grid">2D grid view</option><option value="exit">Exit builder</option></select>
+  </div>
+  <div id="hud" class="hidden">
+    <div class="row">
+      <div id="score">0</div>
+      <div id="lives">♥♥♥</div>
+      <div id="level">District 1</div>
+      <button id="pauseBtn" class="ghost" style="pointer-events:auto;font-size:14px;padding:4px 10px">❚❚</button>
+    </div>
+    <div class="row sub">
+      <div id="people">People safe: 0/0</div>
+      <div id="weapon">Unarmed</div>
+    </div>
+    <div class="row sub"><div id="objective"></div></div>
+  </div>
+  <div id="wheelGame" class="screen hidden">
+    <h2>RIDE OPERATOR</h2>
+    <p id="wgText">Tap START when the needle is in the yellow. Three good hits start the motor.</p>
+    <div class="wgBar"><div class="wgZone" id="wgZone"></div><div class="wgNeedle" id="wgNeedle"></div></div>
+    <div id="wgLights">○ ○ ○</div>
+    <button id="wgHit">START</button>
+    <button class="ghost" id="wgClose">Step away</button>
+  </div>
+  <div id="coasterGame" class="screen hidden">
+    <h2>LAUNCH PUMP</h2>
+    <p id="cgText">Tap PUMP fast to charge the launch. It leaks, so keep tapping until it is full.</p>
+    <div class="wgBar"><div class="cgFill" id="cgFill"></div></div>
+    <div id="cgTime">8.0 s</div>
+    <button id="cgHit">PUMP</button>
+    <button class="ghost" id="cgClose">Step away</button>
+  </div>
+  <div id="carouselGame" class="screen hidden">
+    <h2>TICKET BOOTH</h2>
+    <p id="mgText">Watch which horses light up, then tap them in the same order.</p>
+    <div class="mgGrid"><button class="mgBtn" data-i="0" style="--c:#f0f0f0"></button><button class="mgBtn" data-i="1" style="--c:#4f8fd6"></button><button class="mgBtn" data-i="2" style="--c:#e85aa0"></button><button class="mgBtn" data-i="3" style="--c:#3fbf4a"></button></div>
+    <div id="mgLights">○ ○ ○ ○</div>
+    <button class="ghost" id="mgClose">Step away</button>
+  </div>
+  <div id="puzzle" class="screen hidden">
+    <h2>POWER BOX</h2>
+    <p id="puzzleText">Tap the wires to turn them. Connect the power on the left to the gate on the right.</p>
+    <div class="pzWrap"><div class="pzSide" id="pzL"></div><div class="pzGrid" id="pzGrid"></div><div class="pzSide" id="pzR"></div></div>
+    <button class="ghost" id="puzzleClose">Step away</button>
+  </div>
+
+    <div id="exitArrow" class="hidden">➤</div>
+  <button id="lookBtn" class="hidden" title="Look around (pan and zoom without walking)" aria-label="Look mode">
+    <span class="eye"><span class="pupil"></span></span><span class="eye"><span class="pupil"></span></span>
+  </button>
+  <div id="tip" class="hidden"></div>
+
+  <div id="start" class="screen">
+    <svg id="logo" viewBox="0 0 420 300" role="img" aria-label="Extract from Zombieville">
+      <defs>
+        <linearGradient id="lgSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b0f33"/><stop offset=".6" stop-color="#2a1449"/><stop offset="1" stop-color="#120a1f"/></linearGradient>
+        <linearGradient id="lgRoad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a4c52"/><stop offset="1" stop-color="#232e33"/></linearGradient>
+        <linearGradient id="lgSteel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c49bff"/><stop offset=".5" stop-color="#7a4fb8"/><stop offset="1" stop-color="#4a2a78"/></linearGradient>
+        <radialGradient id="zglow"><stop offset="0" stop-color="#7dff3a" stop-opacity=".55"/><stop offset="1" stop-color="#7dff3a" stop-opacity="0"/></radialGradient>
+        <radialGradient id="moon"><stop offset="0" stop-color="#fff7d6"/><stop offset=".7" stop-color="#e8dcae"/><stop offset="1" stop-color="#e8dcae" stop-opacity="0"/></radialGradient>
+        <radialGradient id="lamp"><stop offset="0" stop-color="#ffe27a" stop-opacity=".55"/><stop offset="1" stop-color="#ffe27a" stop-opacity="0"/></radialGradient>
+        <filter id="lgGlow"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <filter id="lgSoft"><feGaussianBlur stdDeviation="1"/></filter>
+        <linearGradient id="g_4f8fd6" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#4f8fd6"/><stop offset="1" stop-color="#4f8fd6" stop-opacity=".55"/></linearGradient><linearGradient id="g_ff8a2a" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ff8a2a"/><stop offset="1" stop-color="#ff8a2a" stop-opacity=".55"/></linearGradient><linearGradient id="g_c23b6b" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#c23b6b"/><stop offset="1" stop-color="#c23b6b" stop-opacity=".55"/></linearGradient><linearGradient id="g_d8f03a" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#d8f03a"/><stop offset="1" stop-color="#d8f03a" stop-opacity=".55"/></linearGradient><linearGradient id="g_2a2730" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#2a2730"/><stop offset="1" stop-color="#2a2730" stop-opacity=".55"/></linearGradient><linearGradient id="g_9a3a4a" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#9a3a4a"/><stop offset="1" stop-color="#9a3a4a" stop-opacity=".55"/></linearGradient>
+      </defs>
+      <rect x="4" y="4" width="412" height="292" rx="22" fill="url(#lgSky)" stroke="#7dff3a" stroke-width="3"/>
+      <circle cx="78" cy="78" r="26" fill="url(#moon)"/>
+      <!-- skyline -->
+      <g fill="#140b26">
+        <rect x="20" y="118" width="26" height="90"/><rect x="50" y="98" width="34" height="110"/><rect x="88" y="128" width="22" height="80"/><rect x="114" y="108" width="40" height="100"/><rect x="158" y="136" width="30" height="72"/><rect x="192" y="116" width="24" height="92"/><rect x="368" y="126" width="36" height="82"/>
+      </g>
+      <g fill="#ffe27a" opacity=".85"><rect x="56" y="108" width="5" height="6"/><rect x="68" y="108" width="5" height="6"/><rect x="56" y="124" width="5" height="6"/><rect x="120" y="118" width="5" height="6"/><rect x="134" y="118" width="5" height="6"/><rect x="120" y="138" width="5" height="6"/><rect x="134" y="152" width="5" height="6"/><rect x="26" y="130" width="4" height="5"/><rect x="36" y="146" width="4" height="5"/><rect x="198" y="126" width="4" height="5"/><rect x="376" y="138" width="5" height="6"/><rect x="390" y="156" width="5" height="6"/><rect x="164" y="150" width="4" height="5"/></g>
+      <!-- road -->
+      <path d="M4 208 L416 208 L416 262 Q210 276 4 262 Z" fill="url(#lgRoad)"/>
+      <path d="M4 236 Q210 246 416 236" stroke="#e3c84f" stroke-width="2.2" fill="none"/><path d="M4 241 Q210 251 416 241" stroke="#e3c84f" stroke-width="2.2" fill="none"/>
+      <path d="M4 212 L416 212" stroke="#aab9bd" stroke-width="3"/>
+      <!-- ferris wheel -->
+      <g transform="translate(300 128)">
+        <path d="M0 0 L-40 80 M0 0 L40 80" stroke="#4a2a78" stroke-width="7" stroke-linecap="round"/>
+        <path d="M0 0 L-40 80 M0 0 L40 80" stroke="#8a5fd6" stroke-width="3" stroke-linecap="round"/>
+        <circle r="62" fill="none" stroke="url(#lgSteel)" stroke-width="6"/>
+        <circle r="56" fill="none" stroke="#5a3a90" stroke-width="1.5"/>
+        <g stroke="#9a6fe0" stroke-width="2.5"><path d="M0 -62 V62 M-62 0 H62 M-44 -44 L44 44 M44 -44 L-44 44"/></g>
+        <circle r="8" fill="url(#lgSteel)"/><circle r="3" fill="#ffe27a"/>
+        <circle cx="62.0" cy="0.0" r="2.6" fill="#ffe27a" filter="url(#lgGlow)"/><circle cx="43.8" cy="43.8" r="2.6" fill="#ffe27a" filter="url(#lgGlow)"/><circle cx="0.0" cy="62.0" r="2.6" fill="#ffe27a" filter="url(#lgGlow)"/><circle cx="-43.8" cy="43.8" r="2.6" fill="#ffe27a" filter="url(#lgGlow)"/><circle cx="-62.0" cy="0.0" r="2.6" fill="#ffe27a" filter="url(#lgGlow)"/><circle cx="-43.8" cy="-43.8" r="2.6" fill="#ffe27a" filter="url(#lgGlow)"/><circle cx="-0.0" cy="-62.0" r="2.6" fill="#ffe27a" filter="url(#lgGlow)"/><circle cx="43.8" cy="-43.8" r="2.6" fill="#ffe27a" filter="url(#lgGlow)"/>
+        <g transform="translate(62.0 0.0)"><path d="M0 0 V6" stroke="#9a6fe0" stroke-width="1.5"/><rect x="-9" y="6" width="18" height="13" rx="3" fill="#3fbf6c"/><rect x="-9" y="6" width="18" height="5" rx="3" fill="#fff" opacity=".25"/><rect x="-5" y="10" width="10" height="5" fill="#120a1f" opacity=".5"/></g><g transform="translate(43.8 43.8)"><path d="M0 0 V6" stroke="#9a6fe0" stroke-width="1.5"/><rect x="-9" y="6" width="18" height="13" rx="3" fill="#d04a7a"/><rect x="-9" y="6" width="18" height="5" rx="3" fill="#fff" opacity=".25"/><rect x="-5" y="10" width="10" height="5" fill="#120a1f" opacity=".5"/></g><g transform="translate(0.0 62.0)"><path d="M0 0 V6" stroke="#9a6fe0" stroke-width="1.5"/><rect x="-9" y="6" width="18" height="13" rx="3" fill="#3fbf6c"/><rect x="-9" y="6" width="18" height="5" rx="3" fill="#fff" opacity=".25"/><rect x="-5" y="10" width="10" height="5" fill="#120a1f" opacity=".5"/></g><g transform="translate(-43.8 43.8)"><path d="M0 0 V6" stroke="#9a6fe0" stroke-width="1.5"/><rect x="-9" y="6" width="18" height="13" rx="3" fill="#d04a7a"/><rect x="-9" y="6" width="18" height="5" rx="3" fill="#fff" opacity=".25"/><rect x="-5" y="10" width="10" height="5" fill="#120a1f" opacity=".5"/></g><g transform="translate(-62.0 0.0)"><path d="M0 0 V6" stroke="#9a6fe0" stroke-width="1.5"/><rect x="-9" y="6" width="18" height="13" rx="3" fill="#3fbf6c"/><rect x="-9" y="6" width="18" height="5" rx="3" fill="#fff" opacity=".25"/><rect x="-5" y="10" width="10" height="5" fill="#120a1f" opacity=".5"/></g><g transform="translate(-43.8 -43.8)"><path d="M0 0 V6" stroke="#9a6fe0" stroke-width="1.5"/><rect x="-9" y="6" width="18" height="13" rx="3" fill="#d04a7a"/><rect x="-9" y="6" width="18" height="5" rx="3" fill="#fff" opacity=".25"/><rect x="-5" y="10" width="10" height="5" fill="#120a1f" opacity=".5"/></g><g transform="translate(-0.0 -62.0)"><path d="M0 0 V6" stroke="#9a6fe0" stroke-width="1.5"/><rect x="-9" y="6" width="18" height="13" rx="3" fill="#3fbf6c"/><rect x="-9" y="6" width="18" height="5" rx="3" fill="#fff" opacity=".25"/><rect x="-5" y="10" width="10" height="5" fill="#120a1f" opacity=".5"/></g><g transform="translate(43.8 -43.8)"><path d="M0 0 V6" stroke="#9a6fe0" stroke-width="1.5"/><rect x="-9" y="6" width="18" height="13" rx="3" fill="#d04a7a"/><rect x="-9" y="6" width="18" height="5" rx="3" fill="#fff" opacity=".25"/><rect x="-5" y="10" width="10" height="5" fill="#120a1f" opacity=".5"/></g>
+      </g>
+      <!-- zombies knocked flying -->
+      <g transform="translate(372 52) rotate(-35)"><circle cx="0" cy="0" r="22" fill="url(#zglow)"/><circle cx="0" cy="-11" r="6.5" fill="#8fe36a"/><circle cx="-2.5" cy="-12" r="1.6" fill="#1a3a10"/><circle cx="2.5" cy="-12" r="1.6" fill="#1a3a10"/><rect x="-5.5" y="-5" width="11" height="15" rx="3" fill="#4f8a3a"/><rect x="-16" y="-3" width="10" height="4" rx="2" fill="#8fe36a"/><rect x="6" y="-3" width="10" height="4" rx="2" fill="#8fe36a"/><rect x="-5" y="10" width="4" height="9" rx="2" fill="#2f4a3a"/><rect x="1" y="10" width="4" height="9" rx="2" fill="#2f4a3a"/></g><g transform="translate(398 100) rotate(130)"><circle cx="0" cy="0" r="22" fill="url(#zglow)"/><circle cx="0" cy="-11" r="6.5" fill="#8fe36a"/><circle cx="-2.5" cy="-12" r="1.6" fill="#1a3a10"/><circle cx="2.5" cy="-12" r="1.6" fill="#1a3a10"/><rect x="-5.5" y="-5" width="11" height="15" rx="3" fill="#4f8a3a"/><rect x="-16" y="-3" width="10" height="4" rx="2" fill="#8fe36a"/><rect x="6" y="-3" width="10" height="4" rx="2" fill="#8fe36a"/><rect x="-5" y="10" width="4" height="9" rx="2" fill="#2f4a3a"/><rect x="1" y="10" width="4" height="9" rx="2" fill="#2f4a3a"/></g><g transform="translate(226 60) rotate(215)"><circle cx="0" cy="0" r="22" fill="url(#zglow)"/><circle cx="0" cy="-11" r="6.5" fill="#8fe36a"/><circle cx="-2.5" cy="-12" r="1.6" fill="#1a3a10"/><circle cx="2.5" cy="-12" r="1.6" fill="#1a3a10"/><rect x="-5.5" y="-5" width="11" height="15" rx="3" fill="#4f8a3a"/><rect x="-16" y="-3" width="10" height="4" rx="2" fill="#8fe36a"/><rect x="6" y="-3" width="10" height="4" rx="2" fill="#8fe36a"/><rect x="-5" y="10" width="4" height="9" rx="2" fill="#2f4a3a"/><rect x="1" y="10" width="4" height="9" rx="2" fill="#2f4a3a"/></g>
+      <g stroke="#7dff3a" stroke-width="2" stroke-linecap="round" opacity=".6" filter="url(#lgSoft)"><path d="M350 66 l14 -16 M354 78 l18 -12 M244 72 l-14 -12 M240 84 l-16 -8 M384 118 l14 6 M382 130 l12 10"/></g>
+      <!-- street lamp -->
+      <path d="M232 208 V150 Q232 142 240 142 H246" stroke="#2a3438" stroke-width="3" fill="none"/><circle cx="248" cy="142" r="3" fill="#ffe27a" filter="url(#lgGlow)"/><ellipse cx="236" cy="210" rx="34" ry="8" fill="url(#lamp)"/>
+      <!-- line of survivors -->
+      <g transform="translate(42 196)"><ellipse cx="0" cy="14" rx="11" ry="3" fill="#000" opacity=".45"/><rect x="-6" y="0" width="5" height="13" rx="2" fill="#3b3f55"/><rect x="1" y="0" width="5" height="13" rx="2" fill="#3b3f55"/><rect x="-8" y="-22" width="16" height="23" rx="5" fill="url(#g_4f8fd6)"/><rect x="-11" y="-20" width="4" height="12" rx="2" fill="#4f8fd6"/><rect x="7" y="-20" width="4" height="12" rx="2" fill="#4f8fd6"/><circle cx="0" cy="-30" r="8.5" fill="#f0c9a6"/><path d="M-8.5 -31 a8.5 8.5 0 0 1 17 0 v-2 a8.5 8.5 0 0 0 -17 0z" fill="#4a2f1c"/><circle cx="-3" cy="-30" r="1.1" fill="#222"/><circle cx="3" cy="-30" r="1.1" fill="#222"/></g><g transform="translate(70 200)"><ellipse cx="0" cy="14" rx="11" ry="3" fill="#000" opacity=".45"/><rect x="-6" y="0" width="5" height="13" rx="2" fill="#2c3148"/><rect x="1" y="0" width="5" height="13" rx="2" fill="#2c3148"/><rect x="-8" y="-22" width="16" height="23" rx="5" fill="url(#g_ff8a2a)"/><rect x="-11" y="-20" width="4" height="12" rx="2" fill="#ff8a2a"/><rect x="7" y="-20" width="4" height="12" rx="2" fill="#ff8a2a"/><circle cx="0" cy="-30" r="8.5" fill="#f0c9a6"/><path d="M-8.5 -31 a8.5 8.5 0 0 1 17 0 v-2 a8.5 8.5 0 0 0 -17 0z" fill="#1f2740"/><circle cx="-3" cy="-30" r="1.1" fill="#222"/><circle cx="3" cy="-30" r="1.1" fill="#222"/></g><g transform="translate(98 197)"><ellipse cx="0" cy="14" rx="11" ry="3" fill="#000" opacity=".45"/><rect x="-6" y="0" width="5" height="13" rx="2" fill="#2f4f6a"/><rect x="1" y="0" width="5" height="13" rx="2" fill="#2f4f6a"/><rect x="-8" y="-22" width="16" height="23" rx="5" fill="url(#g_c23b6b)"/><rect x="-11" y="-20" width="4" height="12" rx="2" fill="#c23b6b"/><rect x="7" y="-20" width="4" height="12" rx="2" fill="#c23b6b"/><circle cx="0" cy="-30" r="8.5" fill="#e9c39e"/><path d="M-8.5 -31 a8.5 8.5 0 0 1 17 0 v-2 a8.5 8.5 0 0 0 -17 0z" fill="#e85aa0"/><circle cx="-3" cy="-30" r="1.1" fill="#222"/><circle cx="3" cy="-30" r="1.1" fill="#222"/></g><g transform="translate(126 201)"><ellipse cx="0" cy="14" rx="11" ry="3" fill="#000" opacity=".45"/><rect x="-6" y="0" width="5" height="13" rx="2" fill="#2c3148"/><rect x="1" y="0" width="5" height="13" rx="2" fill="#2c3148"/><rect x="-8" y="-22" width="16" height="23" rx="5" fill="url(#g_d8f03a)"/><rect x="-11" y="-20" width="4" height="12" rx="2" fill="#d8f03a"/><rect x="7" y="-20" width="4" height="12" rx="2" fill="#d8f03a"/><circle cx="0" cy="-30" r="8.5" fill="#f0c9a6"/><path d="M-8.5 -31 a8.5 8.5 0 0 1 17 0 v-2 a8.5 8.5 0 0 0 -17 0z" fill="#3fbf4a"/><circle cx="-3" cy="-30" r="1.1" fill="#222"/><circle cx="3" cy="-30" r="1.1" fill="#222"/></g><g transform="translate(154 198)"><ellipse cx="0" cy="14" rx="11" ry="3" fill="#000" opacity=".45"/><rect x="-6" y="0" width="5" height="13" rx="2" fill="#3a5fa8"/><rect x="1" y="0" width="5" height="13" rx="2" fill="#3a5fa8"/><rect x="-8" y="-22" width="16" height="23" rx="5" fill="url(#g_2a2730)"/><rect x="-11" y="-20" width="4" height="12" rx="2" fill="#2a2730"/><rect x="7" y="-20" width="4" height="12" rx="2" fill="#2a2730"/><circle cx="0" cy="-30" r="8.5" fill="#f0c9a6"/><path d="M-8.5 -31 a8.5 8.5 0 0 1 17 0 v-2 a8.5 8.5 0 0 0 -17 0z" fill="#7a3fa8"/><circle cx="-3" cy="-30" r="1.1" fill="#222"/><circle cx="3" cy="-30" r="1.1" fill="#222"/></g><g transform="translate(184 196)"><ellipse cx="0" cy="14" rx="11" ry="3" fill="#000" opacity=".45"/><rect x="-6" y="0" width="5" height="13" rx="2" fill="#2b3a2b"/><rect x="1" y="0" width="5" height="13" rx="2" fill="#2b3a2b"/><rect x="-8" y="-22" width="16" height="23" rx="5" fill="url(#g_9a3a4a)"/><rect x="-11" y="-20" width="4" height="12" rx="2" fill="#9a3a4a"/><rect x="7" y="-20" width="4" height="12" rx="2" fill="#9a3a4a"/><circle cx="0" cy="-30" r="8.5" fill="#e9c39e"/><path d="M-8.5 -31 a8.5 8.5 0 0 1 17 0 v-2 a8.5 8.5 0 0 0 -17 0z" fill="#2a1a10"/><circle cx="-3" cy="-30" r="1.1" fill="#222"/><circle cx="3" cy="-30" r="1.1" fill="#222"/></g>
+      <!-- rain -->
+      <g stroke="#c9b6ff" stroke-width="1" opacity=".22"><path d="M10 20 l-3 12"/><path d="M107 73 l-3 12"/><path d="M204 126 l-3 12"/><path d="M301 179 l-3 12"/><path d="M398 52 l-3 12"/><path d="M95 105 l-3 12"/><path d="M192 158 l-3 12"/><path d="M289 31 l-3 12"/><path d="M386 84 l-3 12"/><path d="M83 137 l-3 12"/><path d="M180 190 l-3 12"/><path d="M277 63 l-3 12"/><path d="M374 116 l-3 12"/><path d="M71 169 l-3 12"/><path d="M168 42 l-3 12"/><path d="M265 95 l-3 12"/><path d="M362 148 l-3 12"/><path d="M59 21 l-3 12"/><path d="M156 74 l-3 12"/><path d="M253 127 l-3 12"/><path d="M350 180 l-3 12"/><path d="M47 53 l-3 12"/><path d="M144 106 l-3 12"/><path d="M241 159 l-3 12"/><path d="M338 32 l-3 12"/><path d="M35 85 l-3 12"/><path d="M132 138 l-3 12"/><path d="M229 191 l-3 12"/><path d="M326 64 l-3 12"/><path d="M23 117 l-3 12"/><path d="M120 170 l-3 12"/><path d="M217 43 l-3 12"/><path d="M314 96 l-3 12"/><path d="M11 149 l-3 12"/><path d="M108 22 l-3 12"/><path d="M205 75 l-3 12"/></g>
+      <!-- title -->
+      <text x="210" y="40" text-anchor="middle" font-family="system-ui, Segoe UI, sans-serif" font-weight="800" font-size="19" letter-spacing="6" fill="#c9a6ff" stroke="#120a1f" stroke-width="3" paint-order="stroke">EXTRACT FROM</text>
+      <text x="210" y="286" text-anchor="middle" font-family="system-ui, Segoe UI, sans-serif" font-weight="900" font-size="46" letter-spacing="2" fill="#7dff3a" stroke="#120a1f" stroke-width="4" paint-order="stroke" filter="url(#lgGlow)">ZOMBIEVILLE</text>
+    </svg>
+    <p>Lead a line of survivors through the maze to the extraction point.</p>
+    <p class="small">Zombies infect every crowd they reach, so lead them away from people.<br>Grab weapons to fight back. One touch costs a life.</p>
+    <p class="small">Tap where to go, or drag a route. Works with finger or mouse.</p>
+    <button id="startBtn">START RUN</button>
+    <button id="continueBtn" class="hidden">CONTINUE SAVED RUN</button>
+    <button id="howtoBtn" class="ghost">HOW TO PLAY</button>
+    <p class="small">Season: <select id="seasonSel" class="ghost" style="font-size:13px;padding:4px 8px"></select></p>
+    <button id="soundBtn" class="ghost">🔊 Sound: on</button>
+    <p class="small" id="soundNote">If you hear nothing on iPhone, flip the ringer switch off silent.</p>
+    <p class="small" id="best"></p>
+    <p class="small"><a href="index.html" style="color:#c9a6ff">Main menu</a> · <a href="zombieville.html?build=1" style="color:#c9a6ff">Map builder (admin)</a></p>
+  </div>
+
+  <div id="pause" class="screen hidden"><h1>PAUSED</h1><p id="pauseText" class="small"></p><button id="resumeBtn">RESUME</button><button id="saveBtn" class="ghost">SAVE &amp; MAIN MENU</button><button id="quitBtn" class="ghost">MAIN MENU (no save)</button></div>
+  <div id="cleared" class="screen hidden">
+    <h1>DISTRICT<br>CLEARED</h1>
+    <p id="clearedText"></p>
+    <div id="store"></div>
+    <button id="nextBtn">NEXT DISTRICT</button>
+  </div>
+
+  <div id="howto" class="screen hidden">
+    <img id="slideImg" alt="" />
+    <p id="slideText"></p>
+    <p class="small" id="slideDots"></p>
+    <div class="row-btns"><button id="slideSkip" class="ghost">SKIP</button><button id="slideNext">NEXT</button></div>
+  </div>
+
+  <div id="won" class="screen hidden">
+    <h1>EVACUATED</h1>
+    <p id="wonText"></p>
+    <button id="wonBtn">PLAY AGAIN</button>
+  </div>
+
+  <div id="over" class="screen hidden">
+    <h1>OVERRUN</h1>
+    <p id="finalScore"></p>
+    <p class="small" id="finalBest"></p>
+    <button id="retryBtn">RETRY</button>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
