@@ -1,4 +1,10 @@
-# Extract from Zombieville (blocky game; was Conga of the Dead / Office Outbreak) / Duvallville poster — project notes
+# Project notes: Extract from Zombieville, Dead City Nights, the map builder, the Duvallville poster game
+
+Read this first after a compaction. Three games in one Vite repo, deployed to GitHub Pages on push to main (~1 min):
+- index.html = Extract from Zombieville (tap-to-route maze game). index.html?build=1 = in-world map builder. editor.html = 2D grid builder.
+- deadcity.html = Dead City Nights (third-person joystick, six nights, missions, vehicles, spells). ?custom=1 plays the builder map, ?horde=100 spawns a horde.
+- poster.html = Duvallville poster game (separate, not linked from the start screen).
+Shared engine: src/city.js (maze, roads, buildings, props, vehicles), src/landmarks.js (gas, rides, school, skate, slime, base, cemetery, lab), src/fire.js, src/chopper.js, src/audio.js, src/poster/characters.js, src/tools.js (builder palette, map decode). Dated bullets below are the change log, newest last.
 
 Reference for continuing work after a context compaction. Everything here was true on 2026-10-17.
 
