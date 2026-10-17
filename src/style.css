@@ -24,6 +24,15 @@ button:active { transform: translateY(3px); box-shadow: 0 1px 0 #b8902a; }
 #objective { font-size: 15px; font-weight: 800; color: #7dff6a; text-shadow: 0 0 10px #7dff6a88, 0 2px 4px #000; }
 #objective.warn { color: #ff5c5c; text-shadow: 0 0 10px #ff5c5c88, 0 2px 4px #000; }
 #puzzle { background: #0e2222ee; }
+#wheelGame { background: #0e2222ee; }
+#wheelGame h2 { color: #ffd24a; font-size: 24px; letter-spacing: 1px; }
+#wheelGame p { max-width: 320px; font-size: 15px; }
+.wgBar { position: relative; width: min(84vw, 320px); height: 34px; background: #16302f; border: 2px solid #6a3f8a; border-radius: 17px; overflow: hidden; }
+.wgZone { position: absolute; top: 0; bottom: 0; background: #ffd24a; opacity: .85; box-shadow: 0 0 12px #ffd24a; }
+.wgNeedle { position: absolute; top: -2px; bottom: -2px; width: 5px; margin-left: -2px; background: #fff; box-shadow: 0 0 6px #fff; }
+#wgLights { font-size: 26px; letter-spacing: 6px; color: #ffd24a; text-shadow: 0 0 8px #ffd24a88; }
+#wgLights.bad { color: #ff5c5c; }
+#wgHit { min-width: 180px; }
 #puzzle h2 { color: #ffd24a; font-size: 24px; letter-spacing: 1px; }
 #puzzle p { max-width: 320px; font-size: 15px; }
 .pzWrap { display: flex; align-items: stretch; gap: 6px; }
