@@ -144,7 +144,11 @@ const SPELLS = {
   entomb: { name: 'ENTOMB', cd: 2.4, cast() { for (const z of zombies) if (z.position.distanceTo(player.position) < 7) z.userData.stun = 4; flash(0xd0d0ff); sfx.hit(); } },
   wrath: { name: 'WRATH', cd: 1.6, cast() { let best = null, bd = 12; for (const z of zombies) { const d = z.position.distanceTo(player.position); if (d < bd) { bd = d; best = z; } } if (!best) return; fx.explode(best.position, 0.8); for (const z of zombies) if (z.position.distanceTo(best.position) < 4) z.userData.hp -= 4; sfx.boom(); } },
   maelstrom: { name: 'MAELSTROM', cd: 3.0, cast() { const dir = facing(); spawnTornado(player.position.clone().addScaledVector(dir, 2), dir, { life: 5, radius: 2.2, speed: 4, big: false }); flash(0x3fdfff); sfx.whoosh(); } },
-  pestilence: { name: 'PESTILENCE', cd: 1.6, cast() { const c = player.position.clone().addScaledVector(facing(), 4); for (const z of zombies) if (z.position.distanceTo(c) < 4) z.userData.poison = 5; fx.ignite(new THREE.Vector3(c.x, 0.2, c.z), 0.7, 4); sfx.hurt(); } },
+  chain: { name: 'LIGHTNING', cd: 2.2, cast() { // bolt from the player to the nearest zombie, then hops zombie to zombie across the area
+    let from = player.position.clone().setY(0.9); const hit = new Set(); const pts = [from.clone()];
+    for (let hop = 0; hop < 12; hop++) { let best = null, bd = hop === 0 ? 8 : 5; for (const z of zombies) { if (hit.has(z) || z.userData.rag) continue; const dd = z.position.distanceTo(from); if (dd < bd) { bd = dd; best = z; } } if (!best) break;
+      hit.add(best); best.userData.hp -= 3; best.userData.stun = Math.max(best.userData.stun, 0.6); best.userData.alert = 6; from = best.position.clone().setY(0.9); pts.push(from.clone()); }
+    if (pts.length < 2) { say('No target.'); return; } drawChain(pts); flash(0x9fd8ff); sfx.boom(); } },
   diminish: { name: 'DIMINISH', cd: 2.2, cast() { for (const z of zombies) if (z.position.distanceTo(player.position) < 8) z.userData.slow = 6; flash(0xffd24a); sfx.hit(); } },
 };
 // ---------- tornadoes ----------
@@ -171,6 +175,10 @@ function updateTornadoes(dt) {
 }
 let toss = null;
 let flame = 0;
+const chainMat = new THREE.LineBasicMaterial({ color: 0xbfe8ff }); const chains = [];
+function drawChain(pts) { const jag = []; for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1]; for (let k = 0; k < 5; k++) { const p = a.clone().lerp(b, k / 5); if (k > 0) { p.x += (Math.random() - 0.5) * 0.4; p.y += (Math.random() - 0.5) * 0.5; p.z += (Math.random() - 0.5) * 0.4; } jag.push(p); } } jag.push(pts[pts.length - 1]);
+  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(jag), chainMat); scene.add(line); chains.push({ line, t: 0.25 }); for (const p of pts.slice(1)) for (let i = 0; i < 4; i++) fx.puff('flame', p, 0.5); }
+function updateChains(dt) { for (let i = chains.length - 1; i >= 0; i--) { const c = chains[i]; c.t -= dt; if (c.t <= 0) { scene.remove(c.line); c.line.geometry.dispose(); chains.splice(i, 1); } } }
 function burnBuilding(b) { if (b.userData.burning || b.userData.wrecked) return; b.userData.burning = true; const wp = b.getWorldPosition(new THREE.Vector3()); const h = b.userData.h || 2; fx.ignite(new THREE.Vector3(wp.x + (Math.random() - 0.5) * 0.8, Math.min(h, 2.4), wp.z + (Math.random() - 0.5) * 0.8), 1.1, 30); fx.ignite(new THREE.Vector3(wp.x, 0.3, wp.z + 1), 0.7, 30); }
 function updateFlame(dt) {
   if (flame <= 0) return; flame -= dt; const dir = facing(); const o = player.position.clone().setY(0.8).addScaledVector(dir, 0.4);
@@ -333,7 +341,7 @@ function frame(now) {
     player.visible = !driving && (invuln <= 0 || Math.sin(now * 0.03) > 0);
     for (let i = books.length - 1; i >= 0; i--) { const b = books[i]; b.mesh.rotation.y += dt * 2; b.mesh.position.y = 0.5 + Math.sin(now * 0.004 + i) * 0.1; if (b.mesh.position.distanceTo(player.position) < 0.9) { scene.remove(b.mesh); books.splice(i, 1); booksFound++; const free = slots.indexOf(null); slots[free >= 0 ? free : booksFound % 3] = b.key; say('Spell book: ' + SPELLS[b.key].name); sfx.pickup(); $('books').textContent = '📖 ' + booksFound; } }
     if (riding) updateRide(dt);
-    updateZombies(dt); if (state !== 'play') return; updateShots(dt); updateGuns(dt); updateFlame(dt); updateCans(dt); updateCorpses(dt); updateTornadoes(dt); updateWeather(dt); updateNights(dt); updateMissions(dt); fx.update(dt); updateActs();
+    updateZombies(dt); if (state !== 'play') return; updateShots(dt); updateGuns(dt); updateFlame(dt); updateChains(dt); updateCans(dt); updateCorpses(dt); updateTornadoes(dt); updateWeather(dt); updateNights(dt); updateMissions(dt); fx.update(dt); updateActs();
     flashT -= dt; flashMesh.position.copy(player.position).setY(1); flashMesh.scale.setScalar(1 + (0.3 - Math.max(0, flashT)) * 20); flashMesh.material.opacity = Math.max(0, flashT) * 2;
     if (city) city.updateRain(dt);
   }
