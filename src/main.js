@@ -210,7 +210,7 @@ function extendRoute(w, first) {
 let bTool = 0, bMap = null, bRebuild = 0, bPaint = false, bPainting = false, bLastCell = '';
 let bLastTap = 0;
 function buildPlace(w) {
-  const c = toCell(w.x, w.z, cols, rows); if (c.cx <= 0 || c.cy <= 0 || c.cx >= cols - 1 || c.cy >= rows - 1) { setTip('Edge cells stay buildings.'); return; }
+  const c = toCell(w.x, w.z, cols, rows); window.__lastPlace = { cx: c.cx, cy: c.cy, tool: bTool, cols, rows }; if (c.cx <= 0 || c.cy <= 0 || c.cx >= cols - 1 || c.cy >= rows - 1) { setTip('Edge cells stay buildings.'); return; }
   const name = (GROUPS.flatMap(([, it]) => it).find((t) => t[1] === bTool) || ['?'])[0]; setTip(name + ' at ' + c.cx + ', ' + c.cy);
   if (bTool === 11 || bTool === 12) for (const row of bMap.cells) for (let x = 0; x < row.length; x++) if (row[x] === bTool) row[x] = 0;
   if (bMap.cells[c.cy][c.cx] === bTool) {
@@ -245,8 +245,16 @@ function startBuild() {
   // phones: the plain click event is the most reliable tap; place from it too (duplicates are ignored)
   const placeAt = (sx, sy) => { if (performance.now() - bLastTap < 300) return; bLastTap = performance.now(); bRay.setFromCamera(new THREE.Vector2((sx / innerWidth) * 2 - 1, -(sy / innerHeight) * 2 + 1), camera); if (bRay.ray.intersectPlane(bGround, bHit)) buildPlace({ x: bHit.x, z: bHit.z }); };
   // iPhone: touch events are the one thing Safari always delivers, so place from a clean single-finger tap
-  let tStart = null; canvas.addEventListener('touchstart', (e) => { tStart = e.touches.length === 1 ? [e.touches[0].clientX, e.touches[0].clientY, performance.now()] : null; }, { passive: true });
-  canvas.addEventListener('touchend', (e) => { if (!tStart || e.touches.length || e.changedTouches.length !== 1) { tStart = null; return; } const t = e.changedTouches[0]; const moved = Math.hypot(t.clientX - tStart[0], t.clientY - tStart[1]); const held = performance.now() - tStart[2]; tStart = null; if (moved < 12 && held < 600) { placeAt(t.clientX, t.clientY); e.preventDefault(); } }, { passive: false });
+  // press and hold (about half a second) without moving, then drag: lays cells under the finger. A plain drag still pans.
+  let tStart = null, holdTimer = 0, holdPaint = false;
+  const beginHold = (x, y) => { clearTimeout(holdTimer); holdPaint = false; holdTimer = setTimeout(() => { if (!tStart || Math.hypot(tStart[0] - x, tStart[1] - y) > 10) return; holdPaint = true; input.reset(); bLastCell = ''; try { navigator.vibrate && navigator.vibrate(25); } catch { /* ignore */ } const keepPaint = bPaint; bPaint = true; paintMove(x, y); bPaint = keepPaint; setTip('Hold-paint: drag to lay cells.'); }, 450); };
+  canvas.addEventListener('touchstart', (e) => { tStart = e.touches.length === 1 ? [e.touches[0].clientX, e.touches[0].clientY, performance.now()] : null; if (tStart) beginHold(tStart[0], tStart[1]); else { clearTimeout(holdTimer); holdPaint = false; } }, { passive: true });
+  canvas.addEventListener('touchmove', (e) => { if (!tStart || e.touches.length !== 1) return; const t = e.touches[0]; if (!holdPaint && Math.hypot(t.clientX - tStart[0], t.clientY - tStart[1]) > 10) clearTimeout(holdTimer); if (holdPaint) { const keepPaint = bPaint; bPaint = true; paintMove(t.clientX, t.clientY); bPaint = keepPaint; e.preventDefault(); } }, { passive: false });
+  canvas.addEventListener('touchend', (e) => { clearTimeout(holdTimer); if (holdPaint) { holdPaint = false; tStart = null; bLastCell = ''; e.preventDefault(); return; } if (!tStart || e.touches.length || e.changedTouches.length !== 1) { tStart = null; return; } const t = e.changedTouches[0]; const moved = Math.hypot(t.clientX - tStart[0], t.clientY - tStart[1]); const held = performance.now() - tStart[2]; tStart = null; if (moved < 12 && held < 600) { placeAt(t.clientX, t.clientY); e.preventDefault(); } }, { passive: false });
+  // mouse: same hold-to-paint
+  canvas.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse' || e.button !== 0) return; tStart = [e.clientX, e.clientY, performance.now()]; beginHold(e.clientX, e.clientY); });
+  canvas.addEventListener('pointermove', (e) => { if (e.pointerType !== 'mouse' || !tStart) return; if (!holdPaint && Math.hypot(e.clientX - tStart[0], e.clientY - tStart[1]) > 10) clearTimeout(holdTimer); if (holdPaint && (e.buttons & 1)) { const keepPaint = bPaint; bPaint = true; paintMove(e.clientX, e.clientY); bPaint = keepPaint; } });
+  canvas.addEventListener('pointerup', (e) => { if (e.pointerType !== 'mouse') return; clearTimeout(holdTimer); if (holdPaint) { holdPaint = false; bLastTap = performance.now(); } tStart = null; bLastCell = ''; });
   canvas.addEventListener('click', (e) => { if (performance.now() - bLastTap < 300) return; bLastTap = performance.now(); bRay.setFromCamera(new THREE.Vector2((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1), camera); if (bRay.ray.intersectPlane(bGround, bHit)) buildPlace({ x: bHit.x, z: bHit.z }); });
   unlockAudio(); show(null); $('build').classList.remove('hidden'); ui.hud.classList.add('hidden'); $('lookBtn').classList.add('hidden');
   input.setLook(true); input.lookTap = true; buildRefresh(); zoom = 0.9; fitCamera();
