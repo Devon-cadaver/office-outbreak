@@ -179,23 +179,53 @@ export function buildCity(scene, wall, level) {
     for (const [x, y] of streetCells) { const X = x * P, Y = y * P; const n = open(x, y - 1), s = open(x, y + 1), e = open(x + 1, y), wv = open(x - 1, y);
       if (!n) g.fillRect(X + (wv ? 0 : 5), Y + 5, P - (wv ? 0 : 5) - (e ? 0 : 5), 2); if (!s) g.fillRect(X + (wv ? 0 : 5), Y + P - 7, P - (wv ? 0 : 5) - (e ? 0 : 5), 2);
       if (!wv) g.fillRect(X + 5, Y + (n ? 0 : 5), 2, P - (n ? 0 : 5) - (s ? 0 : 5)); if (!e) g.fillRect(X + P - 7, Y + (n ? 0 : 5), 2, P - (n ? 0 : 5) - (s ? 0 : 5)); }
-    // double yellow centre line down the middle of every street, straight through junctions, bending at corners
-    g.fillStyle = '#e3c84f';
-    const yl = (x0, y0, x1, y1) => { const horiz = y0 === y1; if (horiz) { const a = Math.min(x0, x1), b = Math.max(x0, x1); g.fillRect(a, y0 - 3, b - a, 2); g.fillRect(a, y0 + 1, b - a, 2); } else { const a = Math.min(y0, y1), b = Math.max(y0, y1); g.fillRect(x0 - 3, a, 2, b - a); g.fillRect(x0 + 1, a, 2, b - a); } };
+    // double yellow centre line on every street. The junction box stays clear like a real crossroads;
+    // at a T the through street keeps its line; corners get a smooth curve; dead ends stop short.
+    const yellow = (path) => { g.save(); g.lineCap = 'butt'; g.lineJoin = 'round'; g.strokeStyle = '#e3c84f'; g.lineWidth = 2.2; for (const off of [-2.6, 2.6]) { g.beginPath(); path(off); g.stroke(); } g.restore(); };
     for (const [x, y] of streetCells) {
-      const n = open(x, y - 1), s = open(x, y + 1), e = open(x + 1, y), wv = open(x - 1, y);
-      const X = x * P, Y = y * P, cx = X + P / 2, cy = Y + P / 2;
-      if (wv) yl(X, cy, cx, cy); if (e) yl(cx, cy, X + P, cy); if (n) yl(cx, Y, cx, cy); if (s) yl(cx, cy, cx, Y + P);
-      // corner cap so the two halves meet cleanly
-      if (n + s + e + wv >= 2) g.fillRect(cx - 3, cy - 3, 6, 6);
+      const n = open(x, y - 1), s = open(x, y + 1), e = open(x + 1, y), wv = open(x - 1, y); const count = n + s + e + wv;
+      const X = x * P, Y = y * P, cx = X + P / 2, cy = Y + P / 2; const end = 10; // how far a line stops short of a junction edge or dead end
+      const horizThrough = e && wv && !(n && s), vertThrough = n && s && !(e && wv);
+      if (count === 4) continue; // open box
+      if (count === 3) {
+        // through street keeps its line, the side street stops short of the box
+        if (horizThrough) yellow((o) => { g.moveTo(X, cy + o); g.lineTo(X + P, cy + o); });
+        else if (vertThrough) yellow((o) => { g.moveTo(cx + o, Y); g.lineTo(cx + o, Y + P); });
+        continue;
+      }
+      if (count === 2 && e && wv) { yellow((o) => { g.moveTo(X, cy + o); g.lineTo(X + P, cy + o); }); continue; }
+      if (count === 2 && n && s) { yellow((o) => { g.moveTo(cx + o, Y); g.lineTo(cx + o, Y + P); }); continue; }
+      if (count === 2) {
+        // corner: a quarter curve from one edge midpoint to the other, bulging toward the inside of the turn
+        const kx = e ? X + P : X, ky = s ? Y + P : Y; // the cell corner the road bends around
+        const a0 = Math.atan2(cy - ky, 0), a1 = Math.atan2(0, cx - kx); const d = (((a1 - a0) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+        g.save(); g.strokeStyle = '#e3c84f'; g.lineWidth = 2.2;
+        for (const r of [P / 2 - 2.6, P / 2 + 2.6]) { g.beginPath(); g.arc(kx, ky, r, a0, a1, d > Math.PI); g.stroke(); }
+        g.restore(); continue;
+      }
+      if (count === 1) { // dead end: line from the open edge, stopping short of the end
+        if (wv) yellow((o) => { g.moveTo(X, cy + o); g.lineTo(cx + end, cy + o); }); if (e) yellow((o) => { g.moveTo(X + P, cy + o); g.lineTo(cx - end, cy + o); });
+        if (n) yellow((o) => { g.moveTo(cx + o, Y); g.lineTo(cx + o, cy + end); }); if (s) yellow((o) => { g.moveTo(cx + o, Y + P); g.lineTo(cx + o, cy - end); });
+      }
     }
-    // zebra crossings where the avenues meet other streets
-    g.fillStyle = '#e8eef0';
+    // the side-street line and every approach to a 4-way stop a little short of the box
+    g.fillStyle = '#3a4c52';
     for (const [x, y] of streetCells) {
-      const n = open(x, y - 1), s = open(x, y + 1), e = open(x + 1, y), wv = open(x - 1, y); if (n + s + e + wv < 3 || !(isAveRow(y) || isAveCol(x))) continue;
+      const n = open(x, y - 1), s = open(x, y + 1), e = open(x + 1, y), wv = open(x - 1, y); if (n + s + e + wv < 3) continue;
       const X = x * P, Y = y * P;
+      if (n) g.fillRect(X + P / 2 - 5, Y - 10, 10, 10); if (s) g.fillRect(X + P / 2 - 5, Y + P, 10, 10);
+      if (e) g.fillRect(X + P, Y + P / 2 - 5, 10, 10); if (wv) g.fillRect(X - 10, Y + P / 2 - 5, 10, 10);
+    }
+    // zebra crossings: a proper striped band across the road on every approach to a crossroads or avenue junction
+    for (const [x, y] of streetCells) {
+      const n = open(x, y - 1), s = open(x, y + 1), e = open(x + 1, y), wv = open(x - 1, y); const count = n + s + e + wv;
+      if (count < 3 || !(count === 4 || isAveRow(y) || isAveCol(x))) continue;
+      const X = x * P, Y = y * P, inset = 7, depth = 9;
       for (const [dx, dy, ok] of [[0, -1, n], [0, 1, s], [1, 0, e], [-1, 0, wv]]) { if (!ok) continue;
-        for (let k = 0; k < 5; k++) { const a = 6 + k * 8; if (dx) g.fillRect(X + (dx > 0 ? P - 12 : 5), Y + a, 7, 5); else g.fillRect(X + a, Y + (dy > 0 ? P - 12 : 5), 5, 7); } }
+        // band sits just outside the box, on the approach cell
+        if (dx) { const bx = dx > 0 ? X + P + 2 : X - 2 - depth; g.fillStyle = '#2d3c41'; g.fillRect(bx, Y + inset, depth, P - inset * 2); g.fillStyle = '#e8eef0'; for (let k = Y + inset + 2; k < Y + P - inset - 2; k += 7) g.fillRect(bx + 1, k, depth - 2, 4); }
+        else { const by = dy > 0 ? Y + P + 2 : Y - 2 - depth; g.fillStyle = '#2d3c41'; g.fillRect(X + inset, by, P - inset * 2, depth); g.fillStyle = '#e8eef0'; for (let k = X + inset + 2; k < X + P - inset - 2; k += 7) g.fillRect(k, by + 1, 4, depth - 2); }
+      }
     }
     // manhole covers on a few straight cells
     g.fillStyle = '#2a363b'; g.strokeStyle = '#4a5c62'; g.lineWidth = 1;
