@@ -48,7 +48,7 @@ let weapon = null, ammo = 0, fireTimer = 0, flow = null, flowTimer = 0, invuln =
 let route = [], routeEndCell = null, stepTimer = 0, groanTimer = 1, tipStage = 0;
 const tipEl = document.getElementById('tip');
 function setTip(t) { if (tip === t) return; tip = t; tipEl.textContent = t; tipEl.classList.toggle('hidden', !t); }
-const markerGeo = new THREE.CylinderGeometry(0.22, 0.22, 0.05, 10), markerMat = new THREE.MeshBasicMaterial({ color: 0x7dff6a, transparent: true, opacity: 0.6 });
+const markerGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.05, 10), markerMat = new THREE.MeshBasicMaterial({ color: 0x7dff6a, transparent: true, opacity: 0.75 });
 const markers = []; for (let i = 0; i < 60; i++) { const mk = new THREE.Mesh(markerGeo, markerMat); mk.visible = false; scene.add(mk); markers.push(mk); }
 function showRoute() { markers.forEach((mk, i) => { const c = route[i]; mk.visible = !!c; if (c) { const w = toWorld(c[0], c[1], cols, rows); mk.position.set(w.x, 0.04, w.z); } }); }
 function playerCell() { return toCell(player.position.x, player.position.z, cols, rows); }
@@ -73,13 +73,13 @@ const pickGeo = new THREE.BoxGeometry(0.5, 0.18, 0.18);
 const puffGeo = new THREE.BoxGeometry(0.15, 0.15, 0.15), puffMat = new THREE.MeshBasicMaterial({ color: 0x9fc58a });
 
 // Isometric camera: 45 deg yaw, ~35 deg elevation, follows the player.
-const CAM_YAW = Math.PI / 4, CAM_ELEV = 0.62;
+const CAM_YAW = Math.PI / 4, CAM_ELEV = 0.72;
 const camDir = new THREE.Vector3(Math.sin(CAM_YAW) * Math.cos(CAM_ELEV), Math.sin(CAM_ELEV), Math.cos(CAM_YAW) * Math.cos(CAM_ELEV)).normalize();
 const screenUp = new THREE.Vector2(-Math.sin(CAM_YAW), -Math.cos(CAM_YAW)), screenRight = new THREE.Vector2(Math.cos(CAM_YAW), -Math.sin(CAM_YAW));
 const camTarget = new THREE.Vector3();
 function fitCamera() {
   const aspect = innerWidth / innerHeight; camera.aspect = aspect;
-  const half = aspect < 1 ? 9.5 / aspect * 0.7 : 8.5; // portrait: about 3 cells wide, more tall
+  const half = aspect < 1 ? 9.5 / aspect * 0.8 : 9.5; // portrait: about 3 cells wide, more tall
   camera.left = -half * aspect; camera.right = half * aspect; camera.top = half; camera.bottom = -half;
   camera.updateProjectionMatrix();
 }
@@ -115,7 +115,7 @@ function buildLevel(n) {
   cols = c; rows = r;
   const rng = mulberry32(n * 1337 + 42);
   // tutorial district is wide open: many extra openings so zombies stay visible
-  const loops = tutorial ? Math.floor(cols * rows * 0.22) : Math.floor(cols * rows * 0.06) + n * 2;
+  const loops = tutorial ? Math.floor(cols * rows * 0.22) : Math.floor(cols * rows * 0.1) + n * 2;
   maze = generateMaze(cols, rows, loops, rng);
   startCell = { cx: 1, cy: rows - 2 };
   // exit: among the cells farthest by road, prefer ones physically close to the start (long way round)
@@ -420,7 +420,7 @@ function render(dt = 0.016) {
     for (const b of city.buildings) {
       const dx = b.position.x - player.position.x, dz = b.position.z - player.position.z;
       const towardCam = dx * camDir.x + dz * camDir.z; const dist = Math.hypot(dx, dz);
-      const fade = towardCam > 0.5 && dist < 5.5 && Math.abs(dx * camDir.z - dz * camDir.x) < 2.6;
+      const fade = dist < 4.5 || (towardCam > 0.3 && dist < 9 && Math.abs(dx * camDir.z - dz * camDir.x) < 3.8);
       const op = fade ? 0.12 : 1; for (const mat of b.userData.fade) if (mat.opacity !== op) { mat.opacity = op; }
       if (b.userData.edges) b.userData.edges.visible = fade;
     }

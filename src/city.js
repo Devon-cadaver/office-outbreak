@@ -100,18 +100,18 @@ function makeTextures() {
   };
   const [facadeA, glowA] = facade(true, false), [facadeB, glowB] = facade(false, false);
 
-  const asphalt = (g) => { g.fillStyle = '#4b6a6e'; g.fillRect(0, 0, 96, 96); g.fillStyle = '#50727a'; for (let i = 0; i < 60; i++) g.fillRect((Math.random() * 96) | 0, (Math.random() * 96) | 0, 2, 2); };
+  const asphalt = (g) => { g.fillStyle = '#56777c'; g.fillRect(0, 0, 96, 96); g.fillStyle = '#5c7f86'; for (let i = 0; i < 60; i++) g.fillRect((Math.random() * 96) | 0, (Math.random() * 96) | 0, 2, 2); };
   const [sc, sg] = canvas(96, 96); asphalt(sg);
-  sg.fillStyle = '#6b8589'; sg.fillRect(0, 0, 96, 12); sg.fillRect(0, 84, 96, 12);
+  sg.fillStyle = '#8da4a8'; sg.fillRect(0, 0, 96, 12); sg.fillRect(0, 84, 96, 12);
   sg.fillStyle = '#5b7579'; sg.fillRect(0, 11, 96, 2); sg.fillRect(0, 83, 96, 2);
-  sg.fillStyle = '#c9b85a'; for (let x = 6; x < 96; x += 24) sg.fillRect(x, 47, 12, 2);
+  sg.fillStyle = '#e0cf6a'; for (let x = 6; x < 96; x += 24) sg.fillRect(x, 46, 12, 3);
   const roadStraight = tex(sc);
   const [jc, jg] = canvas(96, 96); asphalt(jg);
-  jg.fillStyle = '#6b8589'; for (const [x, y] of [[0, 0], [84, 0], [0, 84], [84, 84]]) jg.fillRect(x, y, 12, 12);
+  jg.fillStyle = '#8da4a8'; for (const [x, y] of [[0, 0], [84, 0], [0, 84], [84, 84]]) jg.fillRect(x, y, 12, 12);
   jg.fillStyle = '#e8e8e8'; for (let i = 16; i < 80; i += 12) { jg.fillRect(i, 2, 6, 10); jg.fillRect(i, 84, 6, 10); jg.fillRect(2, i, 10, 6); jg.fillRect(84, i, 10, 6); }
   const roadJunction = tex(jc);
   const [cc, cg] = canvas(96, 96); asphalt(cg);
-  cg.fillStyle = '#6b8589'; cg.fillRect(0, 0, 96, 12); cg.fillRect(0, 84, 96, 12); cg.fillRect(0, 0, 12, 96); cg.fillRect(84, 0, 12, 96);
+  cg.fillStyle = '#8da4a8'; cg.fillRect(0, 0, 96, 12); cg.fillRect(0, 84, 96, 12); cg.fillRect(0, 0, 12, 96); cg.fillRect(84, 0, 12, 96);
   const roadCorner = tex(cc);
 
   const [lc, lg] = canvas(64, 64);
@@ -172,7 +172,7 @@ export function buildCity(scene, wall, level) {
     const lm = landmarkCells.get(y * cols + x);
     if (lm) { buildLandmark(lm, group, w, rng, M, add); obstacles.push({ x: w.x, z: w.z, hw: CELL / 2 - 0.05, hd: CELL / 2 - 0.05 }); continue; }
     const edge = x === 0 || y === 0 || x === cols - 1 || y === rows - 1;
-    const floors = edge ? 2 : 1 + ((rng() * 2) | 0) + (rng() < 0.2 ? 2 : 0);
+    const floors = edge ? 2 : 1 + ((rng() * 2) | 0) + (rng() < 0.08 ? 1 : 0);
     const fh = 1.1, h = floors * fh + 0.25;
     const base = new THREE.Color(NIGHT.buildings[(rng() * NIGHT.buildings.length) | 0]); if (edge) base.multiplyScalar(0.7);
     const useA = rng() < 0.6;
@@ -180,7 +180,7 @@ export function buildCity(scene, wall, level) {
     map.needsUpdate = glow.needsUpdate = true;
     map.repeat.set(1, floors); glow.repeat.set(1, floors); const ox = rng() < 0.5 ? 0 : 0.5; map.offset.set(ox, 0); glow.offset.set(ox, 0);
     const side = M({ color: base, map, emissive: 0xffffff, emissiveMap: glow, emissiveIntensity: 1, transparent: true });
-    const footprint = CELL - 0.35;
+    const footprint = CELL - 0.7;
     const mesh = add(box, [side, side, roofMat, roofMat, side, side], footprint, h, footprint, w.x, h / 2, w.z);
     mesh.userData.fade = [side];
     const edges = new THREE.LineSegments(new THREE.EdgesGeometry(box), outlineMat); edges.scale.copy(mesh.scale); edges.position.copy(mesh.position); edges.visible = false; group.add(edges); mesh.userData.edges = edges;
@@ -207,7 +207,7 @@ export function buildCity(scene, wall, level) {
     const n = open(x, y - 1), s = open(x, y + 1), e = open(x + 1, y), w0 = open(x - 1, y);
     const straightH = e && w0 && !n && !s, straightV = n && s && !e && !w0;
     const w = toWorld(x, y, cols, rows);
-    if ((straightH || straightV) && rng() < 0.24) {
+    if ((straightH || straightV) && rng() < 0.12) {
       const sideSign = rng() < 0.5 ? -1 : 1;
       const car = new THREE.Group();
       const bodyMat = M({ color: NIGHT.cars[(rng() * NIGHT.cars.length) | 0] });
@@ -221,7 +221,7 @@ export function buildCity(scene, wall, level) {
       else { car.rotation.y = rng() < 0.5 ? 0 : Math.PI; car.position.set(w.x + sideSign * 0.95, 0, w.z); obstacles.push({ x: w.x + sideSign * 0.95, z: w.z, hw: 0.45, hd: 0.9 }); }
       group.add(car);
     }
-    if (rng() < 0.16) poleCells.push([x, y]);
+    if (rng() < 0.1) poleCells.push([x, y]);
   }
 
   // ---------- lamps, poles, wires ----------
@@ -259,23 +259,23 @@ export function buildCity(scene, wall, level) {
     const w = toWorld(x, y, cols, rows); const r = rng();
     const sideSign = rng() < 0.5 ? -1 : 1; const horiz = e && w0;
     const px = horiz ? w.x + (rng() - 0.5) * 1.6 : w.x + sideSign * 1.2, pz = horiz ? w.z + sideSign * 1.2 : w.z + (rng() - 0.5) * 1.6;
-    if (r < 0.09) {
+    if (r < 0.05) {
       add(cyl, trunkMat, 0.18, 1.0, 0.18, px, 0.5, pz);
       for (let k = 0; k < 3; k++) { const l = add(ball, k % 2 ? leafMat2 : leafMat, 1.1 + rng() * 0.5, 0.9 + rng() * 0.4, 1.1 + rng() * 0.5, px + (rng() - 0.5) * 0.5, 1.2 + k * 0.3, pz + (rng() - 0.5) * 0.5); l.rotation.y = rng() * 3; }
       obstacles.push({ x: px, z: pz, hw: 0.2, hd: 0.2 });
-    } else if (r < 0.15) {
+    } else if (r < 0.08) {
       for (let k = 0; k < 2 + ((rng() * 2) | 0); k++) { const bx = px + (rng() - 0.5) * 0.7, bz = pz + (rng() - 0.5) * 0.7; add(cyl, barrelMat, 0.42, 0.6, 0.42, bx, 0.3, bz); add(cyl, barrelTop, 0.36, 0.04, 0.36, bx, 0.61, bz); }
       obstacles.push({ x: px, z: pz, hw: 0.45, hd: 0.45 });
-    } else if (r < 0.19) {
+    } else if (r < 0.1) {
       add(cyl, hydrantMat, 0.2, 0.5, 0.2, px, 0.25, pz); add(box, hydrantMat, 0.36, 0.1, 0.12, px, 0.35, pz); add(ball, hydrantMat, 0.24, 0.2, 0.24, px, 0.55, pz);
-    } else if (r < 0.25) {
+    } else if (r < 0.13) {
       for (let k = -2; k <= 2; k++) add(box, fenceMat, 0.08, 0.5, 0.08, px + k * 0.3 * (horiz ? 1 : 0), 0.25, pz + k * 0.3 * (horiz ? 0 : 1));
       add(box, fenceMat, horiz ? 1.4 : 0.06, 0.06, horiz ? 0.06 : 1.4, px, 0.35, pz);
     }
   }
 
   // ---------- rain (diagonal streaks) ----------
-  const RAIN = 500; const rainPos = new Float32Array(RAIN * 6);
+  const RAIN = 300; const rainPos = new Float32Array(RAIN * 6);
   for (let i = 0; i < RAIN; i++) { const rx = (rng() - 0.5) * (W + 12), rz = (rng() - 0.5) * (D + 12), ry = rng() * 22; rainPos.set([rx, ry, rz, rx + 0.25, ry - 1.1, rz + 0.25], i * 6); }
   const rainGeo = new THREE.BufferGeometry(); rainGeo.setAttribute('position', new THREE.BufferAttribute(rainPos, 3));
   group.add(new THREE.LineSegments(rainGeo, new THREE.LineBasicMaterial({ color: 0xcfeaea, transparent: true, opacity: 0.3 })));
