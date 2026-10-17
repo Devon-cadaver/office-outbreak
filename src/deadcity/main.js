@@ -6,7 +6,8 @@ import { makeCharacter, animateWalk } from '../poster/characters.js';
 import { createFires } from '../fire.js';
 import { makeChopper, animateChopper } from '../chopper.js';
 import { unlockAudio, sfx, startMusic, stopMusic, setMusicChase } from '../audio.js';
-import { loadMap, OPEN_CODES } from '../tools.js';
+import { loadMap, decodeCustom } from '../tools.js';
+import { rides } from '../landmarks.js';
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('game');
@@ -25,18 +26,19 @@ let maze, cols, rows, city, obstacles = [], startCell, exitCell, flow = null, fl
 function buildWorld() {
   if (city) scene.remove(city.group);
   const custom = new URLSearchParams(location.search).get('custom') === '1' ? loadMap() : null;
-  if (custom) {
-    cols = custom.cols; rows = custom.rows; maze = custom.cells.map((r) => r.map((v) => !OPEN_CODES.has(v)));
-    custom.cells.forEach((r, y) => r.forEach((v, x) => { if (v === 11) startCell = { cx: x, cy: y }; if (v === 12) exitCell = { cx: x, cy: y }; }));
-    maze.custom = { landmarks: new Map(), houses: new Set(), parks: new Set(), avenue: new Set(), cross: new Set(), plaza: new Set(), towers: new Set(), trees: new Set(), benches: new Set(), cars: new Set(), conn: new Map(), vars: new Map() };
-  } else {
+  if (custom) { const dec = decodeCustom(custom); maze = dec.maze; cols = dec.cols; rows = dec.rows; startCell = dec.start; exitCell = dec.exit; }
+  else {
     cols = 25; rows = 25; const rng = mulberry32(99); maze = generateMaze(cols, rows, 60, rng);
     const a = 13; for (let i = 1; i < cols - 1; i++) { maze[a][i] = false; maze[i][a] = false; } maze.avenues = { row: a, col: a };
     startCell = { cx: 1, cy: rows - 2 }; exitCell = { cx: cols - 2, cy: 1 };
   }
   if (!startCell) startCell = { cx: 1, cy: rows - 2 }; if (!exitCell) exitCell = { cx: cols - 2, cy: 1 };
-  maze.extraLandmarks = ['base', 'cemetery', 'lab'];
+  const have = maze.custom ? new Set(maze.custom.landmarks.values()) : new Set(); maze.extraLandmarks = ['base', 'cemetery', 'lab'].filter((k) => !have.has(k));
   city = buildCity(scene, maze, 3); obstacles = city.obstacles;
+  for (const hz of city.hazards) { const c = toCell(hz.pos.x, hz.pos.z, cols, rows); maze[c.cy][c.cx] = false;
+    const i = obstacles.findIndex((o) => Math.abs(o.x - hz.pos.x) < 0.01 && Math.abs(o.z - hz.pos.z) < 0.01 && o.hw > 1); if (i >= 0) obstacles.splice(i, 1);
+    if (hz.type === 'base') obstacles.push({ x: hz.pos.x, z: hz.pos.z - 0.4, hw: 1.15, hd: 0.8 }); if (hz.type === 'lab') obstacles.push({ x: hz.pos.x, z: hz.pos.z - 0.3, hw: 1.15, hd: 0.9 });
+    if (hz.type === 'gas') for (const dx of [-0.6, 0.6]) obstacles.push({ x: hz.pos.x + dx, z: hz.pos.z, hw: 0.2, hd: 0.15 }); }
   const ep = toWorld(exitCell.cx, exitCell.cy, cols, rows);
   const pad = new THREE.Mesh(new THREE.CircleGeometry(1.3, 24), new THREE.MeshBasicMaterial({ color: 0x7dff3a, transparent: true, opacity: 0.35 })); pad.rotation.x = -Math.PI / 2; pad.position.set(ep.x, 0.03, ep.z); city.group.add(pad);
 }
@@ -51,14 +53,19 @@ function randomOpen(minDist) { for (let k = 0; k < 200; k++) { const c = { cx: 1
 // ---------- player, camera, controls ----------
 const SCALE = 0.32; const player = makeCharacter('hoodie'); player.scale.setScalar(SCALE); scene.add(player);
 let hp = 100, invuln = 0, yaw = 0, camYaw = 0, state = 'start', driving = false, car = null, carHp = 5;
-function enterCar(c) { car = c; driving = true; carHp = 5; player.visible = false; const wp = c.userData.worldPos().clone(); const pr = c.userData.prop; pr.g.remove(c); scene.add(c); c.position.set(wp.x, 0, wp.z); pr.knocked = true; pr.t = 1; if (pr.ob) { const i = obstacles.indexOf(pr.ob); if (i >= 0) obstacles.splice(i, 1); } yaw = car.rotation.y; say('Buckle up. Double-tap to get out.'); sfx.pickup(); }
-function leaveCar() { if (!car) return; driving = false; player.visible = true; player.position.set(car.position.x + Math.cos(yaw) * 1.2, 0, car.position.z - Math.sin(yaw) * 1.2); collide(player.position, 0.25); if (carHp <= 0) car.userData.wrecked = true; car = null; }
+const VEH = { car: { hp: 5, speed: 6, burn: 3.5, name: 'Car' }, van: { hp: 8, speed: 5.2, burn: 4.5, name: 'Van' }, truck: { hp: 10, speed: 4.6, burn: 5.5, name: 'Truck' }, tank: { hp: 25, speed: 3.4, burn: 7, name: 'Tank' } };
+const vstat = () => VEH[(car && car.userData.kind) || 'car'];
+function vehState(c) { const u = c.userData; if (u.fuel == null) { u.fuel = 35 + Math.random() * 45; u.hp = VEH[u.kind || 'car'].hp; u.keys = u.kind !== 'tank'; } return u; }
+let outOfGasSaid = false;
+function enterCar(c) { const u = vehState(c); if (!u.keys) { openGame('keys', c); return; } car = c; driving = true; carHp = u.hp; player.visible = false; outOfGasSaid = false; const wp = c.userData.worldPos().clone(); const pr = c.userData.prop; if (!pr.detached) { pr.g.remove(c); scene.add(c); c.position.set(wp.x, 0, wp.z); pr.knocked = true; pr.detached = true; pr.t = 1; c.userData.worldPos = () => c.position; } if (pr.ob) { const i = obstacles.indexOf(pr.ob); if (i >= 0) obstacles.splice(i, 1); } yaw = car.rotation.y; say(VEH[u.kind || 'car'].name + ': ' + Math.round(u.fuel) + '% fuel. Double-tap to get out.'); sfx.pickup(); }
+function leaveCar() { if (!car) return; car.userData.hp = carHp; driving = false; player.visible = true; player.position.set(car.position.x + Math.cos(yaw) * 1.2, 0, car.position.z - Math.sin(yaw) * 1.2); collide(player.position, 0.25); if (carHp <= 0) car.userData.wrecked = true; car = null; }
 const stick = { x: 0, y: 0, id: null, cx: 0, cy: 0 }; const look = { id: null, lx: 0 };
 const knob = $('dcKnob'), stickEl = $('dcStick');
 addEventListener('pointerdown', (e) => { if (e.target.closest('button')) return; if (state !== 'play') return; if (e.clientX < innerWidth / 2 && stick.id === null) { stick.id = e.pointerId; stick.cx = e.clientX; stick.cy = e.clientY; stickEl.style.left = (e.clientX - 65) + 'px'; stickEl.style.top = (e.clientY - 65) + 'px'; stickEl.style.bottom = 'auto'; } else if (look.id === null) { look.id = e.pointerId; look.lx = e.clientX; } });
 addEventListener('pointermove', (e) => { if (e.pointerId === stick.id) { const dx = e.clientX - stick.cx, dy = e.clientY - stick.cy; const d = Math.hypot(dx, dy) || 1, m = Math.min(d, 55); stick.x = dx / d * m / 55; stick.y = dy / d * m / 55; knob.style.transform = 'translate(calc(-50% + ' + (stick.x * 40) + 'px), calc(-50% + ' + (stick.y * 40) + 'px))'; } if (e.pointerId === look.id) { camYaw -= (e.clientX - look.lx) * 0.008; look.lx = e.clientX; } });
 let lastTap = 0, lastTapX = 0, lastTapY = 0;
-addEventListener('pointerdown', (e) => { if (e.target.closest('button') || state !== 'play') return; const now = performance.now(); if (now - lastTap < 350 && Math.hypot(e.clientX - lastTapX, e.clientY - lastTapY) < 30) { lastTap = 0; if (driving) leaveCar(); else { let best = null, bd = 2.2; for (const c of city.cars) { if (c.userData.wrecked || c.userData.prop.knocked) continue; const wp = c.userData.worldPos(); const d = Math.hypot(wp.x - player.position.x, wp.z - player.position.z); if (d < bd) { bd = d; best = c; } } if (best) enterCar(best); else say('No car close enough.'); } } else { lastTap = now; lastTapX = e.clientX; lastTapY = e.clientY; } });
+addEventListener('pointerdown', (e) => { if (e.target.closest('button') || state !== 'play') return; const now = performance.now(); if (now - lastTap < 350 && Math.hypot(e.clientX - lastTapX, e.clientY - lastTapY) < 30) { lastTap = 0; const nearRide = !driving && !riding && rides.find((rr) => Math.hypot(rr.pos.x - player.position.x, rr.pos.z - player.position.z) < 3.4); if (nearRide) { openGame('ride', nearRide); return; }
+    if (driving) { const g = city.hazards.find((x) => x.type === 'gas'); if (g && Math.hypot(g.pos.x - car.position.x, g.pos.z - car.position.z) < 4) openGame('pump', car); else leaveCar(); } else { let best = null, bd = 2.2; for (const c of city.cars) { if (c.userData.wrecked || (c.userData.prop.knocked && !c.userData.prop.detached)) continue; const wp = c.userData.worldPos(); const d = Math.hypot(wp.x - player.position.x, wp.z - player.position.z); if (d < bd) { bd = d; best = c; } } if (best) enterCar(best); else say('No car close enough.'); } } else { lastTap = now; lastTapX = e.clientX; lastTapY = e.clientY; } });
 const release = (e) => { if (e.pointerId === stick.id) { stick.id = null; stick.x = stick.y = 0; knob.style.transform = 'translate(-50%, -50%)'; } if (e.pointerId === look.id) look.id = null; };
 addEventListener('pointerup', release); addEventListener('pointercancel', release);
 // keyboard for the PC crowd
@@ -94,6 +101,7 @@ function updateZombies(dt) {
     if (driving && d < 1.2 && !u.rag) { fling(z, { x: z.position.x - player.position.x, z: z.position.z - player.position.z }, 8); if (!carArmor || Math.random() < 0.5) carHp--; sfx.hit(); if (carHp <= 0) { fx.ignite(new THREE.Vector3(car.position.x, 0.6, car.position.z), 0.9); say('The car is done!'); leaveCar(); } continue; }
     if (u.latch > 0) { u.latch -= dt; const dir = player.position.clone().sub(z.position).setY(0).normalize(); z.position.copy(player.position).addScaledVector(dir, -0.42); z.rotation.y = Math.atan2(dir.x, dir.z); u.armL.rotation.x = u.armR.rotation.x = -1.6; if (u.latch <= 0) { u.stun = 0.7; z.position.addScaledVector(dir, -0.9); collide(z.position, 0.22); } continue; }
     for (let k = survivors.length - 1; k >= 0; k--) { const s = survivors[k]; if (z.position.distanceTo(s.position) < 0.45) { scene.remove(s); survivors.splice(k, 1); say('A survivor was lost.'); sfx.hurt(); } }
+    if (riding) continue;
     if (d < 0.45 && invuln <= 0) { u.latch = 0.7; hp -= 20; invuln = 1; sfx.hurt(); $('hp2').style.width = Math.max(0, hp / maxHp * 100) + '%'; if (hp <= 0) return gameOver(false); }
   }
   setMusicChase(hunted);
@@ -120,10 +128,12 @@ function castSlot(i) { const key = slots[i]; if (!key || cds[i] > 0 || state !==
 const fireballs = [], junk = []; const junkGeo = new THREE.BoxGeometry(0.2, 0.2, 0.2), junkMat = new THREE.MeshLambertMaterial({ color: 0x3fbf4a }), fireMat = new THREE.MeshBasicMaterial({ color: 0xff7a1a });
 function segDist(a, b, p) { const ab = b.clone().sub(a), ap = p.clone().sub(a); const t = Math.max(0, Math.min(1, ap.dot(ab) / (ab.lengthSq() || 1))); return a.clone().addScaledVector(ab, t).setY(p.y).distanceTo(p); }
 let trashDmg = 1;
-function throwTrash() { if (trashCd > 0 || state !== 'play') return; trashCd = 0.45; let dir = facing(); let best = null, bd = 9; for (const z of zombies) { const d = z.position.distanceTo(player.position); if (d < bd && lineClear(player.position, z.position)) { bd = d; best = z; } } if (best) dir = best.position.clone().sub(player.position).setY(0).normalize(); const m = new THREE.Mesh(junkGeo, junkMat); m.position.copy(player.position).setY(0.9); scene.add(m); junk.push({ mesh: m, vel: dir.multiplyScalar(16), t: 0 }); sfx.throw(); }
+function throwTrash() { if (trashCd > 0 || state !== 'play') return;
+  if (driving && car.userData.kind === 'tank') { trashCd = 1.2; const dir = facing(); const p = car.position.clone().addScaledVector(dir, 1.4); fireballs.push({ pos: p, vel: dir.multiplyScalar(16), t: 0, shell: true }); sfx.boom(); return; }
+  trashCd = 0.45; let dir = facing(); let best = null, bd = 9; for (const z of zombies) { const d = z.position.distanceTo(player.position); if (d < bd && lineClear(player.position, z.position)) { bd = d; best = z; } } if (best) dir = best.position.clone().sub(player.position).setY(0).normalize(); const m = new THREE.Mesh(junkGeo, junkMat); m.position.copy(player.position).setY(0.9); scene.add(m); junk.push({ mesh: m, vel: dir.multiplyScalar(16), t: 0 }); sfx.throw(); }
 function updateShots(dt) {
   for (let i = junk.length - 1; i >= 0; i--) { const j = junk[i]; j.mesh.position.addScaledVector(j.vel, dt); j.t += dt; j.mesh.rotation.x += dt * 10; let dead = j.t > 0.8 || !openCell(toCell(j.mesh.position.x, j.mesh.position.z, cols, rows)); const prev = j.mesh.position.clone().addScaledVector(j.vel, -dt); for (const z of zombies) if (!dead && segDist(prev, j.mesh.position, z.position) < 0.5) { z.userData.hp -= trashDmg; z.userData.alert = 6; z.userData.stun = Math.max(z.userData.stun, 0.25); dead = true; } if (dead) { scene.remove(j.mesh); junk.splice(i, 1); } }
-  for (let i = fireballs.length - 1; i >= 0; i--) { const f = fireballs[i]; f.t += dt; f.pos.addScaledVector(f.vel, dt); if (!f.mesh) { f.mesh = new THREE.Mesh(junkGeo, fireMat); f.mesh.scale.setScalar(1.6); scene.add(f.mesh); } f.mesh.position.copy(f.pos).setY(0.9); let hit = f.t > 0.7 || !openCell(toCell(f.pos.x, f.pos.z, cols, rows)); const fprev = f.pos.clone().addScaledVector(f.vel, -dt); for (const z of zombies) if (segDist(fprev, f.pos, z.position) < 0.8) hit = true; if (hit) { fx.explode(f.pos, 0.9); for (const z of zombies) if (z.position.distanceTo(f.pos) < 2.5) { z.userData.hp -= 3; if (!z.userData.rag) fling(z, { x: z.position.x - f.pos.x, z: z.position.z - f.pos.z }, 4); } sfx.boom(); scene.remove(f.mesh); fireballs.splice(i, 1); } }
+  for (let i = fireballs.length - 1; i >= 0; i--) { const f = fireballs[i]; f.t += dt; f.pos.addScaledVector(f.vel, dt); if (!f.mesh) { f.mesh = new THREE.Mesh(junkGeo, fireMat); f.mesh.scale.setScalar(f.shell ? 2.4 : 1.6); scene.add(f.mesh); } f.mesh.position.copy(f.pos).setY(0.9); let hit = f.t > 0.7 || !openCell(toCell(f.pos.x, f.pos.z, cols, rows)); const fprev = f.pos.clone().addScaledVector(f.vel, -dt); for (const z of zombies) if (segDist(fprev, f.pos, z.position) < 0.8) hit = true; if (hit) { fx.explode(f.pos, f.shell ? 1.4 : 0.9); if (f.shell) city.knock(f.pos.x, f.pos.z, 2.2, f.vel.x, f.vel.z); for (const z of zombies) if (z.position.distanceTo(f.pos) < (f.shell ? 3.2 : 2.5)) { z.userData.hp -= f.shell ? 6 : 3; if (!z.userData.rag) fling(z, { x: z.position.x - f.pos.x, z: z.position.z - f.pos.z }, 4); } sfx.boom(); scene.remove(f.mesh); fireballs.splice(i, 1); } }
 }
 function updateActs() { for (let i = 0; i < 3; i++) { const b = document.querySelector('[data-slot="' + i + '"]'); const key = slots[i]; b.textContent = key ? SPELLS[key].name : '—'; b.classList.toggle('empty', !key); b.style.opacity = key && cds[i] > 0 ? 0.5 : ''; } $('trash').style.opacity = trashCd > 0 ? 0.5 : ''; }
 document.querySelectorAll('[data-slot]').forEach((b) => b.addEventListener('pointerdown', (e) => { e.stopPropagation(); castSlot(+b.dataset.slot); }));
@@ -134,8 +144,8 @@ const DAY = 55, NIGHT_LEN = 45, NIGHTS = 6;
 // ---------- the base computer and the night missions (Dead City's six, simplified) ----------
 const MISSIONS = [
   { title: 'RESCUE', brief: 'Find two survivors and bring them to the base.', kind: 'rescue', need: 2, reward: 'Max health +20', apply() { maxHp += 20; hp += 20; } },
-  { title: 'POWER', brief: 'Fetch the fuel can from the gas station.', kind: 'fetch', at: 'gas', item: 'Fuel can', reward: 'Trash hits harder', apply() { trashDmg += 1; } },
-  { title: 'WATER', brief: 'Get the pump valve from the water station.', kind: 'fetch', at: 'slime', item: 'Pump valve', reward: 'Spells recharge faster', apply() { cdMul = 0.7; } },
+  { title: 'POWER', brief: 'Restart the generator at the gas station and bring back the fuel can.', kind: 'fetch', at: 'gas', item: 'Fuel can', game: 'power', reward: 'Trash hits harder', apply() { trashDmg += 1; } },
+  { title: 'WATER', brief: 'Prime the pump at the water station and bring back the valve.', kind: 'fetch', at: 'slime', item: 'Pump valve', game: 'water', reward: 'Spells recharge faster', apply() { cdMul = 0.7; } },
   { title: 'SUPPLIES', brief: 'Collect three crates from the market.', kind: 'collect', at: 'school', need: 3, item: 'Supply crate', reward: 'Max health +30', apply() { maxHp += 30; hp += 30; } },
   { title: 'CEMETERY', brief: 'Seal the three crypts. Stand by each one.', kind: 'seal', at: 'cemetery', need: 3, reward: 'Car armour', apply() { carArmor = true; } },
   { title: 'LABORATORY', brief: 'Bring the antidote back from the lab.', kind: 'fetch', at: 'lab', item: 'Antidote', reward: 'The chopper is on its way', apply() {} },
@@ -162,7 +172,9 @@ function updateMissions(dt) {
   let target = base;
   if (mission.kind === 'rescue') { if (mCount >= mission.need) completeMission(); else { const s = survivors.find((x) => !x.userData.follow); target = survivors.some((x) => x.userData.follow) ? base : s ? s.position : base; } }
   else if (mission.kind === 'fetch' || mission.kind === 'collect') {
-    for (let i = crates.length - 1; i >= 0; i--) { const c = crates[i]; c.rotation.y += dt; if (c.position.distanceTo(player.position) < 0.9) { scene.remove(c); crates.splice(i, 1); mCarry = mission.item; mCount++; say('Got the ' + mission.item.toLowerCase() + '. Back to the base.'); sfx.pickup(); } }
+    for (let i = crates.length - 1; i >= 0; i--) { const c = crates[i]; c.rotation.y += dt; if (c.position.distanceTo(player.position) < 0.9) {
+      if (mission.game && !c.done) { if (!game) openGame(mission.game, c); continue; } // power and water: beat the mini-game first (the game marks the crate done)
+      scene.remove(c); crates.splice(i, 1); mCarry = mission.item; if (!mission.game) mCount++; say('Got the ' + mission.item.toLowerCase() + '. Back to the base.'); sfx.pickup(); } }
     const done = mission.kind === 'fetch' ? mCount >= 1 : mCount >= mission.need;
     if (done && nearBase) completeMission(); else target = crates.length && !(mission.kind === 'fetch' && mCount) ? crates[0].position : base;
   }
@@ -177,8 +189,37 @@ function updateNights(dt) {
   const dark = isNight ? Math.min(1, clock / 6) : Math.max(0, 1 - clock / 6);
   hemi.intensity = 1.7 - dark * 1.1; sun.intensity = 0.9 - dark * 0.6; const fogFar = iso ? 50 : 0; scene.fog.near = fogFar + 30 - dark * 14; scene.fog.far = fogFar + 70 - dark * 30;
   spawnT -= dt; const cap = isNight ? 10 + night * 8 : 5; if (spawnT <= 0 && zombies.length < cap) { spawnT = isNight ? 1.4 : 5; const cem = poi('cemetery'); const fromGrave = isNight && Math.random() < 0.5; spawnZombie(fromGrave ? { x: cem.x + (Math.random() - 0.5) * 3, z: cem.z + 2.2 } : randomOpen(14), night >= 3); }
-  $('night').textContent = (isNight ? 'Night ' : 'Day after night ') + night + ' / ' + NIGHTS; $('clock').textContent = isNight ? ((NIGHT_LEN - clock) | 0) + ' s to dawn' : night >= NIGHTS ? 'Get to the helipad' : ((DAY - clock) | 0) + ' s of daylight';
+  $('night').textContent = (isNight ? 'Night ' : 'Day after night ') + night + ' / ' + NIGHTS; $('veh').textContent = driving ? vstat().name + ' ♥' + carHp + ' ⛽' + Math.round(car.userData.fuel) + '%' : ''; $('clock').textContent = isNight ? ((NIGHT_LEN - clock) | 0) + ' s to dawn' : night >= NIGHTS ? 'Get to the helipad' : ((DAY - clock) | 0) + ' s of daylight';
   if (chopper) { chopperT += dt; animateChopper(chopper, dt, chopperT); const ep = toWorld(exitCell.cx, exitCell.cy, cols, rows); chopper.position.y = Math.max(1.1, 14 - chopperT * 4); if (!extracting && Math.hypot(player.position.x - ep.x, player.position.z - ep.z) < 1.5 && chopper.position.y <= 1.2) { extracting = true; chopperT = 0; } if (extracting) { chopper.position.y = 1.1 + chopperT * chopperT * 2; player.position.set(ep.x, chopper.position.y - 0.6, ep.z); if (chopperT > 3) gameOver(true); } }
+}
+// ---------- mini-games: PUMP (tap to fill a leaking meter) and KEYS (hit the needle in the zone three times) ----------
+let game = null;
+function openGame(mode, veh) { game = { mode, veh, fill: 0, time: 8, t: 0, hits: 0, zoneC: 0.5, zoneW: 0.26, speed: 2.4 }; state = 'game'; $('dcGame').classList.remove('hidden'); $('gTitle').textContent = { pump: 'GAS PUMP', keys: 'FIND THE KEYS', ride: 'RIDE OPERATOR', power: 'POWER STATION', water: 'WATER PUMP' }[mode]; $('gText').textContent = { pump: 'Tap PUMP fast. The hose leaks, so keep going until the tank is full.', keys: 'Hotwire it: tap when the needle is in the green. Three good hits.', ride: 'Start the motor: tap when the needle is in the green. Three good hits.', power: 'Sync the generator: tap when the needle is in the green. Three good hits.', water: 'Prime the pump: tap fast until the pressure is full.' }[mode]; const needle = mode !== 'pump' && mode !== 'water'; $('gHit').textContent = needle ? 'HIT' : 'PUMP'; $('gZone').style.display = needle ? '' : 'none'; $('gNeedle').style.display = needle ? '' : 'none'; $('gFill').style.width = '0%'; game.needle = needle; if (needle) placeZone(); }
+function placeZone() { game.zoneC = 0.2 + Math.random() * 0.6; $('gZone').style.left = ((game.zoneC - game.zoneW / 2) * 100) + '%'; $('gZone').style.width = (game.zoneW * 100) + '%'; }
+function closeGame() { $('dcGame').classList.add('hidden'); game = null; if (state === 'game') state = 'play'; }
+function updateGame(dt) { if (!game.needle) { game.time -= dt; game.fill = Math.max(0, game.fill - dt * 0.25); $('gFill').style.width = (game.fill * 100) + '%'; $('gText').textContent = Math.max(0, game.time).toFixed(1) + ' s left'; if (game.time <= 0) { game.time = 8; game.fill = 0; sfx.hit(); } } else { game.t += dt * game.speed; game.pos = 0.5 + 0.5 * Math.sin(game.t); $('gNeedle').style.left = (game.pos * 100) + '%'; } }
+$('gHit').addEventListener('click', () => { if (!game || game.done) return;
+  if (!game.needle) { game.fill += 0.1; sfx.throw(); if (game.fill >= 1) { game.done = true; gameWon(); } }
+  else if (Math.abs(game.pos - game.zoneC) < game.zoneW / 2) { game.hits++; sfx.pickup(); $('gFill').style.width = (game.hits / 3 * 100) + '%'; if (game.hits >= 3) { game.done = true; gameWon(); } else { game.speed += 0.8; game.zoneW = Math.max(0.14, game.zoneW - 0.05); placeZone(); } }
+  else { game.hits = 0; sfx.hit(); $('gFill').style.width = '0%'; } });
+function gameWon() { sfx.wave(); const g = game; setTimeout(() => { closeGame();
+  if (g.mode === 'pump') { g.veh.userData.fuel = 100; say('Tank full.'); }
+  else if (g.mode === 'keys') { g.veh.userData.keys = true; say('Got the keys!'); enterCar(g.veh); }
+  else if (g.mode === 'ride') startRide(g.veh);
+  else { mCount++; g.veh.done = true; say('Done. Back to the base.'); } }, 450); }
+$('gClose').addEventListener('click', closeGame);
+// ---------- fairground rides: three spins, zombies swarm the ride and get flung ----------
+let riding = null;
+function startRide(ride) { riding = { ride, ang: 0, back: player.position.clone(), hits: 0 }; ride.speed = ride.type === 'coaster' ? 6 : ride.type === 'carousel' ? 5 : 4; if (driving) leaveCar(); say('Three spins. Hold on!'); sfx.pickup(); }
+function updateRide(dt) {
+  const ride = riding.ride; let done = 0; const pu = player.userData;
+  if (ride.type === 'ferris') { const w = ride.wheel; riding.ang += dt * 0.35 * ride.speed; done = Math.floor(riding.ang / (Math.PI * 2)); const a = w.rotation.z; w.updateWorldMatrix(true, false); const p = w.localToWorld(new THREE.Vector3(Math.cos(a) * 1.45, Math.sin(a) * 1.45, 0)); player.position.set(p.x, p.y - 0.3, p.z + 0.1); }
+  else if (ride.type === 'coaster') { riding.ang += dt * 0.05 * ride.speed; done = Math.floor(riding.ang); const p = ride.curve.getPointAt(ride.u), t = ride.curve.getTangentAt(ride.u); player.position.set(p.x, p.y + 0.02, p.z); player.rotation.y = Math.atan2(t.x, t.z); }
+  else { const pl = ride.platform; riding.ang += dt * 0.3 * ride.speed; done = Math.floor(riding.ang / (Math.PI * 2)); pl.updateWorldMatrix(true, false); const p = ride.horses[0].getWorldPosition(new THREE.Vector3()); player.position.set(p.x, p.y - 0.1, p.z); }
+  animateWalk(player, dt, 0); pu.legL.rotation.x = pu.legR.rotation.x = -1.4;
+  for (const z of zombies) { if (z.userData.rag) continue; z.userData.alert = 6; const dx = z.position.x - ride.pos.x, dz = z.position.z - ride.pos.z; if (Math.hypot(dx, dz) < 2.1) { fling(z, { x: dx, z: dz }, 8); riding.hits++; } }
+  const exiting = done >= 3; say(exiting ? 'Exiting' : 'Spin ' + (done + 1) + '/3'); if (exiting) ride.speed = Math.max(1, ride.speed - dt * 3);
+  if (exiting && ride.speed <= 1) { player.position.copy(riding.back); player.position.y = 0; invuln = 1.5; say(riding.hits ? 'Strike! ' + riding.hits + ' flung.' : 'Fun ride.'); riding = null; }
 }
 let msgT = 0; function say(t) { $('msg').textContent = t; msgT = 3; }
 
@@ -186,18 +227,20 @@ let msgT = 0; function say(t) { $('msg').textContent = t; msgT = 3; }
 let last = performance.now();
 function frame(now) {
   requestAnimationFrame(frame); const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (state === 'game' && game) updateGame(dt);
   if (state === 'play') {
     invuln -= dt; trashCd -= dt; for (let i = 0; i < 3; i++) cds[i] -= dt; msgT -= dt; if (msgT <= 0) $('msg').textContent = '';
     // movement: stick is camera-relative
     let mx = stick.x + (keys.d ? 1 : 0) - (keys.a ? 1 : 0), my = stick.y + (keys.s ? 1 : 0) - (keys.w ? 1 : 0);
     const mag = Math.min(1, Math.hypot(mx, my));
-    if (mag > 0.08 && !extracting) {
+    if (mag > 0.08 && !extracting && !riding) {
       const cy = iso ? ISO_YAW + Math.PI : camYaw; const fwd = new THREE.Vector3(Math.sin(cy), 0, Math.cos(cy)), right = new THREE.Vector3(-fwd.z, 0, fwd.x);
       const dir = fwd.multiplyScalar(-my).add(right.multiplyScalar(mx)).normalize(); yaw = Math.atan2(dir.x, dir.z);
-      const held = zombies.some((z) => z.userData.latch > 0) ? 0.3 : 1; const sprint = (mag > 0.95 ? 1.5 : 1) * held; if (driving) { car.position.addScaledVector(dir, 6 * mag * dt); collideCar(car.position); car.rotation.y = yaw; player.position.copy(car.position); if (city.knock(car.position.x, car.position.z, 1.3, dir.x, dir.z)) sfx.hit(); } else { player.position.addScaledVector(dir, 4.2 * mag * sprint * dt); collide(player.position, 0.25); player.rotation.y = yaw; animateWalk(player, dt, mag * sprint); }
+      const held = zombies.some((z) => z.userData.latch > 0) ? 0.3 : 1; const sprint = (mag > 0.95 ? 1.5 : 1) * held; if (driving) { const u = car.userData; if (u.fuel > 0) { u.fuel = Math.max(0, u.fuel - vstat().burn * mag * dt); car.position.addScaledVector(dir, vstat().speed * mag * dt); collideCar(car.position); car.rotation.y = yaw; player.position.copy(car.position); if (city.knock(car.position.x, car.position.z, 1.3, dir.x, dir.z)) sfx.hit(); } else if (!outOfGasSaid) { outOfGasSaid = true; say('Out of gas. Find the gas station, or walk.'); } } else { player.position.addScaledVector(dir, 4.2 * mag * sprint * dt); collide(player.position, 0.25); player.rotation.y = yaw; animateWalk(player, dt, mag * sprint); }
     } else { animateWalk(player, dt, 0); if (look.id === null && stick.id === null) { let d = yaw - camYaw; d = Math.atan2(Math.sin(d), Math.cos(d)); camYaw += d * Math.min(1, dt * 2); } }
     player.visible = !driving && (invuln <= 0 || Math.sin(now * 0.03) > 0);
     for (let i = books.length - 1; i >= 0; i--) { const b = books[i]; b.mesh.rotation.y += dt * 2; b.mesh.position.y = 0.5 + Math.sin(now * 0.004 + i) * 0.1; if (b.mesh.position.distanceTo(player.position) < 0.9) { scene.remove(b.mesh); books.splice(i, 1); booksFound++; const free = slots.indexOf(null); slots[free >= 0 ? free : booksFound % 3] = b.key; say('Spell book: ' + SPELLS[b.key].name); sfx.pickup(); $('books').textContent = '📖 ' + booksFound; } }
+    if (riding) updateRide(dt);
     updateZombies(dt); if (state !== 'play') return; updateShots(dt); updateNights(dt); updateMissions(dt); fx.update(dt); updateActs();
     flashT -= dt; flashMesh.position.copy(player.position).setY(1); flashMesh.scale.setScalar(1 + (0.3 - Math.max(0, flashT)) * 20); flashMesh.material.opacity = Math.max(0, flashT) * 2;
     if (city) city.updateRain(dt);
@@ -225,4 +268,4 @@ function startRun() {
 function gameOver(won) { state = 'over'; stopMusic(); (won ? sfx.wave : sfx.over)(); $('dcOverTitle').textContent = won ? 'EXTRACTED' : 'OVERRUN'; $('dcOverText').textContent = (won ? 'You survived all six nights and made the chopper. ' : 'The dead got you on night ' + night + '. ') + 'Kills: ' + kills + ' · Books: ' + booksFound + ' · Rescued: ' + rescued; $('dc').classList.add('hidden'); $('dcOver').classList.remove('hidden'); }
 $('dcPlay').addEventListener('click', startRun); $('dcAgain').addEventListener('click', startRun);
 requestAnimationFrame(frame);
-window.__dc = { get cars() { return city.cars; }, get driving() { return driving; }, set iso(v) { iso = v; }, get iso() { return iso; }, get city() { return city; }, get zombies() { return zombies; }, get player() { return player; }, get state() { return state; }, get slots() { return slots; }, spawnZombie, castSlot, throwTrash, get night() { return night; }, set clock(v) { clock = v; }, get books() { return books; }, get hp() { return hp; } };
+window.__dc = { get cars() { return city.cars; }, get driving() { return driving; }, get game() { return game; }, openGame, enterCar, get riding() { return riding; }, rides, set iso(v) { iso = v; }, get iso() { return iso; }, get city() { return city; }, get zombies() { return zombies; }, get player() { return player; }, get state() { return state; }, get slots() { return slots; }, spawnZombie, castSlot, throwTrash, get night() { return night; }, set clock(v) { clock = v; }, get books() { return books; }, get hp() { return hp; } };

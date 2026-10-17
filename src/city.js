@@ -455,22 +455,27 @@ export function buildCity(scene, wall, level) {
   // ---------- cars ----------
   const glass = M({ color: 0x5a86a8 }), wheelMat = M({ color: 0x101416 }), headMat = new THREE.MeshBasicMaterial({ color: NIGHT.lamp }), tailMat = new THREE.MeshBasicMaterial({ color: 0xff3a3a });
   const bodyGeo = new THREE.BoxGeometry(0.9, 0.36, 1.8), cabinGeo = new THREE.BoxGeometry(0.8, 0.34, 0.95);
+  const fleet = ['tank', 'truck', 'van', 'van', 'car', 'car', 'car'].sort(() => rng() - 0.5);
+  const vehicle = (kind) => {
+    const car = new THREE.Group(); const part = (geo, mat, sx, sy, sz, x, y, z) => { const mm = new THREE.Mesh(geo, mat); mm.scale.set(sx, sy, sz); mm.position.set(x, y, z); car.add(mm); return mm; };
+    const wheels = (r, pts) => { for (const [wx, wz] of pts) { const wh = part(cyl, wheelMat, r, 0.16, r, wx, r / 2, wz); wh.rotation.z = Math.PI / 2; } };
+    if (kind === 'van') { const mat = M({ color: [0xd8dde0, 0x4f8fd6, 0xe8d54a][(rng() * 3) | 0] }); part(box, mat, 1.0, 0.7, 2.1, 0, 0.55, -0.1); part(box, glass, 0.9, 0.3, 0.3, 0, 0.75, 0.95); part(box, mat, 0.9, 0.3, 0.5, 0, 0.35, 0.95); wheels(0.34, [[-0.48, 0.65], [0.48, 0.65], [-0.48, -0.7], [0.48, -0.7]]); for (const hx of [-0.32, 0.32]) part(box, headMat, 0.16, 0.1, 0.05, hx, 0.45, 1.21); }
+    else if (kind === 'truck') { const mat = M({ color: [0xc23b3b, 0x3a5a8a][(rng() * 2) | 0] }); part(box, mat, 1.0, 0.8, 0.9, 0, 0.75, 0.75); part(box, glass, 0.9, 0.3, 0.2, 0, 0.95, 1.2); part(box, M({ color: 0x4a4f55 }), 1.05, 0.35, 1.5, 0, 0.5, -0.55); part(box, M({ color: 0x2a2e33 }), 0.9, 0.08, 1.4, 0, 0.7, -0.55); wheels(0.42, [[-0.5, 0.75], [0.5, 0.75], [-0.5, -0.5], [0.5, -0.5], [-0.5, -1.0], [0.5, -1.0]]); for (const hx of [-0.32, 0.32]) part(box, headMat, 0.16, 0.1, 0.05, hx, 0.55, 1.21); }
+    else if (kind === 'tank') { const olive = M({ color: 0x4a5a3a }), dark = M({ color: 0x2a3326 }); part(box, olive, 1.2, 0.45, 2.3, 0, 0.5, 0); part(box, dark, 0.3, 0.55, 2.3, -0.6, 0.3, 0); part(box, dark, 0.3, 0.55, 2.3, 0.6, 0.3, 0); const turret = part(box, olive, 0.85, 0.35, 0.95, 0, 0.9, -0.15); car.userData.turret = turret; const barrel = part(cyl, dark, 0.1, 1.5, 0.1, 0, 0.92, 0.95); barrel.rotation.x = Math.PI / 2; part(ball, M({ color: 0x3fdf6a }), 0.15, 0.15, 0.15, 0, 1.12, -0.3); }
+    else { const bodyMat = M({ color: NIGHT.cars[(rng() * NIGHT.cars.length) | 0] }); part(bodyGeo, bodyMat, 1, 1, 1, 0, 0.36, 0); part(box, bodyMat, 0.8, 0.12, 0.5, 0, 0.6, 0.55); part(cabinGeo, glass, 1, 1, 1, 0, 0.7, -0.15); part(box, bodyMat, 0.82, 0.06, 0.97, 0, 0.9, -0.15); wheels(0.34, [[-0.44, 0.58], [0.44, 0.58], [-0.44, -0.58], [0.44, -0.58]]); for (const hx of [-0.3, 0.3]) { part(box, headMat, 0.16, 0.1, 0.05, hx, 0.42, 0.91); part(box, tailMat, 0.16, 0.08, 0.05, hx, 0.42, -0.91); } }
+    car.scale.setScalar(0.85); return car;
+  };
   for (const [x, y] of streetCells) {
     if (x === 0 || y === 0 || x === cols - 1 || y === rows - 1) continue;
     const n = open(x, y - 1), s = open(x, y + 1), e = open(x + 1, y), w0 = open(x - 1, y);
     const straightH = e && w0 && !n && !s, straightV = n && s && !e && !w0;
     const w = toWorld(x, y, cols, rows);
     const forceCar = wall.custom && wall.custom.cars.has(y * cols + x);
-    if (wall.custom ? forceCar : ((straightH || straightV) && rng() < 0.12)) {
+    // generated maps get a small fleet: three cars, two vans, a truck and a tank. builder maps: one per placed car cell, kind by variant
+    if (wall.custom ? forceCar : ((straightH || straightV) && fleet.length && rng() < 0.06)) {
       const sideSign = rng() < 0.5 ? -1 : 1;
-      const car = new THREE.Group();
-      const bodyMat = M({ color: NIGHT.cars[(rng() * NIGHT.cars.length) | 0] });
-      const b1 = new THREE.Mesh(bodyGeo, bodyMat); b1.position.y = 0.36; car.add(b1);
-      const hood = new THREE.Mesh(box, bodyMat); hood.scale.set(0.8, 0.12, 0.5); hood.position.set(0, 0.6, 0.55); car.add(hood);
-      const b2 = new THREE.Mesh(cabinGeo, glass); b2.position.set(0, 0.7, -0.15); car.add(b2);
-      const roofC = new THREE.Mesh(box, bodyMat); roofC.scale.set(0.82, 0.06, 0.97); roofC.position.set(0, 0.9, -0.15); car.add(roofC);
-      for (const [wx, wz] of [[-0.44, 0.58], [0.44, 0.58], [-0.44, -0.58], [0.44, -0.58]]) { const wh = new THREE.Mesh(cyl, wheelMat); wh.rotation.z = Math.PI / 2; wh.scale.set(0.34, 0.14, 0.34); wh.position.set(wx, 0.17, wz); car.add(wh); }
-      for (const hx of [-0.3, 0.3]) { const hl = new THREE.Mesh(box, headMat); hl.scale.set(0.16, 0.1, 0.05); hl.position.set(hx, 0.42, 0.91); car.add(hl); const tl = new THREE.Mesh(box, tailMat); tl.scale.set(0.16, 0.08, 0.05); tl.position.set(hx, 0.42, -0.91); car.add(tl); }
+      const kind = wall.custom ? ['car', 'van', 'truck', 'tank'][(wall.custom.vars.get(y * cols + x) || 0) % 4] : fleet.pop();
+      const car = vehicle(kind); car.userData.kind = kind;
       const horizCar = straightH || (!straightV && (e || w0)); const cx = horizCar ? w.x : w.x + sideSign * 0.95, czz = horizCar ? w.z + sideSign * 0.95 : w.z;
       car.rotation.y = horizCar ? Math.PI / 2 * (rng() < 0.5 ? 1 : -1) : (rng() < 0.5 ? 0 : Math.PI); car.position.set(cx, 0, czz);
       const cp = prop(cx, czz, 'car', true, horizCar ? 0.9 : 0.45, horizCar ? 0.45 : 0.9); cp.g.add(car); car.position.set(0, 0, 0); car.userData.prop = cp; car.userData.worldPos = () => cp.g.position;

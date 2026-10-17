@@ -8,7 +8,7 @@ import { buildRuins } from './ruins.js';
 import { makeCar, animateCar } from './car.js';
 import { rides } from './landmarks.js';
 import { createFires } from './fire.js';
-import { GROUPS, OPEN_CODES, loadMap, saveMap, blankMap, fillSelect, ROAD_CODES, nextShape, VARIANT_CODES, nextVariant } from './tools.js';
+import { GROUPS, loadMap, saveMap, blankMap, fillSelect, ROAD_CODES, nextShape, VARIANT_CODES, nextVariant, decodeCustom } from './tools.js';
 const BUILD = new URLSearchParams(location.search).get('build') === '1';
 // ---------- economy / store ----------
 let cash = 0, cashThisDistrict = 0;
@@ -236,6 +236,7 @@ function startBuild() {
   $('bRestart').addEventListener('click', () => { if (!confirm('Clear the whole map and start over?')) return; bMap = blankMap(bMap.cols, bMap.rows); bMap.cells[bMap.rows - 2][1] = 11; bMap.cells[1][bMap.cols - 2] = 12; saveMap(bMap); buildRefresh(); });
   $('bMenu').addEventListener('change', () => { const v = $('bMenu').value; $('bMenu').value = '';
     if (v === 'play') location.href = 'index.html?custom=1';
+    else if (v === 'playdc') location.href = 'deadcity.html?custom=1';
     else if (v === 'export') { const s = JSON.stringify(bMap); try { navigator.clipboard.writeText(s); } catch { /* ignore */ } prompt('Map text (copied). Paste it to Claude:', s); }
     else if (v === 'import') { const s = prompt('Paste map text:'); try { const mm = JSON.parse(s); if (mm && mm.cells) { bMap = mm; saveMap(bMap); buildRefresh(); } } catch { alert('That is not a map.'); } }
     else if (v === 'random') { const wall = generateMaze(bMap.cols, bMap.rows, Math.floor(bMap.cols * bMap.rows * 0.08)); bMap.cells = wall.map((row) => row.map((x) => (x ? 1 : 0))); bMap.cells[bMap.rows - 2][1] = 11; bMap.cells[1][bMap.cols - 2] = 12; saveMap(bMap); buildRefresh(); }
@@ -346,17 +347,7 @@ function buildLevel(n) {
   let custom = null;
   if (n === 1 && (BUILD || new URLSearchParams(location.search).get('custom') === '1')) { custom = loadMap(); if (BUILD && !custom) { custom = blankMap(); custom.cells[custom.rows - 2][1] = 11; custom.cells[1][custom.cols - 2] = 12; saveMap(custom); } }
   if (custom && custom.cells) {
-    cols = custom.cols; rows = custom.rows; const LM = { 4: 'gas', 5: 'ferris', 6: 'coaster', 7: 'carousel', 8: 'school', 9: 'skate', 10: 'slime' };
-    // open: road 0, park 3, start 11, exit 12, avenue 13, crosswalk 14, plaza 15, bench 18, parked car 19. Blocked: building 1, house 2, tower 16, tree 17, landmarks 4..10
-    const OPEN = new Set([0, 3, 11, 12, 13, 14, 15, 18, 19]);
-    maze = custom.cells.map((row) => row.map((v) => !OPEN.has(v)));
-    maze.custom = { landmarks: new Map(), houses: new Set(), parks: new Set(), avenue: new Set(), cross: new Set(), plaza: new Set(), towers: new Set(), trees: new Set(), benches: new Set(), cars: new Set(), conn: new Map(), vars: new Map(), border: custom.border || 0 }; let sc = null, ec = null;
-    if (custom.vars) for (const k in custom.vars) { const [kx, ky] = k.split(',').map(Number); maze.custom.vars.set(ky * cols + kx, custom.vars[k]); }
-    if (custom.conn) for (const k in custom.conn) { const [kx, ky] = k.split(',').map(Number); maze.custom.conn.set(ky * cols + kx, custom.conn[k]); }
-    custom.cells.forEach((row, y) => row.forEach((v, x) => { const i = y * cols + x; const cu = maze.custom;
-      if (LM[v]) cu.landmarks.set(i, LM[v]); if (v === 2) cu.houses.add(i); if (v === 3 || v === 18) cu.parks.add(i); if (v === 13) cu.avenue.add(i); if (v === 14) cu.cross.add(i); if (v === 15) cu.plaza.add(i);
-      if (v === 16) cu.towers.add(i); if (v === 17) cu.trees.add(i); if (v === 18) cu.benches.add(i); if (v === 19) cu.cars.add(i); if (v === 11) sc = { cx: x, cy: y }; if (v === 12) ec = { cx: x, cy: y }; }));
-    maze.avenues = null; startCell = sc || { cx: 1, cy: rows - 2 }; exitCell = ec || { cx: cols - 2, cy: 1 };
+    const dec = decodeCustom(custom); maze = dec.maze; cols = dec.cols; rows = dec.rows; startCell = dec.start; exitCell = dec.exit;
   }
   // tutorial district is wide open: many extra openings so zombies stay visible
   const loops = tutorial ? Math.floor(cols * rows * 0.16) : Math.floor(cols * rows * 0.1) + n * 2;

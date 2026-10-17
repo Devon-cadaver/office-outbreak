@@ -29,17 +29,21 @@
     <div class="top"><div><div id="hpbar2"><div id="hp2"></div></div><div id="clock">Day</div></div><div id="night">Night 0 / 3</div><div id="books">📖 0</div><button id="view" class="ghost" style="pointer-events:auto;font-size:12px;padding:6px 10px">3RD</button></div>
     <div id="mission" style="position:absolute;left:14px;right:14px;top:calc(env(safe-area-inset-top,0) + 52px);font-size:13px;color:#7dff3a;text-shadow:0 2px 4px #000"></div>
     <div id="msg"></div>
+    <div id="veh" style="position:absolute;left:14px;top:calc(env(safe-area-inset-top,0) + 72px);font-size:13px;color:#ffd24a;text-shadow:0 2px 4px #000"></div>
     <div id="dcStick"><div id="dcKnob"></div></div>
     <div id="acts"><button class="act empty" data-slot="0">—</button><button class="act empty" data-slot="1">—</button><button class="act empty" data-slot="2">—</button><button class="act trash" id="trash">TRASH</button></div>
   </div>
   <div id="dcStart" class="screen">
     <h1>DEAD CITY<br>NIGHTS</h1>
     <p>Six nights. Rescue, power, water, supplies, the cemetery, the lab. Take missions at the base computer, find the spell books, and make the helipad at dawn.</p>
-    <p class="small">Left thumb: joystick. Drag the right side to turn the camera. Buttons cast spells and throw trash. Double-tap next to a car to drive it, double-tap again to get out.</p>
+    <p class="small">Left thumb: joystick. Drag the right side to turn the camera. Buttons cast spells and throw trash. Double-tap next to a vehicle to drive it, double-tap again to get out. Vehicles burn fuel and take hits; refuel at the gas station. The tank needs its keys and fires shells from the TRASH button.</p>
     <button id="dcPlay">PLAY</button>
     <button class="ghost" onclick="location.href='deadcity.html?horde=100'">HORDE TEST (100)</button>
     <p class="small"><a href="index.html" style="color:#c9a6ff">Back to Extract from Zombieville</a></p>
   </div>
+  <div id="dcGame" class="screen hidden"><h2 id="gTitle" style="color:#7dff3a">GAS PUMP</h2><p id="gText"></p>
+    <div class="wgBar" style="position:relative;width:min(84vw,320px);height:34px;background:#16302f;border:2px solid #6a3f8a;border-radius:17px;overflow:hidden"><div id="gFill" style="position:absolute;left:0;top:0;bottom:0;width:0;background:linear-gradient(90deg,#8a4fb8,#7dff3a)"></div><div id="gZone" style="position:absolute;top:0;bottom:0;background:#7dff3a;opacity:.8"></div><div id="gNeedle" style="position:absolute;top:-2px;bottom:-2px;width:5px;margin-left:-2px;background:#fff"></div></div>
+    <button id="gHit">PUMP</button><button id="gClose" class="ghost">Step away</button></div>
   <div id="dcOver" class="screen hidden"><h1 id="dcOverTitle">OVERRUN</h1><p id="dcOverText"></p><button id="dcAgain">TRY AGAIN</button></div>
   <script type="module" src="./src/deadcity/main.js"></script>
 </body>
