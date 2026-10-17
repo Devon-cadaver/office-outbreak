@@ -32,14 +32,14 @@
         <option value="export">Export map text</option>
         <option value="import">Import map text</option>
         <option value="random">Random maze</option>
-        <option value="clear">Clear (all buildings)</option>
+        <option value="clear">Clear (open grass)</option>
         <option value="resize">Resize grid…</option>
         <option value="help">Help</option>
       </select>
     </div>
     <div id="wrap"><canvas id="grid"></canvas></div>
     <div id="iobox" class="hidden"><textarea id="io" placeholder="Map text appears here. Paste a map here and choose Import."></textarea></div>
-    <p class="note hidden" id="help">Tap or drag on the grid to paint the selected item. A new map is all buildings: paint roads through it. Curves, T-junctions and crossroads come from how road cells touch, and the grid shows the exact shape. The outer ring stays buildings. Streets: Road, Avenue (wider, crossings at junctions), Crosswalk (stripes on every side), Plaza (open pavement, no road), Parked car. Buildings block the way; Tower is a skyscraper. Park: Grass is walkable, Tree blocks, Bench sits at the edge of a grass cell. Place one Start and one Exit, then press Play. The map is saved in this browser.</p>
+    <p class="note hidden" id="help">Tap or drag on the grid to paint the selected item. A new map is open grass: place roads, buildings and everything else on top. Curves, T-junctions and crossroads come from how road cells touch, and the grid shows the exact shape. The outer ring stays buildings. Streets: Road, Avenue (wider, crossings at junctions), Crosswalk (stripes on every side), Plaza (open pavement, no road), Parked car. Buildings block the way; Tower is a skyscraper. Park: Grass is walkable, Tree blocks, Bench sits at the edge of a grass cell. Place one Start and one Exit, then press Play. The map is saved in this browser.</p>
     <input id="w" type="hidden" value="19"><input id="h" type="hidden" value="29">
   </div>
   <script type="module" src="./src/editor.js"></script>

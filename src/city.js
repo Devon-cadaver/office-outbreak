@@ -179,7 +179,8 @@ export function buildCity(scene, wall, level) {
     const park = (x, y) => open(x, y) && (wall.custom ? wall.custom.parks.has(y * cols + x) : (blk(x, y) || blk(x - 1, y) || blk(x, y - 1) || blk(x - 1, y - 1)));
     const cz = wall.custom, idx = (x, y) => y * cols + x;
     const plaza = (x, y) => !!(cz && cz.plaza.has(idx(x, y)));
-    const road = (x, y) => open(x, y) && !plaza(x, y); // roads run straight through the parks; park only changes the ground beside them
+    // generated maps: roads run straight through parks. builder maps: grass is plain ground, roads only where placed
+    const road = (x, y) => open(x, y) && !plaza(x, y) && !(cz && cz.parks.has(idx(x, y)));
     const deg = (x, y) => road(x, y - 1) + road(x, y + 1) + road(x + 1, y) + road(x - 1, y);
     wall.park = park;
     const C = (x) => x * P + P / 2;
@@ -254,7 +255,7 @@ export function buildCity(scene, wall, level) {
     const trunk = M({ color: 0x4a3324 }), leaf = M({ color: 0x2f7a3f }), leaf2 = M({ color: 0x3f9a4a }), benchMat = M({ color: 0x6a4a2a });
     if (wall.custom) for (const i of wall.custom.benches) { const bx = i % cols, by = (i / cols) | 0; const bw = toWorld(bx, by, cols, rows); const wx = bw.x, wz = bw.z + 1.05;
       add(box, benchMat, 1.0, 0.08, 0.35, wx, 0.4, wz); add(box, benchMat, 1.0, 0.3, 0.06, wx, 0.55, wz + 0.17); for (const ox of [-0.4, 0.4]) add(box, M({ color: 0x2a3438 }), 0.08, 0.4, 0.3, wx + ox, 0.2, wz); obstacles.push({ x: wx, z: wz, hw: 0.5, hd: 0.2 }); }
-    for (const [x, y] of streetCells) if (park(x, y) && park(x + 1, y) && park(x, y + 1) && park(x + 1, y + 1)) {
+    if (!wall.custom) for (const [x, y] of streetCells) if (park(x, y) && park(x + 1, y) && park(x, y + 1) && park(x + 1, y + 1)) {
       const wx = toWorld(x, y, cols, rows).x + CELL / 2, wz = toWorld(x, y, cols, rows).z + CELL / 2; const r = rng();
       if (r < 0.55) { add(cyl, trunk, 0.14, 0.9, 0.14, wx, 0.45, wz); add(ball, r < 0.3 ? leaf : leaf2, 1.1, 1.0, 1.1, wx, 1.25, wz); add(ball, leaf, 0.7, 0.6, 0.7, wx + 0.3, 1.6, wz - 0.2); obstacles.push({ x: wx, z: wz, hw: 0.3, hd: 0.3 }); }
       else if (r < 0.8) { add(box, benchMat, 1.0, 0.08, 0.35, wx, 0.4, wz); add(box, benchMat, 1.0, 0.3, 0.06, wx, 0.55, wz - 0.17); for (const bx of [-0.4, 0.4]) add(box, M({ color: 0x2a3438 }), 0.08, 0.4, 0.3, wx + bx, 0.2, wz); obstacles.push({ x: wx, z: wz, hw: 0.5, hd: 0.2 }); }

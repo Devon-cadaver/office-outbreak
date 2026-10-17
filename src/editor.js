@@ -4,7 +4,7 @@ import { GROUPS, TOOLS } from './tools.js';
 const $ = (id) => document.getElementById(id);
 let cols = 19, rows = 29, cells = [], tool = 0;
 const KEY = 'oo_custom_map';
-function blank(c, r) { const a = []; for (let y = 0; y < r; y++) { const row = []; for (let x = 0; x < c; x++) row.push(1); a.push(row); } return a; }
+function blank(c, r) { const a = []; for (let y = 0; y < r; y++) { const row = []; for (let x = 0; x < c; x++) row.push(x === 0 || y === 0 || x === c - 1 || y === r - 1 ? 1 : 3); a.push(row); } return a; }
 function load() { try { const m = JSON.parse(localStorage.getItem(KEY) || 'null'); if (m && m.cells) { cols = m.cols; rows = m.rows; cells = m.cells; return; } } catch { /* ignore */ } cells = blank(cols, rows); }
 function save() { try { localStorage.setItem(KEY, JSON.stringify({ cols, rows, cells })); } catch { /* ignore */ } }
 const cv = $('grid'), g = cv.getContext('2d'); let S = 22;
@@ -65,7 +65,7 @@ cv.addEventListener('pointerup', () => { down = false; }); cv.addEventListener('
 const toolSel = $('toolSel');
 for (const [gname, items] of GROUPS) { const og = document.createElement('optgroup'); og.label = gname; for (const [name, code] of items) { const o = document.createElement('option'); o.value = code; o.textContent = name; og.appendChild(o); } toolSel.appendChild(og); }
 toolSel.value = String(tool); toolSel.addEventListener('change', () => { tool = +toolSel.value; });
-$('eErase').addEventListener('click', () => { tool = 1; toolSel.value = '1'; });
+$('eErase').addEventListener('click', () => { tool = 3; toolSel.value = '3'; });
 $('eRestart').addEventListener('click', () => { if (confirm('Clear the whole map and start over?')) { cells = blank(cols, rows); save(); draw(); } });
 const menu = $('menu');
 menu.addEventListener('change', () => { const v = menu.value; menu.value = ''; if (v === 'help') $('help').classList.toggle('hidden'); else if (v === 'resize') { const c = +prompt('Width (9-41)', cols) || cols, r = +prompt('Height (9-41)', rows) || rows; $('w').value = c; $('h').value = r; $('resize').click(); } else if (v) $(v).click(); });
