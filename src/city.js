@@ -73,7 +73,7 @@ export function mulberry32(a) {
 }
 
 export const NIGHT = {
-  sky: 0x16302f, ground: 0x1f3b3a,
+  sky: 0x1c3a3a, ground: 0x264846,
   buildings: [0x4c6b6c, 0x3f5e68, 0x5a6a7c, 0x4a5b70, 0x55707a, 0x3e5a5a, 0x5f6b86, 0x476770, 0x6a4f7a, 0x3a5f6a],
   roof: 0x6c8488, cars: [0x7a3f8a, 0x8c2d6b, 0x2f8a6c, 0x3f6f9a, 0x6a2d4a, 0x2a6f7a, 0x9a3a4a, 0x3f8a3a],
   lamp: 0xffe27a, leaves: 0x2e8a63, trunk: 0x6a5a3a, wire: 0x0e1a1a, eye: 0xb8ffff,
@@ -100,7 +100,7 @@ function makeTextures() {
   };
   const [facadeA, glowA] = facade(true, false), [facadeB, glowB] = facade(false, false);
 
-  const asphalt = (g) => { g.fillStyle = '#3f5a5e'; g.fillRect(0, 0, 96, 96); g.fillStyle = '#42605f'; for (let i = 0; i < 60; i++) g.fillRect((Math.random() * 96) | 0, (Math.random() * 96) | 0, 2, 2); };
+  const asphalt = (g) => { g.fillStyle = '#4b6a6e'; g.fillRect(0, 0, 96, 96); g.fillStyle = '#50727a'; for (let i = 0; i < 60; i++) g.fillRect((Math.random() * 96) | 0, (Math.random() * 96) | 0, 2, 2); };
   const [sc, sg] = canvas(96, 96); asphalt(sg);
   sg.fillStyle = '#6b8589'; sg.fillRect(0, 0, 96, 12); sg.fillRect(0, 84, 96, 12);
   sg.fillStyle = '#5b7579'; sg.fillRect(0, 11, 96, 2); sg.fillRect(0, 83, 96, 2);

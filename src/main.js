@@ -12,8 +12,8 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(NIGHT.sky);
 scene.fog = new THREE.Fog(NIGHT.sky, 70, 120);
 const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 200);
-scene.add(new THREE.HemisphereLight(0x9fd0c8, 0x1c3236, 1.35));
-const sun = new THREE.DirectionalLight(0xbfe0ff, 0.7); sun.position.set(-6, 10, 8); scene.add(sun);
+scene.add(new THREE.HemisphereLight(0xb8e0d8, 0x2a4448, 1.7));
+const sun = new THREE.DirectionalLight(0xd0e8ff, 0.9); sun.position.set(-6, 10, 8); scene.add(sun);
 
 function resize() { renderer.setSize(innerWidth, innerHeight, false); fitCamera(); }
 addEventListener('resize', resize);
