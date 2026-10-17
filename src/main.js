@@ -51,6 +51,12 @@ const pool = { civ: [], zom: [] };
 let weapon = null, ammo = 0, fireTimer = 0, flow = null, flowTimer = 0, invuln = 0, totalPeople = 0, kills = 0;
 // player route: list of [cx, cy] cells to walk through
 let route = [], routeEndCell = null, stepTimer = 0, groanTimer = 1, tipStage = 0, followers = [], rescuedTotal = 0;
+let sprint = 0, sprintCd = 0, lastTapT = 0, lastTapW = null, streak = 0, streakT = 0, respawnCell = null, previewT = 0;
+const previewGeo = new THREE.CylinderGeometry(0.16, 0.16, 0.04, 8), previewMat = new THREE.MeshBasicMaterial({ color: 0x7fd0ff, transparent: true, opacity: 0.5 });
+const previews = []; for (let i = 0; i < 140; i++) { const mk = new THREE.Mesh(previewGeo, previewMat); mk.visible = false; scene.add(mk); previews.push(mk); }
+function showPreview(cells) { previews.forEach((mk, i) => { const c = cells[i]; mk.visible = !!c; if (c) { const w = toWorld(c[0], c[1], cols, rows); mk.position.set(w.x, 0.03, w.z); } }); }
+function objectiveCell() { return gate && !gate.open ? (gate.found ? switchCell : gate) : exitCell; }
+function addScore(base) { const mult = Math.min(5, 1 + streak); score += base * mult; streak++; streakT = 8; updateHud(); }
 const tipEl = document.getElementById('tip');
 function setTip(t) { if (tip === t) return; tip = t; tipEl.textContent = t; tipEl.classList.toggle('hidden', !t); }
 const markerGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.05, 10), markerMat = new THREE.MeshBasicMaterial({ color: 0x7dff6a, transparent: true, opacity: 0.75 });
@@ -71,7 +77,13 @@ function extendRoute(w, first) {
   const seg = findPath(maze, routeEndCell || playerCell(), target);
   if (seg.length && route.length + seg.length <= 60) { route.push(...seg); routeEndCell = target; showRoute(); }
 }
-input.on('tap', setRouteTo); input.on('drag', extendRoute);
+input.on('tap', (w) => {
+  const now = performance.now();
+  if (lastTapW && now - lastTapT < 380 && Math.hypot(w.x - lastTapW.x, w.z - lastTapW.z) < 2.5 && sprintCd <= 0 && state === 'play') { sprint = 3; sprintCd = 7; sfx.wave(); }
+  lastTapT = now; lastTapW = w; setRouteTo(w);
+});
+input.on('drag', extendRoute);
+input.on('hold', (w) => { if (state !== 'play') return; const path = findPath(maze, playerCell(), objectiveCell()); showPreview(path); previewT = 3; void w; });
 input.on('zoom', (f) => { zoom = Math.max(0.5, Math.min(2.2, zoom * f)); try { localStorage.setItem('oo_zoom', String(zoom)); } catch { /* ignore */ } fitCamera(); });
 
 const projGeo = new THREE.BoxGeometry(0.1, 0.07, 0.28), projMat = new THREE.MeshBasicMaterial({ color: 0xffe28a });
@@ -208,7 +220,7 @@ function buildLevel(n) {
     }
   }
   // starter zombies: far from player
-  const zCount = tutorial ? 1 : 1 + Math.floor(n / 2);
+  const zCount = tutorial ? 1 : 2 + Math.floor(n / 2);
   for (let i = 0; i < zCount; i++) { const s = pick((s) => s.ds > Math.max(cols, rows) * (tutorial ? 0.45 : 0.6)); if (s) spawnZombie(toWorld(s.x, s.y, cols, rows), n, rng); }
   // weapons
   const wCount = 2 + Math.floor(n / 2);
@@ -223,14 +235,14 @@ function buildLevel(n) {
 
   const sp = toWorld(startCell.cx, startCell.cy, cols, rows);
   player.position.set(sp.x, 0, sp.z); player.rotation.y = 0; player.visible = true; player.scale.setScalar(0.55);
-  weapon = null; ammo = 0; flow = null; flowTimer = 0; invuln = 1; kills = 0; camTarget.copy(player.position); route = []; routeEndCell = null; showRoute();
+  weapon = 'pistol'; ammo = 6; flow = null; flowTimer = 0; invuln = 1; kills = 0; respawnCell = null; sprint = 0; sprintCd = 0; streak = 0; previewT = 0; showPreview([]); camTarget.copy(player.position); route = []; routeEndCell = null; showRoute();
   tipStage = 0; setTip(''); fitCamera(); updateHud();
 }
 
 function spawnZombie(pos, n, rng = Math.random) {
   const z = pool.zom.pop() || makeCharacter(CIV_OUTFITS[(rng() * CIV_OUTFITS.length) | 0], { zombie: true });
   z.position.set(pos.x, 0, pos.z); z.scale.setScalar(0.55);
-  z.userData.hp = 2 + Math.floor(n / 3); z.userData.speed = (n === 1 ? 1.6 : 2.2 + n * 0.2) + rng() * 0.4; z.userData.flash = 0;
+  z.userData.hp = 2 + Math.floor(n / 3); z.userData.speed = Math.min(PLAYER_SPEED * 0.85, (n === 1 ? 1.6 : 2.3 + n * 0.15) + rng() * 0.3); z.userData.flash = 0;
   scene.add(z); zombies.push(z); return z;
 }
 
@@ -262,8 +274,8 @@ function fire(target) {
 }
 
 function updateHud() {
-  ui.score.textContent = String(score);
-  ui.lives.textContent = '♥'.repeat(Math.max(0, lives));
+  ui.score.textContent = String(score) + (streak >= 1 ? '  x' + Math.min(5, 1 + streak) : '');
+  ui.lives.textContent = '♥'.repeat(Math.max(0, lives)) + (sprintCd <= 0 ? '  ⚡' : '');
   ui.level.textContent = level === 1 ? 'Duvallville: Tutorial' : level === FINAL_LEVEL ? 'Duvallville ' + level + ': Evac' : 'Duvallville ' + level + '/' + FINAL_LEVEL;
   const fol = civilians.filter((c) => c.userData.follow).length; ui.people.textContent = 'People safe: ' + civilians.length + '/' + totalPeople + (fol ? '  ·  Following: ' + fol : '');
   ui.weapon.textContent = weapon ? WEAPONS[weapon].name + ' x' + ammo : 'Unarmed';
@@ -278,9 +290,9 @@ function loseLife() {
   for (let i = 0; i < 8; i++) particle(player.position, projMat);
   if (lives <= 0) { state = 'over'; input.reset(); stopMusic(); sfx.over(); const best = Math.max(getBest(), score); setBest(best);
     ui.finalScore.textContent = 'Score: ' + score + '  ·  District ' + level; ui.finalBest.textContent = 'Best: ' + best; show(ui.over); return; }
-  const sp = toWorld(startCell.cx, startCell.cy, cols, rows); player.position.set(sp.x, 0, sp.z); route = []; routeEndCell = null; showRoute();
+  const rc = respawnCell || startCell; const sp = toWorld(rc.cx, rc.cy, cols, rows); player.position.set(sp.x, 0, sp.z); route = []; routeEndCell = null; showRoute();
   // push zombies back a bit so the respawn is fair
-  for (const z of zombies) { const c = toCell(z.position.x, z.position.z, cols, rows); if (Math.abs(c.cx - startCell.cx) + Math.abs(c.cy - startCell.cy) < 6) z.userData.stun = 2.5; }
+  for (const z of zombies) { const c = toCell(z.position.x, z.position.z, cols, rows); if (Math.abs(c.cx - rc.cx) + Math.abs(c.cy - rc.cy) < 6) z.userData.stun = 2.5; }
   updateHud();
 }
 function clearDistrict() {
@@ -294,8 +306,8 @@ function clearDistrict() {
 }
 // ---------- how to play slides ----------
 const SLIDES = [
-  ['howto/1-move.jpg', 'Tap a street to walk there, or drag a route. Green dots show your path.'],
-  ['howto/2-weapon.jpg', 'You start unarmed. Pick up a pistol, shotgun or rifle. It aims and fires by itself, until the ammo runs out.'],
+  ['howto/1-move.jpg', 'Tap a street to walk there, or drag a route. Double-tap to sprint. Hold a finger down to preview the way to your objective.'],
+  ['howto/2-weapon.jpg', 'You start each district with a few pistol shots. Pick up more weapons on the way. They aim and fire by themselves. Chain kills and rescues quickly for a score multiplier.'],
   ['howto/3-crowd.jpg', 'Zombies go for people before you. Any crowd they reach turns and joins the horde, so lead the horde away from crowds.'],
   ['howto/6-follow.jpg', 'Walk up to people and they follow you. Get them to the safe zone for 250 points each. Or keep them between you and the horde: zombies take the nearest person first.'],
   ['howto/4-gate.jpg', 'From district 2 the way out is gated. The arrow leads you to the gate, then to the yellow switch that opens it, then to the safe zone.'],
@@ -354,8 +366,10 @@ function frame(now) {
       const w = toWorld(route[0][0], route[0][1], cols, rows);
       const dx = w.x - player.position.x, dz = w.z - player.position.z, d = Math.hypot(dx, dz);
       if (d < 0.35) { route.shift(); showRoute(); }
-      else { const step = Math.min(d, PLAYER_SPEED * dt); player.position.x += dx / d * step; player.position.z += dz / d * step; player.rotation.y = Math.atan2(dx, dz); moving = 1; }
+      else { const spd = PLAYER_SPEED * (sprint > 0 ? 1.6 : 1); const step = Math.min(d, spd * dt); player.position.x += dx / d * step; player.position.z += dz / d * step; player.rotation.y = Math.atan2(dx, dz); moving = 1; if (sprint > 0 && Math.random() < 0.5) particle(player.position, markerMat); }
     }
+    sprint -= dt; sprintCd -= dt; streakT -= dt; if (streakT <= 0 && streak) { streak = 0; updateHud(); }
+    previewT -= dt; if (previewT <= 0 && previews[0].visible) showPreview([]);
     collide(player.position, R); animateWalk(player, dt, Math.min(1, moving));
     stepTimer -= dt; if (moving && stepTimer <= 0) { sfx.step(); stepTimer = 0.28; }
     groanTimer -= dt; if (groanTimer <= 0) { groanTimer = 2 + Math.random() * 3; let close = 0; for (const z of zombies) if (z.position.distanceTo(player.position) < 9) close++; if (close) sfx.groan(); setMusicTension(close); }
@@ -366,13 +380,13 @@ function frame(now) {
     if (pc.cx === exitCell.cx && pc.cy === exitCell.cy) { clearDistrict(); return render(dt); }
     if (gate && !gate.open && switchCell && pc.cx === switchCell.cx && pc.cy === switchCell.cy) {
       gate.open = true; maze[gate.cy][gate.cx] = false; const oi = obstacles.indexOf(gate.obstacle); if (oi >= 0) obstacles.splice(oi, 1);
-      gate.light.material.color.set(0x7dff6a); switchCell.lever.rotation.z = -0.6; flow = null; sfx.wave(); setTip('Gate open! Head for the safe zone.');
+      gate.light.material.color.set(0x7dff6a); switchCell.lever.rotation.z = -0.6; flow = null; sfx.wave(); respawnCell = { cx: switchCell.cx, cy: switchCell.cy }; setTip('Gate open! Checkpoint set. Head for the safe zone.');
     }
     if (gate && gate.open && gateMesh.position.y > -1.3) gateMesh.position.y -= dt * 1.5;
     if (level === 1) {
       if (tipStage === 0 && !route.length) setTip('Tap the road to walk there, or drag a route.');
-      if (tipStage === 0 && route.length) { tipStage = 1; setTip('Nice. Grab the pistol nearby: it fires by itself.'); }
-      if (tipStage <= 1 && weapon) { tipStage = 2; setTip('Armed. Zombies hunt people first. Walk up to a crowd to make them follow you.'); }
+      if (tipStage === 0 && route.length) { tipStage = 1; setTip('Nice. Double-tap to sprint. Hold a finger down to preview the route.'); }
+      if (tipStage === 1 && time > 6) { tipStage = 2; setTip('Your pistol fires by itself. Zombies hunt people first, so walk up to a crowd and they follow you.'); }
       if (tipStage === 2 && time > 25) { tipStage = 3; setTip('Follow the green arrow to the safe zone.'); }
     } else if (gate && !gate.open) {
       if (!gate.found && Math.abs(pc.cx - gate.cx) + Math.abs(pc.cy - gate.cy) <= 3) { gate.found = true; tipStage = 2; sfx.hit(); setTip('Locked. The arrow now points to the switch that opens it.'); }
@@ -413,7 +427,7 @@ function frame(now) {
     // zombies
     for (let i = zombies.length - 1; i >= 0; i--) {
       const z = zombies[i];
-      if (z.userData.hp <= 0) { scene.remove(z); zombies.splice(i, 1); pool.zom.push(z); kills++; score += 10; sfx.kill(); for (let k = 0; k < 5; k++) particle(z.position, puffMat); updateHud(); continue; }
+      if (z.userData.hp <= 0) { scene.remove(z); zombies.splice(i, 1); pool.zom.push(z); kills++; addScore(10); sfx.kill(); for (let k = 0; k < 5; k++) particle(z.position, puffMat); updateHud(); continue; }
       if (z.userData.stun > 0) { z.userData.stun -= dt; animateWalk(z, dt, 0); continue; }
       // follow flow field: head to the neighbouring cell with the lowest distance
       const c = toCell(z.position.x, z.position.z, cols, rows);
@@ -447,7 +461,7 @@ function frame(now) {
       if (civ.userData.infect > 0) { civ.userData.infect -= dt * 0.5; civ.position.y = Math.random() * 0.1; if (civ.userData.infect >= 1) { turnCivilian(civ); continue; } }
       else civ.position.y = 0;
       const u = civ.userData;
-      if (!u.follow && civ.position.distanceTo(player.position) < 1.3) { u.follow = true; u.goal = null; rescuedTotal++; sfx.pickup(); updateHud(); if (level === 1 && tipStage < 4) { tipStage = 4; setTip('They will follow you. Bring people to the safe zone for extra points.'); } }
+      if (!u.follow && civ.position.distanceTo(player.position) < 1.3) { u.follow = true; u.goal = null; rescuedTotal++; addScore(25); sfx.pickup(); updateHud(); if (level === 1 && tipStage < 4) { tipStage = 4; setTip('They will follow you. Bring people to the safe zone for extra points.'); } }
       if (u.follow) {
         // target: a spot behind the player, staggered per follower
         const idx = followers.indexOf(civ); const leaderPos = idx <= 0 ? player.position : followers[idx - 1].position;

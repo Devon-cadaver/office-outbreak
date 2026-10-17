@@ -100,18 +100,18 @@ function makeTextures() {
   };
   const [facadeA, glowA] = facade(true, false), [facadeB, glowB] = facade(false, false);
 
-  const asphalt = (g) => { g.fillStyle = '#56777c'; g.fillRect(0, 0, 96, 96); g.fillStyle = '#5c7f86'; for (let i = 0; i < 60; i++) g.fillRect((Math.random() * 96) | 0, (Math.random() * 96) | 0, 2, 2); };
+  const asphalt = (g) => { g.fillStyle = '#3e5257'; g.fillRect(0, 0, 96, 96); g.fillStyle = '#445a60'; for (let i = 0; i < 60; i++) g.fillRect((Math.random() * 96) | 0, (Math.random() * 96) | 0, 2, 2); };
   const [sc, sg] = canvas(96, 96); asphalt(sg);
-  sg.fillStyle = '#8da4a8'; sg.fillRect(0, 0, 96, 12); sg.fillRect(0, 84, 96, 12);
+  sg.fillStyle = '#a7b9bc'; sg.fillRect(0, 0, 96, 12); sg.fillRect(0, 84, 96, 12);
   sg.fillStyle = '#5b7579'; sg.fillRect(0, 11, 96, 2); sg.fillRect(0, 83, 96, 2);
-  sg.fillStyle = '#e0cf6a'; for (let x = 6; x < 96; x += 24) sg.fillRect(x, 46, 12, 3);
+  sg.fillStyle = '#e0cf6a'; for (let x = 6; x < 96; x += 24) sg.fillRect(x, 46, 12, 3); sg.fillStyle = '#d8e4e6'; sg.fillRect(0, 14, 96, 1); sg.fillRect(0, 81, 96, 1);
   const roadStraight = tex(sc);
   const [jc, jg] = canvas(96, 96); asphalt(jg);
-  jg.fillStyle = '#8da4a8'; for (const [x, y] of [[0, 0], [84, 0], [0, 84], [84, 84]]) jg.fillRect(x, y, 12, 12);
+  jg.fillStyle = '#a7b9bc'; for (const [x, y] of [[0, 0], [84, 0], [0, 84], [84, 84]]) jg.fillRect(x, y, 12, 12);
   jg.fillStyle = '#e8e8e8'; for (let i = 16; i < 80; i += 12) { jg.fillRect(i, 2, 6, 10); jg.fillRect(i, 84, 6, 10); jg.fillRect(2, i, 10, 6); jg.fillRect(84, i, 10, 6); }
   const roadJunction = tex(jc);
   const [cc, cg] = canvas(96, 96); asphalt(cg);
-  cg.fillStyle = '#8da4a8'; cg.fillRect(0, 0, 96, 12); cg.fillRect(0, 84, 96, 12); cg.fillRect(0, 0, 12, 96); cg.fillRect(84, 0, 12, 96);
+  cg.fillStyle = '#a7b9bc'; cg.fillRect(0, 0, 96, 12); cg.fillRect(0, 84, 96, 12); cg.fillRect(0, 0, 12, 96); cg.fillRect(84, 0, 12, 96);
   const roadCorner = tex(cc);
 
   const [lc, lg] = canvas(64, 64);
@@ -173,6 +173,41 @@ export function buildCity(scene, wall, level) {
     const im = new THREE.InstancedMesh(plane, M({ map: texture }), list.length);
     list.forEach(([x, y, rz], i) => { const w = toWorld(x, y, cols, rows); eul.set(-Math.PI / 2, 0, rz); quat.setFromEuler(eul); mtx.compose(pos.set(w.x, 0, w.z), quat, scl); im.setMatrixAt(i, mtx); });
     im.instanceMatrix.needsUpdate = true; group.add(im);
+  }
+
+  // ---------- sidewalk curbs and corner street lights ----------
+  {
+    const curbs = []; // [x, z, w, d]
+    for (const [x, y] of streetCells) {
+      const w = toWorld(x, y, cols, rows); const h = CELL / 2;
+      if (!open(x, y - 1)) curbs.push([w.x, w.z - h + 0.22, CELL, 0.44]);
+      if (!open(x, y + 1)) curbs.push([w.x, w.z + h - 0.22, CELL, 0.44]);
+      if (!open(x - 1, y)) curbs.push([w.x - h + 0.22, w.z, 0.44, CELL]);
+      if (!open(x + 1, y)) curbs.push([w.x + h - 0.22, w.z, 0.44, CELL]);
+    }
+    const curbMesh = new THREE.InstancedMesh(box, M({ color: 0xb9c9cc }), curbs.length);
+    const cm = new THREE.Matrix4(), cq = new THREE.Quaternion(), cs = new THREE.Vector3(), cp = new THREE.Vector3();
+    curbs.forEach(([cx, cz, cw, cd], i) => { cm.compose(cp.set(cx, 0.06, cz), cq, cs.set(cw, 0.12, cd)); curbMesh.setMatrixAt(i, cm); });
+    curbMesh.instanceMatrix.needsUpdate = true; group.add(curbMesh);
+    // street lights: a post on a building-side corner of every junction cell, every other junction
+    const postMat = M({ color: 0x2a3438 }), headMat = M({ color: 0x1e2a2c }), lightMat = new THREE.MeshBasicMaterial({ color: NIGHT.lamp });
+    const poolMat2 = new THREE.MeshBasicMaterial({ map: T.lampPool, transparent: true, depthWrite: false });
+    let jn = 0;
+    for (const [x, y] of streetCells) {
+      const n = open(x, y - 1), s = open(x, y + 1), e = open(x + 1, y), wv = open(x - 1, y);
+      if (n + s + e + wv < 3) continue; if (jn++ % 2) continue;
+      const w = toWorld(x, y, cols, rows);
+      // pick a corner that touches a building diagonal so the post is on the sidewalk, not in the road
+      const corners = [[-1, -1], [1, -1], [-1, 1], [1, 1]].filter(([dx, dz]) => !open(x + dx, y + dz));
+      if (!corners.length) continue; const [dx, dz] = corners[(rng() * corners.length) | 0];
+      const px = w.x + dx * 1.15, pz = w.z + dz * 1.15;
+      add(cyl, postMat, 0.09, 2.3, 0.09, px, 1.15, pz);
+      add(cyl, postMat, 0.09, 0.09, 0.9, px - dx * 0.4, 2.3, pz - dz * 0.4).rotation.set(Math.PI / 2 * Math.abs(dz), 0, Math.PI / 2 * Math.abs(dx) * (dz === 0 ? 1 : 0));
+      add(box, headMat, 0.42, 0.14, 0.42, px - dx * 0.8, 2.26, pz - dz * 0.8);
+      add(box, lightMat, 0.3, 0.04, 0.3, px - dx * 0.8, 2.18, pz - dz * 0.8);
+      const pool = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 3.6), poolMat2); pool.rotation.x = -Math.PI / 2; pool.position.set(px - dx * 0.8, 0.13, pz - dz * 0.8); group.add(pool);
+      obstacles.push({ x: px, z: pz, hw: 0.1, hd: 0.1 });
+    }
   }
 
   // ---------- buildings ----------
