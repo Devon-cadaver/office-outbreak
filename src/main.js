@@ -48,7 +48,7 @@ let civilians = [], zombies = [], pickups = [], projectiles = [], particles = []
 const pool = { civ: [], zom: [] };
 let weapon = null, ammo = 0, fireTimer = 0, flow = null, flowTimer = 0, invuln = 0, totalPeople = 0, kills = 0;
 // player route: list of [cx, cy] cells to walk through
-let route = [], routeEndCell = null, stepTimer = 0, groanTimer = 1, tipStage = 0;
+let route = [], routeEndCell = null, stepTimer = 0, groanTimer = 1, tipStage = 0, followers = [], rescuedTotal = 0;
 const tipEl = document.getElementById('tip');
 function setTip(t) { if (tip === t) return; tip = t; tipEl.textContent = t; tipEl.classList.toggle('hidden', !t); }
 const markerGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.05, 10), markerMat = new THREE.MeshBasicMaterial({ color: 0x7dff6a, transparent: true, opacity: 0.75 });
@@ -198,7 +198,7 @@ function buildLevel(n) {
     for (let k = 0; k < size; k++) {
       const civ = pool.civ.pop() || makeCharacter(CIV_OUTFITS[(rng() * CIV_OUTFITS.length) | 0]);
       civ.position.set(w.x + (rng() - 0.5) * 1.6, 0, w.z + (rng() - 0.5) * 1.6); civ.rotation.y = rng() * 6.28;
-      civ.userData.infect = 0; civ.userData.home = civ.position.clone(); civ.userData.goal = null; civ.userData.wait = rng() * 3; civ.scale.setScalar(0.55); scene.add(civ); civilians.push(civ); totalPeople++;
+      civ.userData.infect = 0; civ.userData.follow = false; civ.userData.home = civ.position.clone(); civ.userData.goal = null; civ.userData.wait = rng() * 3; civ.scale.setScalar(0.55); scene.add(civ); civilians.push(civ); totalPeople++;
     }
   }
   // starter zombies: far from player
@@ -259,7 +259,7 @@ function updateHud() {
   ui.score.textContent = String(score);
   ui.lives.textContent = '♥'.repeat(Math.max(0, lives));
   ui.level.textContent = level === 1 ? 'Duvallville: Tutorial' : level === FINAL_LEVEL ? 'Duvallville ' + level + ': Evac' : 'Duvallville ' + level + '/' + FINAL_LEVEL;
-  ui.people.textContent = 'People safe: ' + civilians.length + '/' + totalPeople;
+  const fol = civilians.filter((c) => c.userData.follow).length; ui.people.textContent = 'People safe: ' + civilians.length + '/' + totalPeople + (fol ? '  ·  Following: ' + fol : '');
   ui.weapon.textContent = weapon ? WEAPONS[weapon].name + ' x' + ammo : 'Unarmed';
 }
 
@@ -280,16 +280,17 @@ function loseLife() {
 function clearDistrict() {
   if (level === FINAL_LEVEL) { state = 'rescue'; input.reset(); route = []; showRoute(); chopperT = 0; sfx.wave(); setTip('The chopper is coming. Hold on!'); return; }
   state = 'cleared'; input.reset(); sfx.wave();
-  const saved = civilians.length, timeBonus = Math.max(0, 60 - Math.floor(time)) * 2;
-  const gained = saved * 100 + kills * 10 + timeBonus; score += gained;
-  ui.clearedText.innerHTML = `People saved: <b>${saved}/${totalPeople}</b> (+${saved * 100})<br>Zombies dropped: ${kills} (+${kills * 10})<br>Speed bonus: +${timeBonus}<br><br>Score: <b>${score}</b>`;
+  const rescued = civilians.filter((c) => c.userData.follow && c.position.distanceTo(player.position) < 6).length;
+  const saved = civilians.length - rescued, timeBonus = Math.max(0, 60 - Math.floor(time)) * 2;
+  const gained = saved * 100 + rescued * 250 + kills * 10 + timeBonus; score += gained;
+  ui.clearedText.innerHTML = `Rescued with you: <b>${rescued}</b> (+${rescued * 250})<br>Still alive: ${saved}/${totalPeople} (+${saved * 100})<br>Zombies dropped: ${kills} (+${kills * 10})<br>Speed bonus: +${timeBonus}<br><br>Score: <b>${score}</b>`;
   show(ui.cleared); updateHud();
 }
 // ---------- how to play slides ----------
 const SLIDES = [
   ['howto/1-move.jpg', 'Tap a street to walk there, or drag a route. Green dots show your path.'],
   ['howto/2-weapon.jpg', 'You start unarmed. Pick up a pistol, shotgun or rifle. It aims and fires by itself, until the ammo runs out.'],
-  ['howto/3-crowd.jpg', 'Crowds are standing around the district. Any crowd a zombie reaches turns and joins the horde. Lead zombies away from people.'],
+  ['howto/3-crowd.jpg', 'Walk up to people and they follow you. Bring them to the safe zone for big points. Any crowd a zombie reaches turns and joins the horde.'],
   ['howto/4-gate.jpg', 'From district 3 the route is gated. Find the yellow switch somewhere else in the district to open it.'],
   ['howto/5-exit.jpg', 'Follow the green arrow to the safe zone. One touch from a zombie costs a life. Ten districts, then the chopper pulls you out.'],
 ];
@@ -311,9 +312,10 @@ $('retryBtn').addEventListener('click', startRun);
 $('nextBtn').addEventListener('click', nextLevel);
 function finishGame() {
   state = 'won'; stopMusic();
-  const saved = civilians.length, gained = saved * 100 + kills * 10 + 500; score += gained;
+  const rescued = civilians.filter((c) => c.userData.follow && c.position.distanceTo(player.position) < 8).length;
+  const saved = civilians.length - rescued, gained = saved * 100 + rescued * 250 + kills * 10 + 500; score += gained;
   const best = Math.max(getBest(), score); setBest(best);
-  $('wonText').innerHTML = 'You escaped Duvallville.<br>People saved in the last district: <b>' + saved + '/' + totalPeople + '</b><br>Rescue bonus: +500<br><br>Final score: <b>' + score + '</b><br>Best: ' + best;
+  $('wonText').innerHTML = 'You escaped Duvallville.<br>On the chopper with you: <b>' + rescued + '</b> (+' + rescued * 250 + ')<br>Still alive: ' + saved + '/' + totalPeople + '<br>Rescue bonus: +500<br><br>Final score: <b>' + score + '</b><br>Best: ' + best;
   show($('won'));
 }
 $('wonBtn').addEventListener('click', startRun);
@@ -332,6 +334,7 @@ function frame(now) {
     else if (chopperT < 4) { player.position.set(ep.x, 0.45 + (chopperT - 3) * 0.4, ep.z); animateWalk(player, dt, 0); }
     else { const u = chopperT - 4; chopper.position.y = 1.1 + u * u * 2.2; chopper.position.x = ep.x + u * 1.5; chopper.position.z = ep.z - u * 1.5; chopper.rotation.z = -0.15; player.position.set(chopper.position.x, chopper.position.y - 0.6, chopper.position.z); if (u > 3.5) finishGame(); }
     for (const z of zombies) animateWalk(z, dt, 0.3);
+    for (const c of civilians) if (c.userData.follow) { const dx = player.position.x - c.position.x, dz = player.position.z - c.position.z, d = Math.hypot(dx, dz); if (d > 1.0) { c.position.x += dx / d * 3 * dt; c.position.z += dz / d * 3 * dt; animateWalk(c, dt, 1); } }
     camTarget.lerp(player.position, 1 - Math.pow(0.002, dt));
   }
   if (chopper && state === 'play') animateChopper(chopper, dt, time);
@@ -422,12 +425,22 @@ function frame(now) {
       // touch player
       if (invuln <= 0 && Math.hypot(z.position.x - player.position.x, z.position.z - player.position.z) < R * 2) { loseLife(); if (state !== 'play') return render(dt); }
     }
-    // civilians turning
+    // civilians turning / following
+    followers = civilians.filter((c) => c.userData.follow);
     for (let i = civilians.length - 1; i >= 0; i--) {
       const civ = civilians[i];
       if (civ.userData.infect > 0) { civ.userData.infect -= dt * 0.5; civ.position.y = Math.random() * 0.1; if (civ.userData.infect >= 1) { turnCivilian(civ); continue; } }
       else civ.position.y = 0;
       const u = civ.userData;
+      if (!u.follow && civ.position.distanceTo(player.position) < 1.3) { u.follow = true; u.goal = null; rescuedTotal++; sfx.pickup(); updateHud(); if (level === 1 && tipStage < 4) { tipStage = 4; setTip('They will follow you. Bring people to the safe zone for extra points.'); } }
+      if (u.follow) {
+        // target: a spot behind the player, staggered per follower
+        const idx = followers.indexOf(civ); const leaderPos = idx <= 0 ? player.position : followers[idx - 1].position;
+        const dx = leaderPos.x - civ.position.x, dz = leaderPos.z - civ.position.z, d = Math.hypot(dx, dz);
+        if (d > 0.9) { const st = Math.min(d - 0.7, PLAYER_SPEED * 1.1 * dt); civ.position.x += dx / d * st; civ.position.z += dz / d * st; civ.rotation.y = Math.atan2(dx, dz); collide(civ.position, 0.2); animateWalk(civ, dt, 1); }
+        else animateWalk(civ, dt, 0);
+        continue;
+      }
       if (u.goal) {
         const dx = u.goal.x - civ.position.x, dz = u.goal.z - civ.position.z, d = Math.hypot(dx, dz);
         if (d < 0.1) { u.goal = null; u.wait = 1.5 + Math.random() * 4; animateWalk(civ, dt, 0); }
