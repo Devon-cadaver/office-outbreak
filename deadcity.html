@@ -27,15 +27,17 @@
   <canvas id="game"></canvas>
   <div id="dc" class="hidden">
     <div class="top"><div><div id="hpbar2"><div id="hp2"></div></div><div id="clock">Day</div></div><div id="night">Night 0 / 3</div><div id="books">📖 0</div></div>
+    <div id="mission" style="position:absolute;left:14px;right:14px;top:calc(env(safe-area-inset-top,0) + 52px);font-size:13px;color:#7dff3a;text-shadow:0 2px 4px #000"></div>
     <div id="msg"></div>
     <div id="dcStick"><div id="dcKnob"></div></div>
     <div id="acts"><button class="act empty" data-slot="0">—</button><button class="act empty" data-slot="1">—</button><button class="act empty" data-slot="2">—</button><button class="act trash" id="trash">TRASH</button></div>
   </div>
   <div id="dcStart" class="screen">
     <h1>DEAD CITY<br>NIGHTS</h1>
-    <p>Third-person. Survive three nights in Zombieville, find the spell books, then make the helipad at dawn.</p>
+    <p>Six nights. Rescue, power, water, supplies, the cemetery, the lab. Take missions at the base computer, find the spell books, and make the helipad at dawn.</p>
     <p class="small">Left thumb: joystick. Drag the right side to turn the camera. Buttons cast spells and throw trash. Double-tap next to a car to drive it, double-tap again to get out.</p>
     <button id="dcPlay">PLAY</button>
+    <button class="ghost" onclick="location.href='deadcity.html?horde=100'">HORDE TEST (100)</button>
     <p class="small"><a href="index.html" style="color:#c9a6ff">Back to Extract from Zombieville</a></p>
   </div>
   <div id="dcOver" class="screen hidden"><h1 id="dcOverTitle">OVERRUN</h1><p id="dcOverText"></p><button id="dcAgain">TRY AGAIN</button></div>

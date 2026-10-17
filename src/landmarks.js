@@ -26,7 +26,7 @@ export function pickLandmarks(wall, rng) {
     if (!wall[y - 1][x] || !wall[y + 1][x] || !wall[y][x - 1] || !wall[y][x + 1]) spots.push([x, y]);
   }
   const taken = [];
-  for (const type of LANDMARKS) {
+  for (const type of [...(wall.extraLandmarks || []), ...LANDMARKS]) {
     const far = spots.filter(([x, y]) => taken.every(([tx, ty]) => Math.abs(tx - x) + Math.abs(ty - y) > 4));
     if (!far.length) break;
     const [x, y] = far[(rng() * far.length) | 0]; taken.push([x, y]); picked.set(y * cols + x, type);
@@ -101,6 +101,27 @@ export function buildLandmark(type, group, w, rng, M, add) {
     const bulbs = glowMat(0xffe27a); for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6; const b = new THREE.Mesh(ball, bulbs); b.scale.setScalar(0.09); b.position.set(Math.cos(a) * 1.35, 1.62, Math.sin(a) * 1.35); platform.add(b); }
     rides.push({ type: 'carousel', name: 'Carousel', pos: new THREE.Vector3(w.x, 0, w.z), speed: 1, platform, horses });
     ridesSign(w.x + 0.2, w.z + 1.3, 0); ridesSign(w.x + 1.3, w.z + 0.2, Math.PI / 2);
+  } else if (type === 'base') {
+    // the office: the survivors' base, with the mission computer glowing out front
+    slab(0x56707a, 0.06);
+    add(box, M({ color: 0x5a6a7c }), 2.3, 2.6, 1.6, w.x, 1.3, w.z - 0.4); add(box, M({ color: 0x8aa0a4 }), 2.45, 0.12, 1.75, w.x, 2.62, w.z - 0.4);
+    for (const wx of [-0.7, 0, 0.7]) for (const wy of [0.8, 1.7]) add(box, glowMat(0xffe27a), 0.4, 0.4, 0.05, w.x + wx, wy, w.z + 0.43);
+    add(box, M({ color: 0x2a3438 }), 0.7, 0.5, 0.5, w.x, 0.25, w.z + 0.95); add(box, glowMat(0x7dff3a), 0.5, 0.35, 0.06, w.x, 0.7, w.z + 0.98);
+    const sign = signMesh('BASE', '#1a0f2e', '#7dff3a', 256, 64, 1.4, 0.4); sign.position.set(w.x, 2.9, w.z + 0.4); group.add(sign);
+  } else if (type === 'cemetery') {
+    slab(0x2f4a38, 0.05);
+    const stone = M({ color: 0x8a9298 }), iron = M({ color: 0x2a2e33 });
+    for (let i = 0; i < 10; i++) { const a = i * 0.63; add(box, iron, 0.05, 0.8, 0.05, w.x + Math.cos(a) * 1.25, 0.4, w.z + Math.sin(a) * 1.25); }
+    for (let i = 0; i < 6; i++) add(box, stone, 0.3, 0.5, 0.1, w.x - 0.9 + (i % 3) * 0.6, 0.25, w.z - 0.2 + Math.floor(i / 3) * 0.7);
+    for (const dx of [-0.9, 0, 0.9]) { add(box, M({ color: 0x6a7278 }), 0.6, 0.7, 0.6, w.x + dx, 0.35, w.z - 0.9); add(box, iron, 0.3, 0.4, 0.06, w.x + dx, 0.3, w.z - 0.58); }
+    add(ball, glowMat(0x7dff3a), 0.3, 0.3, 0.3, w.x, 1.2, w.z - 0.9);
+    const sign = signMesh('CEMETERY', '#1a0f2e', '#c9a6ff', 256, 64, 1.5, 0.4); sign.position.set(w.x, 1.9, w.z + 1.2); group.add(sign);
+  } else if (type === 'lab') {
+    slab(0x4a5a60, 0.06);
+    add(box, M({ color: 0xd8dde0 }), 2.3, 2.0, 1.8, w.x, 1.0, w.z - 0.3);
+    for (const dx of [-0.75, 0.75]) { add(cyl, new THREE.MeshLambertMaterial({ color: 0x3fdf6a, transparent: true, opacity: 0.6 }), 0.5, 1.4, 0.5, w.x + dx, 0.7, w.z + 0.9); add(cyl, M({ color: 0x2a3438 }), 0.56, 0.12, 0.56, w.x + dx, 1.45, w.z + 0.9); }
+    add(box, glowMat(0x3fdf6a), 1.0, 0.3, 0.05, w.x, 1.5, w.z + 0.62);
+    const sign = signMesh('LAB', '#1a0f2e', '#3fdf6a', 256, 64, 1.2, 0.4); sign.position.set(w.x, 2.3, w.z + 0.5); group.add(sign);
   } else if (type === 'slime') {  } else if (type === 'slime') {
     slab(0x2a4a44, 0.04);
     const glow = glowMat(0x6fff3a);
