@@ -24,3 +24,4 @@ button:active { transform: translateY(3px); box-shadow: 0 1px 0 #b8902a; }
 #exitArrow { position: fixed; left: 0; top: 0; width: 44px; height: 44px; line-height: 44px; text-align: center; font-size: 30px; color: #7dff6a; text-shadow: 0 0 8px #7dff6a, 0 2px 4px #000; pointer-events: none; }
 button.ghost { background: transparent; color: #ffd24a; border: 2px solid #ffd24a88; box-shadow: none; font-size: 16px; padding: 8px 18px; }
 #soundNote { max-width: 300px; }
+#tip { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0)); transform: translateX(-50%); max-width: 90vw; padding: 10px 16px; background: #0e2222dd; border: 1px solid #ffd24a88; border-radius: 10px; font-size: 15px; text-align: center; pointer-events: none; }

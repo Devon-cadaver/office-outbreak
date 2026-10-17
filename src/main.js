@@ -39,13 +39,15 @@ const WEAPONS = {
 // ---------- state ----------
 let state = 'start', level = 1, score = 0, lives = 3, time = 0;
 let maze = null, city = null, cols = 0, rows = 0, obstacles = [];
-let startCell = null, exitCell = null, exitMesh = null;
+let startCell = null, exitCell = null, exitMesh = null, gate = null, switchCell = null, gateMesh = null, switchMesh = null, tip = '';
 const player = makeCharacter('worker'); scene.add(player); player.visible = false;
 let civilians = [], zombies = [], pickups = [], projectiles = [], particles = [];
 const pool = { civ: [], zom: [] };
 let weapon = null, ammo = 0, fireTimer = 0, flow = null, flowTimer = 0, invuln = 0, totalPeople = 0, kills = 0;
 // player route: list of [cx, cy] cells to walk through
-let route = [], routeEndCell = null, stepTimer = 0, groanTimer = 1;
+let route = [], routeEndCell = null, stepTimer = 0, groanTimer = 1, tipStage = 0;
+const tipEl = document.getElementById('tip');
+function setTip(t) { if (tip === t) return; tip = t; tipEl.textContent = t; tipEl.classList.toggle('hidden', !t); }
 const markerGeo = new THREE.CylinderGeometry(0.22, 0.22, 0.05, 10), markerMat = new THREE.MeshBasicMaterial({ color: 0x7dff6a, transparent: true, opacity: 0.6 });
 const markers = []; for (let i = 0; i < 60; i++) { const mk = new THREE.Mesh(markerGeo, markerMat); mk.visible = false; scene.add(mk); markers.push(mk); }
 function showRoute() { markers.forEach((mk, i) => { const c = route[i]; mk.visible = !!c; if (c) { const w = toWorld(c[0], c[1], cols, rows); mk.position.set(w.x, 0.04, w.z); } }); }
@@ -94,6 +96,7 @@ function collide(pos, radius) {
 function clearLevel() {
   if (city) scene.remove(city.group);
   if (exitMesh) scene.remove(exitMesh);
+  if (gateMesh) scene.remove(gateMesh); if (switchMesh) scene.remove(switchMesh); gateMesh = switchMesh = null;
   for (const c of civilians) { scene.remove(c); pool.civ.push(c); }
   for (const z of zombies) { scene.remove(z); pool.zom.push(z); }
   for (const p of pickups) scene.remove(p.mesh);
@@ -105,14 +108,62 @@ function clearLevel() {
 function buildLevel(n) {
   clearLevel();
   const portrait = innerWidth < innerHeight;
-  const grow = Math.min(4, n - 1) * 2;
-  let c = (portrait ? 11 : 19) + grow, r = (portrait ? 21 : 11) + grow;
+  const tutorial = n === 1;
+  const grow = Math.min(8, (n - 1) * 2);
+  let c = (portrait ? 9 : 15) + grow, r = (portrait ? 15 : 9) + grow;
   if (c % 2 === 0) c++; if (r % 2 === 0) r++;
   cols = c; rows = r;
   const rng = mulberry32(n * 1337 + 42);
-  maze = generateMaze(cols, rows, Math.floor(cols * rows * 0.06) + n * 2, rng);
+  // tutorial district is wide open: many extra openings so zombies stay visible
+  const loops = tutorial ? Math.floor(cols * rows * 0.22) : Math.floor(cols * rows * 0.06) + n * 2;
+  maze = generateMaze(cols, rows, loops, rng);
+  startCell = { cx: 1, cy: rows - 2 };
+  // exit: among the cells farthest by road, prefer ones physically close to the start (long way round)
+  { const dist = flowField(maze, startCell.cx, startCell.cy); let max = 0; for (const d of dist) if (d > max) max = d;
+    const cands = []; for (let y = 1; y < rows - 1; y++) for (let x = 1; x < cols - 1; x++) { const d = dist[y * cols + x]; if (d >= max * (tutorial ? 0.6 : 0.75)) cands.push({ x, y, d, e: Math.hypot(x - startCell.cx, y - startCell.cy) }); }
+    cands.sort((a, b) => a.e - b.e); const pickFrom = cands.slice(0, Math.max(1, Math.ceil(cands.length * 0.4)));
+    const ex = pickFrom[(rng() * pickFrom.length) | 0]; exitCell = { cx: ex.x, cy: ex.y }; }
+  // gate puzzle from district 3: a locked gate on the route, opened by a switch elsewhere
+  gate = null; switchCell = null;
+  if (n >= 3) {
+    const path = findPath(maze, startCell, exitCell);
+    const onMain = new Set(path.map(([x, y]) => y * cols + x)); onMain.add(startCell.cy * cols + startCell.cx);
+    const gi = Math.floor(path.length * (0.4 + rng() * 0.3)); const [gx, gy] = path[gi];
+    maze[gy][gx] = true;
+    // seal alternate routes with buildings (never on the main route) until the gate is the only way
+    for (let k = 0; k < 10; k++) {
+      const alt = findPath(maze, startCell, exitCell); if (!alt.length) break;
+      const cands = alt.map(([x, y], i) => ({ x, y, i })).filter(o => !onMain.has(o.y * cols + o.x));
+      if (!cands.length) break;
+      const mid = cands[Math.floor(cands.length / 2)]; maze[mid.y][mid.x] = true;
+    }
+    const d2 = flowField(maze, startCell.cx, startCell.cy);
+    if (d2[exitCell.cy * cols + exitCell.cx] < 0) {
+      const reach = []; for (let y = 1; y < rows - 1; y++) for (let x = 1; x < cols - 1; x++) { const d = d2[y * cols + x]; if (d > 4) reach.push({ x, y, d }); }
+      reach.sort((a, b) => b.d - a.d); const top = reach.slice(0, Math.max(1, Math.ceil(reach.length * 0.3)));
+      const sw = top[(rng() * top.length) | 0]; if (sw) { switchCell = { cx: sw.x, cy: sw.y }; gate = { cx: gx, cy: gy, open: false }; }
+    }
+    if (!gate) maze[gy][gx] = false;
+  }
+  if (gate) maze[gate.cy][gate.cx] = false; // draw the road under the gate
   city = buildCity(scene, maze, n); obstacles = city.obstacles;
-  startCell = { cx: 1, cy: rows - 2 }; exitCell = { cx: cols - 2, cy: 1 };
+  if (gate) {
+    maze[gate.cy][gate.cx] = true; // blocked for pathing until opened
+    const gw = toWorld(gate.cx, gate.cy, cols, rows);
+    gateMesh = new THREE.Group(); gateMesh.position.set(gw.x, 0, gw.z);
+    const barMat = new THREE.MeshLambertMaterial({ color: 0x9a3a4a }), postMat = new THREE.MeshLambertMaterial({ color: 0x4a5a5e });
+    const horiz = maze[gate.cy][gate.cx - 1] === false || maze[gate.cy][gate.cx + 1] === false;
+    for (let k = -3; k <= 3; k++) { const bar = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.1, 0.08), barMat); bar.position.set(horiz ? 0 : k * 0.4, 0.55, horiz ? k * 0.4 : 0); gateMesh.add(bar); }
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(horiz ? 0.1 : 2.8, 0.1, horiz ? 2.8 : 0.1), postMat); rail.position.y = 1.1; gateMesh.add(rail);
+    const light = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), new THREE.MeshBasicMaterial({ color: 0xff3a3a })); light.position.set(0, 1.3, 0); gateMesh.add(light); gate.light = light;
+    scene.add(gateMesh); gate.obstacle = { x: gw.x, z: gw.z, hw: CELL / 2 - 0.05, hd: CELL / 2 - 0.05 }; obstacles.push(gate.obstacle);
+    const sw = toWorld(switchCell.cx, switchCell.cy, cols, rows);
+    switchMesh = new THREE.Group(); switchMesh.position.set(sw.x, 0, sw.z);
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.5, 0.6), postMat); base.position.y = 0.25; switchMesh.add(base);
+    const lever = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.6, 0.08), new THREE.MeshLambertMaterial({ color: 0xffd24a })); lever.position.set(0, 0.75, 0); lever.rotation.z = 0.6; switchMesh.add(lever); switchCell.lever = lever;
+    const glow = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.04, 12), new THREE.MeshBasicMaterial({ color: 0xffd24a, transparent: true, opacity: 0.5 })); glow.position.y = 0.03; switchMesh.add(glow);
+    scene.add(switchMesh);
+  }
 
   // exit marker
   const ep = toWorld(exitCell.cx, exitCell.cy, cols, rows);
@@ -128,7 +179,7 @@ function buildLevel(n) {
   const pick = (filter) => { const arr = streets.filter(filter); if (!arr.length) return null; const i = (rng() * arr.length) | 0; const s = arr[i]; streets.splice(streets.indexOf(s), 1); return s; };
 
   // crowds
-  const crowdCount = 5 + n * 2; totalPeople = 0;
+  const crowdCount = tutorial ? 3 : 4 + n * 2; totalPeople = 0;
   for (let i = 0; i < crowdCount; i++) {
     const s = pick(() => true); if (!s) break;
     const w = toWorld(s.x, s.y, cols, rows); const size = 2 + ((rng() * 3) | 0);
@@ -139,13 +190,13 @@ function buildLevel(n) {
     }
   }
   // starter zombies: far from player
-  const zCount = 1 + Math.floor(n / 2);
-  for (let i = 0; i < zCount; i++) { const s = pick((s) => s.ds > Math.max(cols, rows) * 0.6); if (s) spawnZombie(toWorld(s.x, s.y, cols, rows), n, rng); }
+  const zCount = tutorial ? 1 : 1 + Math.floor(n / 2);
+  for (let i = 0; i < zCount; i++) { const s = pick((s) => s.ds > Math.max(cols, rows) * (tutorial ? 0.45 : 0.6)); if (s) spawnZombie(toWorld(s.x, s.y, cols, rows), n, rng); }
   // weapons
   const wCount = 2 + Math.floor(n / 2);
   const names = Object.keys(WEAPONS);
   for (let i = 0; i < wCount; i++) {
-    const s = pick(() => true); if (!s) break;
+    const s = (tutorial && i === 0) ? (pick((s) => s.ds <= 6) || pick(() => true)) : pick(() => true); if (!s) break;
     const type = names[Math.min(names.length - 1, (rng() * (n >= 3 ? 3 : 2)) | 0)];
     const w = toWorld(s.x, s.y, cols, rows);
     const mesh = new THREE.Mesh(pickGeo, new THREE.MeshLambertMaterial({ color: WEAPONS[type].color }));
@@ -155,13 +206,13 @@ function buildLevel(n) {
   const sp = toWorld(startCell.cx, startCell.cy, cols, rows);
   player.position.set(sp.x, 0, sp.z); player.rotation.y = 0; player.visible = true; player.scale.setScalar(0.55);
   weapon = null; ammo = 0; flow = null; flowTimer = 0; invuln = 1; kills = 0; camTarget.copy(player.position); route = []; routeEndCell = null; showRoute();
-  fitCamera(); updateHud();
+  tipStage = 0; setTip(''); fitCamera(); updateHud();
 }
 
 function spawnZombie(pos, n, rng = Math.random) {
   const z = pool.zom.pop() || makeCharacter(CIV_OUTFITS[(rng() * CIV_OUTFITS.length) | 0], { zombie: true });
   z.position.set(pos.x, 0, pos.z); z.scale.setScalar(0.55);
-  z.userData.hp = 2 + Math.floor(n / 3); z.userData.speed = 2.2 + n * 0.2 + rng() * 0.4; z.userData.flash = 0;
+  z.userData.hp = 2 + Math.floor(n / 3); z.userData.speed = (n === 1 ? 1.6 : 2.2 + n * 0.2) + rng() * 0.4; z.userData.flash = 0;
   scene.add(z); zombies.push(z); return z;
 }
 
@@ -195,12 +246,12 @@ function fire(target) {
 function updateHud() {
   ui.score.textContent = String(score);
   ui.lives.textContent = '♥'.repeat(Math.max(0, lives));
-  ui.level.textContent = 'Duvallville ' + level;
+  ui.level.textContent = level === 1 ? 'Duvallville: Tutorial' : 'Duvallville ' + level;
   ui.people.textContent = 'People safe: ' + civilians.length + '/' + totalPeople;
   ui.weapon.textContent = weapon ? WEAPONS[weapon].name + ' x' + ammo : 'Unarmed';
 }
 
-function show(screen) { for (const s of [ui.start, ui.cleared, ui.over]) s.classList.add('hidden'); if (screen) screen.classList.remove('hidden'); ui.hud.classList.toggle('hidden', !!screen); }
+function show(screen) { if (screen) setTip(''); for (const s of [ui.start, ui.cleared, ui.over]) s.classList.add('hidden'); if (screen) screen.classList.remove('hidden'); ui.hud.classList.toggle('hidden', !!screen); }
 
 function startRun() { unlockAudio(); startMusic(); level = 1; score = 0; lives = 3; time = 0; buildLevel(level); show(null); state = 'play'; }
 function nextLevel() { level++; buildLevel(level); show(null); state = 'play'; }
@@ -257,6 +308,17 @@ function frame(now) {
     // exit
     const pc = toCell(player.position.x, player.position.z, cols, rows);
     if (pc.cx === exitCell.cx && pc.cy === exitCell.cy) { clearDistrict(); return render(dt); }
+    if (gate && !gate.open && switchCell && pc.cx === switchCell.cx && pc.cy === switchCell.cy) {
+      gate.open = true; maze[gate.cy][gate.cx] = false; const oi = obstacles.indexOf(gate.obstacle); if (oi >= 0) obstacles.splice(oi, 1);
+      gate.light.material.color.set(0x7dff6a); switchCell.lever.rotation.z = -0.6; flow = null; sfx.wave(); setTip('Gate open! Head for the safe zone.');
+    }
+    if (gate && gate.open && gateMesh.position.y > -1.3) gateMesh.position.y -= dt * 1.5;
+    if (level === 1) {
+      if (tipStage === 0 && !route.length) setTip('Tap the road to walk there, or drag a route.');
+      if (tipStage === 0 && route.length) { tipStage = 1; setTip('Nice. Grab the pistol nearby: it fires by itself.'); }
+      if (tipStage <= 1 && weapon) { tipStage = 2; setTip('Armed. Zombies turn any crowd they reach, so lead them away from people.'); }
+      if (tipStage === 2 && time > 25) { tipStage = 3; setTip('Follow the green arrow to the safe zone.'); }
+    } else if (gate && !gate.open && tipStage === 0) { tipStage = 1; setTip('The route is gated. Find the yellow switch to open it.'); }
 
     // flow field toward player, refreshed a few times per second
     if (flowTimer <= 0 || !flow) { flow = flowField(maze, pc.cx, pc.cy); flowTimer = 0.2; }
@@ -383,4 +445,4 @@ resize();
 requestAnimationFrame(frame);
 
 // Debug hook for automated testing (harmless in production).
-window.__oo = { get player() { return player; }, get pickups() { return pickups; }, get zombies() { return zombies; }, get exit() { return toWorld(exitCell.cx, exitCell.cy, cols, rows); }, get state() { return state; } };
+window.__oo = { get player() { return player; }, get gate() { return gate; }, get switchCell() { return switchCell; }, get cols() { return cols; }, get rows() { return rows; }, toWorld: (cx, cy) => toWorld(cx, cy, cols, rows), get pickups() { return pickups; }, get zombies() { return zombies; }, get exit() { return toWorld(exitCell.cx, exitCell.cy, cols, rows); }, get state() { return state; } };
