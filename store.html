@@ -6,8 +6,9 @@
   <title>Skin Shop</title>
   <link rel="stylesheet" href="./src/style.css" />
   <style>
-    html, body { height: auto; overflow: auto; touch-action: pan-y; -webkit-overflow-scrolling: touch; }
-    body { background: radial-gradient(circle at 50% 20%, #2a1449, #120a1f 70%); padding: 18px 12px 40px; min-height: 100vh; }
+    html, body { height: 100%; overflow: hidden; touch-action: none; }
+    #wrap { position: fixed; inset: 0; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; touch-action: pan-y; padding: 18px 12px 40px; }
+    body { background: radial-gradient(circle at 50% 20%, #2a1449, #120a1f 70%); }
     #top { display: flex; justify-content: space-between; align-items: center; gap: 10px; max-width: 520px; margin: 0 auto 10px; }
     #top h1 { font-size: 26px; color: #7dff3a; text-shadow: 0 3px 0 #5a2f80; }
     #coins { color: #ffd24a; font-weight: 800; font-size: 18px; }
@@ -23,10 +24,12 @@
   </style>
 </head>
 <body>
+  <div id="wrap">
   <div id="top"><h1>SKIN SHOP</h1><div id="coins">🪙 0</div><button class="ghost menuBtn" onclick="location.href='index.html'">MAIN MENU</button></div>
   <p id="note">Beat either game to earn a coin. Most skins cost one coin; the big rides cost two or three.</p>
   <div id="grid"></div>
   <p style="text-align:center;margin-top:16px"><button class="ghost menuBtn" onclick="location.href='index.html'">MAIN MENU</button></p>
+  </div>
   <script type="module" src="./src/store.js"></script>
 </body>
 </html>
