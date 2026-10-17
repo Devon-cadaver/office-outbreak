@@ -326,7 +326,7 @@ function buildLevel(n) {
   if (inv.car && inv.carHp > 0 && n > 1) startDriving(); else if (driving) parkCar();
   flow = null; flowTimer = 0; invuln = 1; kills = 0; respawnCell = null; sprint = 0; sprintCd = 0; streak = 0; previewT = 0; showPreview([]); camTarget.copy(player.position); route = []; routeEndCell = null; showRoute();
   tipStage = 0; setTip(''); fitCamera(); updateHud();
-  if (flyby) { scene.remove(flyby); flyby = null; } flybyT = 20 + Math.random() * 20; riding = null; rideCd = 0; playerInfect = 0; $('puzzle').classList.add('hidden'); puzzle = null;
+  parked = false; if (flyby) { scene.remove(flyby); flyby = null; } flybyT = 20 + Math.random() * 20; riding = null; rideCd = 0; playerInfect = 0; $('puzzle').classList.add('hidden'); puzzle = null;
 }
 
 function spawnZombie(pos, n, rng = Math.random) {
@@ -468,7 +468,17 @@ function startDriving() {
   car.userData.hp = inv.carHp; driving = true; car.visible = true; player.visible = false;
   say(car, 'Buckle up!'); setTip('Driving. Zombies you hit go down, but every hit dents the car.');
 }
-function parkCar() { driving = false; if (car) car.visible = false; player.visible = true; }
+function parkCar() { driving = false; if (car) car.visible = false; player.visible = true; parked = false; }
+// hop out at the current spot: the car stays on the street and you can walk back to it
+let parked = false, parkedCd = 0;
+function leaveCar(reason) {
+  if (!driving) return; driving = false; parked = true; parkedCd = 1.0; player.visible = true; car.visible = true; player.position.x += Math.cos(player.rotation.y) * 1.0; player.position.z -= Math.sin(player.rotation.y) * 1.0; collide(player.position, R);
+  say(player, reason || 'Back in a sec.', 1.5); setTip('You hopped out. Walk back to the car to drive again.');
+}
+function updateParkedCar(dt) {
+  parkedCd -= dt;
+  if (parked && car && !driving && inv.car && inv.carHp > 0 && parkedCd <= 0 && state === 'play' && !riding && player.position.distanceTo(car.position) < 0.8) { parked = false; startDriving(); route = []; routeEndCell = null; showRoute(); }
+}
 function wreckCar() {
   for (let k = 0; k < 16; k++) particle(car.position, k % 2 ? projMat : puffMat); sfx.over(); say(player, 'The car is done!');
   inv.car = null; inv.carHp = 0; parkCar(); invuln = 1.5;
@@ -568,12 +578,13 @@ function frame(now) {
     if (gate && !gate.open && switchCell) {
       const onSwitch = pc.cx === switchCell.cx && pc.cy === switchCell.cy;
       if (!onSwitch) switchCell.dismissed = false;
-      else if (!switchCell.dismissed && !driving) { openPuzzle(); return render(dt); }
+      else if (!switchCell.dismissed) { if (driving) leaveCar('Hang on, power box.'); openPuzzle(); return render(dt); }
     }
     // fly-bys, the ferris wheel ride, follower infection creeping toward you
     updateFlyby(dt); rideCd -= dt;
     if (riding) updateRide(dt);
-    else if (ferris.pos && !driving && rideCd <= 0 && player.position.distanceTo(ferris.pos) < CELL * 0.72) startRide();
+    else if (ferris.pos && rideCd <= 0 && player.position.distanceTo(ferris.pos) < CELL * 0.72) { if (driving) leaveCar('Ooh, a ride!'); startRide(); }
+    updateParkedCar(dt);
     playerInfect = Math.max(0, playerInfect - dt * 0.12);
     if (playerInfect >= 1) { playerInfect = 0; say(player, 'Bitten!', 1.5); loseLife(); if (state !== 'play') return render(dt); }
     if (gate && gate.open && gateMesh.position.y > -1.3) gateMesh.position.y -= dt * 1.5;
@@ -791,4 +802,4 @@ resize();
 requestAnimationFrame(frame);
 
 // Debug hook for automated testing (harmless in production).
-window.__oo = { get cash() { return cash; }, set cash(v) { cash = v; renderStore(); }, get driving() { return driving; }, get inv() { return inv; }, get chopper() { return chopper; }, get chopperT() { return chopperT; }, set chopperT(v) { chopperT = v; }, routeTo: (cx, cy) => setRouteTo(toWorld(cx, cy, cols, rows)), get civilians() { return civilians; }, get maze() { return maze; }, get player() { return player; }, get gate() { return gate; }, get switchCell() { return switchCell; }, get cols() { return cols; }, get rows() { return rows; }, toWorld: (cx, cy) => toWorld(cx, cy, cols, rows), get pickups() { return pickups; }, get zombies() { return zombies; }, get exit() { return toWorld(exitCell.cx, exitCell.cy, cols, rows); }, get state() { return state; }, get ferris() { return ferris; }, get riding() { return riding; }, startRide, openPuzzle, flyby: () => { flybyT = 0; }, get flybyObj() { return flyby; }, get puzzle() { return puzzle; }, flingZombie };
+window.__oo = { get cash() { return cash; }, set cash(v) { cash = v; renderStore(); }, get driving() { return driving; }, get inv() { return inv; }, get chopper() { return chopper; }, get chopperT() { return chopperT; }, set chopperT(v) { chopperT = v; }, routeTo: (cx, cy) => setRouteTo(toWorld(cx, cy, cols, rows)), get civilians() { return civilians; }, get maze() { return maze; }, get player() { return player; }, get gate() { return gate; }, get switchCell() { return switchCell; }, get cols() { return cols; }, get rows() { return rows; }, toWorld: (cx, cy) => toWorld(cx, cy, cols, rows), get pickups() { return pickups; }, get zombies() { return zombies; }, get exit() { return toWorld(exitCell.cx, exitCell.cy, cols, rows); }, get state() { return state; }, get ferris() { return ferris; }, get riding() { return riding; }, startRide, openPuzzle, flyby: () => { flybyT = 0; }, get flybyObj() { return flyby; }, get puzzle() { return puzzle; }, flingZombie, leaveCar, get parked() { return parked; } };
