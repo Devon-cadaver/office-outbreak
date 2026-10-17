@@ -7,9 +7,9 @@ const cyl = new THREE.CylinderGeometry(0.5, 0.5, 1, 10);
 const ball = new THREE.IcosahedronGeometry(0.5, 1);
 export const LANDMARKS = ['gas', 'ferris', 'slime', 'school', 'skate'];
 const spinners = [];
-export const ferris = { pos: null, wheel: null };
+export const ferris = { pos: null, wheel: null, speed: 1 };
 export function resetLandmarks() { spinners.length = 0; ferris.pos = null; ferris.wheel = null; }
-export function updateLandmarks(dt) { for (const s of spinners) s.rotation.z += dt * 0.35; }
+export function updateLandmarks(dt) { for (const s of spinners) s.rotation.z += dt * 0.35 * (s === ferris.wheel ? ferris.speed : 1); }
 
 export function pickLandmarks(wall, rng) {
   const rows = wall.length, cols = wall[0].length, picked = new Map(), spots = [];
