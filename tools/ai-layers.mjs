@@ -30,7 +30,7 @@ if (want) console.log('visible:', want.filter(n => names.includes(n)).join(', ')
 const viewport = page.getViewport({ scale });
 const canvas = createCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));
 const ctx = canvas.getContext('2d');
-await page.render({ canvasContext: ctx, viewport, optionalContentConfigPromise: Promise.resolve(occ), canvasFactory: new NodeCanvasFactory() }).promise;
+await page.render({ canvasContext: ctx, viewport, background: 'rgba(0,0,0,0)', optionalContentConfigPromise: Promise.resolve(occ), canvasFactory: new NodeCanvasFactory() }).promise;
 fs.mkdirSync(path.dirname(out), { recursive: true });
 fs.writeFileSync(out, canvas.toBuffer('image/png'));
 console.log('wrote', out, canvas.width + 'x' + canvas.height);

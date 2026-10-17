@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#16302f" />
+  <title>Duvallville</title>
+  <link rel="icon" href="data:," />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <div id="hud" class="hidden">
+    <div class="row">
+      <div id="score">0</div>
+      <div id="lives">♥♥♥</div>
+      <div id="level">Duvallville</div>
+    </div>
+    <div class="row sub">
+      <div id="people">People safe: 0/0</div>
+      <div id="weapon">Unarmed</div>
+    </div>
+  </div>
+  <div id="exitArrow" class="hidden">➤</div>
+  <div id="tip" class="hidden"></div>
+
+  <div id="start" class="screen">
+    <h1>DUVALLVILLE</h1>
+    <p>The whole town turned. Cross it from the bottom to the top.</p>
+    <p class="small">Tap a street to walk, or drag a route. People you reach will follow you. Zombies turn every crowd they reach. Grab weapons. One touch costs a life.</p>
+    <p class="small" id="loading">Loading the town…</p>
+    <button id="startBtn" disabled>START</button>
+    <button id="soundBtn" class="ghost">🔊 Sound: on</button>
+    <p class="small"><a href="./" style="color:#ffd24a">Play the blocky version</a></p>
+    <p class="small" id="best"></p>
+  </div>
+
+  <div id="cleared" class="screen hidden">
+    <h1>MADE IT</h1>
+    <p id="clearedText"></p>
+    <button id="nextBtn">PLAY AGAIN</button>
+  </div>
+
+  <div id="over" class="screen hidden">
+    <h1>OVERRUN</h1>
+    <p id="finalScore"></p>
+    <p class="small" id="finalBest"></p>
+    <button id="retryBtn">RETRY</button>
+  </div>
+
+  <script type="module" src="/src/poster/main.js"></script>
+</body>
+</html>
