@@ -181,7 +181,11 @@ export function buildCity(scene, wall, level) {
     const plaza = (x, y) => !!(cz && cz.plaza.has(idx(x, y)));
     // generated maps: roads run straight through parks. builder maps: grass is plain ground, roads only where placed
     const road = (x, y) => open(x, y) && !plaza(x, y) && !(cz && cz.parks.has(idx(x, y)));
-    const deg = (x, y) => road(x, y - 1) + road(x, y + 1) + road(x + 1, y) + road(x - 1, y);
+    // a road link between two cells exists when both are road and neither cell's shape mask forbids it
+    const maskOf = (x, y) => (cz && cz.conn ? cz.conn.get(idx(x, y)) : undefined);
+    const DIRS = { N: [0, -1, 1, 4], S: [0, 1, 4, 1], E: [1, 0, 2, 8], W: [-1, 0, 8, 2] };
+    const link = (x, y, d) => { const [dx, dy, bit, obit] = DIRS[d]; if (!road(x, y) || !road(x + dx, y + dy)) return false; const a = maskOf(x, y), b = maskOf(x + dx, y + dy); return (a == null || !!(a & bit)) && (b == null || !!(b & obit)); };
+    const deg = (x, y) => link(x, y, 'N') + link(x, y, 'S') + link(x, y, 'E') + link(x, y, 'W');
     wall.park = park;
     const C = (x) => x * P + P / 2;
     // 1. pavement wherever there is open ground: light concrete with a faint slab grid
@@ -197,8 +201,8 @@ export function buildCity(scene, wall, level) {
     for (const pass of [[RW + 6, '#2d3c41'], [RW, '#3a4c52']]) {
       const col = pass[1];
       for (const [x, y] of streetCells) { if (!road(x, y)) continue; const w = pass[0] + (aveCell(x, y) ? 14 : 0);
-        if (road(x + 1, y)) strip(C(x), C(y), C(x + 1), C(y), w, col); else if (park(x + 1, y)) strip(C(x), C(y), x * P + P, C(y), w, col);
-        if (road(x, y + 1)) strip(C(x), C(y), C(x), C(y + 1), w, col); else if (park(x, y + 1)) strip(C(x), C(y), C(x), y * P + P, w, col);
+        if (link(x, y, 'E')) strip(C(x), C(y), C(x + 1), C(y), w, col); else if (!cz && park(x + 1, y)) strip(C(x), C(y), x * P + P, C(y), w, col);
+        if (link(x, y, 'S')) strip(C(x), C(y), C(x), C(y + 1), w, col); else if (!cz && park(x, y + 1)) strip(C(x), C(y), C(x), y * P + P, w, col);
         if (park(x - 1, y)) strip(x * P, C(y), C(x), C(y), w, col); if (park(x, y - 1)) strip(C(x), y * P, C(x), C(y), w, col); }
       g.fillStyle = col; for (const [x, y] of streetCells) if (road(x, y)) { const w = pass[0] + (aveCell(x, y) ? 14 : 0); g.fillRect(C(x) - w / 2, C(y) - w / 2, w, w); }
     }
@@ -211,7 +215,7 @@ export function buildCity(scene, wall, level) {
     const stopShort = 9;
     for (const [x, y] of streetCells) {
       if (!road(x, y)) continue;
-      const n = open(x, y - 1), s = open(x, y + 1), e = open(x + 1, y), wv = open(x - 1, y); const d = n + s + e + wv;
+      const n = cz ? link(x, y, 'N') : open(x, y - 1), s = cz ? link(x, y, 'S') : open(x, y + 1), e = cz ? link(x, y, 'E') : open(x + 1, y), wv = cz ? link(x, y, 'W') : open(x - 1, y); const d = n + s + e + wv;
       const cx = C(x), cy = C(y), X = x * P, Y = y * P;
       // where does this half-line end? at the cell edge normally, short of it if the neighbour is a 4-way box
       const endE = e ? (deg(x + 1, y) === 4 ? X + P - stopShort : X + P) : cx, endW = wv ? (deg(x - 1, y) === 4 ? X + stopShort : X) : cx;
@@ -237,7 +241,7 @@ export function buildCity(scene, wall, level) {
     // 5. zebra crossings on the approaches to a 4-way or an avenue junction, only where the approach is a plain street cell
     for (const [x, y] of streetCells) {
       if (!road(x, y)) continue;
-      const n = road(x, y - 1), s = road(x, y + 1), e = road(x + 1, y), wv = road(x - 1, y); const d = n + s + e + wv;
+      const n = link(x, y, 'N'), s = link(x, y, 'S'), e = link(x, y, 'E'), wv = link(x, y, 'W'); const d = n + s + e + wv;
       if (crossCell(x, y) ? d < 1 : (d < 3 || !(d === 4 || isAveRow(y) || isAveCol(x) || aveCell(x, y)))) continue;
       const X = x * P, Y = y * P, depth = 8, half = RW / 2 - 2;
       for (const [dx, dy, ok] of [[0, -1, n], [0, 1, s], [1, 0, e], [-1, 0, wv]]) { if (!ok || deg(x + dx, y + dy) >= 3) continue;

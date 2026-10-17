@@ -8,7 +8,7 @@ import { buildRuins } from './ruins.js';
 import { makeCar, animateCar } from './car.js';
 import { rides } from './landmarks.js';
 import { createFires } from './fire.js';
-import { GROUPS, OPEN_CODES, loadMap, saveMap, blankMap, fillSelect } from './tools.js';
+import { GROUPS, OPEN_CODES, loadMap, saveMap, blankMap, fillSelect, ROAD_CODES, nextShape } from './tools.js';
 const BUILD = new URLSearchParams(location.search).get('build') === '1';
 // ---------- economy / store ----------
 let cash = 0, cashThisDistrict = 0;
@@ -207,20 +207,31 @@ function extendRoute(w, first) {
   if (seg.length && route.length + seg.length <= 10) { route.push(...seg); routeEndCell = target; showRoute(); }
 }
 // ---- in-world build mode (index.html?build=1): tap a cell to place the selected item on the real map ----
-let bTool = 0, bMap = null, bRebuild = 0;
+let bTool = 0, bMap = null, bRebuild = 0, bPaint = false, bPainting = false, bLastCell = '';
 let bLastTap = 0;
 function buildPlace(w) {
   const c = toCell(w.x, w.z, cols, rows); if (c.cx <= 0 || c.cy <= 0 || c.cx >= cols - 1 || c.cy >= rows - 1) { setTip('Edge cells stay buildings.'); return; }
   const name = (GROUPS.flatMap(([, it]) => it).find((t) => t[1] === bTool) || ['?'])[0]; setTip(name + ' at ' + c.cx + ', ' + c.cy);
   if (bTool === 11 || bTool === 12) for (const row of bMap.cells) for (let x = 0; x < row.length; x++) if (row[x] === bTool) row[x] = 0;
-  if (bMap.cells[c.cy][c.cx] === bTool) return;
+  if (bMap.cells[c.cy][c.cx] === bTool) {
+    // same item on the same cell: for roads, cycle the shape; otherwise nothing
+    if (ROAD_CODES.has(bTool) && !bPainting) { const label = nextShape(bMap, c.cx, c.cy); setTip('Road shape: ' + label); saveMap(bMap); sfx.throw(); clearTimeout(bRebuild); bRebuild = setTimeout(buildRefresh, 120); }
+    return;
+  }
+  if (bMap.conn) delete bMap.conn[c.cx + ',' + c.cy];
   bMap.cells[c.cy][c.cx] = bTool; saveMap(bMap); sfx.throw(); clearTimeout(bRebuild); bRebuild = setTimeout(buildRefresh, 120);
 }
-function buildRefresh() { const keep = camPan.clone(); buildLevel(1); for (const cv of civilians) scene.remove(cv); for (const z of zombies) scene.remove(z); civilians = []; zombies = []; for (const p of pickups) scene.remove(p.mesh); pickups = []; camPan.copy(keep); setTip(''); state = 'build'; player.visible = true; updateHud(); }
+function buildRefresh() { const keep = camPan.clone(); buildLevel(1); for (const cv of civilians) scene.remove(cv); for (const z of zombies) scene.remove(z); civilians = []; zombies = []; for (const p of pickups) scene.remove(p.mesh); pickups = []; camPan.copy(keep); state = 'build'; player.visible = true; updateHud(); }
+const bRay = new THREE.Raycaster(), bGround = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), bHit = new THREE.Vector3();
 function startBuild() {
   bMap = loadMap(); fillSelect($('bTool')); $('bTool').value = '0'; $('bTool').addEventListener('change', () => { bTool = +$('bTool').value; });
   $('bView').addEventListener('click', () => { setTopView(!topView); $('bView').textContent = topView ? 'View: Top' : 'View: Angle'; });
   $('bErase').addEventListener('click', () => { bTool = 3; $('bTool').value = '3'; });
+  $('bPaint').addEventListener('click', () => { bPaint = !bPaint; $('bPaint').textContent = bPaint ? 'Paint' : 'Pan'; input.setLook(!bPaint); input.lookTap = !bPaint; setTip(bPaint ? 'Paint mode: drag to lay cells. Pinch to zoom.' : 'Pan mode: drag to move, tap to place.'); });
+  const paintMove = (sx, sy) => { if (!bPaint) return; bRay.setFromCamera(new THREE.Vector2((sx / innerWidth) * 2 - 1, -(sy / innerHeight) * 2 + 1), camera); if (!bRay.ray.intersectPlane(bGround, bHit)) return; const cc = toCell(bHit.x, bHit.z, cols, rows); const key = cc.cx + ',' + cc.cy; if (key === bLastCell) return; bLastCell = key; bPainting = true; buildPlace({ x: bHit.x, z: bHit.z }); bPainting = false; };
+  canvas.addEventListener('pointermove', (e) => { if (bPaint && (e.buttons & 1)) paintMove(e.clientX, e.clientY); });
+  canvas.addEventListener('touchmove', (e) => { if (bPaint && e.touches.length === 1) { paintMove(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); } }, { passive: false });
+  canvas.addEventListener('pointerup', () => { bLastCell = ''; }); canvas.addEventListener('touchend', () => { bLastCell = ''; });
   $('bRestart').addEventListener('click', () => { if (!confirm('Clear the whole map and start over?')) return; bMap = blankMap(bMap.cols, bMap.rows); bMap.cells[bMap.rows - 2][1] = 11; bMap.cells[1][bMap.cols - 2] = 12; saveMap(bMap); buildRefresh(); });
   $('bMenu').addEventListener('change', () => { const v = $('bMenu').value; $('bMenu').value = '';
     if (v === 'play') location.href = 'index.html?custom=1';
@@ -231,7 +242,6 @@ function startBuild() {
     else if (v === 'grid') location.href = 'editor.html';
     else if (v === 'exit') location.href = 'index.html'; });
   // phones: the plain click event is the most reliable tap; place from it too (duplicates are ignored)
-  const bRay = new THREE.Raycaster(), bGround = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), bHit = new THREE.Vector3();
   const placeAt = (sx, sy) => { if (performance.now() - bLastTap < 300) return; bLastTap = performance.now(); bRay.setFromCamera(new THREE.Vector2((sx / innerWidth) * 2 - 1, -(sy / innerHeight) * 2 + 1), camera); if (bRay.ray.intersectPlane(bGround, bHit)) buildPlace({ x: bHit.x, z: bHit.z }); };
   // iPhone: touch events are the one thing Safari always delivers, so place from a clean single-finger tap
   let tStart = null; canvas.addEventListener('touchstart', (e) => { tStart = e.touches.length === 1 ? [e.touches[0].clientX, e.touches[0].clientY, performance.now()] : null; }, { passive: true });
@@ -330,7 +340,8 @@ function buildLevel(n) {
     // open: road 0, park 3, start 11, exit 12, avenue 13, crosswalk 14, plaza 15, bench 18, parked car 19. Blocked: building 1, house 2, tower 16, tree 17, landmarks 4..10
     const OPEN = new Set([0, 3, 11, 12, 13, 14, 15, 18, 19]);
     maze = custom.cells.map((row) => row.map((v) => !OPEN.has(v)));
-    maze.custom = { landmarks: new Map(), houses: new Set(), parks: new Set(), avenue: new Set(), cross: new Set(), plaza: new Set(), towers: new Set(), trees: new Set(), benches: new Set(), cars: new Set() }; let sc = null, ec = null;
+    maze.custom = { landmarks: new Map(), houses: new Set(), parks: new Set(), avenue: new Set(), cross: new Set(), plaza: new Set(), towers: new Set(), trees: new Set(), benches: new Set(), cars: new Set(), conn: new Map() }; let sc = null, ec = null;
+    if (custom.conn) for (const k in custom.conn) { const [kx, ky] = k.split(',').map(Number); maze.custom.conn.set(ky * cols + kx, custom.conn[k]); }
     custom.cells.forEach((row, y) => row.forEach((v, x) => { const i = y * cols + x; const cu = maze.custom;
       if (LM[v]) cu.landmarks.set(i, LM[v]); if (v === 2) cu.houses.add(i); if (v === 3 || v === 18) cu.parks.add(i); if (v === 13) cu.avenue.add(i); if (v === 14) cu.cross.add(i); if (v === 15) cu.plaza.add(i);
       if (v === 16) cu.towers.add(i); if (v === 17) cu.trees.add(i); if (v === 18) cu.benches.add(i); if (v === 19) cu.cars.add(i); if (v === 11) sc = { cx: x, cy: y }; if (v === 12) ec = { cx: x, cy: y }; }));
@@ -983,7 +994,7 @@ function render(dt = 0.016) {
     const lim = { x: cols * CELL / 2, z: rows * CELL / 2 };
     const want = player.position.clone().add(camPan);
     // keep the view inside the walls (plus a strip of ruins) instead of centring on the player at the edge
-    { const halfW = camera.right, halfH = camera.top / Math.sin(CAM_ELEV); const ext = (halfW + halfH) * Math.SQRT1_2 * 0.92;
+    { const halfW = camera.right, halfH = camera.top / Math.sin(CAM_ELEV); const ext = (halfW + halfH) * Math.SQRT1_2 * (BUILD ? 0.35 : 0.7); // the view footprint is a diamond, so allow panning well past where a box would stop
       const bx = cols * CELL / 2 + 5, bz = rows * CELL / 2 + 5;
       want.x = ext >= bx ? 0 : Math.max(-bx + ext, Math.min(bx - ext, want.x)); want.z = ext >= bz ? 0 : Math.max(-bz + ext, Math.min(bz - ext, want.z)); }
     camTarget.lerp(want, state === 'play' ? 1 - Math.pow(0.002, dt) : 1);

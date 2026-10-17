@@ -1,16 +1,19 @@
 // Map builder: paint a district on a grid, export it as JSON, play it as district 1.
 // Cell codes: 0 road, 1 building, 2 house, 3 park, 4 gas, 5 ferris, 6 coaster, 7 carousel, 8 school, 9 skate, 10 slime, 11 start, 12 exit
-import { GROUPS, TOOLS } from './tools.js';
+import { GROUPS, TOOLS, ROAD_CODES, nextShape } from './tools.js';
+let conn = {};
 const $ = (id) => document.getElementById(id);
 let cols = 19, rows = 29, cells = [], tool = 0;
 const KEY = 'oo_custom_map';
 function blank(c, r) { const a = []; for (let y = 0; y < r; y++) { const row = []; for (let x = 0; x < c; x++) row.push(x === 0 || y === 0 || x === c - 1 || y === r - 1 ? 1 : 3); a.push(row); } return a; }
-function load() { try { const m = JSON.parse(localStorage.getItem(KEY) || 'null'); if (m && m.cells) { cols = m.cols; rows = m.rows; cells = m.cells; return; } } catch { /* ignore */ } cells = blank(cols, rows); }
-function save() { try { localStorage.setItem(KEY, JSON.stringify({ cols, rows, cells })); } catch { /* ignore */ } }
+function load() { try { const m = JSON.parse(localStorage.getItem(KEY) || 'null'); if (m && m.cells) { cols = m.cols; rows = m.rows; cells = m.cells; conn = m.conn || {}; return; } } catch { /* ignore */ } cells = blank(cols, rows); conn = {}; }
+function save() { try { localStorage.setItem(KEY, JSON.stringify({ cols, rows, cells, conn })); } catch { /* ignore */ } }
 const cv = $('grid'), g = cv.getContext('2d'); let S = 22;
 function fit() { S = Math.max(16, Math.min(34, Math.floor((Math.min(innerWidth - 16, 900)) / cols))); cv.width = cols * S; cv.height = rows * S; draw(); }
 const OPENV = new Set([0, 3, 11, 12, 13, 14, 15, 18, 19]), ROADV = new Set([0, 11, 12, 13, 14, 18, 19]);
-const openAt = (x, y) => OPENV.has(cells[y]?.[x]), roadAt = (x, y) => ROADV.has(cells[y]?.[x]) || cells[y]?.[x] === 3;
+const openAt = (x, y) => OPENV.has(cells[y]?.[x]), roadAt = (x, y) => ROADV.has(cells[y]?.[x]);
+const DIRS = { N: [0, -1, 1, 4], S: [0, 1, 4, 1], E: [1, 0, 2, 8], W: [-1, 0, 8, 2] };
+const link = (x, y, d) => { const [dx, dy, bit, obit] = DIRS[d]; if (!roadAt(x, y) || !roadAt(x + dx, y + dy)) return false; const a = conn[x + ',' + y], b = conn[(x + dx) + ',' + (y + dy)]; return (a == null || !!(a & bit)) && (b == null || !!(b & obit)); };
 function draw() {
   g.fillStyle = '#1a0f2e'; g.fillRect(0, 0, cv.width, cv.height);
   const C = (v) => v * S + S / 2;
@@ -25,13 +28,13 @@ function draw() {
   const strip = (x0, y0, x1, y1, w, col) => { g.strokeStyle = col; g.lineWidth = w; g.lineCap = 'butt'; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); };
   for (const [w, col] of [[RW + 2, '#2d3c41'], [RW, '#3a4c52']]) {
     for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) { if (!roadAt(x, y)) continue; const ww = w + (cells[y][x] === 13 ? Math.round(S * 0.2) : 0);
-      if (roadAt(x + 1, y)) strip(C(x), C(y), C(x + 1), C(y), ww, col); if (roadAt(x, y + 1)) strip(C(x), C(y), C(x), C(y + 1), ww, col);
+      if (link(x, y, 'E')) strip(C(x), C(y), C(x + 1), C(y), ww, col); if (link(x, y, 'S')) strip(C(x), C(y), C(x), C(y + 1), ww, col);
       g.fillStyle = col; g.fillRect(C(x) - ww / 2, C(y) - ww / 2, ww, ww); }
   }
   // yellow centre line: through straights, curved at corners, through street at a T, clear at a 4-way
   g.strokeStyle = '#e3c84f'; g.lineWidth = Math.max(1, S * 0.07);
   for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
-    if (!roadAt(x, y)) continue; const n = roadAt(x, y - 1), s = roadAt(x, y + 1), e2 = roadAt(x + 1, y), w2 = roadAt(x - 1, y); const d = n + s + e2 + w2;
+    if (!roadAt(x, y)) continue; const n = link(x, y, 'N'), s = link(x, y, 'S'), e2 = link(x, y, 'E'), w2 = link(x, y, 'W'); const d = n + s + e2 + w2;
     const cx = C(x), cy = C(y), X = x * S, Y = y * S;
     const line = (x0, y0, x1, y1) => { g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); };
     if (d === 4) continue;
@@ -55,12 +58,14 @@ function paint(x, y) {
   if (x < 0 || y < 0 || x >= cols || y >= rows) return;
   if (x === 0 || y === 0 || x === cols - 1 || y === rows - 1) return; // ring stays buildings
   if (tool === 11 || tool === 12) { for (let yy = 0; yy < rows; yy++) for (let xx = 0; xx < cols; xx++) if (cells[yy][xx] === tool) cells[yy][xx] = 0; }
+  if (cells[y][x] === tool) { if (ROAD_CODES.has(tool) && !dragging) { const mm = { conn }; const label = nextShape(mm, x, y); conn = mm.conn; document.title = 'Road shape: ' + label; draw(); save(); } return; }
+  delete conn[x + ',' + y];
   cells[y][x] = tool; draw(); save();
 }
-let down = false;
+let down = false, dragging = false;
 const pos = (e) => { const r = cv.getBoundingClientRect(); return [Math.floor((e.clientX - r.left) / S), Math.floor((e.clientY - r.top) / S)]; };
-cv.addEventListener('pointerdown', (e) => { down = true; cv.setPointerCapture(e.pointerId); const [x, y] = pos(e); paint(x, y); });
-cv.addEventListener('pointermove', (e) => { if (!down) return; const [x, y] = pos(e); paint(x, y); });
+cv.addEventListener('pointerdown', (e) => { down = true; dragging = false; try { cv.setPointerCapture(e.pointerId); } catch { /* ignore */ } const [x, y] = pos(e); paint(x, y); });
+cv.addEventListener('pointermove', (e) => { if (!down) return; dragging = true; const [x, y] = pos(e); paint(x, y); });
 cv.addEventListener('pointerup', () => { down = false; }); cv.addEventListener('pointercancel', () => { down = false; });
 const toolSel = $('toolSel');
 for (const [gname, items] of GROUPS) { const og = document.createElement('optgroup'); og.label = gname; for (const [name, code] of items) { const o = document.createElement('option'); o.value = code; o.textContent = name; og.appendChild(o); } toolSel.appendChild(og); }
