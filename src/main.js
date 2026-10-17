@@ -17,7 +17,7 @@ const BUILD = new URLSearchParams(location.search).get('build') === '1';
 let cash = 0, cashThisDistrict = 0;
 const inv = { shoes: 0, vest: false, flare: false, ammo: false, car: null, carHp: 0 };
 const STORE = [
-  { id: 'ammo', name: 'Ammo crate', desc: 'Start the next district with a rifle, 20 shots.', price: 100, once: true },
+  { id: 'ammo', name: 'Ammo crate', desc: 'Start the next district with a rifle, 12 shots.', price: 100, once: true },
   { id: 'medkit', name: 'Medkit', desc: 'One extra life (max 5).', price: 250 },
   { id: 'vest', name: 'Kevlar vest', desc: 'Absorbs one zombie touch next district.', price: 300, once: true },
   { id: 'shoes', name: 'Running shoes', desc: '+10% speed, permanent. Stacks 3 times.', price: 350, max: 3 },
@@ -461,7 +461,7 @@ function buildLevel(n) {
 
   const sp = toWorld(startCell.cx, startCell.cy, cols, rows);
   player.position.set(sp.x, 0, sp.z); player.rotation.y = 0; player.visible = true; player.scale.setScalar(0.55);
-  weapon = inv.ammo ? 'rifle' : 'pistol'; ammo = inv.ammo ? 20 : 6; inv.ammo = false; vestUp = inv.vest; inv.vest = false; carHits = 0;
+  weapon = inv.ammo ? 'rifle' : 'pistol'; ammo = inv.ammo ? 12 : 4; inv.ammo = false; vestUp = inv.vest; inv.vest = false; carHits = 0;
   if (inv.car && inv.carHp > 0 && n > 1) startDriving(); else if (driving) parkCar();
   flow = null; flowTimer = 0; invuln = 1; kills = 0; respawnCell = null; sprint = 0; sprintCd = 0; streak = 0; previewT = 0; showPreview([]); camTarget.copy(player.position); route = []; routeEndCell = null; showRoute();
   tipStage = 0; setTip(''); fitCamera(); updateHud();
