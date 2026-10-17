@@ -1,5 +1,6 @@
 // The player's car: a chunky sedan in the town's style, with headlights, dents and smoke as it takes damage.
 import * as THREE from 'three';
+import { ghostify } from './skins.js';
 
 const box = new THREE.BoxGeometry(1, 1, 1);
 const cyl = new THREE.CylinderGeometry(0.5, 0.5, 1, 10);
@@ -20,6 +21,7 @@ export function makeCar(color = 0x3f6fd8, skin = null) {
   for (const [wx, wz] of [[-0.47, 0.6], [0.47, 0.6], [-0.47, -0.6], [0.47, -0.6]]) { const w = part(cyl, dark, 0.36, 0.16, 0.36, wx, 0.18, wz); w.rotation.z = Math.PI / 2; }
   for (const hx of [-0.32, 0.32]) { part(box, head, 0.18, 0.1, 0.05, hx, 0.44, 0.96); part(box, tail, 0.18, 0.08, 0.05, hx, 0.44, -0.96); }
   if (skin) skin.dress(partC, 'car'); }
+  if (skin && skin.ghost) ghostify(g);
   // headlight beams on the road ahead
   const beam = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 3.2), new THREE.MeshBasicMaterial({ color: 0xfff2b0, transparent: true, opacity: 0.14, depthWrite: false }));
   beam.rotation.x = -Math.PI / 2; beam.position.set(0, 0.03, 2.5); g.add(beam);

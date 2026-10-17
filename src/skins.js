@@ -1,6 +1,7 @@
 // Skins bought with the coins you earn for beating a game. Character skins change the outfit colours and add
 // accessories; car skins recolour and dress the player's car and the parked cars and vans.
 import * as THREE from 'three';
+import { CHAR_SKINS2, CAR_SKINS2, FX_SKINS } from './skins2.js';
 
 const K = { coins: 'oo_coins', owned: 'oo_skins_owned', equip: 'oo_skins_equip' };
 const get = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
@@ -8,7 +9,7 @@ const set = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catc
 export function getCoins() { return +get(K.coins, 0) || 0; }
 export function addCoins(n) { set(K.coins, getCoins() + n); return getCoins(); }
 export function getOwned() { return get(K.owned, []); }
-export function getEquipped() { return get(K.equip, { player: null, npc: null, car: null }); }
+export function getEquipped() { return { player: null, npc: null, car: null, fx: null, ...get(K.equip, {}) }; }
 export function equip(cat, id) { const e = getEquipped(); e[cat] = id; set(K.equip, e); }
 export function buy(id) { const s = SKINS.find((x) => x.id === id); if (!s) return false; const owned = getOwned(); if (owned.includes(id)) return true; if (getCoins() < s.price) return false; addCoins(-s.price); owned.push(id); set(K.owned, owned); return true; }
 
@@ -52,8 +53,13 @@ export const CAR_SKINS = {
   reindeer: { name: 'Reindeer', price: 1, color: 0x8a5a3a, replace: true, dress: (part) => { part(box, 0x8a5a3a, 0.6, 0.5, 1.3, 0, 0.75, -0.1); part(box, 0xc9a37a, 0.5, 0.2, 1.1, 0, 0.52, -0.1); for (const [lx, lz] of [[-0.2, 0.45], [0.2, 0.45], [-0.2, -0.5], [0.2, -0.5]]) part(box, 0x6a4a2a, 0.14, 0.55, 0.14, lx, 0.27, lz); part(box, 0x8a5a3a, 0.26, 0.5, 0.3, 0, 1.15, 0.6); part(box, 0x8a5a3a, 0.34, 0.3, 0.5, 0, 1.4, 0.8); part(sphere, 0xff3a3a, 0.16, 0.16, 0.16, 0, 1.35, 1.08); for (const sx of [-1, 1]) { const a = part(cyl, 0xe8e2c8, 0.05, 0.6, 0.05, sx * 0.14, 1.75, 0.65); a.rotation.z = sx * 0.5; const b = part(cyl, 0xe8e2c8, 0.04, 0.3, 0.04, sx * 0.3, 1.9, 0.65); b.rotation.z = -sx * 0.6; part(sphere, 0x111111, 0.07, 0.07, 0.07, sx * 0.1, 1.48, 1.0); } part(box, 0x8a5a3a, 0.12, 0.25, 0.12, 0, 0.9, -0.8); } },
   dragon: { name: 'Small dragon', price: 1, color: 0x2f8a3f, replace: true, dress: (part) => { part(box, 0x2f8a3f, 0.7, 0.55, 1.4, 0, 0.6, -0.1); part(box, 0xc9e06a, 0.5, 0.2, 1.2, 0, 0.36, -0.1); for (const [lx, lz] of [[-0.3, 0.4], [0.3, 0.4], [-0.3, -0.5], [0.3, -0.5]]) part(box, 0x257a35, 0.18, 0.45, 0.2, lx, 0.22, lz); part(box, 0x2f8a3f, 0.4, 0.4, 0.6, 0, 0.95, 0.85); part(box, 0xc9e06a, 0.3, 0.12, 0.3, 0, 0.8, 1.05); for (const sx of [-1, 1]) { const h = part(cone, 0xe8e2c8, 0.1, 0.3, 0.1, sx * 0.14, 1.25, 0.75); h.rotation.z = sx * 0.4; part(sphere, 0xffd24a, 0.1, 0.1, 0.1, sx * 0.14, 1.0, 1.12); const w = part(box, 0x1f5a2f, 1.0, 0.04, 0.6, sx * 0.75, 1.0, -0.2); w.rotation.z = sx * 0.5; } for (let i = 0; i < 3; i++) { const t = part(cone, 0x2f8a3f, 0.32 - i * 0.08, 0.5, 0.32 - i * 0.08, 0, 0.6 - i * 0.1, -1.0 - i * 0.4); t.rotation.x = -Math.PI / 2; } for (let i = 0; i < 4; i++) part(cone, 0xc9a35a, 0.12, 0.2, 0.12, 0, 0.95, 0.4 - i * 0.35); } },
 };
+Object.assign(CHAR_SKINS, CHAR_SKINS2); Object.assign(CAR_SKINS, CAR_SKINS2); CAR_SKINS.dragon.price = 3; CAR_SKINS.sleigh.price = 2; CAR_SKINS.reindeer.price = 2;
+export { FX_SKINS };
 export const SKINS = [
   ...Object.entries(CHAR_SKINS).flatMap(([id, s]) => s.cats.map((cat) => ({ id: cat + ':' + id, key: id, cat, name: s.name + (cat === 'npc' ? ' survivors' : ''), price: s.price, desc: cat === 'npc' ? 'Every civilian and survivor wears it.' : 'Your character wears it in both games.' }))),
+  ...Object.entries(FX_SKINS).map(([id, s]) => ({ id: 'fx:' + id, key: id, cat: 'fx', name: s.name, price: s.price, desc: s.flames ? 'Hellfire, burning zombies and fires change colour.' : 'What you throw turns to gold.' })),
   ...Object.entries(CAR_SKINS).map(([id, s]) => ({ id: 'car:' + id, key: id, cat: 'car', name: s.name, price: s.price, desc: 'Your car and the parked cars and vans.' })),
 ];
-export function equippedSkin(cat) { const e = getEquipped()[cat]; if (!e) return null; const key = e.split(':')[1] || e; return cat === 'car' ? CAR_SKINS[key] || null : CHAR_SKINS[key] || null; }
+export function equippedSkin(cat) { const e = getEquipped()[cat]; if (!e) return null; const key = e.split(':')[1] || e; return cat === 'car' ? CAR_SKINS[key] || null : cat === 'fx' ? FX_SKINS[key] || null : CHAR_SKINS[key] || null; }
+// ghost cars: every material on the finished group goes see-through
+export function ghostify(group) { group.traverse((m) => { if (m.isMesh && m.material && m.material.color) { m.material = m.material.clone(); m.material.transparent = true; m.material.opacity = 0.45; } }); }

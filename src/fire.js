@@ -7,6 +7,7 @@ const glowMat = new THREE.MeshBasicMaterial({ color: 0xff8a2a, transparent: true
 const flashMat = new THREE.MeshBasicMaterial({ color: 0xfff1c0, transparent: true, opacity: 0.9, depthWrite: false, blending: THREE.AdditiveBlending });
 const sphere = new THREE.SphereGeometry(0.5, 10, 8);
 
+export function setFlamePalette(p) { if (!p) return; p.flames.forEach((c, i) => flameMats[i].color.set(c)); glowMat.color.set(p.glow); }
 export function createFires(scene) {
   const fires = [], particles = [], pool = [];
   const MAX_P = 420;

@@ -5,7 +5,7 @@ import { bindSeasonSelect } from '../season.js';
 import { equippedSkin, addCoins } from '../skins.js';
 import { generateMaze, buildCity, flowField, toWorld, toCell, CELL, mulberry32, NIGHT } from '../city.js';
 import { makeCharacter, animateWalk } from '../poster/characters.js';
-import { createFires } from '../fire.js';
+import { createFires, setFlamePalette } from '../fire.js';
 import { makeChopper, animateChopper } from '../chopper.js';
 import { unlockAudio, sfx, startMusic, stopMusic, setMusicChase } from '../audio.js';
 import { loadMap, decodeCustom } from '../tools.js';
@@ -21,7 +21,7 @@ const sun = new THREE.DirectionalLight(0xd0e8ff, 0.9); sun.position.set(-6, 10, 
 const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 200);
 const fadeTmp = new THREE.Vector3(); const isoCam = new THREE.OrthographicCamera(-10, 10, 10, -10, 0.1, 200); let iso = true; const ISO_YAW = Math.PI / 4, ISO_ELEV = 0.72;
 const isoDir = new THREE.Vector3(Math.sin(ISO_YAW) * Math.cos(ISO_ELEV), Math.sin(ISO_ELEV), Math.cos(ISO_YAW) * Math.cos(ISO_ELEV)).normalize();
-const fx = createFires(scene);
+const fx = createFires(scene); { const e = equippedSkin('fx'); if (e && e.flames) setFlamePalette(e); }
 
 // ---------- world ----------
 let maze, cols, rows, city, obstacles = [], startCell, exitCell, flow = null, flowT = 0;
@@ -212,7 +212,7 @@ function facing() { return new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)); }
 const flashMesh = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending })); scene.add(flashMesh); let flashT = 0;
 function flash(color) { flashMesh.material.color.set(color); flashT = 0.3; }
 function castSlot(i) { const key = slots[i]; if (!key || cds[i] > 0 || state !== 'play') return; SPELLS[key].cast(); cds[i] = SPELLS[key].cd * cdMul; }
-const fireballs = [], junk = []; const junkGeo = new THREE.BoxGeometry(0.2, 0.2, 0.2), junkMat = new THREE.MeshLambertMaterial({ color: 0x3fbf4a }), bulletMat = new THREE.MeshBasicMaterial({ color: 0xffe08a }), fireMat = new THREE.MeshBasicMaterial({ color: 0xff7a1a });
+const fireballs = [], junk = []; const junkGeo = new THREE.BoxGeometry(0.2, 0.2, 0.2), junkMat = new THREE.MeshLambertMaterial({ color: (equippedSkin('fx') && equippedSkin('fx').junk) || 0x3fbf4a }), bulletMat = new THREE.MeshBasicMaterial({ color: 0xffe08a }), fireMat = new THREE.MeshBasicMaterial({ color: 0xff7a1a });
 function segDist(a, b, p) { const ab = b.clone().sub(a), ap = p.clone().sub(a); const t = Math.max(0, Math.min(1, ap.dot(ab) / (ab.lengthSq() || 1))); return a.clone().addScaledVector(ab, t).setY(p.y).distanceTo(p); }
 let trashDmg = 1;
 const GUNS = { trash: { name: 'TRASH', rate: 0.5, dmg: 1, range: 8, speed: 14, pellets: 1, ammo: Infinity, color: 0x3fbf4a }, pistol: { name: 'PISTOL', rate: 0.32, dmg: 2, range: 10, speed: 20, pellets: 1, ammo: 24, color: 0x222222 }, shotgun: { name: 'SHOTGUN', rate: 0.75, dmg: 2, range: 7, speed: 17, pellets: 4, ammo: 10, color: 0x7a4a1a }, rifle: { name: 'RIFLE', rate: 0.16, dmg: 2, range: 12, speed: 24, pellets: 1, ammo: 40, color: 0x2a3a2a } };

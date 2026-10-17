@@ -1,6 +1,6 @@
 // Skin shop: live 3D previews of every skin, buy with coins, tap again to equip.
 import * as THREE from 'three';
-import { SKINS, CHAR_SKINS, CAR_SKINS, getCoins, addCoins, getOwned, getEquipped, equip, buy } from './skins.js';
+import { SKINS, CHAR_SKINS, CAR_SKINS, FX_SKINS, getCoins, addCoins, getOwned, getEquipped, equip, buy } from './skins.js';
 import { makeCharacter } from './poster/characters.js';
 import { makeCar } from './car.js';
 
@@ -13,15 +13,16 @@ const items = [];
 function build() {
   const grid = $('grid'); grid.innerHTML = ''; items.length = 0; const owned = getOwned(), eq = getEquipped();
   $('coins').textContent = '🪙 ' + getCoins() + (getCoins() === 1 ? ' coin' : ' coins');
-  for (const cat of ['player', 'npc', 'car']) {
-    const h = document.createElement('h2'); h.textContent = { player: 'YOUR CHARACTER', npc: 'SURVIVORS & CROWDS', car: 'VEHICLES' }[cat]; grid.appendChild(h);
+  for (const cat of ['player', 'npc', 'car', 'fx']) {
+    const h = document.createElement('h2'); h.textContent = { player: 'YOUR CHARACTER', npc: 'SURVIVORS & CROWDS', car: 'VEHICLES', fx: 'EFFECTS' }[cat]; grid.appendChild(h);
     for (const s of SKINS.filter((x) => x.cat === cat)) {
       const card = document.createElement('button'); card.className = 'skin'; const own = owned.includes(s.id), on = eq[cat] === s.id;
       card.innerHTML = '<canvas width="220" height="220"></canvas><b>' + s.name + '</b><span>' + s.desc + '</span><em>' + (on ? 'EQUIPPED' : own ? 'Tap to equip' : '🪙 ' + s.price) + '</em>';
       if (on) card.classList.add('on'); else if (!own && getCoins() < s.price) card.classList.add('poor');
       card.addEventListener('click', () => { if (!owned.includes(s.id)) { if (!buy(s.id)) { $('note').textContent = 'Beat a game to earn a coin.'; return; } } equip(cat, eq[cat] === s.id ? null : s.id); build(); });
       grid.appendChild(card);
-      let obj; if (cat === 'car') { obj = makeCar(CAR_SKINS[s.key].color, CAR_SKINS[s.key]); obj.scale.setScalar(1.1); obj.position.y = 0.2; } else { obj = makeCharacter(cat === 'npc' ? 'pink' : 'worker', { skin: CHAR_SKINS[s.key] }); obj.position.y = -0.1; }
+      let obj; if (cat === 'fx') { const fx = FX_SKINS[s.key]; obj = new THREE.Group(); if (fx.flames) { for (let i = 0; i < 14; i++) { const mm = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), new THREE.MeshBasicMaterial({ color: fx.flames[i % 3] })); mm.position.set((Math.random() - 0.5) * 0.8, 0.4 + Math.random() * 1.4, (Math.random() - 0.5) * 0.8); mm.rotation.set(Math.random() * 3, Math.random() * 3, 0); mm.scale.setScalar(1.2 - i * 0.06); obj.add(mm); } } else { for (let i = 0; i < 6; i++) { const mm = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), new THREE.MeshLambertMaterial({ color: fx.junk })); mm.position.set((Math.random() - 0.5) * 1.2, 0.3 + Math.random() * 1.2, (Math.random() - 0.5) * 1.2); mm.rotation.set(Math.random() * 3, Math.random() * 3, 0); obj.add(mm); } } }
+      else if (cat === 'car') { obj = makeCar(CAR_SKINS[s.key].color, CAR_SKINS[s.key]); obj.scale.setScalar(1.1); obj.position.y = 0.2; } else { obj = makeCharacter(cat === 'npc' ? 'pink' : 'worker', { skin: CHAR_SKINS[s.key] }); obj.position.y = -0.1; }
       items.push({ obj, ctx: card.querySelector('canvas').getContext('2d') });
     }
     const none = document.createElement('button'); none.className = 'skin plain' + (!eq[cat] ? ' on' : ''); none.innerHTML = '<b>Default</b><span>No skin.</span><em>' + (!eq[cat] ? 'EQUIPPED' : 'Tap to equip') + '</em>'; none.addEventListener('click', () => { equip(cat, null); build(); }); grid.appendChild(none);

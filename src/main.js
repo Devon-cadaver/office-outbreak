@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { bindSeasonSelect } from './season.js';
 import { equippedSkin, addCoins } from './skins.js';
+{ const e = equippedSkin('fx'); if (e && e.flames) setFlamePalette(e); }
 import { makeCharacter, animateWalk } from './poster/characters.js';
 import { generateMaze, buildCity, flowField, findPath, toWorld, toCell, CELL, mulberry32, NIGHT } from './city.js';
 import { createInput } from './input.js';
@@ -9,7 +10,7 @@ import { makeChopper, animateChopper } from './chopper.js';
 import { buildRuins } from './ruins.js';
 import { makeCar, animateCar } from './car.js';
 import { rides } from './landmarks.js';
-import { createFires } from './fire.js';
+import { createFires, setFlamePalette } from './fire.js';
 import { GROUPS, loadMap, saveMap, blankMap, fillSelect, ROAD_CODES, nextShape, VARIANT_CODES, nextVariant, decodeCustom } from './tools.js';
 const BUILD = new URLSearchParams(location.search).get('build') === '1';
 // ---------- economy / store ----------
