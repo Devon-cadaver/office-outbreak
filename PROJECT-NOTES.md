@@ -45,3 +45,18 @@ Reference for continuing work after a context compaction. Everything here was tr
 
 ## Ideas offered, not built yet
 - Garage upgrade so the car carries followers; buyable barricades; radio airstrike; scavenger with rare weapons; districts/gate puzzle for the poster game; driving cars in the poster world.
+
+## 2026-10-16 late additions (blocky game)
+- Name is now "Conga of the Dead" (tagline: Escape from Zombieville). Repo/URL unchanged.
+- Binoculars button (top right, #lookBtn): look mode; one finger pans, pinch zooms, taps never route. input.setLook(on).
+- Fade rule: only buildings between the camera and the player fade (towardCam > 0.25, corridor by building height userData.h). Houses included.
+- Downtown skyscrapers (14% of downtown lots, 6-11 floors, antenna + red light).
+- Chopper fly-bys every 45-90 s (updateFlyby), not on the final district.
+- Infection chain: a bitten follower (infect > 0.3) says a line, walks slower, infects the next follower within 1.7 (+0.95/s), and raises playerInfect when within 1.25 of the player; playerInfect >= 1 = lose a life ("Bitten!").
+- Sprint drops are blue (previewMat). Zombie eyes bright green with a halo (characters.js).
+- Prices: ammo 100, medkit 250, vest 300, shoes 350, flare 150, car 1500, repair 400.
+- Objectives: HUD #objective line + a tall additive beam and pulsing ring at the objective (red gate / yellow power box / green exit). Direction arrow orbits the player at 64 px.
+- Gate puzzle: stepping on the power box opens #puzzle (4x3 rotate-the-wires, genPuzzle/solvePuzzle/renderPuzzle). Solved -> openGate(). "Step away" closes it; re-arms when you leave the cell.
+- Ferris wheel: walking within CELL*0.72 of the wheel (landmarks.ferris.pos) starts a 16 s ride; zombies are lured, those within 2.1 of the wheel get flung (ragdoll), player invulnerable; 25 s cooldown.
+- Ragdoll: flingZombie(z, dir, power) sets userData.rag; zombie loop integrates it, removeZombie on landing. Used by car hits and the wheel.
+- Tutorial slides retaken 2026-10-16 (public/howto). Testing tip: the hidden pane pauses rAF; take tiny screenshots (scale 0.1) to advance frames.
