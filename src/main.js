@@ -191,15 +191,18 @@ function openCell(c) { return maze[c.cy]?.[c.cx] === false; }
 function setRouteTo(w) {
   if (state !== 'play') return;
   const target = toCell(w.x, w.z, cols, rows); if (!openCell(target)) return;
-  route = findPath(maze, playerCell(), target); routeEndCell = target; showRoute();
+  const MAXR = 10; let path = findPath(maze, playerCell(), target);
+  if (path.length > MAXR) { path = path.slice(0, MAXR); if (!routeHintT || performance.now() - routeHintT > 4000) { routeHintT = performance.now(); say(player, "That's as far as I plan.", 1.4); } }
+  route = path; routeEndCell = path.length ? { cx: path[path.length - 1][0], cy: path[path.length - 1][1] } : playerCell(); showRoute();
 }
+let routeHintT = 0;
 function extendRoute(w, first) {
   if (state !== 'play') return;
   const target = toCell(w.x, w.z, cols, rows); if (!openCell(target)) return;
   if (first) { route = []; routeEndCell = playerCell(); }
   if (routeEndCell && target.cx === routeEndCell.cx && target.cy === routeEndCell.cy) return;
   const seg = findPath(maze, routeEndCell || playerCell(), target);
-  if (seg.length && route.length + seg.length <= 60) { route.push(...seg); routeEndCell = target; showRoute(); }
+  if (seg.length && route.length + seg.length <= 10) { route.push(...seg); routeEndCell = target; showRoute(); }
 }
 input.on('tap', (w) => {
   const now = performance.now();
@@ -279,19 +282,33 @@ function buildLevel(n) {
   if (c % 2 === 0) c++; if (r % 2 === 0) r++;
   cols = c; rows = r;
   const rng = mulberry32(n * 1337 + 42);
+  // custom map from the builder (editor.html): district 1 only
+  let custom = null;
+  if (n === 1 && new URLSearchParams(location.search).get('custom') === '1') { try { custom = JSON.parse(localStorage.getItem('oo_custom_map') || 'null'); } catch { custom = null; } }
+  if (custom && custom.cells) {
+    cols = custom.cols; rows = custom.rows; const LM = { 4: 'gas', 5: 'ferris', 6: 'coaster', 7: 'carousel', 8: 'school', 9: 'skate', 10: 'slime' };
+    // open: road 0, park 3, start 11, exit 12, avenue 13, crosswalk 14, plaza 15, bench 18, parked car 19. Blocked: building 1, house 2, tower 16, tree 17, landmarks 4..10
+    const OPEN = new Set([0, 3, 11, 12, 13, 14, 15, 18, 19]);
+    maze = custom.cells.map((row) => row.map((v) => !OPEN.has(v)));
+    maze.custom = { landmarks: new Map(), houses: new Set(), parks: new Set(), avenue: new Set(), cross: new Set(), plaza: new Set(), towers: new Set(), trees: new Set(), benches: new Set(), cars: new Set() }; let sc = null, ec = null;
+    custom.cells.forEach((row, y) => row.forEach((v, x) => { const i = y * cols + x; const cu = maze.custom;
+      if (LM[v]) cu.landmarks.set(i, LM[v]); if (v === 2) cu.houses.add(i); if (v === 3 || v === 18) cu.parks.add(i); if (v === 13) cu.avenue.add(i); if (v === 14) cu.cross.add(i); if (v === 15) cu.plaza.add(i);
+      if (v === 16) cu.towers.add(i); if (v === 17) cu.trees.add(i); if (v === 18) cu.benches.add(i); if (v === 19) cu.cars.add(i); if (v === 11) sc = { cx: x, cy: y }; if (v === 12) ec = { cx: x, cy: y }; }));
+    maze.avenues = null; startCell = sc || { cx: 1, cy: rows - 2 }; exitCell = ec || { cx: cols - 2, cy: 1 };
+  }
   // tutorial district is wide open: many extra openings so zombies stay visible
   const loops = tutorial ? Math.floor(cols * rows * 0.16) : Math.floor(cols * rows * 0.1) + n * 2;
-  maze = generateMaze(cols, rows, loops, rng);
-  if (true) {
+  if (!custom) maze = generateMaze(cols, rows, loops, rng);
+  if (!custom) {
     // main avenues: one straight across and one straight down, through the middle of town
     const ay = 1 + 2 * Math.floor((rows - 2) / 4), ax = 1 + 2 * Math.floor((cols - 2) / 4);
     for (let x = 1; x < cols - 1; x++) maze[ay][x] = false;
     for (let y = 1; y < rows - 1; y++) maze[y][ax] = false;
     maze.avenues = { row: ay, col: ax };
   }
-  startCell = { cx: 1, cy: rows - 2 };
+  if (!custom) startCell = { cx: 1, cy: rows - 2 };
   // exit: among the cells farthest by road, prefer ones physically close to the start (long way round)
-  { const dist = flowField(maze, startCell.cx, startCell.cy); let max = 0; for (const d of dist) if (d > max) max = d;
+  if (!custom) { const dist = flowField(maze, startCell.cx, startCell.cy); let max = 0; for (const d of dist) if (d > max) max = d;
     const cands = []; for (let y = 1; y < rows - 1; y++) for (let x = 1; x < cols - 1; x++) { const d = dist[y * cols + x]; if (d >= max * (tutorial ? 0.6 : 0.75)) cands.push({ x, y, d, e: Math.hypot(x - startCell.cx, y - startCell.cy) }); }
     cands.sort((a, b) => a.e - b.e); const pickFrom = cands.slice(0, Math.max(1, Math.ceil(cands.length * 0.4)));
     const ex = pickFrom[(rng() * pickFrom.length) | 0]; exitCell = { cx: ex.x, cy: ex.y }; }

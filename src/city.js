@@ -173,10 +173,13 @@ export function buildCity(scene, wall, level) {
     const P = 64, cw = cols * P, chh = rows * P, RW = 38; // road strip width in px (cell is 64)
     const cv = document.createElement('canvas'); cv.width = cw; cv.height = chh; const g = cv.getContext('2d');
     const isAveRow = (y) => wall.avenues && y === wall.avenues.row, isAveCol = (x) => wall.avenues && x === wall.avenues.col;
+    const aveCell = (x, y) => !!(cz && cz.avenue.has(y * cols + x)), crossCell = (x, y) => !!(cz && cz.cross.has(y * cols + x));
     // park cells: any open cell that belongs to a 2x2 block of open cells. Roads only run through the rest.
     const blk = (x, y) => open(x, y) && open(x + 1, y) && open(x, y + 1) && open(x + 1, y + 1);
-    const park = (x, y) => open(x, y) && (blk(x, y) || blk(x - 1, y) || blk(x, y - 1) || blk(x - 1, y - 1));
-    const road = (x, y) => open(x, y); // roads run straight through the parks; park only changes the ground beside them
+    const park = (x, y) => open(x, y) && (wall.custom ? wall.custom.parks.has(y * cols + x) : (blk(x, y) || blk(x - 1, y) || blk(x, y - 1) || blk(x - 1, y - 1)));
+    const cz = wall.custom, idx = (x, y) => y * cols + x;
+    const plaza = (x, y) => !!(cz && cz.plaza.has(idx(x, y)));
+    const road = (x, y) => open(x, y) && !plaza(x, y); // roads run straight through the parks; park only changes the ground beside them
     const deg = (x, y) => road(x, y - 1) + road(x, y + 1) + road(x + 1, y) + road(x - 1, y);
     wall.park = park;
     const C = (x) => x * P + P / 2;
@@ -191,12 +194,12 @@ export function buildCity(scene, wall, level) {
     //    A road meeting a park runs up to the park's edge.
     const strip = (x0, y0, x1, y1, w, col) => { g.strokeStyle = col; g.lineWidth = w; g.lineCap = 'butt'; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); };
     for (const pass of [[RW + 6, '#2d3c41'], [RW, '#3a4c52']]) {
-      const [w, col] = pass;
-      for (const [x, y] of streetCells) { if (!road(x, y)) continue;
+      const col = pass[1];
+      for (const [x, y] of streetCells) { if (!road(x, y)) continue; const w = pass[0] + (aveCell(x, y) ? 14 : 0);
         if (road(x + 1, y)) strip(C(x), C(y), C(x + 1), C(y), w, col); else if (park(x + 1, y)) strip(C(x), C(y), x * P + P, C(y), w, col);
         if (road(x, y + 1)) strip(C(x), C(y), C(x), C(y + 1), w, col); else if (park(x, y + 1)) strip(C(x), C(y), C(x), y * P + P, w, col);
         if (park(x - 1, y)) strip(x * P, C(y), C(x), C(y), w, col); if (park(x, y - 1)) strip(C(x), y * P, C(x), C(y), w, col); }
-      g.fillStyle = col; for (const [x, y] of streetCells) if (road(x, y)) g.fillRect(C(x) - w / 2, C(y) - w / 2, w, w);
+      g.fillStyle = col; for (const [x, y] of streetCells) if (road(x, y)) { const w = pass[0] + (aveCell(x, y) ? 14 : 0); g.fillRect(C(x) - w / 2, C(y) - w / 2, w, w); }
     }
     // 3. wear: speckles and patches on the road only
     g.fillStyle = '#425860'; for (const [x, y] of streetCells) if (road(x, y)) for (let i = 0; i < 18; i++) { const a = (rng() - 0.5) * RW * 0.9, b = (rng() - 0.5) * RW * 0.9; g.fillRect(C(x) + a, C(y) + b, 2, 2); }
@@ -234,7 +237,7 @@ export function buildCity(scene, wall, level) {
     for (const [x, y] of streetCells) {
       if (!road(x, y)) continue;
       const n = road(x, y - 1), s = road(x, y + 1), e = road(x + 1, y), wv = road(x - 1, y); const d = n + s + e + wv;
-      if (d < 3 || !(d === 4 || isAveRow(y) || isAveCol(x))) continue;
+      if (crossCell(x, y) ? d < 1 : (d < 3 || !(d === 4 || isAveRow(y) || isAveCol(x) || aveCell(x, y)))) continue;
       const X = x * P, Y = y * P, depth = 8, half = RW / 2 - 2;
       for (const [dx, dy, ok] of [[0, -1, n], [0, 1, s], [1, 0, e], [-1, 0, wv]]) { if (!ok || deg(x + dx, y + dy) >= 3) continue;
         if (dx) { const bx = dx > 0 ? X + P + 1 : X - 1 - depth; g.fillStyle = '#e8eef0'; for (let k = C(y) - half; k < C(y) + half - 2; k += 6) g.fillRect(bx, k, depth, 3); }
@@ -249,6 +252,8 @@ export function buildCity(scene, wall, level) {
     roads.rotation.x = -Math.PI / 2; roads.position.y = 0.008; group.add(roads);
     // park furniture: a tree or a bench at the corner shared by four park cells, never on the paths
     const trunk = M({ color: 0x4a3324 }), leaf = M({ color: 0x2f7a3f }), leaf2 = M({ color: 0x3f9a4a }), benchMat = M({ color: 0x6a4a2a });
+    if (wall.custom) for (const i of wall.custom.benches) { const bx = i % cols, by = (i / cols) | 0; const bw = toWorld(bx, by, cols, rows); const wx = bw.x, wz = bw.z + 1.05;
+      add(box, benchMat, 1.0, 0.08, 0.35, wx, 0.4, wz); add(box, benchMat, 1.0, 0.3, 0.06, wx, 0.55, wz + 0.17); for (const ox of [-0.4, 0.4]) add(box, M({ color: 0x2a3438 }), 0.08, 0.4, 0.3, wx + ox, 0.2, wz); obstacles.push({ x: wx, z: wz, hw: 0.5, hd: 0.2 }); }
     for (const [x, y] of streetCells) if (park(x, y) && park(x + 1, y) && park(x, y + 1) && park(x + 1, y + 1)) {
       const wx = toWorld(x, y, cols, rows).x + CELL / 2, wz = toWorld(x, y, cols, rows).z + CELL / 2; const r = rng();
       if (r < 0.55) { add(cyl, trunk, 0.14, 0.9, 0.14, wx, 0.45, wz); add(ball, r < 0.3 ? leaf : leaf2, 1.1, 1.0, 1.1, wx, 1.25, wz); add(ball, leaf, 0.7, 0.6, 0.7, wx + 0.3, 1.6, wz - 0.2); obstacles.push({ x: wx, z: wz, hw: 0.3, hd: 0.3 }); }
@@ -340,12 +345,18 @@ export function buildCity(scene, wall, level) {
     buildings.push(body);
   };
   const outlineMat = new THREE.LineBasicMaterial({ color: 0xbfe6e8, transparent: true, opacity: 0.8 });
-  const landmarkCells = pickLandmarks(wall, rng);
+  const landmarkCells = wall.custom ? wall.custom.landmarks : pickLandmarks(wall, rng);
   for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) if (wall[y][x]) {
     const w = toWorld(x, y, cols, rows);
     const lm = landmarkCells.get(y * cols + x);
     if (lm) { buildLandmark(lm, group, w, rng, M, add); obstacles.push({ x: w.x, z: w.z, hw: CELL / 2 - 0.05, hd: CELL / 2 - 0.05 }); hazards.push({ type: lm, pos: new THREE.Vector3(w.x, 0, w.z) }); continue; }
     const edge = x === 0 || y === 0 || x === cols - 1 || y === rows - 1;
+    if (wall.custom && wall.custom.trees.has(y * cols + x)) {
+      // a tree cell: grass lot with a big tree, blocks the way like a building would
+      add(box, M({ color: 0x2f5a38 }), CELL - 0.3, 0.06, CELL - 0.3, w.x, 0.03, w.z);
+      add(cyl, M({ color: 0x4a3324 }), 0.22, 1.3, 0.22, w.x, 0.65, w.z); add(ball, M({ color: 0x2f7a3f }), 1.9, 1.6, 1.9, w.x, 1.8, w.z); add(ball, M({ color: 0x3f9a4a }), 1.2, 1.0, 1.2, w.x + 0.5, 2.3, w.z - 0.3);
+      obstacles.push({ x: w.x, z: w.z, hw: CELL / 2 - 0.05, hd: CELL / 2 - 0.05 }); continue;
+    }
     if (edge) {
       // varied perimeter: fence runs, low walls with sandbags, and only some buildings
       const seg = Math.floor(((x === 0 || x === cols - 1) ? y : x) / 4); const style = perimeterStyle(seg, x === 0 || x === cols - 1 ? 'v' : 'h');
@@ -354,11 +365,11 @@ export function buildCity(scene, wall, level) {
     // zoning: downtown blocks north, mixed middle, houses south
     const zone = y < rows * 0.35 ? 'downtown' : y > rows * 0.6 ? 'houses' : 'mixed';
     const wantHouse = zone === 'houses' ? 0.85 : zone === 'mixed' ? 0.45 : 0.08;
-    if (!edge && rng() < wantHouse) {
+    if (!edge && (wall.custom ? wall.custom.houses.has(y * cols + x) : rng() < wantHouse)) {
       const facesH = [[0, 1, 0], [1, 0, Math.PI / 2], [0, -1, Math.PI], [-1, 0, -Math.PI / 2]].filter(([dx, dz]) => open(x + dx, y + dz));
       house(w, x, y, facesH); obstacles.push({ x: w.x, z: w.z, hw: CELL / 2 - 0.05, hd: CELL / 2 - 0.05 }); continue;
     }
-    const tower = !edge && zone === 'downtown' && rng() < 0.14;
+    const tower = wall.custom ? wall.custom.towers.has(y * cols + x) : (!edge && zone === 'downtown' && rng() < 0.14);
     const floors = edge ? 2 : tower ? 6 + ((rng() * 6) | 0) : zone === 'downtown' ? 2 + ((rng() * 2) | 0) + (rng() < 0.25 ? 1 : 0) : 1 + ((rng() * 2) | 0);
     const fh = 1.1, h = floors * fh + 0.25;
     const base = new THREE.Color(NIGHT.buildings[(rng() * NIGHT.buildings.length) | 0]); if (edge) base.multiplyScalar(0.7);
@@ -395,7 +406,8 @@ export function buildCity(scene, wall, level) {
     const n = open(x, y - 1), s = open(x, y + 1), e = open(x + 1, y), w0 = open(x - 1, y);
     const straightH = e && w0 && !n && !s, straightV = n && s && !e && !w0;
     const w = toWorld(x, y, cols, rows);
-    if ((straightH || straightV) && rng() < 0.12) {
+    const forceCar = wall.custom && wall.custom.cars.has(y * cols + x);
+    if (wall.custom ? forceCar : ((straightH || straightV) && rng() < 0.12)) {
       const sideSign = rng() < 0.5 ? -1 : 1;
       const car = new THREE.Group();
       const bodyMat = M({ color: NIGHT.cars[(rng() * NIGHT.cars.length) | 0] });
@@ -405,7 +417,7 @@ export function buildCity(scene, wall, level) {
       const roofC = new THREE.Mesh(box, bodyMat); roofC.scale.set(0.82, 0.06, 0.97); roofC.position.set(0, 0.9, -0.15); car.add(roofC);
       for (const [wx, wz] of [[-0.44, 0.58], [0.44, 0.58], [-0.44, -0.58], [0.44, -0.58]]) { const wh = new THREE.Mesh(cyl, wheelMat); wh.rotation.z = Math.PI / 2; wh.scale.set(0.34, 0.14, 0.34); wh.position.set(wx, 0.17, wz); car.add(wh); }
       for (const hx of [-0.3, 0.3]) { const hl = new THREE.Mesh(box, headMat); hl.scale.set(0.16, 0.1, 0.05); hl.position.set(hx, 0.42, 0.91); car.add(hl); const tl = new THREE.Mesh(box, tailMat); tl.scale.set(0.16, 0.08, 0.05); tl.position.set(hx, 0.42, -0.91); car.add(tl); }
-      if (straightH) { car.rotation.y = Math.PI / 2 * (rng() < 0.5 ? 1 : -1); car.position.set(w.x, 0, w.z + sideSign * 0.95); obstacles.push({ x: w.x, z: w.z + sideSign * 0.95, hw: 0.9, hd: 0.45 }); }
+      if (straightH || (!straightV && (e || w0))) { car.rotation.y = Math.PI / 2 * (rng() < 0.5 ? 1 : -1); car.position.set(w.x, 0, w.z + sideSign * 0.95); obstacles.push({ x: w.x, z: w.z + sideSign * 0.95, hw: 0.9, hd: 0.45 }); }
       else { car.rotation.y = rng() < 0.5 ? 0 : Math.PI; car.position.set(w.x + sideSign * 0.95, 0, w.z); obstacles.push({ x: w.x + sideSign * 0.95, z: w.z, hw: 0.45, hd: 0.9 }); }
       group.add(car); cars.push(car);
     }
