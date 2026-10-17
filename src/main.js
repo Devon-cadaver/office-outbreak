@@ -17,13 +17,13 @@ const BUILD = new URLSearchParams(location.search).get('build') === '1';
 let cash = 0, cashThisDistrict = 0;
 const inv = { shoes: 0, vest: false, flare: false, ammo: false, car: null, carHp: 0 };
 const STORE = [
-  { id: 'ammo', name: 'Ammo crate', desc: 'Start the next district with a rifle, 12 shots.', price: 100, once: true },
+  { id: 'ammo', name: 'Ammo crate', desc: 'Start the next district with a rifle, 24 shots.', price: 100, once: true },
   { id: 'medkit', name: 'Medkit', desc: 'One extra life (max 5).', price: 250 },
   { id: 'vest', name: 'Kevlar vest', desc: 'Absorbs one zombie touch next district.', price: 300, once: true },
   { id: 'shoes', name: 'Running shoes', desc: '+10% speed, permanent. Stacks 3 times.', price: 350, max: 3 },
   { id: 'flare', name: 'Flare pack', desc: 'Sprinting drops a flare that lures zombies for 6 s.', price: 150, once: true },
-  { id: 'car', name: 'Car keys', desc: 'Drive the next district. Run zombies down. 5 hits wrecks it.', price: 1500 },
-  { id: 'repair', name: 'Repair car', desc: 'Restore the car to full health.', price: 400 },
+  { id: 'car', name: 'Car keys', desc: 'Drive the next district. Run zombies down. 5 hits wrecks it.', price: 2500 },
+  { id: 'repair', name: 'Repair car', desc: 'Restore the car to full health.', price: 800 },
 ];
 let car = null, driving = false, carHits = 0;
 function earn(n) { cash += n; cashThisDistrict += n; }
@@ -46,7 +46,7 @@ function buy(it) {
   else if (it.id === 'ammo') inv.ammo = true;
   else if (it.id === 'car') { inv.car = true; inv.carHp = 5; }
   else if (it.id === 'repair') inv.carHp = 5;
-  renderStore();
+  updateHud(); renderStore();
 }
 function renderStore() {
   const el = $('store'); if (!el) return;
@@ -461,9 +461,9 @@ function buildLevel(n) {
 
   const sp = toWorld(startCell.cx, startCell.cy, cols, rows);
   player.position.set(sp.x, 0, sp.z); player.rotation.y = 0; player.visible = true; player.scale.setScalar(0.55);
-  weapon = inv.ammo ? 'rifle' : 'pistol'; ammo = inv.ammo ? 12 : 4; inv.ammo = false; vestUp = inv.vest; inv.vest = false; carHits = 0;
+  weapon = inv.ammo ? 'rifle' : 'pistol'; ammo = inv.ammo ? 24 : 6; inv.ammo = false; vestUp = inv.vest; inv.vest = false; carHits = 0;
   if (inv.car && inv.carHp > 0 && n > 1) startDriving(); else if (driving) parkCar();
-  flow = null; flowTimer = 0; invuln = 1; kills = 0; respawnCell = null; sprint = 0; sprintCd = 0; streak = 0; previewT = 0; showPreview([]); camTarget.copy(player.position); route = []; routeEndCell = null; showRoute();
+  flow = null; flowTimer = 0; invuln = 1; kills = 0; time = 0; respawnCell = null; sprint = 0; sprintCd = 0; streak = 0; previewT = 0; showPreview([]); camTarget.copy(player.position); route = []; routeEndCell = null; showRoute();
   tipStage = 0; setTip(''); fitCamera(); updateHud();
   parked = false; ferrisHinted = false; for (const rr of rides) rr.speed = 1; clearAntidote(); fx.clear(); shake = 0; for (const g of goo) scene.remove(g); goo = []; if (flyby) { scene.remove(flyby); flyby = null; } flybyT = 20 + Math.random() * 20; riding = null; rideCd = 0; playerInfect = 0; $('puzzle').classList.add('hidden'); puzzle = null; closeWheelGame(); closeCoasterGame(); closeCarouselGame();
 }
@@ -477,12 +477,13 @@ function spawnZombie(pos, n, rng = Math.random) {
   else { const i = pool.zom.findIndex((p) => !p.userData.clown); if (i >= 0) z = pool.zom.splice(i, 1)[0]; }
   if (!z) z = makeCharacter(CIV_OUTFITS[(rng() * CIV_OUTFITS.length) | 0], { zombie: true, clown: wantClown });
   z.position.set(pos.x, 0, pos.z); z.scale.setScalar(0.55); z.rotation.set(0, 0, 0); z.userData.rag = null; z.userData.stun = 0; z.userData.alert = 0;
-  z.userData.hp = 2 + Math.floor(n / 3); z.userData.speed = Math.min(PLAYER_SPEED * 0.85, (n === 1 ? 1.6 : 2.3 + n * 0.15) + rng() * 0.3); z.userData.flash = 0;
+  z.userData.hp = n <= 5 ? 2 : 3; z.userData.speed = Math.min(PLAYER_SPEED * 0.85, (n === 1 ? 1.6 : 2.3 + n * 0.15) + rng() * 0.3); z.userData.flash = 0;
   scene.add(z); zombies.push(z); return z;
 }
 
 function turnCivilian(civ) {
   scene.remove(civ); civilians.splice(civilians.indexOf(civ), 1); pool.civ.push(civ);
+  if (zombies.length >= 12 + level * 4) return; // the horde has a ceiling; past it the bitten just drop
   spawnZombie(civ.position, level);
   for (let i = 0; i < 4; i++) particle(civ.position, puffMat);
   sfx.hurt(); updateHud();
@@ -542,16 +543,16 @@ function updateRide(dt) {
   for (let i = zombies.length - 1; i >= 0; i--) { const z = zombies[i]; if (z.userData.rag) continue; const dx = z.position.x - ride.pos.x, dz = z.position.z - ride.pos.z; if (Math.hypot(dx, dz) < 2.1) { flingZombie(z, { x: dx, z: dz }, 7 + Math.random() * 3); riding.hits++; } }
   if (exiting && ride.speed <= 1) { ride.speed = 1; player.position.copy(riding.back); player.position.y = 0; invuln = 1.5; rideCd = 25; say(player, riding.hits ? 'Strike! ' + riding.hits + ' down.' : 'Fun ride.', 2); setTip(''); riding = null; }
 }
-function openRideGame(ride) { if (ride.type === 'ferris') openWheelGame(ride); else if (ride.type === 'coaster') openCoasterGame(ride); else openCarouselGame(ride); }
+function openRideGame(ride) { if (state !== 'play') return; if (ride.type === 'ferris') openWheelGame(ride); else if (ride.type === 'coaster') openCoasterGame(ride); else openCarouselGame(ride); }
 // ---- launch pump (coaster): tap fast to fill a leaking meter before time runs out ----
 let cg = null;
-function openCoasterGame(ride) { cg = { ride, fill: 0, time: 8 }; $('coasterGame').classList.remove('hidden'); $('cgText').textContent = 'Tap PUMP fast to charge the launch. It leaks, so keep tapping until it is full.'; $('cgFill').style.width = '0%'; state = 'wheel'; input.reset(); route = []; routeEndCell = null; showRoute(); }
+function openCoasterGame(ride) { cg = { ride, fill: 0, time: 10 }; $('coasterGame').classList.remove('hidden'); $('cgText').textContent = 'Tap PUMP fast to charge the launch. It leaks, so keep tapping until it is full.'; $('cgFill').style.width = '0%'; state = 'wheel'; input.reset(); route = []; routeEndCell = null; showRoute(); }
 function updateCoasterGame(dt) {
-  cg.time -= dt; cg.fill = Math.max(0, cg.fill - dt * 0.3); $('cgFill').style.width = (cg.fill * 100) + '%'; $('cgTime').textContent = Math.max(0, cg.time).toFixed(1) + ' s';
+  cg.time -= dt; cg.fill = Math.max(0, cg.fill - dt * 0.45); $('cgFill').style.width = (cg.fill * 100) + '%'; $('cgTime').textContent = Math.max(0, cg.time).toFixed(1) + ' s';
   if (cg.time <= 0) { cg.time = 8; cg.fill = 0; sfx.hit(); $('cgText').textContent = 'Out of steam. Try again, faster!'; }
 }
 function closeCoasterGame() { $('coasterGame').classList.add('hidden'); cg = null; if (state === 'wheel' && !wg && !mg) state = 'play'; }
-$('cgHit').addEventListener('click', () => { if (!cg || cg.done) return; cg.fill += 0.11; sfx.throw(); if (cg.fill >= 1) { cg.done = true; $('cgFill').style.width = '100%'; $('cgText').textContent = 'Launch ready!'; sfx.wave(); const ride = cg.ride; setTimeout(() => { closeCoasterGame(); if (driving) leaveCar('Ooh, a ride!'); startRide(ride); }, 600); } });
+$('cgHit').addEventListener('click', () => { if (!cg || cg.done) return; cg.fill += 0.07; sfx.throw(); if (cg.fill >= 1) { cg.done = true; $('cgFill').style.width = '100%'; $('cgText').textContent = 'Launch ready!'; sfx.wave(); const ride = cg.ride; setTimeout(() => { closeCoasterGame(); if (driving) leaveCar('Ooh, a ride!'); startRide(ride); }, 600); } });
 $('cgClose').addEventListener('click', closeCoasterGame);
 // ---- ticket booth (carousel): repeat the sequence of lit horses ----
 let mg = null;
@@ -634,7 +635,7 @@ function renderPuzzle() {
   const L = $('pzL'), Rr = $('pzR'); L.innerHTML = ''; Rr.innerHTML = '';
   for (let y = 0; y < PZH; y++) { const a = document.createElement('div'); a.textContent = y === puzzle.src ? '⚡' : ''; a.className = y === puzzle.src ? 'on' : ''; L.appendChild(a); const b = document.createElement('div'); b.textContent = '🚧'; b.className = puzzle.done ? 'on' : ''; Rr.appendChild(b); }
 }
-function openPuzzle() { puzzle = genPuzzle(); renderPuzzle(); $('puzzle').classList.remove('hidden'); state = 'puzzle'; input.reset(); route = []; routeEndCell = null; showRoute(); }
+function openPuzzle() { if (state !== 'play') return; puzzle = genPuzzle(); renderPuzzle(); $('puzzle').classList.remove('hidden'); state = 'puzzle'; input.reset(); route = []; routeEndCell = null; showRoute(); }
 function closePuzzle() {
   $('puzzle').classList.add('hidden'); const solved = puzzle && puzzle.done; puzzle = null; if (state === 'puzzle') state = 'play';
   if (solved && gate && !gate.open) openGate(); else if (switchCell) switchCell.dismissed = true;
@@ -693,7 +694,7 @@ addEventListener('keydown', (e) => { if (e.key === 'Escape' || e.key === 'p') { 
 function loseLife() {
   lives--; sfx.caught(); invuln = 2; if (riding) { riding.ride.speed = 1; riding = null; } playerInfect = 0; clearAntidote();
   for (let i = 0; i < 8; i++) particle(player.position, projMat);
-  if (lives <= 0) { state = 'over'; clearRun(); input.reset(); stopMusic(); sfx.over(); const best = Math.max(getBest(), score); setBest(best);
+  if (lives <= 0) { state = 'over'; clearRun(); $('retryBtn').textContent = levelStart && levelStart.level > 1 ? 'RETRY DISTRICT ' + levelStart.level : 'RETRY'; input.reset(); stopMusic(); sfx.over(); const best = Math.max(getBest(), score); setBest(best);
     ui.finalScore.textContent = 'Score: ' + score + '  ·  District ' + level; ui.finalBest.textContent = 'Best: ' + best; show(ui.over); return; }
   const rc = respawnCell || startCell; const sp = toWorld(rc.cx, rc.cy, cols, rows); player.position.set(sp.x, 0, sp.z); route = []; routeEndCell = null; showRoute();
   // push zombies back a bit so the respawn is fair
@@ -727,11 +728,11 @@ function dropFlare() {
 function clearDistrict() {
   if (level === FINAL_LEVEL) { state = 'rescue'; input.reset(); route = []; showRoute(); chopperT = 0; sfx.wave(); setTip('The chopper is coming. Hold on!'); return; }
   state = 'cleared'; input.reset(); setMusicChase(false); sfx.wave();
-  const rescued = civilians.filter((c) => c.userData.follow && c.position.distanceTo(player.position) < 6).length;
+  const rescued = civilians.filter((c) => c.userData.follow && c.position.distanceTo(player.position) < 10).length;
   const saved = civilians.length - rescued, timeBonus = Math.max(0, 60 - Math.floor(time)) * 2;
   const gained = saved * 100 + rescued * 250 + kills * 10 + timeBonus; score += gained;
   const pay = rescued * 60 + saved * 10 + 100; earn(pay);
-  ui.clearedText.innerHTML = 'Rescued with you: <b>' + rescued + '</b> (+' + (rescued * 250) + ')<br>Still alive: ' + saved + '/' + totalPeople + ' (+' + (saved * 100) + ')<br>Zombies dropped: ' + kills + ' (+' + (kills * 10) + ')<br>Speed bonus: +' + timeBonus + '<br>Score: <b>' + score + '</b><br><span class="pay">Paid out: $' + cashThisDistrict + '</span>';
+  ui.clearedText.innerHTML = 'Rescued with you: <b>' + rescued + '</b> (+' + (rescued * 250) + ')<br>Others still alive: ' + saved + '/' + totalPeople + ' (+' + (saved * 100) + ')<br>Zombies dropped: ' + kills + ' (+' + (kills * 10) + ')<br>Speed bonus: +' + timeBonus + '<br>Score: <b>' + score + '</b><br><span class="pay">Paid out: $' + cashThisDistrict + '</span>';
   cashThisDistrict = 0; if (driving) parkCar();
   renderStore(); show(ui.cleared); updateHud();
 }
@@ -759,7 +760,8 @@ const refreshSoundBtn = () => { soundBtn.textContent = isMuted() ? '🔇 Sound: 
 refreshSoundBtn();
 addEventListener('pointerdown', () => { unlockAudio(); setTimeout(refreshSoundBtn, 150); }, { passive: true });
 soundBtn.addEventListener('click', () => { unlockAudio(); setMuted(!isMuted()); if (!isMuted()) sfx.pickup(); refreshSoundBtn(); });
-$('retryBtn').addEventListener('click', startRun);
+$('retryBtn').addEventListener('click', () => { if (levelStart && levelStart.level > 1) startRun({ ...levelStart, lives: 3 }); else startRun(); });
+$('newRunBtn').addEventListener('click', () => startRun());
 $('nextBtn').addEventListener('click', nextLevel);
 function finishGame() { clearRun(); addCoins(1);
   state = 'won'; stopMusic();
@@ -854,7 +856,8 @@ function frame(now) {
       const p = pickups[i]; p.mesh.rotation.y += dt * 2; p.mesh.position.y = 0.35 + Math.sin(now * 0.004) * 0.08;
       if (p.mesh.position.distanceTo(player.position) < 0.7) {
         if (p.type === 'antidote') { clearAntidote(); addScore(50); sfx.wave(); say(player, 'Cured!', 1.5); setTip(''); continue; }
-        weapon = p.type; ammo = WEAPONS[p.type].ammo; scene.remove(p.mesh); pickups.splice(i, 1); sfx.pickup(); updateHud(); }
+        const W = WEAPONS[p.type]; if (weapon === p.type) ammo += W.ammo; else if (!weapon || ammo <= 0 || W.ammo * W.pellets * W.dmg > ammo * WEAPONS[weapon].pellets * WEAPONS[weapon].dmg) { weapon = p.type; ammo = W.ammo; } else { setTip('Keeping the ' + WEAPONS[weapon].name + '.'); continue; }
+        scene.remove(p.mesh); pickups.splice(i, 1); sfx.pickup(); updateHud(); }
     }
 
     // auto fire
@@ -948,7 +951,7 @@ function frame(now) {
         if (!u.sick) { u.sick = true; say(civ, ['I feel sick...', 'Something bit me.', "I'm fine. Go."][(Math.random() * 3) | 0], 2); }
         if (u.infectT > 2) {
           // two seconds in, it spreads to anyone close, and onto you if you stay near
-          for (const o of civilians) if (o !== civ && !(o.userData.infect > 0) && o.position.distanceTo(civ.position) < 1.4) o.userData.infect += dt * 0.6;
+          for (const o of civilians) if (o !== civ && !(o.userData.infect > 0) && o.position.distanceTo(civ.position) < 1.4 && (u.infectT || 0) > 4) o.userData.infect += dt * 0.3;
           if (!driving && !riding && infected <= 0 && civ.position.distanceTo(player.position) < 1.0) { playerInfect += dt * 0.8; if (!u.warned) { u.warned = true; say(player, 'Back off! Bitten!', 1.5); if (level <= 3) setTip('Infected people spread it to anyone close, you included. Sprint away.'); } }
         }
       }
@@ -958,7 +961,7 @@ function frame(now) {
         const idx = followers.indexOf(civ); const leaderPos = idx <= 0 ? player.position : followers[idx - 1].position;
         const dx = leaderPos.x - civ.position.x, dz = leaderPos.z - civ.position.z, d = Math.hypot(dx, dz);
         if (riding) { animateWalk(civ, dt, 0); continue; }
-        if (d > 0.9) { const st = Math.min(d - 0.7, PLAYER_SPEED * (u.infect > 0 ? 0.7 : 1.1) * dt); civ.position.x += dx / d * st; civ.position.z += dz / d * st; civ.rotation.y = Math.atan2(dx, dz); collide(civ.position, 0.2); animateWalk(civ, dt, 1); }
+        if (d > 0.9) { const st = Math.min(d - 0.7, PLAYER_SPEED * (1 + inv.shoes * 0.1) * (u.infect > 0 ? 0.7 : 1.15) * dt); civ.position.x += dx / d * st; civ.position.z += dz / d * st; civ.rotation.y = Math.atan2(dx, dz); collide(civ.position, 0.2); animateWalk(civ, dt, 1); }
         else animateWalk(civ, dt, 0);
         continue;
       }
