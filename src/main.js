@@ -55,6 +55,23 @@ let sprint = 0, sprintCd = 0, lastTapT = 0, lastTapW = null, streak = 0, streakT
 const previewGeo = new THREE.CylinderGeometry(0.16, 0.16, 0.04, 8), previewMat = new THREE.MeshBasicMaterial({ color: 0x7fd0ff, transparent: true, opacity: 0.5 });
 const previews = []; for (let i = 0; i < 140; i++) { const mk = new THREE.Mesh(previewGeo, previewMat); mk.visible = false; scene.add(mk); previews.push(mk); }
 function showPreview(cells) { previews.forEach((mk, i) => { const c = cells[i]; mk.visible = !!c; if (c) { const w = toWorld(c[0], c[1], cols, rows); mk.position.set(w.x, 0.03, w.z); } }); }
+// speech bubbles: small HTML labels that track a character's head
+const PLAYER_LINES = ['Follow me!', "Let's get out of here!", 'This way, hurry!', 'Stay close!', 'Come on, move!', 'With me. Now!', "I know a way out!"];
+const CIV_LINES = ['Right behind you!', 'Okay, okay!', 'Thank you!', "Don't leave me!", 'Go go go!', 'Lead the way!'];
+const bubbles = []; // { el, target, t, dy }
+for (let i = 0; i < 4; i++) { const el = document.createElement('div'); el.className = 'bubble hidden'; document.body.appendChild(el); bubbles.push({ el, target: null, t: 0 }); }
+function say(target, text, dur = 2.2) {
+  let b = bubbles.find((x) => x.t <= 0) || bubbles[0];
+  b.target = target; b.t = dur; b.el.textContent = text; b.el.classList.remove('hidden');
+}
+function updateBubbles(dt) {
+  for (const b of bubbles) {
+    if (b.t <= 0) continue; b.t -= dt;
+    if (b.t <= 0 || !b.target) { b.el.classList.add('hidden'); continue; }
+    const v = b.target.position.clone(); v.y += 1.5 * b.target.scale.y + 1.0; v.project(camera);
+    b.el.style.transform = 'translate(' + ((v.x * 0.5 + 0.5) * innerWidth) + 'px,' + ((-v.y * 0.5 + 0.5) * innerHeight) + 'px) translate(-50%, -100%)';
+  }
+}
 function objectiveCell() { return gate && !gate.open ? (gate.found ? switchCell : gate) : exitCell; }
 function addScore(base) { const mult = Math.min(5, 1 + streak); score += base * mult; streak++; streakT = 8; updateHud(); }
 const tipEl = document.getElementById('tip');
@@ -79,7 +96,7 @@ function extendRoute(w, first) {
 }
 input.on('tap', (w) => {
   const now = performance.now();
-  if (lastTapW && now - lastTapT < 380 && Math.hypot(w.x - lastTapW.x, w.z - lastTapW.z) < 2.5 && sprintCd <= 0 && state === 'play') { sprint = 3; sprintCd = 7; sfx.wave(); }
+  if (lastTapW && now - lastTapT < 380 && Math.hypot(w.x - lastTapW.x, w.z - lastTapW.z) < 2.5 && sprintCd <= 0 && state === 'play') { sprint = 3; sprintCd = 7; sfx.wave(); say(player, ['Run!', 'Go go go!', 'Move it!'][(Math.random() * 3) | 0], 1.2); }
   lastTapT = now; lastTapW = w; setRouteTo(w);
 });
 input.on('drag', extendRoute);
@@ -380,7 +397,7 @@ function frame(now) {
     if (pc.cx === exitCell.cx && pc.cy === exitCell.cy) { clearDistrict(); return render(dt); }
     if (gate && !gate.open && switchCell && pc.cx === switchCell.cx && pc.cy === switchCell.cy) {
       gate.open = true; maze[gate.cy][gate.cx] = false; const oi = obstacles.indexOf(gate.obstacle); if (oi >= 0) obstacles.splice(oi, 1);
-      gate.light.material.color.set(0x7dff6a); switchCell.lever.rotation.z = -0.6; flow = null; sfx.wave(); respawnCell = { cx: switchCell.cx, cy: switchCell.cy }; setTip('Gate open! Checkpoint set. Head for the safe zone.');
+      gate.light.material.color.set(0x7dff6a); switchCell.lever.rotation.z = -0.6; flow = null; sfx.wave(); respawnCell = { cx: switchCell.cx, cy: switchCell.cy }; setTip('Gate open! Checkpoint set. Head for the safe zone.'); say(player, 'That did it!');
     }
     if (gate && gate.open && gateMesh.position.y > -1.3) gateMesh.position.y -= dt * 1.5;
     if (level === 1) {
@@ -461,7 +478,7 @@ function frame(now) {
       if (civ.userData.infect > 0) { civ.userData.infect -= dt * 0.5; civ.position.y = Math.random() * 0.1; if (civ.userData.infect >= 1) { turnCivilian(civ); continue; } }
       else civ.position.y = 0;
       const u = civ.userData;
-      if (!u.follow && civ.position.distanceTo(player.position) < 1.3) { u.follow = true; u.goal = null; rescuedTotal++; addScore(25); sfx.pickup(); updateHud(); if (level === 1 && tipStage < 4) { tipStage = 4; setTip('They will follow you. Bring people to the safe zone for extra points.'); } }
+      if (!u.follow && civ.position.distanceTo(player.position) < 1.3) { u.follow = true; u.goal = null; rescuedTotal++; addScore(25); sfx.pickup(); updateHud(); say(player, PLAYER_LINES[(Math.random() * PLAYER_LINES.length) | 0]); setTimeout(() => { if (civ.userData.follow) say(civ, CIV_LINES[(Math.random() * CIV_LINES.length) | 0], 1.8); }, 700); if (level === 1 && tipStage < 4) { tipStage = 4; setTip('They will follow you. Bring people to the safe zone for extra points.'); } }
       if (u.follow) {
         // target: a spot behind the player, staggered per follower
         const idx = followers.indexOf(civ); const leaderPos = idx <= 0 ? player.position : followers[idx - 1].position;
@@ -494,6 +511,7 @@ function frame(now) {
   } else {
     for (const z of zombies) animateWalk(z, dt, 0.3);
   }
+  updateBubbles(dt);
   if (city) city.updateRain(dt);
   if (ruins) ruins.update(dt, now / 1000);
   render(dt);
