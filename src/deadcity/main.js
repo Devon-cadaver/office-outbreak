@@ -62,7 +62,7 @@ function vehState(c) { const u = c.userData; if (u.fuel == null) { u.fuel = 70 +
 let outOfGasSaid = false;
 // hearts: red up to 5, blue armour hearts from a flak jacket on top
 function drawHearts() { $('hp2').textContent = '❤️'.repeat(hearts) + '🖤'.repeat(Math.max(0, maxHearts - hearts)) + '💙'.repeat(armor); }
-function hurt(n) { invuln = Math.max(invuln, 1); sfx.hurt(); while (n-- > 0) { if (armor > 0) armor--; else hearts--; } drawHearts(); if (hearts <= 0) { gameOver(false); return true; } return false; }
+function hurt(n) { invuln = Math.max(invuln, 2); sfx.hurt(); while (n-- > 0) { if (armor > 0) armor--; else hearts--; } drawHearts(); if (hearts <= 0) { gameOver(false); return true; } return false; }
 function addHeart() { if (maxHearts < 5) maxHearts++; hearts = Math.min(maxHearts, hearts + 1); drawHearts(); }
 function addFlak() { armor = 2; drawHearts(); }
 function enterCar(c) { const u = vehState(c); if (!u.keys) { openGame('keys', c); return; } car = c; driving = true; carHp = u.hp; player.visible = false; outOfGasSaid = false; const wp = c.userData.worldPos().clone(); const pr = c.userData.prop; if (!pr.detached) { pr.g.remove(c); scene.add(c); c.position.set(wp.x, 0, wp.z); pr.knocked = true; pr.detached = true; pr.t = 1; c.userData.worldPos = () => c.position; } if (pr.ob) { const i = obstacles.indexOf(pr.ob); if (i >= 0) obstacles.splice(i, 1); } yaw = car.rotation.y; say(VEH[u.kind || 'car'].name + ': ' + Math.round(u.fuel) + '% fuel. Double-tap to get out.'); sfx.pickup(); }
@@ -85,7 +85,7 @@ addEventListener('wheel', (e) => { e.preventDefault(); setZoom(zoom * (e.deltaY 
 const release = (e) => { if (e.pointerId === stick.id) { stick.id = null; stick.x = stick.y = 0; knob.style.transform = 'translate(-50%, -50%)'; } if (e.pointerId === look.id) look.id = null; };
 addEventListener('pointerup', release); addEventListener('pointercancel', release);
 // keyboard for the PC crowd
-const keys = {}; addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] = true; if (['1', '2', '3'].includes(e.key)) castSlot(+e.key - 1); if (e.key === ' ') throwTrash(); }); addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+const keys = {}; addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] = true; if (['1', '2', '3'].includes(e.key)) castSlot(+e.key - 1); if (e.key === ' ') { fireHeld = true; throwTrash(); } }); addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; if (e.key === ' ') fireHeld = false; });
 
 // ---------- zombies ----------
 const zombies = [], pool = [];
@@ -135,8 +135,8 @@ function updateZombies(dt) {
     u.slow = Math.max(0, u.slow - dt); u.charged = Math.max(0, (u.charged || 0) - dt); if (u.spark) u.spark.visible = u.charged > 0;
     const d = z.position.distanceTo(player.position);
     if (d < 16 && lineClear(z.position, player.position)) u.alert = 6; u.alert -= dt; if (u.alert > 0) hunted = true;
-    let tx, tz, mul = u.alert > 0 ? 1 : 0.45;
-    if (u.alert > 0 && d > 1) {
+    const hunting = u.alert > 0 || (isNight && !u.rag); let tx, tz, mul = u.alert > 0 ? 1 : hunting ? 0.6 : 0.45;
+    if (hunting && d > 1) {
       const c = toCell(z.position.x, z.position.z, cols, rows); let best = flow[c.cy * cols + c.cx], bx = c.cx, by = c.cy;
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const v = flow[(c.cy + dy) * cols + c.cx + dx]; if (v >= 0 && v < best) { best = v; bx = c.cx + dx; by = c.cy + dy; } }
       if (best <= 1) { tx = player.position.x; tz = player.position.z; } else { const w = toWorld(bx, by, cols, rows); tx = w.x; tz = w.z; }
@@ -149,7 +149,7 @@ function updateZombies(dt) {
     if (u.latch > 0) { u.latch -= dt; const dir = player.position.clone().sub(z.position).setY(0).normalize(); z.position.copy(player.position).addScaledVector(dir, -0.42); z.rotation.y = Math.atan2(dir.x, dir.z); u.armL.rotation.x = u.armR.rotation.x = -1.6; if (u.latch <= 0) { u.stun = 0.7; z.position.addScaledVector(dir, -0.9); collide(z.position, 0.22); } continue; }
     for (let k = survivors.length - 1; k >= 0; k--) { const s = survivors[k]; if (z.position.distanceTo(s.position) < 0.45) { scene.remove(s); survivors.splice(k, 1); say('A survivor was lost.'); sfx.hurt(); } }
     if (riding) continue;
-    if (d < 0.45 && invuln <= 0) { u.latch = 0.7; if (hurt(u.charged > 0 ? 2 : 1)) return; }
+    if (d < 0.45 && invuln <= 0) { u.latch = 0.4; if (hurt(u.charged > 0 ? 2 : 1)) return; const kb = player.position.clone().sub(z.position).setY(0).normalize(); player.position.addScaledVector(kb, 1.2); collide(player.position, 0.25); for (const o of zombies) if (o !== z && !o.userData.rag && o.position.distanceTo(player.position) < 1.2) o.userData.stun = Math.max(o.userData.stun, 0.5); }
   }
   setMusicChase(hunted);
 }
@@ -215,14 +215,14 @@ function castSlot(i) { const key = slots[i]; if (!key || cds[i] > 0 || state !==
 const fireballs = [], junk = []; const junkGeo = new THREE.BoxGeometry(0.2, 0.2, 0.2), junkMat = new THREE.MeshLambertMaterial({ color: (equippedSkin('fx') && equippedSkin('fx').junk) || 0x3fbf4a }), bulletMat = new THREE.MeshBasicMaterial({ color: 0xffe08a }), fireMat = new THREE.MeshBasicMaterial({ color: 0xff7a1a });
 function segDist(a, b, p) { const ab = b.clone().sub(a), ap = p.clone().sub(a); const t = Math.max(0, Math.min(1, ap.dot(ab) / (ab.lengthSq() || 1))); return a.clone().addScaledVector(ab, t).setY(p.y).distanceTo(p); }
 let trashDmg = 1;
-const GUNS = { trash: { name: 'TRASH', rate: 0.5, dmg: 1, range: 8, speed: 14, pellets: 1, ammo: Infinity, color: 0x3fbf4a }, pistol: { name: 'PISTOL', rate: 0.32, dmg: 2, range: 10, speed: 20, pellets: 1, ammo: 24, color: 0x222222 }, shotgun: { name: 'SHOTGUN', rate: 0.75, dmg: 2, range: 7, speed: 17, pellets: 4, ammo: 10, color: 0x7a4a1a }, rifle: { name: 'RIFLE', rate: 0.16, dmg: 2, range: 12, speed: 24, pellets: 1, ammo: 40, color: 0x2a3a2a } };
+const GUNS = { trash: { name: 'TRASH', rate: 0.7, dmg: 1, range: 8, speed: 14, pellets: 1, ammo: Infinity, color: 0x3fbf4a }, pistol: { name: 'PISTOL', rate: 0.32, dmg: 2, range: 10, speed: 20, pellets: 1, ammo: 12, color: 0x222222 }, shotgun: { name: 'SHOTGUN', rate: 0.75, dmg: 2, range: 7, speed: 17, pellets: 4, ammo: 6, color: 0x7a4a1a }, rifle: { name: 'RIFLE', rate: 0.16, dmg: 2, range: 12, speed: 24, pellets: 1, ammo: 24, color: 0x2a3a2a } };
 let gun = 'trash', ammo = Infinity; const gunDrops = []; const gunGeo = new THREE.BoxGeometry(0.5, 0.14, 0.14); let gunT = 0;
 function dropGun(p) { const key = ['pistol', 'shotgun', 'rifle'][(Math.random() * 3) | 0]; const m = new THREE.Mesh(gunGeo, new THREE.MeshLambertMaterial({ color: GUNS[key].color })); m.position.set(p.x, 0.35, p.z); m.userData.key = key; scene.add(m); gunDrops.push(m); }
 function clearGuns() { for (const g of gunDrops) scene.remove(g); gunDrops.length = 0; gun = 'trash'; ammo = Infinity; gunT = 0; }
 function updateGuns(dt) {
-  gunT -= dt; if (gunT <= 0 && gunDrops.length < 3) { gunT = 25; dropGun(randomOpen(6)); }
+  gunT -= dt; if (gunT <= 0 && gunDrops.length < 1) { gunT = 45; dropGun(randomOpen(6)); }
   for (let i = gunDrops.length - 1; i >= 0; i--) { const g = gunDrops[i]; g.rotation.y += dt * 2; if (g.position.distanceTo(player.position) < 0.9) { scene.remove(g); gunDrops.splice(i, 1); gun = g.userData.key; ammo = GUNS[gun].ammo; say(GUNS[gun].name + ' x' + ammo); sfx.pickup(); } }
-  if (trashCd <= 0 && !driving && !riding && !game) { const W = GUNS[gun]; let best = null, bd = W.range; for (const z of zombies) { if (z.userData.rag) continue; const d = z.position.distanceTo(player.position); if (d < bd && lineClear(player.position, z.position)) { bd = d; best = z; } } if (best) throwTrash(); }
+  if (fireHeld && trashCd <= 0 && !driving && !riding && !game) throwTrash();
 }
 function throwTrash() { if (trashCd > 0 || state !== 'play') return;
   if (driving && car.userData.kind === 'tank') { trashCd = 1.2; const dir = facing(); const p = car.position.clone().addScaledVector(dir, 1.4); fireballs.push({ pos: p, vel: dir.multiplyScalar(16), t: 0, shell: true }); sfx.boom(); return; }
@@ -235,7 +235,10 @@ function updateShots(dt) {
 }
 function updateActs() { for (let i = 0; i < 3; i++) { const b = document.querySelector('[data-slot="' + i + '"]'); const key = slots[i]; b.textContent = key ? SPELLS[key].name : '—'; b.classList.toggle('empty', !key); b.style.opacity = key && cds[i] > 0 ? 0.5 : ''; } $('trash').style.opacity = trashCd > 0 ? 0.5 : ''; $('trash').textContent = 'FIRE' + (gun === 'trash' ? '' : ' ' + GUNS[gun].name[0] + ammo); }
 document.querySelectorAll('[data-slot]').forEach((b) => { b.addEventListener('pointerdown', (e) => e.stopPropagation()); b.addEventListener('click', (e) => { e.stopPropagation(); castSlot(+b.dataset.slot); }); });
-$('trash').addEventListener('pointerdown', (e) => { e.stopPropagation(); throwTrash(); });
+let fireHeld = false;
+$('trash').addEventListener('pointerdown', (e) => { e.stopPropagation(); fireHeld = true; throwTrash(); });
+for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) $('trash').addEventListener(ev, () => { fireHeld = false; });
+addEventListener('pointerup', () => { fireHeld = false; });
 
 // ---------- cash and the dawn store ----------
 let cash = 0, shoes = 0;
@@ -244,9 +247,9 @@ function earn(n) { cash += n; hudBooks(); }
 const STORE = [
   { id: 'heart', name: 'Heart', desc: 'One more red heart (max 5).', price: 250 },
   { id: 'flak', name: 'Flak jacket', desc: 'Two blue hearts that take hits first.', price: 300 },
-  { id: 'pistol', name: 'Pistol', desc: 'Start the night with 24 rounds.', price: 100 },
-  { id: 'shotgun', name: 'Shotgun', desc: 'Four pellets a shot, 10 shells.', price: 150 },
-  { id: 'rifle', name: 'Rifle', desc: 'Fast and long range, 40 rounds.', price: 200 },
+  { id: 'pistol', name: 'Pistol', desc: 'Start the night with 12 rounds.', price: 150 },
+  { id: 'shotgun', name: 'Shotgun', desc: 'Four pellets a shot, 6 shells.', price: 250 },
+  { id: 'rifle', name: 'Rifle', desc: 'Fast and long range, 24 rounds.', price: 350 },
   { id: 'can', name: 'Gas can', desc: 'Pours itself into a car that runs low.', price: 80 },
   { id: 'shoes', name: 'Running shoes', desc: '+10% walk speed, permanent. Stacks 3 times.', price: 350 },
   { id: 'focus', name: 'Spell focus', desc: 'Spells recharge 30% faster.', price: 400 },
