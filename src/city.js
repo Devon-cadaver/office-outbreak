@@ -106,6 +106,9 @@ function makeTextures() {
   sg.fillStyle = '#5b7579'; sg.fillRect(0, 11, 96, 2); sg.fillRect(0, 83, 96, 2);
   sg.fillStyle = '#e0cf6a'; for (let x = 6; x < 96; x += 24) sg.fillRect(x, 46, 12, 3); sg.fillStyle = '#d8e4e6'; sg.fillRect(0, 14, 96, 1); sg.fillRect(0, 81, 96, 1);
   const roadStraight = tex(sc);
+  const [ssc, ssg] = canvas(96, 96); asphalt(ssg);
+  ssg.fillStyle = '#a7b9bc'; ssg.fillRect(0, 0, 96, 12); ssg.fillRect(0, 84, 96, 12); ssg.fillStyle = '#5b7579'; ssg.fillRect(0, 11, 96, 2); ssg.fillRect(0, 83, 96, 2);
+  const roadSide = tex(ssc);
   const [jc, jg] = canvas(96, 96); asphalt(jg);
   jg.fillStyle = '#a7b9bc'; for (const [x, y] of [[0, 0], [84, 0], [0, 84], [84, 84]]) jg.fillRect(x, y, 12, 12);
   jg.fillStyle = '#e8e8e8'; for (let i = 16; i < 80; i += 12) { jg.fillRect(i, 2, 6, 10); jg.fillRect(i, 84, 6, 10); jg.fillRect(2, i, 10, 6); jg.fillRect(84, i, 10, 6); }
@@ -119,7 +122,7 @@ function makeTextures() {
   lg.fillStyle = grad; lg.fillRect(0, 0, 64, 64);
   const lampPool = tex(lc);
 
-  return (T = { facadeA, glowA, facadeB, glowB, roadStraight, roadJunction, roadCorner, lampPool });
+  return (T = { facadeA, glowA, facadeB, glowB, roadStraight, roadSide, roadJunction, roadCorner, lampPool });
 }
 
 const box = new THREE.BoxGeometry(1, 1, 1);
@@ -157,18 +160,18 @@ export function buildCity(scene, wall, level) {
   const streetCells = [];
   for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) if (!wall[y][x]) streetCells.push([x, y]);
   const open = (x, y) => wall[y]?.[x] === false;
-  const kinds = { straight: [], junction: [], corner: [] };
+  const kinds = { straight: [], avenue: [], junction: [], corner: [] };
   for (const [x, y] of streetCells) {
     const n = open(x, y - 1), s = open(x, y + 1), e = open(x + 1, y), w = open(x - 1, y);
     const count = n + s + e + w;
     if (count >= 3) kinds.junction.push([x, y, 0]);
-    else if (e && w && !n && !s) kinds.straight.push([x, y, 0]);
-    else if (n && s && !e && !w) kinds.straight.push([x, y, Math.PI / 2]);
+    else if (e && w && !n && !s) (wall.avenues && y === wall.avenues.row ? kinds.avenue : kinds.straight).push([x, y, 0]);
+    else if (n && s && !e && !w) (wall.avenues && x === wall.avenues.col ? kinds.avenue : kinds.straight).push([x, y, Math.PI / 2]);
     else kinds.corner.push([x, y, 0]);
   }
   const plane = new THREE.PlaneGeometry(CELL, CELL);
   const mtx = new THREE.Matrix4(), pos = new THREE.Vector3(), scl = new THREE.Vector3(1, 1, 1), quat = new THREE.Quaternion(), eul = new THREE.Euler();
-  for (const [kind, texture] of [['straight', T.roadStraight], ['junction', T.roadJunction], ['corner', T.roadCorner]]) {
+  for (const [kind, texture] of [['straight', T.roadSide], ['avenue', T.roadStraight], ['junction', T.roadJunction], ['corner', T.roadCorner]]) {
     const list = kinds[kind]; if (!list.length) continue;
     const im = new THREE.InstancedMesh(plane, M({ map: texture }), list.length);
     list.forEach(([x, y, rz], i) => { const w = toWorld(x, y, cols, rows); eul.set(-Math.PI / 2, 0, rz); quat.setFromEuler(eul); mtx.compose(pos.set(w.x, 0, w.z), quat, scl); im.setMatrixAt(i, mtx); });
@@ -213,6 +216,23 @@ export function buildCity(scene, wall, level) {
   // ---------- buildings ----------
   const roofMat = M({ color: NIGHT.roof }), corniceMat = M({ color: 0x8aa0a4 }), doorMat = new THREE.MeshBasicMaterial({ color: 0xf6e94a }), frameMat = M({ color: 0x2a3a40 });
   const awningMats = [M({ color: 0x9a3a4a }), M({ color: 0x2f6f8a }), M({ color: 0x7a3f8a })];
+  const perimeterSeed = rng();
+  const perimeterStyle = (seg, orient) => { const r = ((Math.sin(seg * 12.9898 + (orient === 'v' ? 7 : 3) + perimeterSeed * 100) * 43758.5453) % 1 + 1) % 1; return r < 0.4 ? 'fence' : r < 0.65 ? 'wall' : 'building'; };
+  const pfenceMat = M({ color: 0x6a7a80 }), meshMat = new THREE.MeshBasicMaterial({ color: 0x8fa3a8, transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false }), barrierMat = M({ color: 0x9aa4a8 }), sandMat = M({ color: 0x8a7a55 }), wallMat2 = M({ color: 0x5a6a70 }), wireMat2 = M({ color: 0x3a4448 });
+  const perimeterPiece = (style, w, x, y) => {
+    const vertical = x === 0 || x === cols - 1; // run direction along the border
+    const L = CELL;
+    if (style === 'fence') {
+      for (let k = -1; k <= 1; k++) add(cyl, pfenceMat, 0.08, 1.6, 0.08, w.x + (vertical ? 0 : k * 1.0), 0.8, w.z + (vertical ? k * 1.0 : 0));
+      const panel = add(box, meshMat, vertical ? 0.03 : L, 1.5, vertical ? L : 0.03, w.x, 0.8, w.z); void panel;
+      add(box, wireMat2, vertical ? 0.05 : L, 0.05, vertical ? L : 0.05, w.x, 1.58, w.z); // top rail (barbed)
+      if (rng() < 0.6) { const b = add(box, barrierMat, vertical ? 0.5 : 1.6, 0.6, vertical ? 1.6 : 0.5, w.x + (vertical ? (x === 0 ? 0.9 : -0.9) : 0), 0.3, w.z + (vertical ? 0 : (y === 0 ? 0.9 : -0.9))); void b; }
+    } else if (style === 'wall') {
+      add(box, wallMat2, vertical ? 0.5 : L, 1.0, vertical ? L : 0.5, w.x, 0.5, w.z);
+      for (let k = -1; k <= 1; k++) for (let r = 0; r < 2; r++) add(box, sandMat, 0.55, 0.28, 0.4, w.x + (vertical ? (x === 0 ? 0.6 : -0.6) : k * 0.8), 0.14 + r * 0.26, w.z + (vertical ? k * 0.8 : (y === 0 ? 0.6 : -0.6)));
+      if (rng() < 0.3) add(box, wireMat2, vertical ? 0.08 : 1.2, 0.08, vertical ? 1.2 : 0.08, w.x, 1.1, w.z);
+    }
+  };
   const HOUSE_WALLS = [0xe8d54a, 0x3f6fb0, 0xb8473a, 0x8a5a3a, 0xd9c7a8, 0x6a8f5a], HOUSE_ROOFS = [0x4a3324, 0x3a3a44, 0x5a2e2a, 0x2f3d4a];
   const brickMat = M({ color: 0xb8473a }), litWin = new THREE.MeshBasicMaterial({ color: 0xf6e94a }), darkWin = M({ color: 0x34506e }), doorMatH = M({ color: 0x2a2320 });
   const house = (w, x, y, openFaces) => {
@@ -242,11 +262,19 @@ export function buildCity(scene, wall, level) {
     const lm = landmarkCells.get(y * cols + x);
     if (lm) { buildLandmark(lm, group, w, rng, M, add); obstacles.push({ x: w.x, z: w.z, hw: CELL / 2 - 0.05, hd: CELL / 2 - 0.05 }); continue; }
     const edge = x === 0 || y === 0 || x === cols - 1 || y === rows - 1;
-    if (!edge && rng() < 0.5) {
+    if (edge) {
+      // varied perimeter: fence runs, low walls with sandbags, and only some buildings
+      const seg = Math.floor(((x === 0 || x === cols - 1) ? y : x) / 4); const style = perimeterStyle(seg, x === 0 || x === cols - 1 ? 'v' : 'h');
+      if (style !== 'building') { perimeterPiece(style, w, x, y); obstacles.push({ x: w.x, z: w.z, hw: CELL / 2 - 0.05, hd: CELL / 2 - 0.05 }); continue; }
+    }
+    // zoning: downtown blocks north, mixed middle, houses south
+    const zone = y < rows * 0.35 ? 'downtown' : y > rows * 0.6 ? 'houses' : 'mixed';
+    const wantHouse = zone === 'houses' ? 0.85 : zone === 'mixed' ? 0.45 : 0.08;
+    if (!edge && rng() < wantHouse) {
       const facesH = [[0, 1, 0], [1, 0, Math.PI / 2], [0, -1, Math.PI], [-1, 0, -Math.PI / 2]].filter(([dx, dz]) => open(x + dx, y + dz));
       house(w, x, y, facesH); obstacles.push({ x: w.x, z: w.z, hw: CELL / 2 - 0.05, hd: CELL / 2 - 0.05 }); continue;
     }
-    const floors = edge ? 2 : 1 + ((rng() * 2) | 0) + (rng() < 0.08 ? 1 : 0);
+    const floors = edge ? 2 : zone === 'downtown' ? 2 + ((rng() * 2) | 0) + (rng() < 0.25 ? 1 : 0) : 1 + ((rng() * 2) | 0);
     const fh = 1.1, h = floors * fh + 0.25;
     const base = new THREE.Color(NIGHT.buildings[(rng() * NIGHT.buildings.length) | 0]); if (edge) base.multiplyScalar(0.7);
     const useA = rng() < 0.6;

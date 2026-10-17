@@ -153,6 +153,13 @@ function buildLevel(n) {
   // tutorial district is wide open: many extra openings so zombies stay visible
   const loops = tutorial ? Math.floor(cols * rows * 0.22) : Math.floor(cols * rows * 0.1) + n * 2;
   maze = generateMaze(cols, rows, loops, rng);
+  if (!tutorial) {
+    // main avenues: one straight across and one straight down, through the middle of town
+    const ay = 1 + 2 * Math.floor((rows - 2) / 4), ax = 1 + 2 * Math.floor((cols - 2) / 4);
+    for (let x = 1; x < cols - 1; x++) maze[ay][x] = false;
+    for (let y = 1; y < rows - 1; y++) maze[y][ax] = false;
+    maze.avenues = { row: ay, col: ax };
+  }
   startCell = { cx: 1, cy: rows - 2 };
   // exit: among the cells farthest by road, prefer ones physically close to the start (long way round)
   { const dist = flowField(maze, startCell.cx, startCell.cy); let max = 0; for (const d of dist) if (d > max) max = d;
