@@ -70,6 +70,7 @@ function extendRoute(w, first) {
   if (seg.length && route.length + seg.length <= 60) { route.push(...seg); routeEndCell = target; showRoute(); }
 }
 input.on('tap', setRouteTo); input.on('drag', extendRoute);
+input.on('zoom', (f) => { zoom = Math.max(0.5, Math.min(2.2, zoom * f)); try { localStorage.setItem('oo_zoom', String(zoom)); } catch { /* ignore */ } fitCamera(); });
 
 const projGeo = new THREE.BoxGeometry(0.1, 0.07, 0.28), projMat = new THREE.MeshBasicMaterial({ color: 0xffe28a });
 const pickGeo = new THREE.BoxGeometry(0.5, 0.18, 0.18);
@@ -80,9 +81,10 @@ const CAM_YAW = Math.PI / 4, CAM_ELEV = 0.72;
 const camDir = new THREE.Vector3(Math.sin(CAM_YAW) * Math.cos(CAM_ELEV), Math.sin(CAM_ELEV), Math.cos(CAM_YAW) * Math.cos(CAM_ELEV)).normalize();
 const screenUp = new THREE.Vector2(-Math.sin(CAM_YAW), -Math.cos(CAM_YAW)), screenRight = new THREE.Vector2(Math.cos(CAM_YAW), -Math.sin(CAM_YAW));
 const camTarget = new THREE.Vector3();
+let zoom = 1; try { zoom = +localStorage.getItem('oo_zoom') || 1; } catch { /* ignore */ }
 function fitCamera() {
   const aspect = innerWidth / innerHeight; camera.aspect = aspect;
-  const half = aspect < 1 ? 9.5 / aspect * 0.8 : 9.5; // portrait: about 3 cells wide, more tall
+  const half = (aspect < 1 ? 9.5 / aspect * 0.8 : 9.5) * zoom; // portrait: about 3 cells wide, more tall
   camera.left = -half * aspect; camera.right = half * aspect; camera.top = half; camera.bottom = -half;
   camera.updateProjectionMatrix();
 }
