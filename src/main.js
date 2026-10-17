@@ -3,6 +3,8 @@ import { makeCharacter, animateWalk, OUTFITS } from './characters.js';
 import { generateMaze, buildCity, flowField, findPath, toWorld, toCell, CELL, mulberry32, NIGHT } from './city.js';
 import { createInput } from './input.js';
 import { unlockAudio, sfx, startMusic, stopMusic, setMusicTension, setMuted, isMuted, audioState } from './audio.js';
+import { makeChopper, animateChopper } from './chopper.js';
+const FINAL_LEVEL = 10;
 
 // ---------- renderer / scene ----------
 const canvas = document.getElementById('game');
@@ -39,6 +41,7 @@ const WEAPONS = {
 // ---------- state ----------
 let state = 'start', level = 1, score = 0, lives = 3, time = 0;
 let maze = null, city = null, cols = 0, rows = 0, obstacles = [];
+let chopper = null, chopperT = 0, padMesh = null;
 let startCell = null, exitCell = null, exitMesh = null, gate = null, switchCell = null, gateMesh = null, switchMesh = null, tip = '';
 const player = makeCharacter('worker'); scene.add(player); player.visible = false;
 let civilians = [], zombies = [], pickups = [], projectiles = [], particles = [];
@@ -167,8 +170,17 @@ function buildLevel(n) {
 
   // exit marker
   const ep = toWorld(exitCell.cx, exitCell.cy, cols, rows);
-  exitMesh = new THREE.Mesh(new THREE.BoxGeometry(CELL - 0.4, 0.12, CELL - 0.4), new THREE.MeshBasicMaterial({ color: 0x7dff6a }));
+  exitMesh = new THREE.Mesh(new THREE.BoxGeometry(CELL - 0.4, 0.12, CELL - 0.4), new THREE.MeshBasicMaterial({ color: n === FINAL_LEVEL ? 0xffd24a : 0x7dff6a }));
   exitMesh.position.set(ep.x, 0.06, ep.z); scene.add(exitMesh);
+  if (padMesh) { scene.remove(padMesh); padMesh = null; }
+  if (n === FINAL_LEVEL) {
+    // helipad "H" + waiting chopper hovering high above the pad
+    padMesh = new THREE.Group(); padMesh.position.set(ep.x, 0.13, ep.z);
+    const hm = new THREE.MeshBasicMaterial({ color: 0x1e262e });
+    for (const [sx, sz, x] of [[0.25, 1.4, -0.5], [0.25, 1.4, 0.5], [1.0, 0.25, 0]]) { const b = new THREE.Mesh(new THREE.BoxGeometry(sx, 0.02, sz), hm); b.position.x = x; padMesh.add(b); }
+    scene.add(padMesh);
+    chopper = makeChopper(); chopper.position.set(ep.x, 14, ep.z); chopper.scale.setScalar(0.6); scene.add(chopper); chopperT = 0;
+  } else if (chopper) { scene.remove(chopper); chopper = null; }
 
   // street cells excluding start/exit neighborhoods
   const streets = [];
@@ -246,15 +258,15 @@ function fire(target) {
 function updateHud() {
   ui.score.textContent = String(score);
   ui.lives.textContent = '♥'.repeat(Math.max(0, lives));
-  ui.level.textContent = level === 1 ? 'Duvallville: Tutorial' : 'Duvallville ' + level;
+  ui.level.textContent = level === 1 ? 'Duvallville: Tutorial' : level === FINAL_LEVEL ? 'Duvallville ' + level + ': Evac' : 'Duvallville ' + level + '/' + FINAL_LEVEL;
   ui.people.textContent = 'People safe: ' + civilians.length + '/' + totalPeople;
   ui.weapon.textContent = weapon ? WEAPONS[weapon].name + ' x' + ammo : 'Unarmed';
 }
 
-function show(screen) { if (screen) setTip(''); for (const s of [ui.start, ui.cleared, ui.over]) s.classList.add('hidden'); if (screen) screen.classList.remove('hidden'); ui.hud.classList.toggle('hidden', !!screen); }
+function show(screen) { if (screen) setTip(''); for (const s of [ui.start, ui.cleared, ui.over, $('won'), $('howto')]) s.classList.add('hidden'); if (screen) screen.classList.remove('hidden'); ui.hud.classList.toggle('hidden', !!screen); }
 
-function startRun() { unlockAudio(); startMusic(); level = 1; score = 0; lives = 3; time = 0; buildLevel(level); show(null); state = 'play'; }
-function nextLevel() { level++; buildLevel(level); show(null); state = 'play'; }
+function startRun() { seen = true; unlockAudio(); startMusic(); level = 1; score = 0; lives = 3; time = 0; buildLevel(level); show(null); state = 'play'; }
+function nextLevel() { if (state !== "cleared") return; level++; buildLevel(level); show(null); state = 'play'; }
 function loseLife() {
   lives--; sfx.caught(); invuln = 2;
   for (let i = 0; i < 8; i++) particle(player.position, projMat);
@@ -266,13 +278,29 @@ function loseLife() {
   updateHud();
 }
 function clearDistrict() {
+  if (level === FINAL_LEVEL) { state = 'rescue'; input.reset(); route = []; showRoute(); chopperT = 0; sfx.wave(); setTip('The chopper is coming. Hold on!'); return; }
   state = 'cleared'; input.reset(); sfx.wave();
   const saved = civilians.length, timeBonus = Math.max(0, 60 - Math.floor(time)) * 2;
   const gained = saved * 100 + kills * 10 + timeBonus; score += gained;
   ui.clearedText.innerHTML = `People saved: <b>${saved}/${totalPeople}</b> (+${saved * 100})<br>Zombies dropped: ${kills} (+${kills * 10})<br>Speed bonus: +${timeBonus}<br><br>Score: <b>${score}</b>`;
   show(ui.cleared); updateHud();
 }
-$('startBtn').addEventListener('click', startRun);
+// ---------- how to play slides ----------
+const SLIDES = [
+  ['howto/1-move.jpg', 'Tap a street to walk there, or drag a route. Green dots show your path.'],
+  ['howto/2-weapon.jpg', 'You start unarmed. Pick up a pistol, shotgun or rifle. It aims and fires by itself, until the ammo runs out.'],
+  ['howto/3-crowd.jpg', 'Crowds are standing around the district. Any crowd a zombie reaches turns and joins the horde. Lead zombies away from people.'],
+  ['howto/4-gate.jpg', 'From district 3 the route is gated. Find the yellow switch somewhere else in the district to open it.'],
+  ['howto/5-exit.jpg', 'Follow the green arrow to the safe zone. One touch from a zombie costs a life. Ten districts, then the chopper pulls you out.'],
+];
+let slide = 0;
+function showSlide(i) { slide = i; $('slideImg').src = SLIDES[i][0]; $('slideText').textContent = SLIDES[i][1]; $('slideDots').textContent = SLIDES.map((_, k) => k === i ? '●' : '○').join(' '); $('slideNext').textContent = i === SLIDES.length - 1 ? 'START SHIFT' : 'NEXT'; }
+function openHowto() { show($('howto')); showSlide(0); }
+$('slideNext').addEventListener('click', () => { if (slide < SLIDES.length - 1) showSlide(slide + 1); else { try { localStorage.setItem('oo_seen', '1'); } catch { /* ignore */ } startRun(); } });
+$('slideSkip').addEventListener('click', () => { try { localStorage.setItem('oo_seen', '1'); } catch { /* ignore */ } startRun(); });
+$('howtoBtn').addEventListener('click', openHowto);
+let seen = false; try { seen = localStorage.getItem('oo_seen') === '1'; } catch { /* ignore */ }
+$('startBtn').addEventListener('click', () => { unlockAudio(); if (seen) startRun(); else openHowto(); });
 // unlock audio on the very first touch anywhere, and offer a mute toggle
 const soundBtn = $('soundBtn');
 const refreshSoundBtn = () => { soundBtn.textContent = isMuted() ? '🔇 Sound: off' : '🔊 Sound: on' + (audioState() === 'running' ? '' : ' (tap to enable)'); };
@@ -281,6 +309,14 @@ addEventListener('pointerdown', () => { unlockAudio(); setTimeout(refreshSoundBt
 soundBtn.addEventListener('click', () => { unlockAudio(); setMuted(!isMuted()); if (!isMuted()) sfx.pickup(); refreshSoundBtn(); });
 $('retryBtn').addEventListener('click', startRun);
 $('nextBtn').addEventListener('click', nextLevel);
+function finishGame() {
+  state = 'won'; stopMusic();
+  const saved = civilians.length, gained = saved * 100 + kills * 10 + 500; score += gained;
+  const best = Math.max(getBest(), score); setBest(best);
+  $('wonText').innerHTML = 'You escaped Duvallville.<br>People saved in the last district: <b>' + saved + '/' + totalPeople + '</b><br>Rescue bonus: +500<br><br>Final score: <b>' + score + '</b><br>Best: ' + best;
+  show($('won'));
+}
+$('wonBtn').addEventListener('click', startRun);
 
 // ---------- loop ----------
 const tmp = new THREE.Vector3();
@@ -289,6 +325,16 @@ function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
 
+  if (state === 'rescue' && chopper) {
+    chopperT += dt; animateChopper(chopper, dt, chopperT);
+    const ep = toWorld(exitCell.cx, exitCell.cy, cols, rows);
+    if (chopperT < 3) { chopper.position.y = 14 - (14 - 1.1) * (chopperT / 3); chopper.position.x = ep.x; chopper.position.z = ep.z; }
+    else if (chopperT < 4) { player.position.set(ep.x, 0.45 + (chopperT - 3) * 0.4, ep.z); animateWalk(player, dt, 0); }
+    else { const u = chopperT - 4; chopper.position.y = 1.1 + u * u * 2.2; chopper.position.x = ep.x + u * 1.5; chopper.position.z = ep.z - u * 1.5; chopper.rotation.z = -0.15; player.position.set(chopper.position.x, chopper.position.y - 0.6, chopper.position.z); if (u > 3.5) finishGame(); }
+    for (const z of zombies) animateWalk(z, dt, 0.3);
+    camTarget.lerp(player.position, 1 - Math.pow(0.002, dt));
+  }
+  if (chopper && state === 'play') animateChopper(chopper, dt, time);
   if (state === 'play') {
     time += dt; invuln -= dt; fireTimer -= dt; flowTimer -= dt;
 
@@ -319,6 +365,7 @@ function frame(now) {
       if (tipStage <= 1 && weapon) { tipStage = 2; setTip('Armed. Zombies turn any crowd they reach, so lead them away from people.'); }
       if (tipStage === 2 && time > 25) { tipStage = 3; setTip('Follow the green arrow to the safe zone.'); }
     } else if (gate && !gate.open && tipStage === 0) { tipStage = 1; setTip('The route is gated. Find the yellow switch to open it.'); }
+    else if (level === FINAL_LEVEL && tipStage === 0) { tipStage = 1; setTip('Last district. Reach the helipad and the chopper will pull you out.'); }
 
     // flow field toward player, refreshed a few times per second
     if (flowTimer <= 0 || !flow) { flow = flowField(maze, pc.cx, pc.cy); flowTimer = 0.2; }
@@ -445,4 +492,4 @@ resize();
 requestAnimationFrame(frame);
 
 // Debug hook for automated testing (harmless in production).
-window.__oo = { get player() { return player; }, get gate() { return gate; }, get switchCell() { return switchCell; }, get cols() { return cols; }, get rows() { return rows; }, toWorld: (cx, cy) => toWorld(cx, cy, cols, rows), get pickups() { return pickups; }, get zombies() { return zombies; }, get exit() { return toWorld(exitCell.cx, exitCell.cy, cols, rows); }, get state() { return state; } };
+window.__oo = { get chopper() { return chopper; }, get chopperT() { return chopperT; }, set chopperT(v) { chopperT = v; }, routeTo: (cx, cy) => setRouteTo(toWorld(cx, cy, cols, rows)), get civilians() { return civilians; }, get maze() { return maze; }, get player() { return player; }, get gate() { return gate; }, get switchCell() { return switchCell; }, get cols() { return cols; }, get rows() { return rows; }, toWorld: (cx, cy) => toWorld(cx, cy, cols, rows), get pickups() { return pickups; }, get zombies() { return zombies; }, get exit() { return toWorld(exitCell.cx, exitCell.cy, cols, rows); }, get state() { return state; } };

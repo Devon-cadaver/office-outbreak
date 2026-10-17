@@ -14,12 +14,12 @@ for (let y = 0; y < rows; y++) { const row = []; for (let x = 0; x < cols; x++) 
   const r = sr / n, g = sg / n, b = sb / n, l = sl / n, sd = Math.sqrt(Math.max(0, sl2 / n - l * l));
   const maxc = Math.max(r, g, b), minc = Math.min(r, g, b), sat = maxc ? (maxc - minc) / maxc : 0;
   // asphalt: dark, bluish-grey, low saturation, smooth
-  const walk = l > 14 && l < 70 && sat < 0.45 && b >= r && sd < 14;
+  const walk = l < +(process.argv[3] || 22) && sd < +(process.argv[4] || 10);
   row.push(walk ? 1 : 0);
 } grid.push(row); }
 fs.writeFileSync('tools/poster/grid.json', JSON.stringify({ cellpx: CELLPX, cols, rows, grid }));
 // overlay
 const svgRects = []; for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) if (grid[y][x]) svgRects.push(`<rect x="${x * CELLPX}" y="${y * CELLPX}" width="${CELLPX}" height="${CELLPX}" fill="#00ff88" fill-opacity="0.35"/>`);
 const svg = Buffer.from(`<svg width="${meta.width}" height="${meta.height}">${svgRects.join('')}</svg>`);
-await sharp(SRC).composite([{ input: svg }]).resize({ width: 900 }).jpeg({ quality: 80 }).toFile('tools/poster/mask-overlay.jpg');
+await sharp(SRC).resize({ width: 900 }).composite([{ input: await sharp(svg).resize({ width: 900 }).png().toBuffer() }]).jpeg({ quality: 80 }).toFile('tools/poster/mask-overlay.jpg');
 const count = grid.flat().filter(Boolean).length; console.log('cells', cols, rows, 'walkable', count, (100 * count / (cols * rows)).toFixed(1) + '%');
