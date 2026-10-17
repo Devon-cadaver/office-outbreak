@@ -163,45 +163,39 @@ export function buildCity(scene, wall, level) {
   for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) if (!wall[y][x]) streetCells.push([x, y]);
   const open = (x, y) => wall[y]?.[x] === false;
   {
-    const P = 48, cw = cols * P, chh = rows * P;
+    const P = 64, cw = cols * P, chh = rows * P;
     const cv = document.createElement('canvas'); cv.width = cw; cv.height = chh; const g = cv.getContext('2d');
     const isAveRow = (y) => wall.avenues && y === wall.avenues.row, isAveCol = (x) => wall.avenues && x === wall.avenues.col;
     // asphalt
     g.fillStyle = '#3a4c52'; for (const [x, y] of streetCells) g.fillRect(x * P, y * P, P, P);
     // wear: speckles and darker patches, only on road
-    g.fillStyle = '#425860'; for (const [x, y] of streetCells) for (let i = 0; i < 14; i++) g.fillRect(x * P + ((rng() * P) | 0), y * P + ((rng() * P) | 0), 2, 2);
+    g.fillStyle = '#425860'; for (const [x, y] of streetCells) for (let i = 0; i < 24; i++) g.fillRect(x * P + ((rng() * P) | 0), y * P + ((rng() * P) | 0), 2, 2);
     g.fillStyle = '#33444a'; for (const [x, y] of streetCells) if (rng() < 0.18) { g.beginPath(); g.ellipse(x * P + P / 2 + (rng() - 0.5) * 20, y * P + P / 2 + (rng() - 0.5) * 20, 6 + rng() * 8, 4 + rng() * 6, rng() * 3, 0, Math.PI * 2); g.fill(); }
     // gutters along building edges
     g.fillStyle = '#2d3c41';
     for (const [x, y] of streetCells) { const X = x * P, Y = y * P; if (!open(x, y - 1)) g.fillRect(X, Y, P, 2); if (!open(x, y + 1)) g.fillRect(X, Y + P - 2, P, 2); if (!open(x - 1, y)) g.fillRect(X, Y, 2, P); if (!open(x + 1, y)) g.fillRect(X + P - 2, Y, 2, P); }
-    // centre lines
-    const dash = (x0, y0, x1, y1, color, w, pattern) => { g.save(); g.strokeStyle = color; g.lineWidth = w; g.setLineDash(pattern); g.lineCap = 'butt'; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.restore(); };
-    const dbl = (x0, y0, x1, y1, horiz) => { const o = horiz ? [0, 2.5] : [2.5, 0]; dash(x0 - o[0], y0 - o[1], x1 - o[0], y1 - o[1], '#d9c45a', 2, []); dash(x0 + o[0], y0 + o[1], x1 + o[0], y1 + o[1], '#d9c45a', 2, []); };
+    // white edge lines along both sides of every street, broken at junction openings
+    g.fillStyle = '#d8e0e2';
+    for (const [x, y] of streetCells) { const X = x * P, Y = y * P; const n = open(x, y - 1), s = open(x, y + 1), e = open(x + 1, y), wv = open(x - 1, y);
+      if (!n) g.fillRect(X + (wv ? 0 : 5), Y + 5, P - (wv ? 0 : 5) - (e ? 0 : 5), 2); if (!s) g.fillRect(X + (wv ? 0 : 5), Y + P - 7, P - (wv ? 0 : 5) - (e ? 0 : 5), 2);
+      if (!wv) g.fillRect(X + 5, Y + (n ? 0 : 5), 2, P - (n ? 0 : 5) - (s ? 0 : 5)); if (!e) g.fillRect(X + P - 7, Y + (n ? 0 : 5), 2, P - (n ? 0 : 5) - (s ? 0 : 5)); }
+    // double yellow centre line down the middle of every street, straight through junctions, bending at corners
+    g.fillStyle = '#e3c84f';
+    const yl = (x0, y0, x1, y1) => { const horiz = y0 === y1; if (horiz) { const a = Math.min(x0, x1), b = Math.max(x0, x1); g.fillRect(a, y0 - 3, b - a, 2); g.fillRect(a, y0 + 1, b - a, 2); } else { const a = Math.min(y0, y1), b = Math.max(y0, y1); g.fillRect(x0 - 3, a, 2, b - a); g.fillRect(x0 + 1, a, 2, b - a); } };
     for (const [x, y] of streetCells) {
-      const n = open(x, y - 1), s = open(x, y + 1), e = open(x + 1, y), wv = open(x - 1, y); const count = n + s + e + wv;
+      const n = open(x, y - 1), s = open(x, y + 1), e = open(x + 1, y), wv = open(x - 1, y);
       const X = x * P, Y = y * P, cx = X + P / 2, cy = Y + P / 2;
-      if (count >= 3) continue; // junction box: no centre line
-      const aveH = isAveRow(y) && e && wv, aveV = isAveCol(x) && n && s;
-      if (aveH) { dbl(X, cy, X + P, cy, true); continue; }
-      if (aveV) { dbl(cx, Y, cx, Y + P, false); continue; }
-      const pat = [P * 0.28, P * 0.22], col = '#e8eef0';
-      // half-segments from the centre to each open edge; straight runs join up because dashes start at the edge
-      if (wv) dash(X, cy, cx, cy, col, 2, pat); if (e) dash(X + P, cy, cx, cy, col, 2, pat);
-      if (n) dash(cx, Y, cx, cy, col, 2, pat); if (s) dash(cx, Y + P, cx, cy, col, 2, pat);
+      if (wv) yl(X, cy, cx, cy); if (e) yl(cx, cy, X + P, cy); if (n) yl(cx, Y, cx, cy); if (s) yl(cx, cy, cx, Y + P);
+      // corner cap so the two halves meet cleanly
+      if (n + s + e + wv >= 2) g.fillRect(cx - 3, cy - 3, 6, 6);
     }
-    // junctions: stop bars on every approach, zebra crossings on 4-ways and avenue junctions
+    // zebra crossings where the avenues meet other streets
+    g.fillStyle = '#e8eef0';
     for (const [x, y] of streetCells) {
-      const n = open(x, y - 1), s = open(x, y + 1), e = open(x + 1, y), wv = open(x - 1, y); const count = n + s + e + wv; if (count < 3) continue;
-      const X = x * P, Y = y * P; const zebra = count === 4 || isAveRow(y) || isAveCol(x);
-      g.fillStyle = '#e8eef0';
-      if (zebra) {
-        for (const [dx, dy, ok] of [[0, -1, n], [0, 1, s], [1, 0, e], [-1, 0, wv]]) { if (!ok) continue;
-          for (let k = 0; k < 5; k++) { const a = 6 + k * 8; if (dx) g.fillRect(X + (dx > 0 ? P - 11 : 4), Y + a, 7, 5); else g.fillRect(X + a, Y + (dy > 0 ? P - 11 : 4), 5, 7); } }
-      } else {
-        // stop bar across the near half (right-hand side) of each approach
-        if (n) g.fillRect(X + P / 2 + 2, Y + 3, P / 2 - 6, 3); if (s) g.fillRect(X + 4, Y + P - 6, P / 2 - 6, 3);
-        if (e) g.fillRect(X + P - 6, Y + P / 2 + 2, 3, P / 2 - 6); if (wv) g.fillRect(X + 3, Y + 4, 3, P / 2 - 6);
-      }
+      const n = open(x, y - 1), s = open(x, y + 1), e = open(x + 1, y), wv = open(x - 1, y); if (n + s + e + wv < 3 || !(isAveRow(y) || isAveCol(x))) continue;
+      const X = x * P, Y = y * P;
+      for (const [dx, dy, ok] of [[0, -1, n], [0, 1, s], [1, 0, e], [-1, 0, wv]]) { if (!ok) continue;
+        for (let k = 0; k < 5; k++) { const a = 6 + k * 8; if (dx) g.fillRect(X + (dx > 0 ? P - 12 : 5), Y + a, 7, 5); else g.fillRect(X + a, Y + (dy > 0 ? P - 12 : 5), 5, 7); } }
     }
     // manhole covers on a few straight cells
     g.fillStyle = '#2a363b'; g.strokeStyle = '#4a5c62'; g.lineWidth = 1;
