@@ -6,7 +6,8 @@
   <title>Zombieville Builder</title>
   <link rel="stylesheet" href="./src/style.css" />
   <style>
-    body { overflow: auto; touch-action: manipulation; }
+    html, body { overflow: auto !important; height: auto !important; min-height: 100%; touch-action: pan-y pan-x pinch-zoom !important; -webkit-user-select: none; }
+    #wrap { touch-action: none; }
     #ed { display: flex; flex-direction: column; gap: 8px; padding: 10px; min-height: 100%; }
     #tools { display: flex; flex-wrap: wrap; gap: 6px; }
     #tools button { font-size: 13px; padding: 8px 10px; border-radius: 8px; box-shadow: none; background: #2a1449; color: #fff; border: 2px solid #9a5fd655; }
