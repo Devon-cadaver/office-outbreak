@@ -132,7 +132,7 @@ function buildLevel(n) {
     const ex = pickFrom[(rng() * pickFrom.length) | 0]; exitCell = { cx: ex.x, cy: ex.y }; }
   // gate puzzle from district 3: a locked gate on the route, opened by a switch elsewhere
   gate = null; switchCell = null;
-  if (n >= 3) {
+  if (n >= 2) {
     const path = findPath(maze, startCell, exitCell);
     const onMain = new Set(path.map(([x, y]) => y * cols + x)); onMain.add(startCell.cy * cols + startCell.cx);
     const gi = Math.floor(path.length * (0.4 + rng() * 0.3)); const [gx, gy] = path[gi];
@@ -148,7 +148,7 @@ function buildLevel(n) {
     if (d2[exitCell.cy * cols + exitCell.cx] < 0) {
       const reach = []; for (let y = 1; y < rows - 1; y++) for (let x = 1; x < cols - 1; x++) { const d = d2[y * cols + x]; if (d > 4) reach.push({ x, y, d }); }
       reach.sort((a, b) => b.d - a.d); const top = reach.slice(0, Math.max(1, Math.ceil(reach.length * 0.3)));
-      const sw = top[(rng() * top.length) | 0]; if (sw) { switchCell = { cx: sw.x, cy: sw.y }; gate = { cx: gx, cy: gy, open: false }; }
+      const sw = top[(rng() * top.length) | 0]; if (sw) { switchCell = { cx: sw.x, cy: sw.y }; gate = { cx: gx, cy: gy, open: false, found: false }; }
     }
     if (!gate) maze[gy][gx] = false;
   }
@@ -298,7 +298,7 @@ const SLIDES = [
   ['howto/2-weapon.jpg', 'You start unarmed. Pick up a pistol, shotgun or rifle. It aims and fires by itself, until the ammo runs out.'],
   ['howto/3-crowd.jpg', 'Zombies go for people before you. Any crowd they reach turns and joins the horde, so lead the horde away from crowds.'],
   ['howto/6-follow.jpg', 'Walk up to people and they follow you. Get them to the safe zone for 250 points each. Or keep them between you and the horde: zombies take the nearest person first.'],
-  ['howto/4-gate.jpg', 'From district 3 the route is gated. Find the yellow switch somewhere else in the district to open it.'],
+  ['howto/4-gate.jpg', 'From district 2 the way out is gated. The arrow leads you to the gate, then to the yellow switch that opens it, then to the safe zone.'],
   ['howto/5-exit.jpg', 'Follow the green arrow to the safe zone. One touch from a zombie costs a life. Ten districts, then the chopper pulls you out.'],
 ];
 let slide = 0;
@@ -374,7 +374,10 @@ function frame(now) {
       if (tipStage === 0 && route.length) { tipStage = 1; setTip('Nice. Grab the pistol nearby: it fires by itself.'); }
       if (tipStage <= 1 && weapon) { tipStage = 2; setTip('Armed. Zombies hunt people first. Walk up to a crowd to make them follow you.'); }
       if (tipStage === 2 && time > 25) { tipStage = 3; setTip('Follow the green arrow to the safe zone.'); }
-    } else if (gate && !gate.open && tipStage === 0) { tipStage = 1; setTip('The route is gated. Find the yellow switch to open it.'); }
+    } else if (gate && !gate.open) {
+      if (!gate.found && Math.abs(pc.cx - gate.cx) + Math.abs(pc.cy - gate.cy) <= 3) { gate.found = true; tipStage = 2; sfx.hit(); setTip('Locked. The arrow now points to the switch that opens it.'); }
+      else if (tipStage === 0) { tipStage = 1; setTip('Follow the arrow. Something is blocking the way out.'); }
+    }
     else if (level === FINAL_LEVEL && tipStage === 0) { tipStage = 1; setTip('Last district. Reach the helipad and the chopper will pull you out.'); }
 
     // flow field toward player, refreshed a few times per second
@@ -506,7 +509,8 @@ function render(dt = 0.016) {
     }
     // exit arrow
     if (state === 'play' && exitCell) {
-      const e = toWorld(exitCell.cx, exitCell.cy, cols, rows);
+      const tc = gate && !gate.open ? (gate.found ? switchCell : gate) : exitCell;
+      const e = toWorld(tc.cx, tc.cy, cols, rows);
       const v = new THREE.Vector3(e.x, 0.5, e.z).project(camera);
       const onScreen = Math.abs(v.x) < 0.9 && Math.abs(v.y) < 0.85;
       arrowEl.classList.toggle('hidden', onScreen);
