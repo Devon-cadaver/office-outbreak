@@ -8,8 +8,8 @@
   <style>
     #dc { position: fixed; inset: 0; pointer-events: none; }
     #dc .top { position: absolute; top: env(safe-area-inset-top, 0); left: 0; right: 0; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; text-shadow: 0 2px 4px #000; }
-    #hpbar2 { width: 140px; height: 12px; background: #0008; border: 2px solid #fff8; border-radius: 8px; overflow: hidden; }
-    #hp2 { height: 100%; width: 100%; background: linear-gradient(#7dff3a, #3f9a1f); transition: width .15s; }
+    #hpbar2 { font-size: 20px; line-height: 24px; letter-spacing: 2px; }
+    #hp2 { white-space: nowrap; }
     #night { font-weight: 800; font-size: 13px; white-space: nowrap; }
     #clock { font-size: 13px; opacity: .85; }
     #dcStick { position: absolute; left: 24px; bottom: calc(28px + env(safe-area-inset-bottom, 0)); width: 130px; height: 130px; border-radius: 50%; background: #ffffff22; border: 2px solid #ffffff66; box-shadow: 0 0 0 1px #0006 inset; }
@@ -26,7 +26,7 @@
 <body>
   <canvas id="game"></canvas>
   <div id="dc" class="hidden">
-    <div class="top"><div><div id="hpbar2"><div id="hp2"></div></div><div id="clock">Day</div></div><div id="night">Night 0 / 3</div><div id="books">📖 0</div><button id="view" class="ghost" style="pointer-events:auto;font-size:12px;padding:6px 10px">ISO</button></div>
+    <div class="top"><div><div id="hpbar2"><div id="hp2">❤️❤️❤️</div></div><div id="clock">Day</div></div><div id="night">Night 0 / 3</div><div id="books">📖 0</div><button id="view" class="ghost" style="pointer-events:auto;font-size:12px;padding:6px 10px">ISO</button></div>
     <div id="mission" style="position:absolute;left:14px;right:14px;top:calc(env(safe-area-inset-top,0) + 52px);font-size:13px;color:#7dff3a;text-shadow:0 2px 4px #000"></div>
     <div id="msg"></div>
     <div id="veh" style="position:absolute;left:14px;top:calc(env(safe-area-inset-top,0) + 72px);font-size:13px;color:#ffd24a;text-shadow:0 2px 4px #000"></div>

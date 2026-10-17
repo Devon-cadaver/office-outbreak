@@ -52,11 +52,16 @@ function randomOpen(minDist) { for (let k = 0; k < 200; k++) { const c = { cx: 1
 
 // ---------- player, camera, controls ----------
 const SCALE = 0.32; const player = makeCharacter('hoodie'); player.scale.setScalar(SCALE); scene.add(player);
-let hp = 100, invuln = 0, yaw = 0, camYaw = 0, state = 'start', driving = false, car = null, carHp = 5;
+let hearts = 3, maxHearts = 3, armor = 0, invuln = 0, yaw = 0, camYaw = 0, state = 'start', driving = false, car = null, carHp = 5;
 const VEH = { car: { hp: 5, speed: 6, burn: 3.5, name: 'Car' }, van: { hp: 8, speed: 5.2, burn: 4.5, name: 'Van' }, truck: { hp: 10, speed: 4.6, burn: 5.5, name: 'Truck' }, tank: { hp: 25, speed: 3.4, burn: 7, name: 'Tank' } };
 const vstat = () => VEH[(car && car.userData.kind) || 'car'];
 function vehState(c) { const u = c.userData; if (u.fuel == null) { u.fuel = 35 + Math.random() * 45; u.hp = VEH[u.kind || 'car'].hp; u.keys = u.kind !== 'tank'; } return u; }
 let outOfGasSaid = false;
+// hearts: red up to 5, blue armour hearts from a flak jacket on top
+function drawHearts() { $('hp2').textContent = '❤️'.repeat(hearts) + '🖤'.repeat(Math.max(0, maxHearts - hearts)) + '💙'.repeat(armor); }
+function hurt(n) { invuln = Math.max(invuln, 1); sfx.hurt(); while (n-- > 0) { if (armor > 0) armor--; else hearts--; } drawHearts(); if (hearts <= 0) { gameOver(false); return true; } return false; }
+function addHeart() { if (maxHearts < 5) maxHearts++; hearts = Math.min(maxHearts, hearts + 1); drawHearts(); }
+function addFlak() { armor = 2; drawHearts(); }
 function enterCar(c) { const u = vehState(c); if (!u.keys) { openGame('keys', c); return; } car = c; driving = true; carHp = u.hp; player.visible = false; outOfGasSaid = false; const wp = c.userData.worldPos().clone(); const pr = c.userData.prop; if (!pr.detached) { pr.g.remove(c); scene.add(c); c.position.set(wp.x, 0, wp.z); pr.knocked = true; pr.detached = true; pr.t = 1; c.userData.worldPos = () => c.position; } if (pr.ob) { const i = obstacles.indexOf(pr.ob); if (i >= 0) obstacles.splice(i, 1); } yaw = car.rotation.y; say(VEH[u.kind || 'car'].name + ': ' + Math.round(u.fuel) + '% fuel. Double-tap to get out.'); sfx.pickup(); }
 function leaveCar() { if (!car) return; car.userData.hp = carHp; driving = false; player.visible = true; player.position.set(car.position.x + Math.cos(yaw) * 1.2, 0, car.position.z - Math.sin(yaw) * 1.2); collide(player.position, 0.25); if (carHp <= 0) car.userData.wrecked = true; car = null; }
 const stick = { x: 0, y: 0, id: null, cx: 0, cy: 0 }; const look = { id: null, lx: 0 };
@@ -76,7 +81,7 @@ const zombies = [], pool = [];
 function spawnZombie(pos, strong) { const z = pool.pop() || makeCharacter(['worker', 'vest', 'suit', 'punk'][(Math.random() * 4) | 0], { zombie: true }); z.position.set(pos.x, 0, pos.z); z.scale.setScalar(SCALE); z.rotation.set(0, 0, 0); Object.assign(z.userData, { hp: strong ? 5 : 3, speed: 1.0 + Math.random() * 0.3 + night * 0.3, charged: 0, rag: null, stun: 0, slow: 0, poison: 0, alert: 0 }); scene.add(z); zombies.push(z); return z; }
 // death: fall over, bleach to bones, sink away, then back to the pool
 const corpses = []; const boneMat = new THREE.MeshLambertMaterial({ color: 0xe8e2c8 });
-function killZombie(i) { const z = zombies[i]; zombies.splice(i, 1); kills++; sfx.kill(); if (Math.random() < 0.06) dropCan(z.position); const lying = !!z.userData.rag; z.userData.rag = null; z.position.y = Math.max(0, z.position.y); corpses.push({ z, t: 0, rx0: z.rotation.x, lying, bones: false }); }
+function killZombie(i) { const z = zombies[i]; zombies.splice(i, 1); kills++; sfx.kill(); const roll = Math.random(); if (roll < 0.06) dropCan(z.position); else if (roll < 0.10) dropLoot(z.position, 'heart'); else if (roll < 0.115) dropLoot(z.position, 'flak'); const lying = !!z.userData.rag; z.userData.rag = null; z.position.y = Math.max(0, z.position.y); corpses.push({ z, t: 0, rx0: z.rotation.x, lying, bones: false }); }
 function setBones(z, on) { z.traverse((m) => { if (!m.isMesh) return; if (on) { m.userData.orig = m.material; if (m.material.transparent) m.visible = false; else m.material = boneMat; } else if (m.userData.orig) { m.material = m.userData.orig; m.visible = true; m.userData.orig = null; } }); }
 function updateCorpses(dt) { for (let i = corpses.length - 1; i >= 0; i--) { const c = corpses[i], z = c.z; c.t += dt;
   if (c.t < 0.6) { const k = Math.min(1, c.t / 0.6); z.rotation.x = c.lying ? c.rx0 : c.rx0 + (-Math.PI / 2 - c.rx0) * k; z.position.y = c.lying ? 0.12 : 0.12 * k; }
@@ -86,10 +91,12 @@ function updateCorpses(dt) { for (let i = corpses.length - 1; i >= 0; i--) { con
 function clearCorpses() { for (const c of corpses) { scene.remove(c.z); setBones(c.z, false); c.z.rotation.set(0, 0, 0); pool.push(c.z); } corpses.length = 0; }
 // gas cans: rare drops that refill an empty car on their own
 const cans = []; let gasCans = 0; const canGeo = new THREE.BoxGeometry(0.3, 0.36, 0.2), canMat = new THREE.MeshLambertMaterial({ color: 0xe03a2a });
-function dropCan(p) { const m = new THREE.Mesh(canGeo, canMat); m.position.set(p.x, 0.2, p.z); scene.add(m); cans.push(m); }
+const lootMats = { can: canMat, heart: new THREE.MeshBasicMaterial({ color: 0xff3a6a }), flak: new THREE.MeshLambertMaterial({ color: 0x3a7aff }) }; const heartGeo = new THREE.SphereGeometry(0.16, 8, 6), flakGeo = new THREE.BoxGeometry(0.4, 0.3, 0.16);
+function dropLoot(p, kind) { const m = new THREE.Mesh(kind === 'heart' ? heartGeo : kind === 'flak' ? flakGeo : canGeo, lootMats[kind]); m.position.set(p.x, 0.25, p.z); m.userData.kind = kind; scene.add(m); cans.push(m); }
+function dropCan(p) { dropLoot(p, 'can'); }
 function clearCans() { for (const c of cans) scene.remove(c); cans.length = 0; }
 function updateCans(dt) {
-  for (let i = cans.length - 1; i >= 0; i--) { const c = cans[i]; c.rotation.y += dt * 2; if (c.position.distanceTo(player.position) < 0.9) { scene.remove(c); cans.splice(i, 1); gasCans++; say('Gas can! (' + gasCans + ')'); sfx.pickup(); } }
+  for (let i = cans.length - 1; i >= 0; i--) { const c = cans[i]; c.rotation.y += dt * 2; if (c.position.distanceTo(player.position) < 0.9) { scene.remove(c); cans.splice(i, 1); sfx.pickup(); const k = c.userData.kind; if (k === 'heart') { addHeart(); say(maxHearts >= 5 && hearts === 5 ? 'Heart (full).' : 'Heart!'); } else if (k === 'flak') { addFlak(); say('Flak jacket: two blue hearts.'); } else { gasCans++; say('Gas can! (' + gasCans + ')'); } } }
   if (driving && gasCans > 0 && car.userData.fuel < 20) { gasCans--; car.userData.fuel = Math.min(100, car.userData.fuel + 40); say('Poured in a gas can.'); sfx.pickup(); }
 }
 function fling(z, dir, power) { const d = Math.hypot(dir.x, dir.z) || 1; z.userData.rag = { vel: new THREE.Vector3(dir.x / d * power, 5, dir.z / d * power), t: 0 }; }
@@ -119,7 +126,7 @@ function updateZombies(dt) {
     if (u.latch > 0) { u.latch -= dt; const dir = player.position.clone().sub(z.position).setY(0).normalize(); z.position.copy(player.position).addScaledVector(dir, -0.42); z.rotation.y = Math.atan2(dir.x, dir.z); u.armL.rotation.x = u.armR.rotation.x = -1.6; if (u.latch <= 0) { u.stun = 0.7; z.position.addScaledVector(dir, -0.9); collide(z.position, 0.22); } continue; }
     for (let k = survivors.length - 1; k >= 0; k--) { const s = survivors[k]; if (z.position.distanceTo(s.position) < 0.45) { scene.remove(s); survivors.splice(k, 1); say('A survivor was lost.'); sfx.hurt(); } }
     if (riding) continue;
-    if (d < 0.45 && invuln <= 0) { u.latch = 0.7; hp -= u.charged > 0 ? 40 : 20; invuln = 1; sfx.hurt(); $('hp2').style.width = Math.max(0, hp / maxHp * 100) + '%'; if (hp <= 0) return gameOver(false); }
+    if (d < 0.45 && invuln <= 0) { u.latch = 0.7; if (hurt(u.charged > 0 ? 2 : 1)) return; }
   }
   setMusicChase(hunted);
 }
@@ -154,7 +161,7 @@ function updateTornadoes(dt) {
     for (const s of survivors) if (!s.userData.rag && Math.hypot(s.position.x - px, s.position.z - pz) < R) s.userData.rag = { vel: new THREE.Vector3((s.position.x - px) * 2 + t.dir.x * 3, 9, (s.position.z - pz) * 2 + t.dir.z * 3), t: 0 };
     if (city.knock(px, pz, R, t.dir.x, t.dir.z)) sfx.hit();
     if (t.big) for (const b of city.buildings) { if (b.userData.wrecked) continue; const wp = b.getWorldPosition(new THREE.Vector3()); if (Math.hypot(wp.x - px, wp.z - pz) < R) { wreckBuilding(b); sfx.boom(); } }
-    const who = driving ? car.position : player.position; if (Math.hypot(who.x - px, who.z - pz) < R && invuln <= 0) { if (driving) { carHp -= 2; leaveCar(); } hp -= 10; invuln = 1.5; sfx.hurt(); say('Caught in the tornado!'); toss = new THREE.Vector3((who.x - px) * 2 + t.dir.x * 3, 7, (who.z - pz) * 2 + t.dir.z * 3); $('hp2').style.width = Math.max(0, hp / maxHp * 100) + '%'; if (hp <= 0) return gameOver(false); }
+    const who = driving ? car.position : player.position; if (t.big && Math.hypot(who.x - px, who.z - pz) < R && invuln <= 0) { if (driving) { carHp -= 2; leaveCar(); } say('Caught in the tornado!'); if (hurt(1)) return; invuln = 1.5; toss = new THREE.Vector3((who.x - px) * 2 + t.dir.x * 3, 7, (who.z - pz) * 2 + t.dir.z * 3); }
   }
 }
 let toss = null;
@@ -194,14 +201,14 @@ $('trash').addEventListener('pointerdown', (e) => { e.stopPropagation(); throwTr
 const DAY = 55, NIGHT_LEN = 45, NIGHTS = 6;
 // ---------- the base computer and the night missions (Dead City's six, simplified) ----------
 const MISSIONS = [
-  { title: 'RESCUE', brief: 'Find two survivors and bring them to the base.', kind: 'rescue', need: 2, reward: 'Max health +20', apply() { maxHp += 20; hp += 20; } },
+  { title: 'RESCUE', brief: 'Find two survivors and bring them to the base.', kind: 'rescue', need: 2, reward: '+1 heart', apply() { addHeart(); } },
   { title: 'POWER', brief: 'Restart the generator at the gas station and bring back the fuel can.', kind: 'fetch', at: 'gas', item: 'Fuel can', game: 'power', reward: 'Trash hits harder', apply() { trashDmg += 1; } },
   { title: 'WATER', brief: 'Prime the pump at the water station and bring back the valve.', kind: 'fetch', at: 'slime', item: 'Pump valve', game: 'water', reward: 'Spells recharge faster', apply() { cdMul = 0.7; } },
-  { title: 'SUPPLIES', brief: 'Collect three crates from the market.', kind: 'collect', at: 'school', need: 3, item: 'Supply crate', reward: 'Max health +30', apply() { maxHp += 30; hp += 30; } },
+  { title: 'SUPPLIES', brief: 'Collect three crates from the market.', kind: 'collect', at: 'school', need: 3, item: 'Supply crate', reward: 'Flak jacket (2 blue hearts)', apply() { addFlak(); } },
   { title: 'CEMETERY', brief: 'Seal the three crypts. Stand by each one.', kind: 'seal', at: 'cemetery', need: 3, reward: 'Car armour', apply() { carArmor = true; } },
   { title: 'LABORATORY', brief: 'Bring the antidote back from the lab.', kind: 'fetch', at: 'lab', item: 'Antidote', reward: 'The chopper is on its way', apply() {} },
 ];
-let mission = null, mIndex = 0, mCount = 0, mCarry = null, maxHp = 100, cdMul = 1, carArmor = false, rescued = 0, sealT = 0;
+let mission = null, mIndex = 0, mCount = 0, mCarry = null, cdMul = 1, carArmor = false, rescued = 0, sealT = 0;
 const survivors = [], crates = []; const crateGeo = new THREE.BoxGeometry(0.45, 0.4, 0.45), crateMat = new THREE.MeshLambertMaterial({ color: 0xd8a24a });
 function placeSurvivors() { for (const s of survivors) scene.remove(s); survivors.length = 0; for (let i = 0; i < 5; i++) { const s = makeCharacter(['worker', 'pink', 'plaid', 'hivis', 'suit'][i]); s.scale.setScalar(SCALE); const w = randomOpen(10); s.position.set(w.x, 0, w.z); s.userData.follow = false; scene.add(s); survivors.push(s); } }
 function startMission(i) {
@@ -210,7 +217,7 @@ function startMission(i) {
   if (mission.kind === 'collect') { const p = poi(mission.at); for (let k = 0; k < mission.need; k++) { const c = new THREE.Mesh(crateGeo, crateMat); const a = k * 2.1; c.position.set(p.x + Math.cos(a) * 2.2, 0.2, p.z + Math.sin(a) * 2.2); scene.add(c); crates.push(c); } }
   say('Mission: ' + mission.title + '. ' + mission.brief); $('mission').textContent = mission.title + ': ' + mission.brief;
 }
-function completeMission() { say('Mission complete! ' + mission.reward); mission.apply(); sfx.wave(); mIndex++; $('hp2').style.width = (hp / maxHp * 100) + '%'; startMission(mIndex); }
+function completeMission() { say('Mission complete! ' + mission.reward); mission.apply(); sfx.wave(); mIndex++; drawHearts(); startMission(mIndex); }
 function updateMissions(dt) {
   const base = poi('base'); const nearBase = Math.hypot(player.position.x - base.x, player.position.z - base.z) < 2.6;
   // survivors: walk up to recruit, lead them home
@@ -281,7 +288,7 @@ function setWeather(type) { weather.type = type; weather.t = type === 'clear' ? 
   if (type !== 'clear') { say(WEATHER[type] + (type === 'storm' ? '! Lightning can hit you, and it charges the dead.' : type === 'tornado' ? '! Run!' : '.')); sfx.whoosh(); }
   if (type === 'tornado') { const w = randomOpen(14); const a = Math.random() * Math.PI * 2; spawnTornado(w, { x: Math.sin(a), z: Math.cos(a) }, { life: weather.t, radius: 3.4, speed: 1.8, big: true }); } }
 function strike() { const near = Math.random() < 0.15; const a = Math.random() * Math.PI * 2, rr = near ? Math.random() * 1.2 : 2 + Math.random() * 9; const p = new THREE.Vector3(player.position.x + Math.sin(a) * rr, 15, player.position.z + Math.cos(a) * rr); boltMesh.position.copy(p); boltMesh.visible = true; boltLife = 0.12; lightFlash = 0.25; sfx.boom(); fx.ignite(new THREE.Vector3(p.x, 0.2, p.z), 0.3, 1.5);
-  if (Math.hypot(player.position.x - p.x, player.position.z - p.z) < 1.4 && invuln <= 0) { hp -= 15; invuln = 1; say('Struck by lightning!'); sfx.hurt(); $('hp2').style.width = Math.max(0, hp / maxHp * 100) + '%'; if (hp <= 0) gameOver(false); }
+  if (Math.hypot(player.position.x - p.x, player.position.z - p.z) < 1.4 && invuln <= 0) { say('Struck by lightning!'); if (hurt(1)) return; }
   for (const z of zombies) if (Math.hypot(z.position.x - p.x, z.position.z - p.z) < 2.5) { z.userData.charged = 8; z.userData.alert = 6; if (!z.userData.spark) { const sp = new THREE.Mesh(new THREE.SphereGeometry(1.1, 8, 6), new THREE.MeshBasicMaterial({ color: 0x6fd0ff, transparent: true, opacity: 0.35, depthWrite: false })); sp.position.y = 2.6; z.add(sp); z.userData.spark = sp; } z.userData.spark.visible = true; } }
 function updateWeather(dt) {
   if (weather.type === 'clear') { weather.next -= dt; if (weather.next <= 0) setWeather(['sand', 'fog', 'rain', 'storm', 'tornado'][(Math.random() * 5) | 0]); }
@@ -333,7 +340,7 @@ addEventListener('resize', resize); resize();
 // ---------- start / end ----------
 function startRun() {
   unlockAudio(); startMusic(); buildWorld(); for (const z of zombies) scene.remove(z); zombies.length = 0; fx.clear(); if (chopper) { scene.remove(chopper); chopper = null; } extracting = false;
-  driving = false; car = null; maxHp = 100; cdMul = 1; carArmor = false; trashDmg = 1; rescued = 0; mIndex = 0; hp = 100; invuln = 0; night = 0; clock = 0; isNight = false; kills = 0; booksFound = 0; slots.fill(null); cds.fill(0); $('hp2').style.width = '100%'; $('books').textContent = '📖 0';
+  driving = false; car = null; hearts = maxHearts = 3; armor = 0; drawHearts(); cdMul = 1; carArmor = false; trashDmg = 1; rescued = 0; mIndex = 0; invuln = 0; night = 0; clock = 0; isNight = false; kills = 0; booksFound = 0; slots.fill(null); cds.fill(0); $('hp2').style.width = '100%'; $('books').textContent = '📖 0';
   const sp = toWorld(startCell.cx, startCell.cy, cols, rows); player.position.set(sp.x, 0, sp.z); camYaw = yaw = 0; placeBooks(); placeSurvivors(); startMission(0);
   if (new URLSearchParams(location.search).get('horde')) { const n = +new URLSearchParams(location.search).get('horde') || 100; for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, rr = 5 + Math.random() * 10; const w = { x: player.position.x + Math.cos(a) * rr, z: player.position.z + Math.sin(a) * rr }; if (openCell(toCell(w.x, w.z, cols, rows))) spawnZombie(w, false); else spawnZombie(randomOpen(6), false); } say('Horde test: ' + zombies.length + ' zombies.'); }
   $('dcStart').classList.add('hidden'); $('dcOver').classList.add('hidden'); $('dc').classList.remove('hidden'); state = 'play'; say('Find the spell books before dark.');
@@ -341,4 +348,4 @@ function startRun() {
 function gameOver(won) { state = 'over'; stopMusic(); (won ? sfx.wave : sfx.over)(); $('dcOverTitle').textContent = won ? 'EXTRACTED' : 'OVERRUN'; $('dcOverText').textContent = (won ? 'You survived all six nights and made the chopper. ' : 'The dead got you on night ' + night + '. ') + 'Kills: ' + kills + ' · Books: ' + booksFound + ' · Rescued: ' + rescued; $('dc').classList.add('hidden'); $('dcOver').classList.remove('hidden'); }
 $('dcPlay').addEventListener('click', startRun); $('dcAgain').addEventListener('click', startRun);
 requestAnimationFrame(frame);
-window.__dc = { get cars() { return city.cars; }, get driving() { return driving; }, get game() { return game; }, openGame, enterCar, get riding() { return riding; }, rides, setWeather, get weather() { return weather; }, spawnTornado, strike, dropCan, dropGun, get gun() { return gun; }, get gasCans() { return gasCans; }, get tornadoes() { return tornadoes; }, set iso(v) { iso = v; }, get iso() { return iso; }, get city() { return city; }, get zombies() { return zombies; }, get player() { return player; }, get state() { return state; }, get slots() { return slots; }, spawnZombie, castSlot, throwTrash, get night() { return night; }, set clock(v) { clock = v; }, get books() { return books; }, get hp() { return hp; } };
+window.__dc = { get cars() { return city.cars; }, get driving() { return driving; }, get game() { return game; }, openGame, enterCar, get riding() { return riding; }, rides, setWeather, get weather() { return weather; }, spawnTornado, strike, dropCan, dropLoot, hurt, get hearts() { return [hearts, maxHearts, armor]; }, dropGun, get gun() { return gun; }, get gasCans() { return gasCans; }, get tornadoes() { return tornadoes; }, set iso(v) { iso = v; }, get iso() { return iso; }, get city() { return city; }, get zombies() { return zombies; }, get player() { return player; }, get state() { return state; }, get slots() { return slots; }, spawnZombie, castSlot, throwTrash, get night() { return night; }, set clock(v) { clock = v; }, get books() { return books; }, get hp() { return hearts; } };
