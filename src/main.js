@@ -28,7 +28,7 @@ const setBest = (v) => { try { localStorage.setItem('oo_best', String(v)); } cat
 ui.best.textContent = getBest() ? 'Best: ' + getBest() : '';
 
 // ---------- constants ----------
-const PLAYER_SPEED = 6.5, R = 0.45;
+const PLAYER_SPEED = 4.2, R = 0.25;
 const CIV_OUTFITS = ['vest', 'suit', 'hoodie', 'hivis', 'punk', 'worker'];
 const WEAPONS = {
   pistol:  { name: 'Pistol',  ammo: 12, rate: 0.35, range: 9,  speed: 22, pellets: 1, dmg: 1, color: 0x333333 },
@@ -66,9 +66,9 @@ function extendRoute(w, first) {
 }
 input.on('tap', setRouteTo); input.on('drag', extendRoute);
 
-const projGeo = new THREE.BoxGeometry(0.18, 0.12, 0.45), projMat = new THREE.MeshBasicMaterial({ color: 0xffe28a });
-const pickGeo = new THREE.BoxGeometry(0.9, 0.3, 0.3);
-const puffGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3), puffMat = new THREE.MeshBasicMaterial({ color: 0x9fc58a });
+const projGeo = new THREE.BoxGeometry(0.1, 0.07, 0.28), projMat = new THREE.MeshBasicMaterial({ color: 0xffe28a });
+const pickGeo = new THREE.BoxGeometry(0.5, 0.18, 0.18);
+const puffGeo = new THREE.BoxGeometry(0.15, 0.15, 0.15), puffMat = new THREE.MeshBasicMaterial({ color: 0x9fc58a });
 
 // Isometric camera: 45 deg yaw, ~35 deg elevation, follows the player.
 const CAM_YAW = Math.PI / 4, CAM_ELEV = 0.62;
@@ -77,7 +77,7 @@ const screenUp = new THREE.Vector2(-Math.sin(CAM_YAW), -Math.cos(CAM_YAW)), scre
 const camTarget = new THREE.Vector3();
 function fitCamera() {
   const aspect = innerWidth / innerHeight; camera.aspect = aspect;
-  const half = aspect < 1 ? 9.5 / aspect * 0.85 : 10; // portrait: about 3 cells wide, more tall
+  const half = aspect < 1 ? 9.5 / aspect * 0.7 : 8.5; // portrait: about 3 cells wide, more tall
   camera.left = -half * aspect; camera.right = half * aspect; camera.top = half; camera.bottom = -half;
   camera.updateProjectionMatrix();
 }
@@ -135,7 +135,7 @@ function buildLevel(n) {
     for (let k = 0; k < size; k++) {
       const civ = pool.civ.pop() || makeCharacter(CIV_OUTFITS[(rng() * CIV_OUTFITS.length) | 0]);
       civ.position.set(w.x + (rng() - 0.5) * 1.6, 0, w.z + (rng() - 0.5) * 1.6); civ.rotation.y = rng() * 6.28;
-      civ.userData.infect = 0; civ.scale.setScalar(1.3); scene.add(civ); civilians.push(civ); totalPeople++;
+      civ.userData.infect = 0; civ.userData.home = civ.position.clone(); civ.userData.goal = null; civ.userData.wait = rng() * 3; civ.scale.setScalar(0.55); scene.add(civ); civilians.push(civ); totalPeople++;
     }
   }
   // starter zombies: far from player
@@ -149,19 +149,19 @@ function buildLevel(n) {
     const type = names[Math.min(names.length - 1, (rng() * (n >= 3 ? 3 : 2)) | 0)];
     const w = toWorld(s.x, s.y, cols, rows);
     const mesh = new THREE.Mesh(pickGeo, new THREE.MeshLambertMaterial({ color: WEAPONS[type].color }));
-    mesh.position.set(w.x, 0.6, w.z); scene.add(mesh); pickups.push({ mesh, type });
+    mesh.position.set(w.x, 0.35, w.z); scene.add(mesh); pickups.push({ mesh, type });
   }
 
   const sp = toWorld(startCell.cx, startCell.cy, cols, rows);
-  player.position.set(sp.x, 0, sp.z); player.rotation.y = 0; player.visible = true; player.scale.setScalar(1.3);
+  player.position.set(sp.x, 0, sp.z); player.rotation.y = 0; player.visible = true; player.scale.setScalar(0.55);
   weapon = null; ammo = 0; flow = null; flowTimer = 0; invuln = 1; kills = 0; camTarget.copy(player.position); route = []; routeEndCell = null; showRoute();
   fitCamera(); updateHud();
 }
 
 function spawnZombie(pos, n, rng = Math.random) {
   const z = pool.zom.pop() || makeCharacter(CIV_OUTFITS[(rng() * CIV_OUTFITS.length) | 0], { zombie: true });
-  z.position.set(pos.x, 0, pos.z); z.scale.setScalar(1.3);
-  z.userData.hp = 2 + Math.floor(n / 3); z.userData.speed = 3.2 + n * 0.25 + rng() * 0.5; z.userData.flash = 0;
+  z.position.set(pos.x, 0, pos.z); z.scale.setScalar(0.55);
+  z.userData.hp = 2 + Math.floor(n / 3); z.userData.speed = 2.2 + n * 0.2 + rng() * 0.4; z.userData.flash = 0;
   scene.add(z); zombies.push(z); return z;
 }
 
@@ -183,7 +183,7 @@ function fire(target) {
   const base = new THREE.Vector3().subVectors(target.position, player.position).setY(0).normalize();
   for (let i = 0; i < w.pellets; i++) {
     const dir = base.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), w.pellets > 1 ? (i - (w.pellets - 1) / 2) * 0.12 : 0);
-    const m = new THREE.Mesh(projGeo, projMat); m.position.copy(player.position); m.position.y = 1.1;
+    const m = new THREE.Mesh(projGeo, projMat); m.position.copy(player.position); m.position.y = 0.6;
     m.userData = { vel: dir.multiplyScalar(w.speed), life: w.range / w.speed, dmg: w.dmg };
     m.lookAt(m.position.clone().add(dir)); scene.add(m); projectiles.push(m);
   }
@@ -255,8 +255,8 @@ function frame(now) {
 
     // pickups
     for (let i = pickups.length - 1; i >= 0; i--) {
-      const p = pickups[i]; p.mesh.rotation.y += dt * 2; p.mesh.position.y = 0.6 + Math.sin(now * 0.004) * 0.1;
-      if (p.mesh.position.distanceTo(player.position) < 1) { weapon = p.type; ammo = WEAPONS[p.type].ammo; scene.remove(p.mesh); pickups.splice(i, 1); sfx.wave(); updateHud(); }
+      const p = pickups[i]; p.mesh.rotation.y += dt * 2; p.mesh.position.y = 0.35 + Math.sin(now * 0.004) * 0.08;
+      if (p.mesh.position.distanceTo(player.position) < 0.7) { weapon = p.type; ammo = WEAPONS[p.type].ammo; scene.remove(p.mesh); pickups.splice(i, 1); sfx.wave(); updateHud(); }
     }
 
     // auto fire
@@ -297,11 +297,11 @@ function frame(now) {
       tmp.set(tx - z.position.x, 0, tz - z.position.z); const dl = tmp.length(); if (dl > 0.001) tmp.divideScalar(dl);
       z.position.addScaledVector(tmp, z.userData.speed * dt);
       z.rotation.y = Math.atan2(tmp.x, tmp.z);
-      for (const o of zombies) if (o !== z) { const dx = z.position.x - o.position.x, dz = z.position.z - o.position.z, dd = Math.hypot(dx, dz); if (dd < 0.7 && dd > 0.001) { z.position.x += dx / dd * (0.7 - dd) * 0.5; z.position.z += dz / dd * (0.7 - dd) * 0.5; } }
+      for (const o of zombies) if (o !== z) { const dx = z.position.x - o.position.x, dz = z.position.z - o.position.z, dd = Math.hypot(dx, dz); if (dd < 0.45 && dd > 0.001) { z.position.x += dx / dd * (0.45 - dd) * 0.5; z.position.z += dz / dd * (0.45 - dd) * 0.5; } }
       collide(z.position, R * 0.8); animateWalk(z, dt, 1);
       if (z.userData.flash > 0) { z.userData.flash -= dt; z.position.y = 0.1; } else z.position.y = 0;
       // infect civilians
-      for (const civ of civilians) if (Math.hypot(civ.position.x - z.position.x, civ.position.z - z.position.z) < 1.1) civ.userData.infect += dt * 2;
+      for (const civ of civilians) if (Math.hypot(civ.position.x - z.position.x, civ.position.z - z.position.z) < 0.7) civ.userData.infect += dt * 2;
       // touch player
       if (invuln <= 0 && Math.hypot(z.position.x - player.position.x, z.position.z - player.position.z) < R * 2) { loseLife(); if (state !== 'play') return render(dt); }
     }
@@ -310,8 +310,18 @@ function frame(now) {
       const civ = civilians[i];
       if (civ.userData.infect > 0) { civ.userData.infect -= dt * 0.5; civ.position.y = Math.random() * 0.1; if (civ.userData.infect >= 1) { turnCivilian(civ); continue; } }
       else civ.position.y = 0;
-      animateWalk(civ, dt, 0);
-      // panic: civilians near a zombie face away and shuffle slightly (cheap flavour)
+      const u = civ.userData;
+      if (u.goal) {
+        const dx = u.goal.x - civ.position.x, dz = u.goal.z - civ.position.z, d = Math.hypot(dx, dz);
+        if (d < 0.1) { u.goal = null; u.wait = 1.5 + Math.random() * 4; animateWalk(civ, dt, 0); }
+        else { const st = Math.min(d, 1.1 * dt); civ.position.x += dx / d * st; civ.position.z += dz / d * st; civ.rotation.y = Math.atan2(dx, dz); collide(civ.position, 0.2); animateWalk(civ, dt, 0.5); }
+      } else {
+        u.wait -= dt; animateWalk(civ, dt, 0);
+        // chat: face the nearest neighbour while waiting
+        let near = null, nd = 1.6; for (const o of civilians) if (o !== civ) { const d = o.position.distanceTo(civ.position); if (d < nd) { nd = d; near = o; } }
+        if (near) civ.rotation.y = Math.atan2(near.position.x - civ.position.x, near.position.z - civ.position.z);
+        if (u.wait <= 0) { const a = Math.random() * 6.283, r = 0.4 + Math.random() * 0.9; u.goal = new THREE.Vector3(u.home.x + Math.cos(a) * r, 0, u.home.z + Math.sin(a) * r); const c = toCell(u.goal.x, u.goal.z, cols, rows); if (!openCell(c)) u.goal = null; }
+      }
     }
     // particles
     for (let i = particles.length - 1; i >= 0; i--) { const p = particles[i]; p.position.addScaledVector(p.userData.vel, dt); p.userData.vel.y -= 12 * dt; p.userData.life -= dt; if (p.userData.life <= 0) { scene.remove(p); particles.splice(i, 1); } }
