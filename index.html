@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#16302f" />
+  <title>Office Outbreak</title>
+  <link rel="icon" href="data:," />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <div id="hud" class="hidden">
+    <div class="row">
+      <div id="score">0</div>
+      <div id="lives">♥♥♥</div>
+      <div id="level">District 1</div>
+    </div>
+    <div class="row sub">
+      <div id="people">People safe: 0/0</div>
+      <div id="weapon">Unarmed</div>
+    </div>
+  </div>
+
+    <div id="exitArrow" class="hidden">➤</div>
+
+  <div id="start" class="screen">
+    <h1>OFFICE<br>OUTBREAK</h1>
+    <p>The city is turning. Get from the start to the safe zone.</p>
+    <p class="small">Zombies infect every crowd they reach, so lead them away from people.<br>Grab weapons to fight back. One touch costs a life.</p>
+    <p class="small">Tap where to go, or drag a route. Works with finger or mouse.</p>
+    <button id="startBtn">START RUN</button>
+    <p class="small" id="best"></p>
+  </div>
+
+  <div id="cleared" class="screen hidden">
+    <h1>DISTRICT<br>CLEARED</h1>
+    <p id="clearedText"></p>
+    <button id="nextBtn">NEXT DISTRICT</button>
+  </div>
+
+  <div id="over" class="screen hidden">
+    <h1>OVERRUN</h1>
+    <p id="finalScore"></p>
+    <p class="small" id="finalBest"></p>
+    <button id="retryBtn">RETRY</button>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

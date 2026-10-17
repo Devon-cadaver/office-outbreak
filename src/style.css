@@ -1,0 +1,24 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; background: #16302f; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #fff; touch-action: none; -webkit-user-select: none; user-select: none; }
+#game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+.hidden { display: none !important; }
+#hud { position: fixed; top: env(safe-area-inset-top, 0); left: 0; right: 0; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; pointer-events: none; text-shadow: 0 2px 4px #000; }
+#score { font-size: 28px; font-weight: 800; }
+#wave { font-size: 16px; font-weight: 600; opacity: .9; }
+#hpbar { width: 120px; height: 14px; background: #0008; border: 2px solid #fff8; border-radius: 8px; overflow: hidden; }
+#hp { height: 100%; width: 100%; background: linear-gradient(#6f6, #2b2); transition: width .15s; }
+#joystick { position: fixed; width: 120px; height: 120px; border-radius: 50%; background: #ffffff22; border: 2px solid #ffffff55; pointer-events: none; transform: translate(-50%, -50%); }
+#stick { position: absolute; left: 50%; top: 50%; width: 50px; height: 50px; border-radius: 50%; background: #ffffff99; transform: translate(-50%, -50%); }
+.screen { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; background: #0e2222cc; text-align: center; padding: 24px; }
+.screen h1 { font-size: clamp(40px, 10vw, 72px); line-height: .95; letter-spacing: 2px; color: #ffd24a; text-shadow: 0 4px 0 #a33, 0 8px 16px #000; }
+.screen p { font-size: 18px; max-width: 360px; }
+.screen .small { font-size: 14px; opacity: .75; }
+button { font: inherit; font-size: 20px; font-weight: 800; padding: 14px 36px; border: 0; border-radius: 12px; background: #ffd24a; color: #222; box-shadow: 0 4px 0 #b8902a; cursor: pointer; }
+button:active { transform: translateY(3px); box-shadow: 0 1px 0 #b8902a; }
+#hud { flex-direction: column; gap: 4px; }
+#hud .row { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+#hud .sub { font-size: 14px; opacity: .9; }
+#lives { color: #ff5c5c; font-size: 22px; letter-spacing: 2px; }
+#level { font-size: 16px; font-weight: 600; }
+#weapon { font-weight: 700; color: #ffd24a; }
+#exitArrow { position: fixed; left: 0; top: 0; width: 44px; height: 44px; line-height: 44px; text-align: center; font-size: 30px; color: #7dff6a; text-shadow: 0 0 8px #7dff6a, 0 2px 4px #000; pointer-events: none; }
