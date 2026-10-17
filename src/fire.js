@@ -50,5 +50,5 @@ export function createFires(scene) {
     }
   }
   function clear() { for (const f of fires) scene.remove(f.glow); fires.length = 0; for (const m of particles) { scene.remove(m); pool.push(m); } particles.length = 0; for (const fl of flashes) scene.remove(fl.mesh); flashes.length = 0; }
-  return { fires, ignite, explode, update, clear };
+  return { fires, ignite, explode, update, clear, puff: spawn };
 }
