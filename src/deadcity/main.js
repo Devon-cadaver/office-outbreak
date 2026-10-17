@@ -17,7 +17,7 @@ const scene = new THREE.Scene(); scene.background = new THREE.Color(NIGHT.sky); 
 const hemi = new THREE.HemisphereLight(0xb8e0d8, 0x2a4448, 1.7); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xd0e8ff, 0.9); sun.position.set(-6, 10, 8); scene.add(sun);
 const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 200);
-const isoCam = new THREE.OrthographicCamera(-10, 10, 10, -10, 0.1, 200); let iso = true; const ISO_YAW = Math.PI / 4, ISO_ELEV = 0.72;
+const fadeTmp = new THREE.Vector3(); const isoCam = new THREE.OrthographicCamera(-10, 10, 10, -10, 0.1, 200); let iso = true; const ISO_YAW = Math.PI / 4, ISO_ELEV = 0.72;
 const isoDir = new THREE.Vector3(Math.sin(ISO_YAW) * Math.cos(ISO_ELEV), Math.sin(ISO_ELEV), Math.cos(ISO_YAW) * Math.cos(ISO_ELEV)).normalize();
 const fx = createFires(scene);
 
@@ -321,7 +321,9 @@ function frame(now) {
   const target = (driving ? car : player).position.clone().setY(driving ? 1.0 : 0.9); const want = target.clone().addScaledVector(back, driving ? 8 : 5.5).add(new THREE.Vector3(0, driving ? 4.5 : 3.2, 0));
   camera.position.lerp(want, 1 - Math.pow(0.001, dt)); camera.lookAt(target);
   isoCam.position.copy(target).addScaledVector(isoDir, 60); isoCam.lookAt(target); const cam = iso ? isoCam : camera;
-  if (city) { const cd = cam.position.clone().sub(target); for (const b of city.buildings) { const rel = b.position.clone().sub(target); const along = rel.dot(cd) / cd.lengthSq(); const fade = along > 0.05 && along < 1 && rel.clone().addScaledVector(cd, -along).length() < 3; const op = fade ? 0.15 : 1; for (const m of b.userData.fade) if (m.opacity !== op) m.opacity = op; if (b.userData.extras) for (const e of b.userData.extras) e.visible = !fade; if (b.userData.edges) b.userData.edges.visible = fade; } }
+  if (city) { const cd = cam.position.clone().sub(target); const ch = Math.hypot(cd.x, cd.z) || 1, ux = cd.x / ch, uz = cd.z / ch, slope = cd.y / ch;
+    for (const b of city.buildings) { const wp = b.getWorldPosition(fadeTmp); const rx = wp.x - target.x, rz = wp.z - target.z; const d = rx * ux + rz * uz; const perp = Math.abs(-rx * uz + rz * ux); const h = b.userData.h || 2;
+      const fade = d > 0.3 && d < ch + 1 && perp < 2.2 && h > target.y + d * slope - 0.6; const op = fade ? 0.15 : 1; for (const m of b.userData.fade) if (m.opacity !== op) m.opacity = op; if (b.userData.extras) for (const e of b.userData.extras) e.visible = !fade; if (b.userData.edges) b.userData.edges.visible = fade; } }
   renderer.render(scene, cam);
 }
 function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); const a = innerWidth / innerHeight, half = a < 1 ? 8 / a * 0.8 : 8; isoCam.left = -half * a; isoCam.right = half * a; isoCam.top = half; isoCam.bottom = -half; isoCam.updateProjectionMatrix(); }
