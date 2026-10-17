@@ -766,7 +766,7 @@ function finishGame() { clearRun(); addCoins(1);
   const rescued = civilians.filter((c) => c.userData.follow && c.position.distanceTo(player.position) < 8).length;
   const saved = civilians.length - rescued, gained = saved * 100 + rescued * 250 + kills * 10 + 500; score += gained;
   const best = Math.max(getBest(), score); setBest(best);
-  $('wonText').innerHTML = 'Extracted from Zombieville.<br>On the chopper with you: <b>' + rescued + '</b> (+' + rescued * 250 + ')<br>Still alive: ' + saved + '/' + totalPeople + '<br>Rescue bonus: +500<br><br>Final score: <b>' + score + '</b><br>Best: ' + best;
+  $('wonText').innerHTML = 'Extracted.<br>On the chopper with you: <b>' + rescued + '</b> (+' + rescued * 250 + ')<br>Still alive: ' + saved + '/' + totalPeople + '<br>Rescue bonus: +500<br><br>Final score: <b>' + score + '</b><br>Best: ' + best;
   show($('won'));
 }
 $('wonBtn').addEventListener('click', startRun);

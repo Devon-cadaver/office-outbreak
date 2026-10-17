@@ -6,7 +6,7 @@ import { makeCar } from './car.js';
 
 const $ = (id) => document.getElementById(id);
 { const q = new URLSearchParams(location.search).get('coins'); if (q) addCoins(+q); } // admin: ?coins=5 to test
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); renderer.setSize(220, 220); renderer.setPixelRatio(1);
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); renderer.setSize(150, 150); renderer.setPixelRatio(1);
 const scene = new THREE.Scene(); scene.add(new THREE.HemisphereLight(0xd0e8ff, 0x3a3a4a, 1.6)); const sun = new THREE.DirectionalLight(0xffffff, 0.8); sun.position.set(3, 6, 4); scene.add(sun);
 const cam = new THREE.PerspectiveCamera(32, 1, 0.1, 50); cam.position.set(0, 1.6, 5.2); cam.lookAt(0, 1.0, 0);
 const items = [];
@@ -17,7 +17,7 @@ function build() {
     const h = document.createElement('h2'); h.textContent = { player: 'YOUR CHARACTER', npc: 'SURVIVORS & CROWDS', car: 'VEHICLES', fx: 'EFFECTS' }[cat]; grid.appendChild(h);
     for (const s of SKINS.filter((x) => x.cat === cat)) {
       const card = document.createElement('button'); card.className = 'skin'; const own = owned.includes(s.id), on = eq[cat] === s.id;
-      card.innerHTML = '<canvas width="220" height="220"></canvas><b>' + s.name + '</b><span>' + s.desc + '</span><em>' + (on ? 'EQUIPPED' : own ? 'Tap to equip' : '🪙 ' + s.price) + '</em>';
+      card.innerHTML = '<canvas width="150" height="150"></canvas><b>' + s.name + '</b><span>' + s.desc + '</span><em>' + (on ? 'EQUIPPED' : own ? 'Tap to equip' : '🪙 ' + s.price) + '</em>';
       if (on) card.classList.add('on'); else if (!own && getCoins() < s.price) card.classList.add('poor');
       card.addEventListener('click', () => { if (!owned.includes(s.id)) { if (!buy(s.id)) { $('note').textContent = 'Beat a game to earn a coin.'; return; } } equip(cat, eq[cat] === s.id ? null : s.id); build(); });
       grid.appendChild(card);
@@ -31,5 +31,5 @@ function build() {
 build();
 let t = 0, last = performance.now();
 function frame(now) { requestAnimationFrame(frame); const dt = (now - last) / 1000; last = now; t += dt;
-  for (const it of items) { if (it.obj.parent !== scene) scene.add(it.obj); it.obj.rotation.y = t * 0.8; renderer.render(scene, cam); scene.remove(it.obj); it.ctx.clearRect(0, 0, 220, 220); it.ctx.drawImage(renderer.domElement, 0, 0); } }
+  for (const it of items) { if (it.obj.parent !== scene) scene.add(it.obj); it.obj.rotation.y = t * 0.8; renderer.render(scene, cam); scene.remove(it.obj); it.ctx.clearRect(0, 0, 150, 150); it.ctx.drawImage(renderer.domElement, 0, 0); } }
 requestAnimationFrame(frame);

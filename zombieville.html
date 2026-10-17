@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#16302f" />
-  <title>Extract from Zombieville</title>
+  <title>Extract</title>
   <link rel="icon" href="data:," />
   <link rel="stylesheet" href="/src/style.css" />
 </head>
@@ -66,7 +66,7 @@
   <div id="tip" class="hidden"></div>
 
   <div id="start" class="screen">
-    <svg id="logo" viewBox="0 0 420 300" role="img" aria-label="Extract from Zombieville">
+    <svg id="logo" viewBox="0 0 420 300" role="img" aria-label="Extract">
       <defs>
         <linearGradient id="lgSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b0f33"/><stop offset=".6" stop-color="#2a1449"/><stop offset="1" stop-color="#120a1f"/></linearGradient>
         <linearGradient id="lgRoad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a4c52"/><stop offset="1" stop-color="#232e33"/></linearGradient>
@@ -110,20 +110,21 @@
       <!-- rain -->
       <g stroke="#c9b6ff" stroke-width="1" opacity=".22"><path d="M10 20 l-3 12"/><path d="M107 73 l-3 12"/><path d="M204 126 l-3 12"/><path d="M301 179 l-3 12"/><path d="M398 52 l-3 12"/><path d="M95 105 l-3 12"/><path d="M192 158 l-3 12"/><path d="M289 31 l-3 12"/><path d="M386 84 l-3 12"/><path d="M83 137 l-3 12"/><path d="M180 190 l-3 12"/><path d="M277 63 l-3 12"/><path d="M374 116 l-3 12"/><path d="M71 169 l-3 12"/><path d="M168 42 l-3 12"/><path d="M265 95 l-3 12"/><path d="M362 148 l-3 12"/><path d="M59 21 l-3 12"/><path d="M156 74 l-3 12"/><path d="M253 127 l-3 12"/><path d="M350 180 l-3 12"/><path d="M47 53 l-3 12"/><path d="M144 106 l-3 12"/><path d="M241 159 l-3 12"/><path d="M338 32 l-3 12"/><path d="M35 85 l-3 12"/><path d="M132 138 l-3 12"/><path d="M229 191 l-3 12"/><path d="M326 64 l-3 12"/><path d="M23 117 l-3 12"/><path d="M120 170 l-3 12"/><path d="M217 43 l-3 12"/><path d="M314 96 l-3 12"/><path d="M11 149 l-3 12"/><path d="M108 22 l-3 12"/><path d="M205 75 l-3 12"/></g>
       <!-- title -->
-      <text x="210" y="40" text-anchor="middle" font-family="system-ui, Segoe UI, sans-serif" font-weight="800" font-size="19" letter-spacing="6" fill="#c9a6ff" stroke="#120a1f" stroke-width="3" paint-order="stroke">EXTRACT FROM</text>
-      <text x="210" y="286" text-anchor="middle" font-family="system-ui, Segoe UI, sans-serif" font-weight="900" font-size="46" letter-spacing="2" fill="#7dff3a" stroke="#120a1f" stroke-width="4" paint-order="stroke" filter="url(#lgGlow)">ZOMBIEVILLE</text>
+      <text x="210" y="40" text-anchor="middle" font-family="system-ui, Segoe UI, sans-serif" font-weight="800" font-size="19" letter-spacing="6" fill="#c9a6ff" stroke="#120a1f" stroke-width="3" paint-order="stroke">SURVIVE DEAD CITY</text>
+      <text x="210" y="286" text-anchor="middle" font-family="system-ui, Segoe UI, sans-serif" font-weight="900" font-size="46" letter-spacing="2" fill="#7dff3a" stroke="#120a1f" stroke-width="4" paint-order="stroke" filter="url(#lgGlow)">EXTRACT</text>
     </svg>
     <p>Lead a line of survivors through the maze to the extraction point.</p>
     <p class="small">Zombies infect every crowd they reach, so lead them away from people.<br>Grab weapons to fight back. One touch costs a life.</p>
     <p class="small">Tap where to go, or drag a route. Works with finger or mouse.</p>
     <button id="startBtn">START RUN</button>
     <button id="continueBtn" class="hidden">CONTINUE SAVED RUN</button>
+    <button class="ghost menuBtn" onclick="location.href='index.html'">MAIN MENU</button>
     <button id="howtoBtn" class="ghost">HOW TO PLAY</button>
     <p class="small">Season: <select id="seasonSel" class="ghost" style="font-size:13px;padding:4px 8px"></select></p>
     <button id="soundBtn" class="ghost">🔊 Sound: on</button>
     <p class="small" id="soundNote">If you hear nothing on iPhone, flip the ringer switch off silent.</p>
     <p class="small" id="best"></p>
-    <p class="small"><a href="index.html" style="color:#c9a6ff">Main menu</a> · <a href="zombieville.html?build=1" style="color:#c9a6ff">Map builder (admin)</a></p>
+    <p class="small"><a href="zombieville.html?build=1" style="color:#c9a6ff">Map builder (admin)</a></p>
   </div>
 
   <div id="pause" class="screen hidden"><h1>PAUSED</h1><p id="pauseText" class="small"></p><button id="resumeBtn">RESUME</button><button id="saveBtn" class="ghost">SAVE &amp; MAIN MENU</button><button id="quitBtn" class="ghost">MAIN MENU (no save)</button></div>
@@ -132,6 +133,7 @@
     <p id="clearedText"></p>
     <div id="store"></div>
     <button id="nextBtn">NEXT DISTRICT</button>
+    <button class="ghost menuBtn" onclick="location.href='index.html'">MAIN MENU</button>
   </div>
 
   <div id="howto" class="screen hidden">
@@ -145,6 +147,7 @@
     <h1>EVACUATED</h1>
     <p id="wonText"></p>
     <button id="wonBtn">PLAY AGAIN</button>
+    <button class="ghost menuBtn" onclick="location.href='index.html'">MAIN MENU</button>
   </div>
 
   <div id="over" class="screen hidden">
@@ -152,6 +155,7 @@
     <p id="finalScore"></p>
     <p class="small" id="finalBest"></p>
     <button id="retryBtn">RETRY</button>
+    <button class="ghost menuBtn" onclick="location.href='index.html'">MAIN MENU</button>
   </div>
 
   <script type="module" src="/src/main.js"></script>
