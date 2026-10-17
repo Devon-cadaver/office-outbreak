@@ -9,7 +9,7 @@ export function createInput(canvas, camera) {
   let touchMid = null;
   let holdTimer = null, held = false;
   const pointers = new Map(); let pinchDist = 0, pinching = false;
-  let look = false, lookLast = null; // look mode: single finger/mouse drag pans the view, taps do nothing
+  let look = false, lookLast = null, lookTap = false; // look mode: single finger/mouse drag pans the view, taps do nothing
   const toWorld = (x, y) => {
     ndc.set((x / innerWidth) * 2 - 1, -(y / innerHeight) * 2 + 1);
     ray.setFromCamera(ndc, camera);
@@ -19,7 +19,7 @@ export function createInput(canvas, camera) {
     pointers.set(e.pointerId, [e.clientX, e.clientY]);
     if (pointers.size === 2) { const [a, b] = [...pointers.values()]; pinchDist = Math.hypot(a[0] - b[0], a[1] - b[1]); pinching = true; down = false; id = null; for (const f of listeners.dragEnd) f(); return; }
     if (id !== null) return; id = e.pointerId; try { canvas.setPointerCapture(e.pointerId); } catch { /* synthetic or stale pointer */ }
-    if (look) { lookLast = [e.clientX, e.clientY]; return; }
+    if (look) { lookLast = [e.clientX, e.clientY]; startX = e.clientX; startY = e.clientY; return; }
     down = true; dragged = false; held = false; startX = e.clientX; startY = e.clientY;
     const w = toWorld(e.clientX, e.clientY); if (w) for (const f of listeners.drag) f(w, true);
     clearTimeout(holdTimer); holdTimer = setTimeout(() => { if (down && !dragged && !pinching) { held = true; const hw = toWorld(startX, startY); if (hw) for (const f of listeners.hold) f(hw); } }, 650);
@@ -36,7 +36,7 @@ export function createInput(canvas, camera) {
     pointers.delete(e.pointerId);
     if (pinching) { if (pointers.size === 0) pinching = false; return; }
     if (e.pointerId !== id) return; down = false; id = null; clearTimeout(holdTimer);
-    if (look) { lookLast = null; return; }
+    if (look) { const moved = Math.hypot(e.clientX - startX, e.clientY - startY) > 8; lookLast = null; if (lookTap && !moved) { const w = toWorld(e.clientX, e.clientY); if (w) for (const f of listeners.tap) f(w); } return; }
     const w = toWorld(e.clientX, e.clientY);
     if (dragged) { for (const f of listeners.dragEnd) f(); }
     else if (held) { /* a hold is not a tap */ }
@@ -61,5 +61,6 @@ export function createInput(canvas, camera) {
     reset() { down = false; id = null; dragged = false; pinching = false; pointers.clear(); lookLast = null; },
     setLook(on) { look = !!on; lookLast = null; if (look) { down = false; dragged = false; clearTimeout(holdTimer); for (const f of listeners.dragEnd) f(); } },
     get look() { return look; },
+    set lookTap(v) { lookTap = !!v; },
   };
 }

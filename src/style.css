@@ -23,6 +23,9 @@ button:active { transform: translateY(3px); box-shadow: 0 1px 0 #3f9a1f; }
 #lives { color: #ff5c5c; font-size: 22px; letter-spacing: 2px; }
 #level { font-size: 16px; font-weight: 600; }
 #weapon { font-weight: 700; color: #ffd24a; }
+#build { position: fixed; top: env(safe-area-inset-top, 0); left: 0; right: 0; z-index: 6; display: flex; gap: 6px; align-items: center; padding: 8px; background: #120a1fee; border-bottom: 2px solid #9a5fd6; }
+#build select { flex: 1; min-width: 0; font: inherit; font-size: 15px; font-weight: 700; padding: 9px 8px; border-radius: 8px; background: #2a1449; color: #fff; border: 2px solid #9a5fd6; }
+#build button { font-size: 14px; padding: 9px 12px; }
 #objective { font-size: 15px; font-weight: 800; color: #7dff6a; text-shadow: 0 0 10px #7dff6a88, 0 2px 4px #000; }
 #objective.warn { color: #ff5c5c; text-shadow: 0 0 10px #ff5c5c88, 0 2px 4px #000; }
 #puzzle { background: #1a0f2eee; }

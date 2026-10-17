@@ -8,6 +8,8 @@ import { buildRuins } from './ruins.js';
 import { makeCar, animateCar } from './car.js';
 import { rides } from './landmarks.js';
 import { createFires } from './fire.js';
+import { GROUPS, OPEN_CODES, loadMap, saveMap, blankMap, fillSelect } from './tools.js';
+const BUILD = new URLSearchParams(location.search).get('build') === '1';
 // ---------- economy / store ----------
 let cash = 0, cashThisDistrict = 0;
 const inv = { shoes: 0, vest: false, flare: false, ammo: false, car: null, carHp: 0 };
@@ -204,7 +206,32 @@ function extendRoute(w, first) {
   const seg = findPath(maze, routeEndCell || playerCell(), target);
   if (seg.length && route.length + seg.length <= 10) { route.push(...seg); routeEndCell = target; showRoute(); }
 }
+// ---- in-world build mode (index.html?build=1): tap a cell to place the selected item on the real map ----
+let bTool = 0, bMap = null, bRebuild = 0;
+function buildPlace(w) {
+  const c = toCell(w.x, w.z, cols, rows); if (c.cx <= 0 || c.cy <= 0 || c.cx >= cols - 1 || c.cy >= rows - 1) return;
+  if (bTool === 11 || bTool === 12) for (const row of bMap.cells) for (let x = 0; x < row.length; x++) if (row[x] === bTool) row[x] = 0;
+  if (bMap.cells[c.cy][c.cx] === bTool) return;
+  bMap.cells[c.cy][c.cx] = bTool; saveMap(bMap); sfx.throw(); clearTimeout(bRebuild); bRebuild = setTimeout(buildRefresh, 120);
+}
+function buildRefresh() { const keep = camPan.clone(); buildLevel(1); for (const cv of civilians) scene.remove(cv); for (const z of zombies) scene.remove(z); civilians = []; zombies = []; for (const p of pickups) scene.remove(p.mesh); pickups = []; camPan.copy(keep); setTip(''); state = 'build'; player.visible = true; updateHud(); }
+function startBuild() {
+  bMap = loadMap(); fillSelect($('bTool')); $('bTool').value = '0'; $('bTool').addEventListener('change', () => { bTool = +$('bTool').value; });
+  $('bView').addEventListener('click', () => { setTopView(!topView); $('bView').textContent = topView ? 'Angle' : 'Top'; });
+  $('bMenu').addEventListener('change', () => { const v = $('bMenu').value; $('bMenu').value = '';
+    if (v === 'play') location.href = 'index.html?custom=1';
+    else if (v === 'export') { const s = JSON.stringify(bMap); try { navigator.clipboard.writeText(s); } catch { /* ignore */ } prompt('Map text (copied). Paste it to Claude:', s); }
+    else if (v === 'import') { const s = prompt('Paste map text:'); try { const mm = JSON.parse(s); if (mm && mm.cells) { bMap = mm; saveMap(bMap); buildRefresh(); } } catch { alert('That is not a map.'); } }
+    else if (v === 'random') { const wall = generateMaze(bMap.cols, bMap.rows, Math.floor(bMap.cols * bMap.rows * 0.08)); bMap.cells = wall.map((row) => row.map((x) => (x ? 1 : 0))); bMap.cells[bMap.rows - 2][1] = 11; bMap.cells[1][bMap.cols - 2] = 12; saveMap(bMap); buildRefresh(); }
+    else if (v === 'clear') { bMap = blankMap(bMap.cols, bMap.rows); bMap.cells[bMap.rows - 2][1] = 11; bMap.cells[1][bMap.cols - 2] = 12; saveMap(bMap); buildRefresh(); }
+    else if (v === 'grid') location.href = 'editor.html';
+    else if (v === 'exit') location.href = 'index.html'; });
+  unlockAudio(); show(null); $('build').classList.remove('hidden'); ui.hud.classList.add('hidden'); $('lookBtn').classList.add('hidden');
+  input.setLook(true); input.lookTap = true; buildRefresh(); zoom = 0.9; fitCamera();
+  setTip('Build mode: tap to place, drag to pan, pinch to zoom. The start marker is where you stand.');
+}
 input.on('tap', (w) => {
+  if (BUILD) { buildPlace(w); return; }
   const now = performance.now();
   const tappedRide = state === 'play' && !riding ? rideAt(w.x, w.z, 2.8) : null;
   if (tappedRide) {
@@ -243,6 +270,8 @@ const puffGeo = new THREE.BoxGeometry(0.15, 0.15, 0.15), puffMat = new THREE.Mes
 const CAM_YAW = Math.PI / 4, CAM_ELEV = 0.72;
 const camDir = new THREE.Vector3(Math.sin(CAM_YAW) * Math.cos(CAM_ELEV), Math.sin(CAM_ELEV), Math.cos(CAM_YAW) * Math.cos(CAM_ELEV)).normalize();
 const screenUp = new THREE.Vector2(-Math.sin(CAM_YAW), -Math.cos(CAM_YAW)), screenRight = new THREE.Vector2(Math.cos(CAM_YAW), -Math.sin(CAM_YAW));
+let topView = false;
+function setTopView(on) { topView = on; const el = on ? 1.36 : CAM_ELEV, yaw = on ? 0 : CAM_YAW; camDir.set(Math.sin(yaw) * Math.cos(el), Math.sin(el), Math.cos(yaw) * Math.cos(el)).normalize(); screenUp.set(-Math.sin(yaw), -Math.cos(yaw)); screenRight.set(Math.cos(yaw), -Math.sin(yaw)); }
 const camTarget = new THREE.Vector3(), camPan = new THREE.Vector3();
 let zoom = 1; try { zoom = +localStorage.getItem('oo_zoom') || 1; } catch { /* ignore */ }
 function fitCamera() {
@@ -284,7 +313,7 @@ function buildLevel(n) {
   const rng = mulberry32(n * 1337 + 42);
   // custom map from the builder (editor.html): district 1 only
   let custom = null;
-  if (n === 1 && new URLSearchParams(location.search).get('custom') === '1') { try { custom = JSON.parse(localStorage.getItem('oo_custom_map') || 'null'); } catch { custom = null; } }
+  if (n === 1 && (BUILD || new URLSearchParams(location.search).get('custom') === '1')) { custom = loadMap(); if (BUILD && !custom) { custom = blankMap(); custom.cells[custom.rows - 2][1] = 11; custom.cells[1][custom.cols - 2] = 12; saveMap(custom); } }
   if (custom && custom.cells) {
     cols = custom.cols; rows = custom.rows; const LM = { 4: 'gas', 5: 'ferris', 6: 'coaster', 7: 'carousel', 8: 'school', 9: 'skate', 10: 'slime' };
     // open: road 0, park 3, start 11, exit 12, avenue 13, crosswalk 14, plaza 15, bench 18, parked car 19. Blocked: building 1, house 2, tower 16, tree 17, landmarks 4..10
@@ -682,6 +711,7 @@ $('slideSkip').addEventListener('click', () => { try { localStorage.setItem('oo_
 $('howtoBtn').addEventListener('click', openHowto);
 let seen = false; try { seen = localStorage.getItem('oo_seen') === '1'; } catch { /* ignore */ }
 $('startBtn').addEventListener('click', () => { unlockAudio(); if (seen) startRun(); else openHowto(); });
+if (BUILD) startBuild();
 // unlock audio on the very first touch anywhere, and offer a mute toggle
 const soundBtn = $('soundBtn');
 const refreshSoundBtn = () => { soundBtn.textContent = isMuted() ? '🔇 Sound: off' : '🔊 Sound: on' + (audioState() === 'running' ? '' : ' (tap to enable)'); };
