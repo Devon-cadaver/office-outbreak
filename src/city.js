@@ -240,7 +240,6 @@ export function buildCity(scene, wall, level) {
   // ---------- cars ----------
   const glass = M({ color: 0x5a86a8 }), wheelMat = M({ color: 0x101416 }), headMat = new THREE.MeshBasicMaterial({ color: NIGHT.lamp }), tailMat = new THREE.MeshBasicMaterial({ color: 0xff3a3a });
   const bodyGeo = new THREE.BoxGeometry(0.9, 0.36, 1.8), cabinGeo = new THREE.BoxGeometry(0.8, 0.34, 0.95);
-  const poleCells = [];
   for (const [x, y] of streetCells) {
     if (x === 0 || y === 0 || x === cols - 1 || y === rows - 1) continue;
     const n = open(x, y - 1), s = open(x, y + 1), e = open(x + 1, y), w0 = open(x - 1, y);
@@ -260,31 +259,64 @@ export function buildCity(scene, wall, level) {
       else { car.rotation.y = rng() < 0.5 ? 0 : Math.PI; car.position.set(w.x + sideSign * 0.95, 0, w.z); obstacles.push({ x: w.x + sideSign * 0.95, z: w.z, hw: 0.45, hd: 0.9 }); }
       group.add(car);
     }
-    if (rng() < 0.1) poleCells.push([x, y]);
   }
 
   // ---------- lamps, poles, wires ----------
+  // Poles stand along straight street runs at a regular spacing, on one side of the road.
+  // Wires connect consecutive poles down the same street only, so lines follow the roads.
   const poleMat = M({ color: 0x1e2a2c }), bulbMat = new THREE.MeshBasicMaterial({ color: NIGHT.lamp });
   const poolMat = new THREE.MeshBasicMaterial({ map: T.lampPool, transparent: true, depthWrite: false });
-  const poleTops = [], wirePts = [], lamps = [];
-  for (const [x, y] of poleCells) {
-    const w = toWorld(x, y, cols, rows); const px = w.x + 1.22, pz = w.z + 1.22;
+  const wirePts = [], lamps = [];
+  const SPACING = 2; // cells between poles
+  const makePole = (px, pz, facing) => {
+    // facing: +1 lamp arm points to +x (east), -1 to -x, +2 to +z, -2 to -z
     add(cyl, poleMat, 0.1, 2.8, 0.1, px, 1.4, pz);
-    add(box, poleMat, 0.55, 0.07, 0.07, px - 0.27, 2.75, pz);
-    add(cone, poleMat, 0.36, 0.22, 0.36, px - 0.5, 2.7, pz).rotation.x = Math.PI;
-    const bulb = add(cyl, bulbMat.clone(), 0.18, 0.06, 0.18, px - 0.5, 2.58, pz);
-    const pool = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 3.4), poolMat.clone()); pool.rotation.x = -Math.PI / 2; pool.position.set(px - 0.5, 0.02, pz); group.add(pool);
+    add(box, poleMat, 0.8, 0.06, 0.06, px, 2.45, pz).rotation.y = Math.abs(facing) === 2 ? Math.PI / 2 : 0; // crossbar along the street
+    const ax = facing === 1 ? 0.5 : facing === -1 ? -0.5 : 0, az = facing === 2 ? 0.5 : facing === -2 ? -0.5 : 0;
+    const arm = add(box, poleMat, 0.55, 0.07, 0.07, px + ax * 0.55, 2.75, pz + az * 0.55); arm.rotation.y = Math.abs(facing) === 2 ? Math.PI / 2 : 0;
+    add(cone, poleMat, 0.36, 0.22, 0.36, px + ax, 2.7, pz + az).rotation.x = Math.PI;
+    const bulb = add(cyl, bulbMat.clone(), 0.18, 0.06, 0.18, px + ax, 2.58, pz + az);
+    const pool = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 3.4), poolMat.clone()); pool.rotation.x = -Math.PI / 2; pool.position.set(px + ax, 0.02, pz + az); group.add(pool);
     if (rng() < 0.3) lamps.push({ bulb, pool, t: rng() * 10, on: true });
-    add(box, poleMat, 0.8, 0.06, 0.06, px, 2.45, pz);
-    poleTops.push(new THREE.Vector3(px, 2.47, pz));
     obstacles.push({ x: px, z: pz, hw: 0.1, hd: 0.1 });
+    return new THREE.Vector3(px, 2.47, pz);
+  };
+  const wire = (a, b) => { const segs = 8; const sag = (t) => -Math.sin(t * Math.PI) * 0.35; for (let k = 0; k < segs; k++) { const t0 = k / segs, t1 = (k + 1) / segs; for (const off of [-0.12, 0.12]) { const ox = Math.abs(a.x - b.x) > Math.abs(a.z - b.z) ? 0 : off, oz = Math.abs(a.x - b.x) > Math.abs(a.z - b.z) ? off : 0; wirePts.push(a.x + (b.x - a.x) * t0 + ox, a.y + sag(t0), a.z + (b.z - a.z) * t0 + oz, a.x + (b.x - a.x) * t1 + ox, a.y + sag(t1), a.z + (b.z - a.z) * t1 + oz); } } };
+  // horizontal runs (left-right streets): poles on the north side, lamp arm pointing south over the road
+  for (let y = 1; y < rows - 1; y++) {
+    let x = 1;
+    while (x < cols - 1) {
+      if (wall[y][x]) { x++; continue; }
+      let x2 = x; while (x2 < cols - 1 && !wall[y][x2]) x2++;
+      const len = x2 - x; // run of open cells
+      if (len >= 3 && rng() < 0.75) {
+        let prev = null;
+        for (let k = 0; k < len; k += SPACING) {
+          const cx = x + k; if (!(wall[y - 1][cx])) continue; // need a building edge to stand against on the north side
+          const w = toWorld(cx, y, cols, rows); const top = makePole(w.x - 1.0, w.z - 1.2, 2);
+          if (prev && prev.distanceTo(top) < CELL * SPACING + 0.5) wire(prev, top); prev = top;
+        }
+      }
+      x = x2;
+    }
   }
-  for (let i = 0; i < poleTops.length; i++) {
-    const a = poleTops[i];
-    const near = poleTops.map((b, j) => ({ j, d: a.distanceTo(b) })).filter(o => o.j !== i && o.d < 15).sort((u, v) => u.d - v.d).slice(0, 2);
-    for (const { j } of near) if (j > i) {
-      const b = poleTops[j]; const segs = 8; const sag = (t) => -Math.sin(t * Math.PI) * 0.55;
-      for (let k = 0; k < segs; k++) { const t0 = k / segs, t1 = (k + 1) / segs; wirePts.push(a.x + (b.x - a.x) * t0, a.y + sag(t0), a.z + (b.z - a.z) * t0, a.x + (b.x - a.x) * t1, a.y + sag(t1), a.z + (b.z - a.z) * t1); }
+  // vertical runs (up-down streets): poles on the east side, lamp arm pointing west
+  for (let x = 1; x < cols - 1; x++) {
+    let y = 1;
+    while (y < rows - 1) {
+      if (wall[y][x]) { y++; continue; }
+      let y2 = y; while (y2 < rows - 1 && !wall[y2][x]) y2++;
+      const len = y2 - y;
+      if (len >= 3 && rng() < 0.75) {
+        let prev = null;
+        for (let k = 0; k < len; k += SPACING) {
+          const cy = y + k; if (!(wall[cy][x + 1])) continue; // building edge on the east side
+          if (!wall[cy - 1]?.[x] === false && !wall[cy][x - 1] && !wall[cy][x + 1]) continue;
+          const w = toWorld(x, cy, cols, rows); const top = makePole(w.x + 1.2, w.z + 1.0, -1);
+          if (prev && prev.distanceTo(top) < CELL * SPACING + 0.5) wire(prev, top); prev = top;
+        }
+      }
+      y = y2;
     }
   }
   if (wirePts.length) { const wg = new THREE.BufferGeometry(); wg.setAttribute('position', new THREE.Float32BufferAttribute(wirePts, 3)); group.add(new THREE.LineSegments(wg, new THREE.LineBasicMaterial({ color: NIGHT.wire }))); }
