@@ -159,10 +159,19 @@ let startCell = null, exitCell = null, exitMesh = null, gate = null, switchCell 
 const player = makeCharacter('worker', { skin: equippedSkin('player') }); scene.add(player); player.visible = false;
 let civilians = [], zombies = [], pickups = [], projectiles = [], particles = [];
 const pool = { civ: [], zom: [] };
-const PACE = [0.55, 1, 1.4]; let pace = 1, autoT = 0;
-function setPace(p) { pace = Math.max(0, Math.min(2, p)); $('paceVal').textContent = ['slow', 'walk', 'fast'][pace]; }
-$('slowBtn').addEventListener('click', () => setPace(pace - 1)); $('fastBtn').addEventListener('click', () => setPace(pace + 1));
-addEventListener('keydown', (e) => { if (e.key === '-' || e.key === '_') setPace(pace - 1); if (e.key === '+' || e.key === '=') setPace(pace + 1); });
+// Smashy Road controls: you always go straight. Tap the left half (or ◀) to turn left at the next chance, right half for right.
+// WALK and RUN are held and burn stamina; stamina trickles back and purple gems refill it.
+let heading = [0, 1], turnQ = 0, autoT = 0, stam = 100, stamMode = 0;
+function queueTurn(dir) { if (state !== 'play') return; turnQ = dir; $('turnL').classList.toggle('on', dir < 0); $('turnR').classList.toggle('on', dir > 0); }
+function setStamMode(mode) { stamMode = mode && stam > 0 ? mode : 0; $('walkBtn').classList.toggle('on', stamMode < 0); $('runBtn').classList.toggle('on', stamMode > 0); }
+$('turnL').addEventListener('pointerdown', (e) => { e.stopPropagation(); queueTurn(-1); }); $('turnR').addEventListener('pointerdown', (e) => { e.stopPropagation(); queueTurn(1); });
+for (const [id, mode] of [['walkBtn', -1], ['runBtn', 1]]) { const b = $(id); b.addEventListener('pointerdown', (e) => { e.stopPropagation(); setStamMode(mode); }); for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) b.addEventListener(ev, () => setStamMode(0)); }
+addEventListener('pointerup', () => setStamMode(0));
+canvas.addEventListener('pointerdown', (e) => { if (state !== 'play' || BUILD || input.look) return; queueTurn(e.clientX < innerWidth / 2 ? -1 : 1); });
+addEventListener('keydown', (e) => { if (e.key === 'ArrowLeft' || e.key === 'a') queueTurn(-1); if (e.key === 'ArrowRight' || e.key === 'd') queueTurn(1); if (e.key === 'ArrowDown' || e.key === 's') setStamMode(-1); if (e.key === 'ArrowUp' || e.key === 'w') setStamMode(1); });
+addEventListener('keyup', (e) => { if (['ArrowDown', 'ArrowUp', 's', 'w'].includes(e.key)) setStamMode(0); });
+// which perpendicular reads as "left" on screen depends on the camera, so ask it
+function perps(h) { const camRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion); const a = [h[1], -h[0]], b = [-h[1], h[0]]; const sx = (v) => v[0] * camRight.x + v[1] * camRight.z; return sx(a) < sx(b) ? { left: a, right: b } : { left: b, right: a }; }
 let weapon = null, ammo = 0, fireTimer = 0, flow = null, flowTimer = 0, invuln = 0, totalPeople = 0, kills = 0;
 // player route: list of [cx, cy] cells to walk through
 let route = [], routeEndCell = null, stepTimer = 0, groanTimer = 1, tipStage = 0, followers = [], rescuedTotal = 0;
@@ -283,10 +292,9 @@ input.on('tap', (w) => {
     }
     lastTapT = now; lastTapW = w; if (near) say(player, 'Double-tap to ride.', 1.2); return;
   }
-  if (lastTapW && now - lastTapT < 380 && Math.hypot(w.x - lastTapW.x, w.z - lastTapW.z) < 2.5 && sprintCd <= 0 && state === 'play') { sprint = 3; sprintCd = 7; sfx.wave(); if (inv.flare) dropFlare(); say(player, ['Run!', 'Go go go!', 'Move it!'][(Math.random() * 3) | 0], 1.2); }
-  lastTapT = now; lastTapW = w; camPan.set(0, 0, 0); setRouteTo(w);
+  lastTapT = now; lastTapW = w; camPan.set(0, 0, 0);
 });
-input.on('drag', extendRoute);
+// drag-routing retired: direction comes from the turn buttons
 // binoculars: look mode. One finger pans, pinch zooms, taps never route the player.
 const lookBtn = document.getElementById('lookBtn');
 function setLook(on) {
@@ -302,7 +310,7 @@ input.on('pan', (dx, dy) => { const k = (camera.top - camera.bottom) / innerHeig
 input.on('zoom', (f) => { zoom = Math.max(0.5, Math.min(2.2, zoom * f)); try { localStorage.setItem('oo_zoom', String(zoom)); } catch { /* ignore */ } fitCamera(); });
 
 const projGeo = new THREE.BoxGeometry(0.1, 0.07, 0.28), projMat = new THREE.MeshBasicMaterial({ color: 0xffe28a });
-const pickGeo = new THREE.BoxGeometry(0.5, 0.18, 0.18);
+const pickGeo = new THREE.BoxGeometry(0.5, 0.18, 0.18); const gemMat = new THREE.MeshBasicMaterial({ color: 0xc06cff });
 const puffGeo = new THREE.BoxGeometry(0.15, 0.15, 0.15), puffMat = new THREE.MeshBasicMaterial({ color: 0x9fc58a });
 
 // Isometric camera: 45 deg yaw, ~35 deg elevation, follows the player.
@@ -452,6 +460,8 @@ function buildLevel(n) {
   // starter zombies: far from player
   const zCount = tutorial ? 2 : 3 + Math.floor(n / 2) + Math.floor(cols * rows / 250);
   for (let i = 0; i < zCount; i++) { const s = pick((s) => s.ds > Math.max(cols, rows) * (tutorial ? 0.45 : 0.6)); if (s) spawnZombie(toWorld(s.x, s.y, cols, rows), n, rng); }
+  // stamina gems
+  for (let i = 0; i < 3; i++) { const s = pick(() => true); if (!s) break; const w = toWorld(s.x, s.y, cols, rows); const mesh = new THREE.Mesh(new THREE.OctahedronGeometry(0.22), gemMat); mesh.position.set(w.x, 0.4, w.z); scene.add(mesh); pickups.push({ mesh, type: 'gem' }); }
   // weapons
   const wCount = 3 + Math.floor(n / 2) + Math.floor(cols * rows / 200);
   const names = Object.keys(WEAPONS);
@@ -467,7 +477,7 @@ function buildLevel(n) {
   player.position.set(sp.x, 0, sp.z); player.rotation.y = 0; player.visible = true; player.scale.setScalar(0.55);
   weapon = inv.ammo ? 'rifle' : 'pistol'; ammo = inv.ammo ? 24 : 6; inv.ammo = false; vestUp = inv.vest; inv.vest = false; carHits = 0;
   if (inv.car && inv.carHp > 0 && n > 1) startDriving(); else if (driving) parkCar();
-  flow = null; flowTimer = 0; invuln = 1; kills = 0; time = 0; autoT = 2; crossWarned = false; respawnCell = null; sprint = 0; sprintCd = 0; streak = 0; previewT = 0; showPreview([]); camTarget.copy(player.position); route = []; routeEndCell = null; showRoute();
+  flow = null; flowTimer = 0; invuln = 1; kills = 0; time = 0; autoT = 2; crossWarned = false; stam = 100; setStamMode(0); queueTurn(0); { const c = toCell(player.position.x, player.position.z, cols, rows); heading = [[0, 1], [1, 0], [0, -1], [-1, 0]].find((v) => maze[c.cy + v[1]] && maze[c.cy + v[1]][c.cx + v[0]] === false) || [0, 1]; } respawnCell = null; sprint = 0; sprintCd = 0; streak = 0; previewT = 0; showPreview([]); camTarget.copy(player.position); route = []; routeEndCell = null; showRoute();
   tipStage = 0; setTip(''); fitCamera(); updateHud();
   parked = false; ferrisHinted = false; for (const rr of rides) rr.speed = 1; clearAntidote(); fx.clear(); shake = 0; for (const g of goo) scene.remove(g); goo = []; if (flyby) { scene.remove(flyby); flyby = null; } flybyT = 20 + Math.random() * 20; riding = null; rideCd = 0; playerInfect = 0; $('puzzle').classList.add('hidden'); puzzle = null; closeWheelGame(); closeCoasterGame(); closeCarouselGame();
 }
@@ -677,7 +687,7 @@ function updateHud() {
   ui.weapon.textContent = (driving ? '🚗 ' + inv.carHp + '/5  ·  ' : '') + (weapon ? WEAPONS[weapon].name + ' x' + ammo : 'Unarmed') + '  ·  $' + cash;
 }
 
-function show(screen) { if (screen) setTip(''); for (const s of [ui.start, ui.cleared, ui.over, $('won'), $('howto'), $('pause')]) s.classList.add('hidden'); if (screen) screen.classList.remove('hidden'); ui.hud.classList.toggle('hidden', !!screen); document.getElementById('lookBtn').classList.toggle('hidden', !!screen); $('pace').classList.toggle('hidden', !!screen); }
+function show(screen) { if (screen) setTip(''); for (const s of [ui.start, ui.cleared, ui.over, $('won'), $('howto'), $('pause')]) s.classList.add('hidden'); if (screen) screen.classList.remove('hidden'); ui.hud.classList.toggle('hidden', !!screen); document.getElementById('lookBtn').classList.toggle('hidden', !!screen); $('ctl').classList.toggle('hidden', !!screen); }
 
 function startRun(save) { seen = true; unlockAudio(); setMusicChase(false); startMusic(); level = 1; score = 0; lives = 3; time = 0; cash = 0; cashThisDistrict = 0; Object.assign(inv, { shoes: 0, vest: false, flare: false, ammo: false, car: null, carHp: 0 }); if (car) { scene.remove(car); car = null; } driving = false;
   if (save) { level = save.level || 1; score = save.score || 0; lives = save.lives || 3; cash = save.cash || 0; Object.assign(inv, save.inv || {}); }
@@ -742,7 +752,7 @@ function clearDistrict() {
 }
 // ---------- how to play slides ----------
 const SLIDES = [
-  ['howto/1-move.jpg', 'You never stop walking. Tap a street to steer there, or drag a route. − and + change your pace, double-tap to sprint. Hold a finger down to preview the way to your objective.'],
+  ['howto/1-move.jpg', 'You never stop walking. Tap the left side of the screen to turn left at the next corner, the right side to turn right. Hold WALK or RUN to change pace; both burn stamina, purple gems refill it. Hold a finger down to preview the way to your objective.'],
   ['howto/2-weapon.jpg', 'You start each district with a few pistol shots. Pick up more weapons on the way. They aim and fire by themselves. Chain kills and rescues quickly for a score multiplier.'],
   ['howto/3-crowd.jpg', 'You are immune, but you carry it. Cross your own line of followers and whoever you touch turns, except the one right behind you. Like a snake, the longer the line, the more you plan.'],
   ['howto/6-follow.jpg', 'Walk up to people and they follow you. Get them to the safe zone for 250 points each. Or keep them between you and the horde: zombies take the nearest person first. Careful: a bitten follower spreads it down the line, and then to you.'],
@@ -803,16 +813,21 @@ function frame(now) {
     // player: always moving. No route means keep going the way you face
     let moving = 0;
     autoT -= dt;
+    if (stamMode) { stam -= 28 * dt; if (stam <= 0) { stam = 0; setStamMode(0); } } else stam = Math.min(100, stam + 5 * dt);
+    $('stam').style.width = stam + '%';
     if (!route.length && !riding && autoT <= 0) {
-      const c = toCell(player.position.x, player.position.z, cols, rows); const ry = player.rotation.y; const f = [Math.round(Math.sin(ry)), Math.round(Math.cos(ry))];
-      const tries = [f, [f[1], -f[0]], [-f[1], f[0]], [-f[0], -f[1]]]; // straight, left, right, back
-      for (const [dx, dz] of tries) { const nx = c.cx + dx, ny = c.cy + dz; if (maze[ny] && maze[ny][nx] === false) { route = [[nx, ny]]; routeEndCell = { cx: nx, cy: ny }; break; } }
+      const c = toCell(player.position.x, player.position.z, cols, rows); const open = (v) => maze[c.cy + v[1]] && maze[c.cy + v[1]][c.cx + v[0]] === false;
+      const { left, right } = perps(heading); let next = null;
+      if (turnQ) { const want = turnQ < 0 ? left : right; if (open(want)) { next = want; queueTurn(0); } }
+      if (!next && open(heading)) next = heading;
+      if (!next) { next = open(left) && open(right) ? (Math.random() < 0.5 ? left : right) : open(left) ? left : open(right) ? right : [-heading[0], -heading[1]]; }
+      heading = next; route = [[c.cx + next[0], c.cy + next[1]]]; routeEndCell = { cx: c.cx + next[0], cy: c.cy + next[1] };
     }
     if (route.length) {
       const w = toWorld(route[0][0], route[0][1], cols, rows);
       const dx = w.x - player.position.x, dz = w.z - player.position.z, d = Math.hypot(dx, dz);
       if (d < 0.35) { route.shift(); showRoute(); }
-      else { const spd = PLAYER_SPEED * PACE[pace] * (1 + inv.shoes * 0.1) * (sprint > 0 ? 1.6 : 1) * (driving ? 1.7 : 1); const step = Math.min(d, spd * dt); player.position.x += dx / d * step; player.position.z += dz / d * step; player.rotation.y = Math.atan2(dx, dz); moving = 1; if (sprint > 0 && Math.random() < 0.5) particle(player.position, previewMat); }
+      else { const spd = PLAYER_SPEED * (stamMode < 0 ? 0.5 : stamMode > 0 ? 1.55 : 1) * (1 + inv.shoes * 0.1) * (driving ? 1.6 : 1); const step = Math.min(d, spd * dt); player.position.x += dx / d * step; player.position.z += dz / d * step; player.rotation.y = Math.atan2(dx, dz); moving = 1; if (sprint > 0 && Math.random() < 0.5) particle(player.position, previewMat); }
     }
     if (driving && car) { car.position.copy(player.position); car.rotation.y = player.rotation.y; animateCar(car, dt, moving); car.userData.hp = inv.carHp;
       if (moving && city.knock(player.position.x, player.position.z, 1.2, Math.sin(player.rotation.y), Math.cos(player.rotation.y))) sfx.hit(); }
@@ -848,8 +863,8 @@ function frame(now) {
     // goo on the street is harmless to you: you are a carrier, not a victim
     if (gate && gate.open && gateMesh.position.y > -1.3) gateMesh.position.y -= dt * 1.5;
     if (level === 1) {
-      if (tipStage === 0 && !route.length) setTip('Tap the road to walk there, or drag a route.');
-      if (tipStage === 0 && route.length) { tipStage = 1; setTip('Nice. Double-tap to sprint. Hold a finger down to preview the route.'); }
+      if (tipStage === 0 && !route.length) setTip('You walk on your own. Tap the left or right side of the screen to turn.');
+      if (tipStage === 0 && route.length) { tipStage = 1; setTip('Nice. Tap the left or right side to turn at the next corner. Hold RUN to hurry, WALK to slow down.'); }
       if (tipStage === 1 && time > 6) { tipStage = 2; setTip('Your pistol fires by itself. Zombies hunt people first, so walk up to a crowd and they follow you.'); }
       if (tipStage === 2 && time > 25) { tipStage = 3; setTip('Follow the green arrow to the safe zone.'); }
     } else if (gate && !gate.open) {
@@ -866,6 +881,7 @@ function frame(now) {
       const p = pickups[i]; p.mesh.rotation.y += dt * 2; p.mesh.position.y = 0.35 + Math.sin(now * 0.004) * 0.08;
       if (p.mesh.position.distanceTo(player.position) < 0.7) {
         if (p.type === 'antidote') { clearAntidote(); addScore(50); sfx.wave(); say(player, 'Cured!', 1.5); setTip(''); continue; }
+        if (p.type === 'gem') { stam = Math.min(100, stam + 50); scene.remove(p.mesh); pickups.splice(i, 1); sfx.pickup(); say(player, 'Stamina!', 1.2); continue; }
         const W = WEAPONS[p.type]; if (weapon === p.type) ammo += W.ammo; else if (!weapon || ammo <= 0 || W.ammo * W.pellets * W.dmg > ammo * WEAPONS[weapon].pellets * WEAPONS[weapon].dmg) { weapon = p.type; ammo = W.ammo; } else { setTip('Keeping the ' + WEAPONS[weapon].name + '.'); continue; }
         scene.remove(p.mesh); pickups.splice(i, 1); sfx.pickup(); updateHud(); }
     }
