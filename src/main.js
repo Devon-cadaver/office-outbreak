@@ -409,7 +409,11 @@ function frame(now) {
       const c = toCell(z.position.x, z.position.z, cols, rows);
       const here = flow[c.cy * cols + c.cx];
       let tx = player.position.x, tz = player.position.z;
-      if (here > 1) {
+      // prey: nearest civilian in sight comes first, the player second
+      let prey = null, pd = 9;
+      for (const civ of civilians) { const d = civ.position.distanceTo(z.position); if (d < pd && lineClear(z.position, civ.position)) { pd = d; prey = civ; } }
+      if (prey) { tx = prey.position.x; tz = prey.position.z; }
+      else if (here > 1) {
         let bestD = here, bx = c.cx, by = c.cy;
         for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = c.cx + dx, ny = c.cy + dy; const d = flow[ny * cols + nx]; if (d >= 0 && d < bestD) { bestD = d; bx = nx; by = ny; } }
         const w = toWorld(bx, by, cols, rows); tx = w.x; tz = w.z;
