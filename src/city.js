@@ -162,22 +162,53 @@ export function buildCity(scene, wall, level) {
   const streetCells = [];
   for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) if (!wall[y][x]) streetCells.push([x, y]);
   const open = (x, y) => wall[y]?.[x] === false;
-  const kinds = { straight: [], avenue: [], junction: [], corner: [] };
-  for (const [x, y] of streetCells) {
-    const n = open(x, y - 1), s = open(x, y + 1), e = open(x + 1, y), w = open(x - 1, y);
-    const count = n + s + e + w;
-    if (count >= 3) kinds.junction.push([x, y, 0]);
-    else if (e && w && !n && !s) (wall.avenues && y === wall.avenues.row ? kinds.avenue : kinds.straight).push([x, y, 0]);
-    else if (n && s && !e && !w) (wall.avenues && x === wall.avenues.col ? kinds.avenue : kinds.straight).push([x, y, Math.PI / 2]);
-    else kinds.corner.push([x, y, 0]);
-  }
-  const plane = new THREE.PlaneGeometry(CELL, CELL);
-  const mtx = new THREE.Matrix4(), pos = new THREE.Vector3(), scl = new THREE.Vector3(1, 1, 1), quat = new THREE.Quaternion(), eul = new THREE.Euler();
-  for (const [kind, texture] of [['straight', T.roadSide], ['avenue', T.roadStraight], ['junction', T.roadJunction], ['corner', T.roadCorner]]) {
-    const list = kinds[kind]; if (!list.length) continue;
-    const im = new THREE.InstancedMesh(plane, M({ map: texture }), list.length);
-    list.forEach(([x, y, rz], i) => { const w = toWorld(x, y, cols, rows); eul.set(-Math.PI / 2, 0, rz); quat.setFromEuler(eul); mtx.compose(pos.set(w.x, 0, w.z), quat, scl); im.setMatrixAt(i, mtx); });
-    im.instanceMatrix.needsUpdate = true; group.add(im);
+  {
+    const P = 48, cw = cols * P, chh = rows * P;
+    const cv = document.createElement('canvas'); cv.width = cw; cv.height = chh; const g = cv.getContext('2d');
+    const isAveRow = (y) => wall.avenues && y === wall.avenues.row, isAveCol = (x) => wall.avenues && x === wall.avenues.col;
+    // asphalt
+    g.fillStyle = '#3a4c52'; for (const [x, y] of streetCells) g.fillRect(x * P, y * P, P, P);
+    // wear: speckles and darker patches, only on road
+    g.fillStyle = '#425860'; for (const [x, y] of streetCells) for (let i = 0; i < 14; i++) g.fillRect(x * P + ((rng() * P) | 0), y * P + ((rng() * P) | 0), 2, 2);
+    g.fillStyle = '#33444a'; for (const [x, y] of streetCells) if (rng() < 0.18) { g.beginPath(); g.ellipse(x * P + P / 2 + (rng() - 0.5) * 20, y * P + P / 2 + (rng() - 0.5) * 20, 6 + rng() * 8, 4 + rng() * 6, rng() * 3, 0, Math.PI * 2); g.fill(); }
+    // gutters along building edges
+    g.fillStyle = '#2d3c41';
+    for (const [x, y] of streetCells) { const X = x * P, Y = y * P; if (!open(x, y - 1)) g.fillRect(X, Y, P, 2); if (!open(x, y + 1)) g.fillRect(X, Y + P - 2, P, 2); if (!open(x - 1, y)) g.fillRect(X, Y, 2, P); if (!open(x + 1, y)) g.fillRect(X + P - 2, Y, 2, P); }
+    // centre lines
+    const dash = (x0, y0, x1, y1, color, w, pattern) => { g.save(); g.strokeStyle = color; g.lineWidth = w; g.setLineDash(pattern); g.lineCap = 'butt'; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.restore(); };
+    const dbl = (x0, y0, x1, y1, horiz) => { const o = horiz ? [0, 2.5] : [2.5, 0]; dash(x0 - o[0], y0 - o[1], x1 - o[0], y1 - o[1], '#d9c45a', 2, []); dash(x0 + o[0], y0 + o[1], x1 + o[0], y1 + o[1], '#d9c45a', 2, []); };
+    for (const [x, y] of streetCells) {
+      const n = open(x, y - 1), s = open(x, y + 1), e = open(x + 1, y), wv = open(x - 1, y); const count = n + s + e + wv;
+      const X = x * P, Y = y * P, cx = X + P / 2, cy = Y + P / 2;
+      if (count >= 3) continue; // junction box: no centre line
+      const aveH = isAveRow(y) && e && wv, aveV = isAveCol(x) && n && s;
+      if (aveH) { dbl(X, cy, X + P, cy, true); continue; }
+      if (aveV) { dbl(cx, Y, cx, Y + P, false); continue; }
+      const pat = [P * 0.28, P * 0.22], col = '#e8eef0';
+      // half-segments from the centre to each open edge; straight runs join up because dashes start at the edge
+      if (wv) dash(X, cy, cx, cy, col, 2, pat); if (e) dash(X + P, cy, cx, cy, col, 2, pat);
+      if (n) dash(cx, Y, cx, cy, col, 2, pat); if (s) dash(cx, Y + P, cx, cy, col, 2, pat);
+    }
+    // junctions: stop bars on every approach, zebra crossings on 4-ways and avenue junctions
+    for (const [x, y] of streetCells) {
+      const n = open(x, y - 1), s = open(x, y + 1), e = open(x + 1, y), wv = open(x - 1, y); const count = n + s + e + wv; if (count < 3) continue;
+      const X = x * P, Y = y * P; const zebra = count === 4 || isAveRow(y) || isAveCol(x);
+      g.fillStyle = '#e8eef0';
+      if (zebra) {
+        for (const [dx, dy, ok] of [[0, -1, n], [0, 1, s], [1, 0, e], [-1, 0, wv]]) { if (!ok) continue;
+          for (let k = 0; k < 5; k++) { const a = 6 + k * 8; if (dx) g.fillRect(X + (dx > 0 ? P - 11 : 4), Y + a, 7, 5); else g.fillRect(X + a, Y + (dy > 0 ? P - 11 : 4), 5, 7); } }
+      } else {
+        // stop bar across the near half (right-hand side) of each approach
+        if (n) g.fillRect(X + P / 2 + 2, Y + 3, P / 2 - 6, 3); if (s) g.fillRect(X + 4, Y + P - 6, P / 2 - 6, 3);
+        if (e) g.fillRect(X + P - 6, Y + P / 2 + 2, 3, P / 2 - 6); if (wv) g.fillRect(X + 3, Y + 4, 3, P / 2 - 6);
+      }
+    }
+    // manhole covers on a few straight cells
+    g.fillStyle = '#2a363b'; g.strokeStyle = '#4a5c62'; g.lineWidth = 1;
+    for (const [x, y] of streetCells) { const n = open(x, y - 1), s = open(x, y + 1), e = open(x + 1, y), wv = open(x - 1, y); if (n + s + e + wv !== 2 || rng() > 0.08) continue; const X = x * P + P / 2 + (e && wv ? 0 : 9), Y = y * P + P / 2 + (e && wv ? 9 : 0); g.beginPath(); g.arc(X, Y, 4, 0, Math.PI * 2); g.fill(); g.stroke(); }
+    const roadTex = new THREE.CanvasTexture(cv); roadTex.magFilter = THREE.LinearFilter; roadTex.minFilter = THREE.LinearMipmapLinearFilter; roadTex.anisotropy = 4;
+    const roads = new THREE.Mesh(new THREE.PlaneGeometry(cols * CELL, rows * CELL), new THREE.MeshLambertMaterial({ map: roadTex, transparent: true }));
+    roads.rotation.x = -Math.PI / 2; roads.position.y = 0.008; group.add(roads);
   }
 
   // ---------- sidewalk curbs and corner street lights ----------
@@ -197,15 +228,6 @@ export function buildCity(scene, wall, level) {
     const cm = new THREE.Matrix4(), cq = new THREE.Quaternion(), cs = new THREE.Vector3(), cp = new THREE.Vector3();
     curbs.forEach(([cx, cz, cw, cd], i) => { cm.compose(cp.set(cx, 0.05, cz), cq, cs.set(cw, 0.1, cd)); curbMesh.setMatrixAt(i, cm); });
     curbMesh.instanceMatrix.needsUpdate = true; group.add(curbMesh);
-    // crosswalks: white stripes across each entry of an avenue junction
-    const stripes = [];
-    if (wall.avenues) for (const [x, y] of streetCells) {
-      const onAve = x === wall.avenues.col || y === wall.avenues.row; if (!onAve) continue;
-      const n = open(x, y - 1), s = open(x, y + 1), e = open(x + 1, y), wv = open(x - 1, y); if (n + s + e + wv < 3) continue;
-      const w = toWorld(x, y, cols, rows);
-      for (const [dx, dz, ok] of [[0, -1, n], [0, 1, s], [1, 0, e], [-1, 0, wv]]) { if (!ok) continue; for (let k = -2; k <= 2; k++) { const across = k * 0.5; stripes.push(dx ? [w.x + dx * 1.25, w.z + across, 0.35, 0.28] : [w.x + across, w.z + dz * 1.25, 0.28, 0.35]); } }
-    }
-    if (stripes.length) { const sm = new THREE.InstancedMesh(box, M({ color: 0xe6ecec }), stripes.length); stripes.forEach(([sx, sz, sw, sd], i) => { cm.compose(cp.set(sx, 0.012, sz), cq, cs.set(sw, 0.02, sd)); sm.setMatrixAt(i, cm); }); sm.instanceMatrix.needsUpdate = true; group.add(sm); }
     // street lights: a post on a building-side corner of every junction cell, every other junction
     const postMat = M({ color: 0x2a3438 }), headMat = M({ color: 0x1e2a2c }), lightMat = new THREE.MeshBasicMaterial({ color: NIGHT.lamp });
     const poolMat2 = new THREE.MeshBasicMaterial({ map: T.lampPool, transparent: true, depthWrite: false });
