@@ -32,6 +32,11 @@ Upload the `dist/` folder to any static host (GitHub Pages, Netlify, itch.io, Cl
 - Touching a zombie costs a life (3 per run). You respawn at the start.
 - Reach the green exit to clear the district. Score = 100 per civilian still alive, 10 per zombie kill, plus a speed bonus.
 - Each district is a bigger maze with more crowds, more starter zombies and faster zombies.
+- District 1 is an open tutorial with on-screen tips. From district 3 a gate blocks the route; a yellow switch elsewhere opens it.
+- Ten districts. On the tenth the safe zone is a helipad and a chopper flies you out.
+- How-to-play slides (with screenshots in `public/howto/`) show on first play and from the start screen.
+
+Live: https://devon-cadaver.github.io/office-outbreak/ (deploys from `main` via GitHub Actions). The blocky version is also tagged `v1-blocky` / branch `blocky-classic`.
 
 ## Where things live
 
