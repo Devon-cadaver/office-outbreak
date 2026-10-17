@@ -29,8 +29,8 @@ const CLOWNS = [
   { skin: 0xe8e86a, hair: 0x3a5fd6, shirt: 0x2ad6e0, pants: 0x3a2fd0 },
   { skin: 0xd6e86a, hair: 0xe03a3a, shirt: 0xe84aa0, pants: 0xd6d6e0 },
 ];
-export function makeCharacter(outfitName, { zombie = false, clown = null } = {}) {
-  let o = OUTFITS[outfitName] || OUTFITS.worker; if (zombie) o = zombify(o);
+export function makeCharacter(outfitName, { zombie = false, clown = null, skin = null } = {}) {
+  let o = OUTFITS[outfitName] || OUTFITS.worker; if (skin && !zombie) o = { ...o, ...skin.outfit }; if (zombie) o = zombify(o);
   if (clown) o = { ...CLOWNS[clown === 'hammer' ? 0 : 1], skin: CLOWNS[clown === 'hammer' ? 0 : 1].skin };
   const g = new THREE.Group(); const body = new THREE.Group(); g.add(body);
   // legs: capsules hanging from the hip
@@ -61,6 +61,7 @@ export function makeCharacter(outfitName, { zombie = false, clown = null } = {})
     const cols = [0x3fdf4a, 0xffd24a, 0x2ad6e0]; cols.forEach((c, i) => { bal.add(part(box, 0x333333, 0.015, 1.2 + i * 0.15, 0.015, 0, 0.6 + i * 0.08, 0)); bal.add(part(sphere, c, 0.34, 0.42, 0.34, (i - 1) * 0.28, 1.3 + i * 0.18, (i % 2) * 0.2 - 0.1)); });
     bal.userData.sway = true;
   }
+  if (skin && !zombie && skin.dress) skin.dress({ g, body, head, armL, armR, legL, legR, part });
   g.userData = { body, legL, legR, armL, armR, head, zombie, clown, phase: Math.random() * 6 };
   return g;
 }

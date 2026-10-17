@@ -2,6 +2,7 @@
 // Survive three nights, collect spell books, reach the helipad at dawn. Kept deliberately small.
 import * as THREE from 'three';
 import { bindSeasonSelect } from '../season.js';
+import { equippedSkin, addCoins } from '../skins.js';
 import { generateMaze, buildCity, flowField, toWorld, toCell, CELL, mulberry32, NIGHT } from '../city.js';
 import { makeCharacter, animateWalk } from '../poster/characters.js';
 import { createFires } from '../fire.js';
@@ -53,7 +54,7 @@ function lineClear(a, b) { const n = Math.ceil(a.distanceTo(b) / 0.8); for (let 
 function randomOpen(minDist) { for (let k = 0; k < 200; k++) { const c = { cx: 1 + ((Math.random() * (cols - 2)) | 0), cy: 1 + ((Math.random() * (rows - 2)) | 0) }; if (!openCell(c)) continue; const w = toWorld(c.cx, c.cy, cols, rows); if (Math.hypot(w.x - player.position.x, w.z - player.position.z) >= minDist) return w; } return toWorld(startCell.cx, startCell.cy, cols, rows); }
 
 // ---------- player, camera, controls ----------
-const SCALE = 0.32; const player = makeCharacter('hoodie'); player.scale.setScalar(SCALE); scene.add(player);
+const SCALE = 0.32; const player = makeCharacter('hoodie', { skin: equippedSkin('player') }); player.scale.setScalar(SCALE); scene.add(player);
 let hearts = 3, maxHearts = 3, armor = 0, invuln = 0, yaw = 0, camYaw = 0, state = 'start', driving = false, car = null, carHp = 5;
 const VEH = { car: { hp: 5, speed: 6, burn: 3.5, name: 'Car' }, van: { hp: 8, speed: 5.2, burn: 4.5, name: 'Van' }, truck: { hp: 10, speed: 4.6, burn: 5.5, name: 'Truck' }, tank: { hp: 25, speed: 3.4, burn: 7, name: 'Tank' } };
 const vstat = () => VEH[(car && car.userData.kind) || 'car'];
@@ -279,7 +280,7 @@ const MISSIONS = [
 let mission = null, mIndex = 0, mCount = 0, mCarry = null, cdMul = 1, carArmor = false, rescued = 0, sealT = 0;
 const survivors = [], crates = []; const crateGeo = new THREE.BoxGeometry(0.45, 0.4, 0.45), crateMat = new THREE.MeshLambertMaterial({ color: 0xd8a24a });
 function placeSurvivors() { for (const s of survivors) scene.remove(s); survivors.length = 0; addSurvivors(5); }
-function addSurvivors(n) { for (let i = 0; i < n; i++) { const s = makeCharacter(['worker', 'pink', 'plaid', 'hivis', 'suit'][(Math.random() * 5) | 0]); s.scale.setScalar(SCALE); const w = randomOpen(10); s.position.set(w.x, 0, w.z); s.userData.follow = false; s.userData.saved = false; scene.add(s); survivors.push(s); } }
+function addSurvivors(n) { for (let i = 0; i < n; i++) { const s = makeCharacter(['worker', 'pink', 'plaid', 'hivis', 'suit'][(Math.random() * 5) | 0], { skin: equippedSkin('npc') }); s.scale.setScalar(SCALE); const w = randomOpen(10); s.position.set(w.x, 0, w.z); s.userData.follow = false; s.userData.saved = false; scene.add(s); survivors.push(s); } }
 // the green zone: the biggest patch of park grass. Survivors wait there and a chopper lifts them out within 5 s
 let lz = null, lzChopper = null, lzT = 0, lzUp = false;
 const lzRing = new THREE.Mesh(new THREE.RingGeometry(1.3, 1.7, 28), new THREE.MeshBasicMaterial({ color: 0x7dff3a, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false })); lzRing.rotation.x = -Math.PI / 2; lzRing.position.y = 0.06; scene.add(lzRing);
@@ -482,7 +483,7 @@ function startRun(save) {
   if (save && save.night != null) applySave(save); else saveGame();
   $('dcStart').classList.add('hidden'); $('dcOver').classList.add('hidden'); $('dc').classList.remove('hidden'); state = 'play'; say(save ? 'Day ' + (night + 1) + '. Welcome back.' : 'Find the spell books before dark.');
 }
-function gameOver(won) { state = 'over'; clearGame(); stopMusic(); (won ? sfx.wave : sfx.over)(); $('dcOverTitle').textContent = won ? 'EXTRACTED' : 'OVERRUN'; $('dcOverText').textContent = (won ? 'You survived all six nights and made the chopper. Cash: $' + cash + ' · ' : 'The dead got you on night ' + night + '. ') + 'Kills: ' + kills + ' · Books: ' + booksFound + ' · Rescued: ' + rescued; $('dc').classList.add('hidden'); $('dcOver').classList.remove('hidden'); }
+function gameOver(won) { state = 'over'; clearGame(); if (won) addCoins(1); stopMusic(); (won ? sfx.wave : sfx.over)(); $('dcOverTitle').textContent = won ? 'EXTRACTED' : 'OVERRUN'; $('dcOverText').textContent = (won ? 'You survived all six nights and made the chopper. +1 coin for the skin shop. Cash: $' + cash + ' · ' : 'The dead got you on night ' + night + '. ') + 'Kills: ' + kills + ' · Books: ' + booksFound + ' · Rescued: ' + rescued; $('dc').classList.add('hidden'); $('dcOver').classList.remove('hidden'); }
 $('dcPlay').addEventListener('click', () => startRun()); $('dcAgain').addEventListener('click', () => startRun());
 requestAnimationFrame(frame);
 window.__dc = { get cars() { return city.cars; }, get driving() { return driving; }, get game() { return game; }, openGame, enterCar, get riding() { return riding; }, rides, setWeather, get weather() { return weather; }, spawnTornado, strike, dropCan, dropLoot, hurt, get hearts() { return [hearts, maxHearts, armor]; }, spawnFrom, doScan, get houseDoors() { return houseDoors; }, get spawnRate() { return spawnRate; }, dropGun, get gun() { return gun; }, get gasCans() { return gasCans; }, get tornadoes() { return tornadoes; }, set iso(v) { iso = v; }, setZoom, get zoom() { return zoom; }, get iso() { return iso; }, get city() { return city; }, get zombies() { return zombies; }, get player() { return player; }, get state() { return state; }, get slots() { return slots; }, spawnZombie, castSlot, throwTrash, get night() { return night; }, set clock(v) { clock = v; }, get books() { return books; }, get hp() { return hearts; }, set clock(v) { clock = v; }, get clock() { return clock; }, get night() { return night; }, get isNight() { return isNight; }, get nightLeft() { return nightLeft; }, get cash() { return cash; }, set cash(v) { cash = v; hudBooks(); }, get lz() { return lz; }, get survivors() { return survivors; }, get chopper() { return chopper; }, get lzChopper() { return lzChopper; }, get extracting() { return extracting; }, get exit() { return toWorld(exitCell.cx, exitCell.cy, cols, rows); }, buy, STORE, get rescued() { return rescued; } };

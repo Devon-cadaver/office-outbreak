@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { pickLandmarks, buildLandmark, resetLandmarks, updateLandmarks } from './landmarks.js';
 import { createSeason } from './season.js';
+import { equippedSkin } from './skins.js';
 
 export const CELL = 3; // world units per grid cell
 
@@ -464,10 +465,13 @@ export function buildCity(scene, wall, level) {
   const vehicle = (kind) => {
     const car = new THREE.Group(); const part = (geo, mat, sx, sy, sz, x, y, z) => { const mm = new THREE.Mesh(geo, mat); mm.scale.set(sx, sy, sz); mm.position.set(x, y, z); car.add(mm); return mm; };
     const wheels = (r, pts) => { for (const [wx, wz] of pts) { const wh = part(cyl, wheelMat, r, 0.16, r, wx, r / 2, wz); wh.rotation.z = Math.PI / 2; } };
-    if (kind === 'van') { const mat = M({ color: [0xd8dde0, 0x4f8fd6, 0xe8d54a][(rng() * 3) | 0] }); part(box, mat, 1.0, 0.7, 2.1, 0, 0.55, -0.1); part(box, glass, 0.9, 0.3, 0.3, 0, 0.75, 0.95); part(box, mat, 0.9, 0.3, 0.5, 0, 0.35, 0.95); wheels(0.34, [[-0.48, 0.65], [0.48, 0.65], [-0.48, -0.7], [0.48, -0.7]]); for (const hx of [-0.32, 0.32]) part(box, headMat, 0.16, 0.1, 0.05, hx, 0.45, 1.21); }
+    const skin = (kind === 'van' || kind === 'car') ? equippedSkin('car') : null; const partC = (geo, c, sx, sy, sz, x, y, z) => part(geo, M({ color: c }), sx, sy, sz, x, y, z);
+    if (skin && skin.replace) { skin.dress(partC, kind); }
+    else if (kind === 'van') { const mat = M({ color: skin ? skin.color : [0xd8dde0, 0x4f8fd6, 0xe8d54a][(rng() * 3) | 0] }); part(box, mat, 1.0, 0.7, 2.1, 0, 0.55, -0.1); part(box, glass, 0.9, 0.3, 0.3, 0, 0.75, 0.95); part(box, mat, 0.9, 0.3, 0.5, 0, 0.35, 0.95); wheels(0.34, [[-0.48, 0.65], [0.48, 0.65], [-0.48, -0.7], [0.48, -0.7]]); for (const hx of [-0.32, 0.32]) part(box, headMat, 0.16, 0.1, 0.05, hx, 0.45, 1.21); }
     else if (kind === 'truck') { const mat = M({ color: [0xc23b3b, 0x3a5a8a][(rng() * 2) | 0] }); part(box, mat, 1.0, 0.8, 0.9, 0, 0.75, 0.75); part(box, glass, 0.9, 0.3, 0.2, 0, 0.95, 1.2); part(box, M({ color: 0x4a4f55 }), 1.05, 0.35, 1.5, 0, 0.5, -0.55); part(box, M({ color: 0x2a2e33 }), 0.9, 0.08, 1.4, 0, 0.7, -0.55); wheels(0.42, [[-0.5, 0.75], [0.5, 0.75], [-0.5, -0.5], [0.5, -0.5], [-0.5, -1.0], [0.5, -1.0]]); for (const hx of [-0.32, 0.32]) part(box, headMat, 0.16, 0.1, 0.05, hx, 0.55, 1.21); }
     else if (kind === 'tank') { const olive = M({ color: 0x4a5a3a }), dark = M({ color: 0x2a3326 }); part(box, olive, 1.2, 0.45, 2.3, 0, 0.5, 0); part(box, dark, 0.3, 0.55, 2.3, -0.6, 0.3, 0); part(box, dark, 0.3, 0.55, 2.3, 0.6, 0.3, 0); const turret = part(box, olive, 0.85, 0.35, 0.95, 0, 0.9, -0.15); car.userData.turret = turret; const barrel = part(cyl, dark, 0.1, 1.5, 0.1, 0, 0.92, 0.95); barrel.rotation.x = Math.PI / 2; part(ball, M({ color: 0x3fdf6a }), 0.15, 0.15, 0.15, 0, 1.12, -0.3); }
-    else { const bodyMat = M({ color: NIGHT.cars[(rng() * NIGHT.cars.length) | 0] }); part(bodyGeo, bodyMat, 1, 1, 1, 0, 0.36, 0); part(box, bodyMat, 0.8, 0.12, 0.5, 0, 0.6, 0.55); part(cabinGeo, glass, 1, 1, 1, 0, 0.7, -0.15); part(box, bodyMat, 0.82, 0.06, 0.97, 0, 0.9, -0.15); wheels(0.34, [[-0.44, 0.58], [0.44, 0.58], [-0.44, -0.58], [0.44, -0.58]]); for (const hx of [-0.3, 0.3]) { part(box, headMat, 0.16, 0.1, 0.05, hx, 0.42, 0.91); part(box, tailMat, 0.16, 0.08, 0.05, hx, 0.42, -0.91); } }
+    else { const bodyMat = M({ color: skin ? skin.color : NIGHT.cars[(rng() * NIGHT.cars.length) | 0] }); part(bodyGeo, bodyMat, 1, 1, 1, 0, 0.36, 0); part(box, bodyMat, 0.8, 0.12, 0.5, 0, 0.6, 0.55); part(cabinGeo, glass, 1, 1, 1, 0, 0.7, -0.15); part(box, bodyMat, 0.82, 0.06, 0.97, 0, 0.9, -0.15); wheels(0.34, [[-0.44, 0.58], [0.44, 0.58], [-0.44, -0.58], [0.44, -0.58]]); for (const hx of [-0.3, 0.3]) { part(box, headMat, 0.16, 0.1, 0.05, hx, 0.42, 0.91); part(box, tailMat, 0.16, 0.08, 0.05, hx, 0.42, -0.91); } }
+    if (skin && !skin.replace) skin.dress(partC, kind);
     car.scale.setScalar(0.85); return car;
   };
   for (const [x, y] of streetCells) {

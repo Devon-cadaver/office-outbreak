@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { bindSeasonSelect } from './season.js';
+import { equippedSkin, addCoins } from './skins.js';
 import { makeCharacter, animateWalk } from './poster/characters.js';
 import { generateMaze, buildCity, flowField, findPath, toWorld, toCell, CELL, mulberry32, NIGHT } from './city.js';
 import { createInput } from './input.js';
@@ -154,7 +155,7 @@ function updateFires(dt) {
   if (fx.fires.length < 14 && Math.random() < 0.08) { const burning = city.buildings.filter((b) => b.userData.burning); if (burning.length) { const src = burning[(Math.random() * burning.length) | 0]; for (const b of city.buildings) if (!b.userData.burning && Math.hypot(b.position.x - src.position.x, b.position.z - src.position.z) < CELL * 1.5) { burnBuilding(b); break; } } }
 }
 let startCell = null, exitCell = null, exitMesh = null, gate = null, switchCell = null, gateMesh = null, switchMesh = null, tip = '';
-const player = makeCharacter('worker'); scene.add(player); player.visible = false;
+const player = makeCharacter('worker', { skin: equippedSkin('player') }); scene.add(player); player.visible = false;
 let civilians = [], zombies = [], pickups = [], projectiles = [], particles = [];
 const pool = { civ: [], zom: [] };
 let weapon = null, ammo = 0, fireTimer = 0, flow = null, flowTimer = 0, invuln = 0, totalPeople = 0, kills = 0;
@@ -438,7 +439,7 @@ function buildLevel(n) {
     const s = pick(() => true); if (!s) break;
     const w = toWorld(s.x, s.y, cols, rows); const size = 2 + ((rng() * 3) | 0);
     for (let k = 0; k < size; k++) {
-      const civ = pool.civ.pop() || makeCharacter(CIV_OUTFITS[(rng() * CIV_OUTFITS.length) | 0]);
+      const civ = pool.civ.pop() || makeCharacter(CIV_OUTFITS[(rng() * CIV_OUTFITS.length) | 0], { skin: equippedSkin('npc') });
       civ.position.set(w.x + (rng() - 0.5) * 1.6, 0, w.z + (rng() - 0.5) * 1.6); civ.rotation.y = rng() * 6.28;
       civ.userData.infect = 0; civ.userData.follow = false; civ.userData.home = civ.position.clone(); civ.userData.goal = null; civ.userData.wait = rng() * 3; civ.scale.setScalar(0.55); scene.add(civ); civilians.push(civ); totalPeople++;
     }
@@ -699,7 +700,7 @@ function loseLife() {
   updateHud();
 }
 function startDriving() {
-  if (!car) { car = makeCar(); scene.add(car); }
+  if (!car) { car = makeCar(0x3f6fd8, equippedSkin('car')); scene.add(car); }
   car.userData.hp = inv.carHp; driving = true; car.visible = true; player.visible = false;
   say(car, 'Buckle up!'); setTip('Driving. Zombies you hit go down, but every hit dents the car.');
 }
@@ -759,7 +760,7 @@ addEventListener('pointerdown', () => { unlockAudio(); setTimeout(refreshSoundBt
 soundBtn.addEventListener('click', () => { unlockAudio(); setMuted(!isMuted()); if (!isMuted()) sfx.pickup(); refreshSoundBtn(); });
 $('retryBtn').addEventListener('click', startRun);
 $('nextBtn').addEventListener('click', nextLevel);
-function finishGame() { clearRun();
+function finishGame() { clearRun(); addCoins(1);
   state = 'won'; stopMusic();
   const rescued = civilians.filter((c) => c.userData.follow && c.position.distanceTo(player.position) < 8).length;
   const saved = civilians.length - rescued, gained = saved * 100 + rescued * 250 + kills * 10 + 500; score += gained;
