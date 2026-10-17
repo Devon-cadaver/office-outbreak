@@ -59,6 +59,8 @@ export function buildLandmark(type, group, w, rng, M, add) {
     spinners.push(wheel); ferris.pos = new THREE.Vector3(w.x, 0, w.z); ferris.wheel = wheel;
     add(box, M({ color: 0x9a3a4a }), 1.0, 0.7, 0.6, w.x + 0.9, 0.35, w.z + 0.8);
     const bulbs = glowMat(0xffe27a); for (let i = 0; i < 6; i++) add(ball, bulbs, 0.12, 0.12, 0.12, w.x - 1.2 + i * 0.48, 1.1, w.z + 1.25);
+    const rides = signMesh('RIDES OPEN', '#ffe27a', '#6a3f8a', 320, 64, 1.6, 0.32, 'bold 44px sans-serif'); rides.position.set(w.x + 0.9, 0.95, w.z + 1.12); group.add(rides);
+    const rides2 = signMesh('RIDES OPEN', '#ffe27a', '#6a3f8a', 320, 64, 1.6, 0.32, 'bold 44px sans-serif'); rides2.position.set(w.x + 1.32, 0.95, w.z + 0.8); rides2.rotation.y = Math.PI / 2; group.add(rides2);
   } else if (type === 'slime') {
     slab(0x2a4a44, 0.04);
     const glow = glowMat(0x6fff3a);

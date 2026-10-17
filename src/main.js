@@ -89,7 +89,7 @@ const WEAPONS = {
 let state = 'start', level = 1, score = 0, lives = 3, time = 0;
 let maze = null, city = null, cols = 0, rows = 0, obstacles = [];
 let chopper = null, chopperT = 0, padMesh = null;
-let flyby = null, flybyT = 30, riding = null, rideCd = 0, playerInfect = 0, puzzle = null;
+let flyby = null, flybyT = 30, riding = null, rideCd = 0, playerInfect = 0, puzzle = null, ferrisHinted = false;
 // objective beacon: a tall glowing column over the current goal
 const beaconMat = new THREE.MeshBasicMaterial({ color: 0x7dff6a, transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending });
 const beacon = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.7, 12, 14, 1, true), beaconMat); beacon.position.y = 6; beacon.visible = false; scene.add(beacon);
@@ -326,7 +326,7 @@ function buildLevel(n) {
   if (inv.car && inv.carHp > 0 && n > 1) startDriving(); else if (driving) parkCar();
   flow = null; flowTimer = 0; invuln = 1; kills = 0; respawnCell = null; sprint = 0; sprintCd = 0; streak = 0; previewT = 0; showPreview([]); camTarget.copy(player.position); route = []; routeEndCell = null; showRoute();
   tipStage = 0; setTip(''); fitCamera(); updateHud();
-  parked = false; if (flyby) { scene.remove(flyby); flyby = null; } flybyT = 20 + Math.random() * 20; riding = null; rideCd = 0; playerInfect = 0; $('puzzle').classList.add('hidden'); puzzle = null;
+  parked = false; ferrisHinted = false; if (flyby) { scene.remove(flyby); flyby = null; } flybyT = 20 + Math.random() * 20; riding = null; rideCd = 0; playerInfect = 0; $('puzzle').classList.add('hidden'); puzzle = null;
 }
 
 function spawnZombie(pos, n, rng = Math.random) {
@@ -583,7 +583,8 @@ function frame(now) {
     // fly-bys, the ferris wheel ride, follower infection creeping toward you
     updateFlyby(dt); rideCd -= dt;
     if (riding) updateRide(dt);
-    else if (ferris.pos && rideCd <= 0 && player.position.distanceTo(ferris.pos) < CELL * 0.72) { if (driving) leaveCar('Ooh, a ride!'); startRide(); }
+    else if (ferris.pos && rideCd <= 0 && player.position.distanceTo(ferris.pos) < CELL * 1.08) { if (driving) leaveCar('Ooh, a ride!'); startRide(); }
+    if (ferris.pos && !riding && !ferrisHinted && player.position.distanceTo(ferris.pos) < 9) { ferrisHinted = true; say(player, 'A ferris wheel! Walk up to it for a ride.', 2.6); }
     updateParkedCar(dt);
     playerInfect = Math.max(0, playerInfect - dt * 0.12);
     if (playerInfect >= 1) { playerInfect = 0; say(player, 'Bitten!', 1.5); loseLife(); if (state !== 'play') return render(dt); }
