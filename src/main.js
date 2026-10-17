@@ -67,6 +67,8 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(NIGHT.sky);
 scene.fog = new THREE.Fog(NIGHT.sky, 70, 120);
 const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 200);
+const tpCam = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 200); let thirdPerson = false; const tpPos = new THREE.Vector3();
+addEventListener("resize", () => { tpCam.aspect = innerWidth / innerHeight; tpCam.updateProjectionMatrix(); });
 const hemi = new THREE.HemisphereLight(0xb8e0d8, 0x2a4448, 1.7); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xd0e8ff, 0.9); sun.position.set(-6, 10, 8); scene.add(sun);
 
@@ -171,7 +173,7 @@ canvas.addEventListener('pointerdown', (e) => { if (state !== 'play' || BUILD ||
 addEventListener('keydown', (e) => { if (e.key === 'ArrowLeft' || e.key === 'a') queueTurn(-1); if (e.key === 'ArrowRight' || e.key === 'd') queueTurn(1); if (e.key === 'ArrowDown' || e.key === 's') setStamMode(-1); if (e.key === 'ArrowUp' || e.key === 'w') setStamMode(1); });
 addEventListener('keyup', (e) => { if (['ArrowDown', 'ArrowUp', 's', 'w'].includes(e.key)) setStamMode(0); });
 // which perpendicular reads as "left" on screen depends on the camera, so ask it
-function perps(h) { const camRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion); const a = [h[1], -h[0]], b = [-h[1], h[0]]; const sx = (v) => v[0] * camRight.x + v[1] * camRight.z; return sx(a) < sx(b) ? { left: a, right: b } : { left: b, right: a }; }
+function perps(h) { return { left: [h[1], -h[0]], right: [-h[1], h[0]] }; }
 let weapon = null, ammo = 0, fireTimer = 0, flow = null, flowTimer = 0, invuln = 0, totalPeople = 0, kills = 0;
 // player route: list of [cx, cy] cells to walk through
 let route = [], routeEndCell = null, stepTimer = 0, groanTimer = 1, tipStage = 0, followers = [], rescuedTotal = 0;
@@ -1084,7 +1086,7 @@ function render(dt = 0.016) {
     } else arrowEl.classList.add('hidden');
     void lim;
   }
-  renderer.render(scene, camera);
+  if (thirdPerson) { const back = new THREE.Vector3(-Math.sin(player.rotation.y), 0, -Math.cos(player.rotation.y)); const want = player.position.clone().addScaledVector(back, 5.5).add(new THREE.Vector3(0, 3.2, 0)); tpPos.lerp(want, 1 - Math.pow(0.001, dt)); tpCam.position.copy(tpPos); tpCam.lookAt(player.position.x, 0.9, player.position.z); renderer.render(scene, tpCam); } else renderer.render(scene, camera);
 }
 resize();
 requestAnimationFrame(frame);
@@ -1093,3 +1095,5 @@ requestAnimationFrame(frame);
 window.__oo = { get cash() { return cash; }, set cash(v) { cash = v; renderStore(); }, get driving() { return driving; }, get inv() { return inv; }, get chopper() { return chopper; }, get chopperT() { return chopperT; }, set chopperT(v) { chopperT = v; }, routeTo: (cx, cy) => setRouteTo(toWorld(cx, cy, cols, rows)), get civilians() { return civilians; }, get maze() { return maze; }, get player() { return player; }, get gate() { return gate; }, get switchCell() { return switchCell; }, get cols() { return cols; }, get rows() { return rows; }, toWorld: (cx, cy) => toWorld(cx, cy, cols, rows), get pickups() { return pickups; }, get zombies() { return zombies; }, get exit() { return toWorld(exitCell.cx, exitCell.cy, cols, rows); }, get state() { return state; }, get rides() { return rides; }, get riding() { return riding; }, startRide, openRideGame, openPuzzle, flyby: () => { flybyT = 0; }, get flybyObj() { return flyby; }, get puzzle() { return puzzle; }, flingZombie, leaveCar, get parked() { return parked; }, infectPlayer, get infected() { return infected; }, get goo() { return goo; }, dropGoo, openWheelGame, get wg() { return wg; }, get mg() { return mg; }, camera, fx, explodeAt, burnBuilding, burnCar, get city() { return city; } };
 
 bindSeasonSelect(document.getElementById('seasonSel'));
+
+$('viewBtn').addEventListener('click', (e) => { e.stopPropagation(); thirdPerson = !thirdPerson; $('viewBtn').textContent = thirdPerson ? '3RD' : 'ISO'; if (thirdPerson) tpPos.copy(player.position).add(new THREE.Vector3(0, 3.2, -5.5)); });
