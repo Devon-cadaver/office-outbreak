@@ -144,7 +144,7 @@ const SPELLS = {
   entomb: { name: 'ENTOMB', cd: 2.4, cast() { for (const z of zombies) if (z.position.distanceTo(player.position) < 7) z.userData.stun = 4; flash(0xd0d0ff); sfx.hit(); } },
   wrath: { name: 'WRATH', cd: 1.6, cast() { let best = null, bd = 12; for (const z of zombies) { const d = z.position.distanceTo(player.position); if (d < bd) { bd = d; best = z; } } if (!best) return; fx.explode(best.position, 0.8); for (const z of zombies) if (z.position.distanceTo(best.position) < 4) z.userData.hp -= 4; sfx.boom(); } },
   maelstrom: { name: 'MAELSTROM', cd: 3.0, cast() { const dir = facing(); spawnTornado(player.position.clone().addScaledVector(dir, 2), dir, { life: 5, radius: 2.2, speed: 4, big: false }); flash(0x3fdfff); sfx.whoosh(); } },
-  chain: { name: 'LIGHTNING', cd: 2.2, cast() { // bolt from the player to the nearest zombie, then hops zombie to zombie across the area
+  chain: { name: 'ARC', cd: 2.2, cast() { // bolt from the player to the nearest zombie, then hops zombie to zombie across the area
     let from = player.position.clone().setY(0.9); const hit = new Set(); const pts = [from.clone()];
     for (let hop = 0; hop < 12; hop++) { let best = null, bd = hop === 0 ? 8 : 5; for (const z of zombies) { if (hit.has(z) || z.userData.rag) continue; const dd = z.position.distanceTo(from); if (dd < bd) { bd = dd; best = z; } } if (!best) break;
       hit.add(best); best.userData.hp -= 3; best.userData.stun = Math.max(best.userData.stun, 0.6); best.userData.alert = 6; from = best.position.clone().setY(0.9); pts.push(from.clone()); }
