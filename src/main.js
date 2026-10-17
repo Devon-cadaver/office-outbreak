@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { makeCharacter, animateWalk, OUTFITS } from './characters.js';
 import { generateMaze, buildCity, flowField, findPath, toWorld, toCell, CELL, mulberry32, NIGHT } from './city.js';
 import { createInput } from './input.js';
-import { unlockAudio, sfx } from './audio.js';
+import { unlockAudio, sfx, startMusic, stopMusic, setMusicTension } from './audio.js';
 
 // ---------- renderer / scene ----------
 const canvas = document.getElementById('game');
@@ -45,7 +45,7 @@ let civilians = [], zombies = [], pickups = [], projectiles = [], particles = []
 const pool = { civ: [], zom: [] };
 let weapon = null, ammo = 0, fireTimer = 0, flow = null, flowTimer = 0, invuln = 0, totalPeople = 0, kills = 0;
 // player route: list of [cx, cy] cells to walk through
-let route = [], routeEndCell = null;
+let route = [], routeEndCell = null, stepTimer = 0, groanTimer = 1;
 const markerGeo = new THREE.CylinderGeometry(0.22, 0.22, 0.05, 10), markerMat = new THREE.MeshBasicMaterial({ color: 0x7dff6a, transparent: true, opacity: 0.6 });
 const markers = []; for (let i = 0; i < 60; i++) { const mk = new THREE.Mesh(markerGeo, markerMat); mk.visible = false; scene.add(mk); markers.push(mk); }
 function showRoute() { markers.forEach((mk, i) => { const c = route[i]; mk.visible = !!c; if (c) { const w = toWorld(c[0], c[1], cols, rows); mk.position.set(w.x, 0.04, w.z); } }); }
@@ -202,12 +202,12 @@ function updateHud() {
 
 function show(screen) { for (const s of [ui.start, ui.cleared, ui.over]) s.classList.add('hidden'); if (screen) screen.classList.remove('hidden'); ui.hud.classList.toggle('hidden', !!screen); }
 
-function startRun() { unlockAudio(); level = 1; score = 0; lives = 3; time = 0; buildLevel(level); show(null); state = 'play'; }
+function startRun() { unlockAudio(); startMusic(); level = 1; score = 0; lives = 3; time = 0; buildLevel(level); show(null); state = 'play'; }
 function nextLevel() { level++; buildLevel(level); show(null); state = 'play'; }
 function loseLife() {
-  lives--; sfx.over(); invuln = 2;
+  lives--; sfx.caught(); invuln = 2;
   for (let i = 0; i < 8; i++) particle(player.position, projMat);
-  if (lives <= 0) { state = 'over'; input.reset(); const best = Math.max(getBest(), score); setBest(best);
+  if (lives <= 0) { state = 'over'; input.reset(); stopMusic(); sfx.over(); const best = Math.max(getBest(), score); setBest(best);
     ui.finalScore.textContent = 'Score: ' + score + '  ·  District ' + level; ui.finalBest.textContent = 'Best: ' + best; show(ui.over); return; }
   const sp = toWorld(startCell.cx, startCell.cy, cols, rows); player.position.set(sp.x, 0, sp.z); route = []; routeEndCell = null; showRoute();
   // push zombies back a bit so the respawn is fair
@@ -244,6 +244,8 @@ function frame(now) {
       else { const step = Math.min(d, PLAYER_SPEED * dt); player.position.x += dx / d * step; player.position.z += dz / d * step; player.rotation.y = Math.atan2(dx, dz); moving = 1; }
     }
     collide(player.position, R); animateWalk(player, dt, Math.min(1, moving));
+    stepTimer -= dt; if (moving && stepTimer <= 0) { sfx.step(); stepTimer = 0.28; }
+    groanTimer -= dt; if (groanTimer <= 0) { groanTimer = 2 + Math.random() * 3; let close = 0; for (const z of zombies) if (z.position.distanceTo(player.position) < 9) close++; if (close) sfx.groan(); setMusicTension(close); }
     player.visible = invuln <= 0 || Math.sin(now * 0.03) > 0;
 
     // exit
@@ -256,7 +258,7 @@ function frame(now) {
     // pickups
     for (let i = pickups.length - 1; i >= 0; i--) {
       const p = pickups[i]; p.mesh.rotation.y += dt * 2; p.mesh.position.y = 0.35 + Math.sin(now * 0.004) * 0.08;
-      if (p.mesh.position.distanceTo(player.position) < 0.7) { weapon = p.type; ammo = WEAPONS[p.type].ammo; scene.remove(p.mesh); pickups.splice(i, 1); sfx.wave(); updateHud(); }
+      if (p.mesh.position.distanceTo(player.position) < 0.7) { weapon = p.type; ammo = WEAPONS[p.type].ammo; scene.remove(p.mesh); pickups.splice(i, 1); sfx.pickup(); updateHud(); }
     }
 
     // auto fire
