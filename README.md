@@ -34,6 +34,8 @@ Upload the `dist/` folder to any static host (GitHub Pages, Netlify, itch.io, Cl
 - Each district is a bigger maze with more crowds, more starter zombies and faster zombies.
 - District 1 is an open tutorial with on-screen tips. From district 3 a gate blocks the route; a yellow switch elsewhere opens it.
 - Ten districts. On the tenth the safe zone is a helipad and a chopper flies you out.
+- Between districts a store sells ammo, medkits, a vest, running shoes, flares, car keys and repairs, paid with cash from kills, rescues and clears. The car runs zombies down but takes a dent per hit; five hits wreck it.
+- Zombies shamble until they see you, hear gunfire, spot a flare, or catch a scent from an alerted neighbour. Civilians flee, run to you for help, follow you, and talk.
 - How-to-play slides (with screenshots in `public/howto/`) show on first play and from the start screen.
 
 Live: https://devon-cadaver.github.io/office-outbreak/ (deploys from `main` via GitHub Actions). The blocky version is also tagged `v1-blocky` / branch `blocky-classic`.
