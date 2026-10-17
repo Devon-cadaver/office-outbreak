@@ -123,6 +123,19 @@ function makeTextures() {
 }
 
 const box = new THREE.BoxGeometry(1, 1, 1);
+// gabled roof prism, unit size: width 1 (x), depth 1 (z), height 1 (y), base at y=0, ridge along z
+const roofGeo = (() => {
+  const g = new THREE.BufferGeometry();
+  const v = [
+    // left slope
+    -0.5, 0, -0.5,  0, 1, -0.5,  0, 1, 0.5,   -0.5, 0, -0.5,  0, 1, 0.5,  -0.5, 0, 0.5,
+    // right slope
+    0.5, 0, -0.5,   0.5, 0, 0.5,  0, 1, 0.5,   0.5, 0, -0.5,  0, 1, 0.5,  0, 1, -0.5,
+    // gables
+    -0.5, 0, 0.5,  0, 1, 0.5,  0.5, 0, 0.5,    0.5, 0, -0.5,  0, 1, -0.5,  -0.5, 0, -0.5,
+  ];
+  g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); g.computeVertexNormals(); return g;
+})();
 const cyl = new THREE.CylinderGeometry(0.5, 0.5, 1, 10);
 const cone = new THREE.ConeGeometry(0.5, 1, 8);
 const ball = new THREE.IcosahedronGeometry(0.5, 1);
@@ -165,6 +178,28 @@ export function buildCity(scene, wall, level) {
   // ---------- buildings ----------
   const roofMat = M({ color: NIGHT.roof }), corniceMat = M({ color: 0x8aa0a4 }), doorMat = new THREE.MeshBasicMaterial({ color: 0xf6e94a }), frameMat = M({ color: 0x2a3a40 });
   const awningMats = [M({ color: 0x9a3a4a }), M({ color: 0x2f6f8a }), M({ color: 0x7a3f8a })];
+  const HOUSE_WALLS = [0xe8d54a, 0x3f6fb0, 0xb8473a, 0x8a5a3a, 0xd9c7a8, 0x6a8f5a], HOUSE_ROOFS = [0x4a3324, 0x3a3a44, 0x5a2e2a, 0x2f3d4a];
+  const brickMat = M({ color: 0xb8473a }), litWin = new THREE.MeshBasicMaterial({ color: 0xf6e94a }), darkWin = M({ color: 0x34506e }), doorMatH = M({ color: 0x2a2320 });
+  const house = (w, x, y, openFaces) => {
+    const wall = new THREE.Color(HOUSE_WALLS[(rng() * HOUSE_WALLS.length) | 0]), roofC = HOUSE_ROOFS[(rng() * HOUSE_ROOFS.length) | 0];
+    const bw = 2.1, bd = 1.9, bh = 1.0 + (rng() < 0.3 ? 0.9 : 0), rh = 0.9;
+    const ry = openFaces.length ? openFaces[(rng() * openFaces.length) | 0][2] : 0; // face the street
+    const g = new THREE.Group(); g.position.set(w.x, 0, w.z); g.rotation.y = ry; group.add(g);
+    const wallMat = M({ color: wall, transparent: true }), roofMat = M({ color: roofC, transparent: true });
+    const body = new THREE.Mesh(box, wallMat); body.scale.set(bw, bh, bd); body.position.y = bh / 2; g.add(body);
+    const roof = new THREE.Mesh(roofGeo, roofMat); roof.scale.set(bw + 0.3, rh, bd + 0.3); roof.position.y = bh; g.add(roof);
+    const chim = new THREE.Mesh(box, brickMat); chim.scale.set(0.25, 0.7, 0.25); chim.position.set(bw * 0.3, bh + rh * 0.6, -bd * 0.2); g.add(chim);
+    // door + windows on the street face (local +z)
+    const door = new THREE.Mesh(box, doorMatH); door.scale.set(0.42, 0.7, 0.06); door.position.set(-0.55, 0.35, bd / 2 + 0.03); g.add(door);
+    for (const [wx, wy] of [[0.45, 0.6], [0.45, bh > 1.2 ? 1.45 : -1]]) if (wy > 0) { const win = new THREE.Mesh(box, rng() < 0.55 ? litWin : darkWin); win.scale.set(0.5, 0.4, 0.06); win.position.set(wx, wy, bd / 2 + 0.03); g.add(win); const fr = new THREE.Mesh(box, doorMatH); fr.scale.set(0.56, 0.46, 0.04); fr.position.set(wx, wy, bd / 2 + 0.02); g.add(fr); }
+    const side = new THREE.Mesh(box, rng() < 0.4 ? litWin : darkWin); side.scale.set(0.06, 0.4, 0.5); side.position.set(bw / 2 + 0.03, 0.6, 0.2); g.add(side);
+    if (rng() < 0.5) { const porch = new THREE.Mesh(box, roofMat); porch.scale.set(1.0, 0.06, 0.5); porch.position.set(-0.55, 0.95, bd / 2 + 0.25); g.add(porch); }
+    // fade + outline on the body mesh so the see-through logic works
+    body.userData.fade = [wallMat, roofMat];
+    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(box), outlineMat); edges.scale.set(bw, bh + rh, bd); edges.position.set(w.x, (bh + rh) / 2, w.z); edges.rotation.y = ry; edges.visible = false; group.add(edges); body.userData.edges = edges;
+    body.position.set(0, bh / 2, 0);
+    buildings.push(body);
+  };
   const outlineMat = new THREE.LineBasicMaterial({ color: 0xbfe6e8, transparent: true, opacity: 0.8 });
   const landmarkCells = pickLandmarks(wall, rng);
   for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) if (wall[y][x]) {
@@ -172,6 +207,10 @@ export function buildCity(scene, wall, level) {
     const lm = landmarkCells.get(y * cols + x);
     if (lm) { buildLandmark(lm, group, w, rng, M, add); obstacles.push({ x: w.x, z: w.z, hw: CELL / 2 - 0.05, hd: CELL / 2 - 0.05 }); continue; }
     const edge = x === 0 || y === 0 || x === cols - 1 || y === rows - 1;
+    if (!edge && rng() < 0.5) {
+      const facesH = [[0, 1, 0], [1, 0, Math.PI / 2], [0, -1, Math.PI], [-1, 0, -Math.PI / 2]].filter(([dx, dz]) => open(x + dx, y + dz));
+      house(w, x, y, facesH); obstacles.push({ x: w.x, z: w.z, hw: CELL / 2 - 0.05, hd: CELL / 2 - 0.05 }); continue;
+    }
     const floors = edge ? 2 : 1 + ((rng() * 2) | 0) + (rng() < 0.08 ? 1 : 0);
     const fh = 1.1, h = floors * fh + 0.25;
     const base = new THREE.Color(NIGHT.buildings[(rng() * NIGHT.buildings.length) | 0]); if (edge) base.multiplyScalar(0.7);
@@ -227,14 +266,15 @@ export function buildCity(scene, wall, level) {
   // ---------- lamps, poles, wires ----------
   const poleMat = M({ color: 0x1e2a2c }), bulbMat = new THREE.MeshBasicMaterial({ color: NIGHT.lamp });
   const poolMat = new THREE.MeshBasicMaterial({ map: T.lampPool, transparent: true, depthWrite: false });
-  const poleTops = [], wirePts = [];
+  const poleTops = [], wirePts = [], lamps = [];
   for (const [x, y] of poleCells) {
     const w = toWorld(x, y, cols, rows); const px = w.x + 1.22, pz = w.z + 1.22;
     add(cyl, poleMat, 0.1, 2.8, 0.1, px, 1.4, pz);
     add(box, poleMat, 0.55, 0.07, 0.07, px - 0.27, 2.75, pz);
     add(cone, poleMat, 0.36, 0.22, 0.36, px - 0.5, 2.7, pz).rotation.x = Math.PI;
-    add(cyl, bulbMat, 0.18, 0.06, 0.18, px - 0.5, 2.58, pz);
-    const pool = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 3.4), poolMat); pool.rotation.x = -Math.PI / 2; pool.position.set(px - 0.5, 0.02, pz); group.add(pool);
+    const bulb = add(cyl, bulbMat.clone(), 0.18, 0.06, 0.18, px - 0.5, 2.58, pz);
+    const pool = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 3.4), poolMat.clone()); pool.rotation.x = -Math.PI / 2; pool.position.set(px - 0.5, 0.02, pz); group.add(pool);
+    if (rng() < 0.3) lamps.push({ bulb, pool, t: rng() * 10, on: true });
     add(box, poleMat, 0.8, 0.06, 0.06, px, 2.45, pz);
     poleTops.push(new THREE.Vector3(px, 2.47, pz));
     obstacles.push({ x: px, z: pz, hw: 0.1, hd: 0.1 });
@@ -279,7 +319,9 @@ export function buildCity(scene, wall, level) {
   for (let i = 0; i < RAIN; i++) { const rx = (rng() - 0.5) * (W + 12), rz = (rng() - 0.5) * (D + 12), ry = rng() * 22; rainPos.set([rx, ry, rz, rx + 0.25, ry - 1.1, rz + 0.25], i * 6); }
   const rainGeo = new THREE.BufferGeometry(); rainGeo.setAttribute('position', new THREE.BufferAttribute(rainPos, 3));
   group.add(new THREE.LineSegments(rainGeo, new THREE.LineBasicMaterial({ color: 0xcfeaea, transparent: true, opacity: 0.3 })));
+  const updateLamps = (dt) => { for (const l of lamps) { l.t -= dt; if (l.t <= 0) { l.on = !l.on; l.t = l.on ? 1 + rng() * 6 : 0.05 + rng() * 0.25; l.bulb.visible = l.on; l.pool.visible = l.on; } } };
   const updateRain = (dt) => {
+    updateLamps(dt);
     const a = rainGeo.attributes.position.array;
     for (let i = 0; i < RAIN; i++) { const o = i * 6; a[o + 1] -= 24 * dt; a[o + 4] -= 24 * dt; if (a[o + 4] < 0) { a[o + 1] += 22; a[o + 4] += 22; } }
     rainGeo.attributes.position.needsUpdate = true;

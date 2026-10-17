@@ -1,9 +1,11 @@
 import * as THREE from 'three';
-import { makeCharacter, animateWalk, OUTFITS } from './characters.js';
+import { makeCharacter, animateWalk } from './poster/characters.js';
 import { generateMaze, buildCity, flowField, findPath, toWorld, toCell, CELL, mulberry32, NIGHT } from './city.js';
 import { createInput } from './input.js';
 import { unlockAudio, sfx, startMusic, stopMusic, setMusicTension, setMuted, isMuted, audioState } from './audio.js';
 import { makeChopper, animateChopper } from './chopper.js';
+import { buildRuins } from './ruins.js';
+let ruins = null, stragglerTimer = 0;
 const FINAL_LEVEL = 10;
 
 // ---------- renderer / scene ----------
@@ -31,7 +33,7 @@ ui.best.textContent = getBest() ? 'Best: ' + getBest() : '';
 
 // ---------- constants ----------
 const PLAYER_SPEED = 4.2, R = 0.25;
-const CIV_OUTFITS = ['vest', 'suit', 'hoodie', 'hivis', 'punk', 'worker'];
+const CIV_OUTFITS = ['vest', 'suit', 'hoodie', 'hivis', 'punk', 'worker', 'pink', 'plaid'];
 const WEAPONS = {
   pistol:  { name: 'Pistol',  ammo: 12, rate: 0.35, range: 9,  speed: 22, pellets: 1, dmg: 1, color: 0x333333 },
   shotgun: { name: 'Shotgun', ammo: 6,  rate: 0.7,  range: 7,  speed: 18, pellets: 4, dmg: 1, color: 0x7a4a1a },
@@ -114,8 +116,8 @@ function buildLevel(n) {
   clearLevel();
   const portrait = innerWidth < innerHeight;
   const tutorial = n === 1;
-  const grow = Math.min(8, (n - 1) * 2);
-  let c = (portrait ? 9 : 15) + grow, r = (portrait ? 15 : 9) + grow;
+  const grow = Math.min(10, Math.max(0, n - 2) * 2);
+  let c = (portrait ? (tutorial ? 9 : 13) : (tutorial ? 15 : 21)) + grow, r = (portrait ? (tutorial ? 15 : 21) : (tutorial ? 9 : 13)) + grow;
   if (c % 2 === 0) c++; if (r % 2 === 0) r++;
   cols = c; rows = r;
   const rng = mulberry32(n * 1337 + 42);
@@ -152,6 +154,8 @@ function buildLevel(n) {
   }
   if (gate) maze[gate.cy][gate.cx] = false; // draw the road under the gate
   city = buildCity(scene, maze, n); obstacles = city.obstacles;
+  if (ruins) scene.remove(ruins.group); ruins = buildRuins(scene, cols, rows, rng);
+  stragglerTimer = 20;
   if (gate) {
     maze[gate.cy][gate.cx] = true; // blocked for pathing until opened
     const gw = toWorld(gate.cx, gate.cy, cols, rows);
@@ -193,7 +197,7 @@ function buildLevel(n) {
   const pick = (filter) => { const arr = streets.filter(filter); if (!arr.length) return null; const i = (rng() * arr.length) | 0; const s = arr[i]; streets.splice(streets.indexOf(s), 1); return s; };
 
   // crowds
-  const crowdCount = tutorial ? 3 : 4 + n * 2; totalPeople = 0;
+  const crowdCount = tutorial ? 3 : Math.min(26, 5 + n * 2 + Math.floor(cols * rows / 60)); totalPeople = 0;
   for (let i = 0; i < crowdCount; i++) {
     const s = pick(() => true); if (!s) break;
     const w = toWorld(s.x, s.y, cols, rows); const size = 2 + ((rng() * 3) | 0);
@@ -432,6 +436,7 @@ function frame(now) {
       // touch player
       if (invuln <= 0 && Math.hypot(z.position.x - player.position.x, z.position.z - player.position.z) < R * 2) { loseLife(); if (state !== 'play') return render(dt); }
     }
+    if (level > 1) { stragglerTimer -= dt; if (stragglerTimer <= 0 && zombies.length < 10 + level * 3) { stragglerTimer = 22 - Math.min(12, level); const edges = []; for (let y = 1; y < rows - 1; y++) for (let x = 1; x < cols - 1; x++) if (!maze[y][x] && (x === 1 || y === 1 || x === cols - 2 || y === rows - 2)) edges.push([x, y]); const far = edges.filter(([x, y]) => Math.abs(x - pc.cx) + Math.abs(y - pc.cy) > 8); if (far.length) { const [x, y] = far[(Math.random() * far.length) | 0]; spawnZombie(toWorld(x, y, cols, rows), level); } } }
     // civilians turning / following
     followers = civilians.filter((c) => c.userData.follow);
     for (let i = civilians.length - 1; i >= 0; i--) {
@@ -447,6 +452,13 @@ function frame(now) {
         if (d > 0.9) { const st = Math.min(d - 0.7, PLAYER_SPEED * 1.1 * dt); civ.position.x += dx / d * st; civ.position.z += dz / d * st; civ.rotation.y = Math.atan2(dx, dz); collide(civ.position, 0.2); animateWalk(civ, dt, 1); }
         else animateWalk(civ, dt, 0);
         continue;
+      }
+      let threat = null, td = 4.5; for (const z of zombies) { const d = z.position.distanceTo(civ.position); if (d < td) { td = d; threat = z; } }
+      if (threat) {
+        const dx = civ.position.x - threat.position.x, dz = civ.position.z - threat.position.z, d = Math.hypot(dx, dz) || 1;
+        const nx = civ.position.x + dx / d * 2.4 * dt, nz = civ.position.z + dz / d * 2.4 * dt; const nc = toCell(nx, nz, cols, rows);
+        if (openCell(nc)) { civ.position.x = nx; civ.position.z = nz; } collide(civ.position, 0.2);
+        civ.rotation.y = Math.atan2(dx, dz); animateWalk(civ, dt, 1); u.goal = null; u.wait = 1; continue;
       }
       if (u.goal) {
         const dx = u.goal.x - civ.position.x, dz = u.goal.z - civ.position.z, d = Math.hypot(dx, dz);
@@ -466,6 +478,7 @@ function frame(now) {
     for (const z of zombies) animateWalk(z, dt, 0.3);
   }
   if (city) city.updateRain(dt);
+  if (ruins) ruins.update(dt, now / 1000);
   render(dt);
 }
 
