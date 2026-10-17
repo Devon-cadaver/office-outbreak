@@ -7,6 +7,7 @@ import { makeChopper, animateChopper } from './chopper.js';
 import { buildRuins } from './ruins.js';
 import { makeCar, animateCar } from './car.js';
 import { rides } from './landmarks.js';
+import { createFires } from './fire.js';
 // ---------- economy / store ----------
 let cash = 0, cashThisDistrict = 0;
 const inv = { shoes: 0, vest: false, flare: false, ammo: false, car: null, carHp: 0 };
@@ -120,6 +121,35 @@ const beaconMat = new THREE.MeshBasicMaterial({ color: 0x7dff6a, transparent: tr
 const beacon = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.7, 12, 14, 1, true), beaconMat); beacon.position.y = 6; beacon.visible = false; scene.add(beacon);
 const beaconRing = new THREE.Mesh(new THREE.RingGeometry(0.7, 1.0, 24), new THREE.MeshBasicMaterial({ color: 0x7dff6a, transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthWrite: false })); beaconRing.rotation.x = -Math.PI / 2; beaconRing.position.y = 0.06; beaconRing.visible = false; scene.add(beaconRing);
 const objectiveEl = document.getElementById('objective');
+// ---- fires and explosions: the horde leaves the city burning behind it ----
+const fx = createFires(scene);
+let fireCheck = 0, shake = 0;
+const burntMat = new THREE.MeshLambertMaterial({ color: 0x1a1c1e });
+function burnCar(car) { if (car.userData.burning) return; car.userData.burning = true; car.traverse((o) => { if (o.isMesh && o.material && o.material.color && o.material.color.getHex() !== 0x5a86a8) o.material = burntMat; }); fx.ignite(new THREE.Vector3(car.position.x, 0.6, car.position.z), 0.8); sfx.whoosh(); }
+function burnBuilding(b) { if (b.userData.burning) return; b.userData.burning = true; const h = b.userData.h || 2; fx.ignite(new THREE.Vector3(b.position.x + (Math.random() - 0.5) * 0.8, Math.min(h, 2.2), b.position.z + (Math.random() - 0.5) * 0.8), 1.1 + Math.random() * 0.5); if (b.userData.fade) for (const mat of b.userData.fade) if (mat.emissive) { mat.emissive.set(0xff5a1a); mat.emissiveIntensity = 0.35; } }
+function explodeAt(pos, size, label) {
+  fx.explode(pos, size); sfx.boom(); shake = 0.7; say(player, label || 'Whoa!', 1.4);
+  for (let i = zombies.length - 1; i >= 0; i--) { const z = zombies[i]; const d = z.position.distanceTo(pos); if (d < 4.5 * size && !z.userData.rag) flingZombie(z, { x: z.position.x - pos.x, z: z.position.z - pos.z }, 9 + Math.random() * 4); }
+  for (let i = civilians.length - 1; i >= 0; i--) { const cv = civilians[i]; if (cv.position.distanceTo(pos) < 2.6 * size) { scene.remove(cv); civilians.splice(i, 1); pool.civ.push(cv); for (let k = 0; k < 4; k++) particle(cv.position, puffMat); } }
+  if (!riding && invuln <= 0 && player.position.distanceTo(pos) < 2.6 * size) { if (driving) { inv.carHp -= 2; if (inv.carHp <= 0) wreckCar(); else { sfx.hit(); invuln = 1; } } else loseLife(); }
+  for (let k = 0; k < 2; k++) fx.ignite(new THREE.Vector3(pos.x + (Math.random() - 0.5) * 1.6, 0.4, pos.z + (Math.random() - 0.5) * 1.6), 1.3);
+  updateHud();
+}
+function updateFires(dt) {
+  fx.update(dt); fireCheck -= dt; if (fireCheck > 0) return; fireCheck = 0.5;
+  const hot = zombies.filter((z) => z.userData.alert > 0 && !z.userData.rag);
+  // parked cars catch fire when zombies pass them
+  for (const car of city.cars) if (!car.userData.burning) for (const z of zombies) if (Math.abs(z.position.x - car.position.x) < 1.4 && Math.abs(z.position.z - car.position.z) < 1.4 && Math.random() < 0.35) { burnCar(car); break; }
+  // the gas station blows when the horde reaches it
+  for (const hz of city.hazards) if (hz.type === 'gas' && !hz.done) { let near = 0; for (const z of zombies) if (z.position.distanceTo(hz.pos) < 3.2) near++; if (near >= 2 || (near && Math.random() < 0.15)) { hz.done = true; explodeAt(hz.pos, 1.6, 'The gas station!'); } }
+  // a lingering horde sets buildings alight; fire spreads next door now and then
+  if (hot.length && fx.fires.length < 14 && Math.random() < 0.35) {
+    const z = hot[(Math.random() * hot.length) | 0]; let best = null, bd = 2.6;
+    for (const b of city.buildings) { if (b.userData.burning) continue; const d = Math.hypot(b.position.x - z.position.x, b.position.z - z.position.z); if (d < bd) { bd = d; best = b; } }
+    if (best) burnBuilding(best);
+  }
+  if (fx.fires.length < 14 && Math.random() < 0.08) { const burning = city.buildings.filter((b) => b.userData.burning); if (burning.length) { const src = burning[(Math.random() * burning.length) | 0]; for (const b of city.buildings) if (!b.userData.burning && Math.hypot(b.position.x - src.position.x, b.position.z - src.position.z) < CELL * 1.5) { burnBuilding(b); break; } } }
+}
 let startCell = null, exitCell = null, exitMesh = null, gate = null, switchCell = null, gateMesh = null, switchMesh = null, tip = '';
 const player = makeCharacter('worker'); scene.add(player); player.visible = false;
 let civilians = [], zombies = [], pickups = [], projectiles = [], particles = [];
@@ -362,7 +392,7 @@ function buildLevel(n) {
   if (inv.car && inv.carHp > 0 && n > 1) startDriving(); else if (driving) parkCar();
   flow = null; flowTimer = 0; invuln = 1; kills = 0; respawnCell = null; sprint = 0; sprintCd = 0; streak = 0; previewT = 0; showPreview([]); camTarget.copy(player.position); route = []; routeEndCell = null; showRoute();
   tipStage = 0; setTip(''); fitCamera(); updateHud();
-  parked = false; ferrisHinted = false; for (const rr of rides) rr.speed = 1; clearAntidote(); for (const g of goo) scene.remove(g); goo = []; if (flyby) { scene.remove(flyby); flyby = null; } flybyT = 20 + Math.random() * 20; riding = null; rideCd = 0; playerInfect = 0; $('puzzle').classList.add('hidden'); puzzle = null; closeWheelGame(); closeCoasterGame(); closeCarouselGame();
+  parked = false; ferrisHinted = false; for (const rr of rides) rr.speed = 1; clearAntidote(); fx.clear(); shake = 0; for (const g of goo) scene.remove(g); goo = []; if (flyby) { scene.remove(flyby); flyby = null; } flybyT = 20 + Math.random() * 20; riding = null; rideCd = 0; playerInfect = 0; $('puzzle').classList.add('hidden'); puzzle = null; closeWheelGame(); closeCoasterGame(); closeCarouselGame();
 }
 
 function spawnZombie(pos, n, rng = Math.random) {
@@ -705,7 +735,7 @@ function frame(now) {
       else if (!switchCell.dismissed) { if (driving) leaveCar('Hang on, power box.'); openPuzzle(); return render(dt); }
     }
     // fly-bys, the ferris wheel ride, follower infection creeping toward you
-    updateFlyby(dt); rideCd -= dt;
+    updateFlyby(dt); rideCd -= dt; updateFires(dt);
     if (riding) updateRide(dt);
 
     if (!riding && !ferrisHinted) { const nr = rideAt(player.position.x, player.position.z, 9); if (nr) { ferrisHinted = true; say(player, nr.name + '! Double-tap it.', 2.4); } }
@@ -816,7 +846,7 @@ function frame(now) {
       if (riding) continue;
       if (invuln <= 0 && touchD < R * 2) { if (vestUp) { vestUp = false; invuln = 1.2; sfx.hit(); say(player, 'Vest took it!'); for (let k = 0; k < 6; k++) particle(player.position, projMat); } else { loseLife(); if (state !== 'play') return render(dt); } }
     }
-    if (level > 1) { stragglerTimer -= dt; if (stragglerTimer <= 0 && zombies.length < 10 + level * 3) { stragglerTimer = 22 - Math.min(12, level); const edges = []; for (let y = 1; y < rows - 1; y++) for (let x = 1; x < cols - 1; x++) if (!maze[y][x] && (x === 1 || y === 1 || x === cols - 2 || y === rows - 2)) edges.push([x, y]); const far = edges.filter(([x, y]) => Math.abs(x - pc.cx) + Math.abs(y - pc.cy) > 8); if (far.length) { const [x, y] = far[(Math.random() * far.length) | 0]; spawnZombie(toWorld(x, y, cols, rows), level); } } }
+    if (level > 1) { stragglerTimer -= dt; if (stragglerTimer <= 0 && zombies.length < 10 + level * 3) { stragglerTimer = 22 - Math.min(12, level); const edges = []; for (let y = 1; y < rows - 1; y++) for (let x = 1; x < cols - 1; x++) if (!maze[y][x] && (x === 1 || y === 1 || x === cols - 2 || y === rows - 2)) edges.push([x, y]); const far = edges.filter(([x, y]) => Math.abs(x - pc.cx) + Math.abs(y - pc.cy) > 8); if (far.length) { const [x, y] = far[(Math.random() * far.length) | 0]; const sz = spawnZombie(toWorld(x, y, cols, rows), level); if (Math.random() < 0.5) { let best = null, bd = 4; for (const b of city.buildings) { if (b.userData.burning) continue; const d = Math.hypot(b.position.x - sz.position.x, b.position.z - sz.position.z); if (d < bd) { bd = d; best = b; } } if (best) burnBuilding(best); } } } }
     // civilians turning / following
     followers = civilians.filter((c) => c.userData.follow);
     for (let i = civilians.length - 1; i >= 0; i--) {
@@ -900,6 +930,7 @@ function render(dt = 0.016) {
       want.x = ext >= bx ? 0 : Math.max(-bx + ext, Math.min(bx - ext, want.x)); want.z = ext >= bz ? 0 : Math.max(-bz + ext, Math.min(bz - ext, want.z)); }
     camTarget.lerp(want, state === 'play' ? 1 - Math.pow(0.002, dt) : 1);
     camera.position.copy(camTarget).addScaledVector(camDir, 60); camera.lookAt(camTarget);
+    if (shake > 0) { shake -= dt; const k = shake * 0.35; camera.position.x += (Math.random() - 0.5) * k; camera.position.y += (Math.random() - 0.5) * k; }
     // buildings between the camera and the player go see-through
     for (const b of city.buildings) {
       const dx = b.position.x - player.position.x, dz = b.position.z - player.position.z;
@@ -940,4 +971,4 @@ resize();
 requestAnimationFrame(frame);
 
 // Debug hook for automated testing (harmless in production).
-window.__oo = { get cash() { return cash; }, set cash(v) { cash = v; renderStore(); }, get driving() { return driving; }, get inv() { return inv; }, get chopper() { return chopper; }, get chopperT() { return chopperT; }, set chopperT(v) { chopperT = v; }, routeTo: (cx, cy) => setRouteTo(toWorld(cx, cy, cols, rows)), get civilians() { return civilians; }, get maze() { return maze; }, get player() { return player; }, get gate() { return gate; }, get switchCell() { return switchCell; }, get cols() { return cols; }, get rows() { return rows; }, toWorld: (cx, cy) => toWorld(cx, cy, cols, rows), get pickups() { return pickups; }, get zombies() { return zombies; }, get exit() { return toWorld(exitCell.cx, exitCell.cy, cols, rows); }, get state() { return state; }, get rides() { return rides; }, get riding() { return riding; }, startRide, openRideGame, openPuzzle, flyby: () => { flybyT = 0; }, get flybyObj() { return flyby; }, get puzzle() { return puzzle; }, flingZombie, leaveCar, get parked() { return parked; }, infectPlayer, get infected() { return infected; }, get goo() { return goo; }, dropGoo, openWheelGame, get wg() { return wg; }, get mg() { return mg; }, camera };
+window.__oo = { get cash() { return cash; }, set cash(v) { cash = v; renderStore(); }, get driving() { return driving; }, get inv() { return inv; }, get chopper() { return chopper; }, get chopperT() { return chopperT; }, set chopperT(v) { chopperT = v; }, routeTo: (cx, cy) => setRouteTo(toWorld(cx, cy, cols, rows)), get civilians() { return civilians; }, get maze() { return maze; }, get player() { return player; }, get gate() { return gate; }, get switchCell() { return switchCell; }, get cols() { return cols; }, get rows() { return rows; }, toWorld: (cx, cy) => toWorld(cx, cy, cols, rows), get pickups() { return pickups; }, get zombies() { return zombies; }, get exit() { return toWorld(exitCell.cx, exitCell.cy, cols, rows); }, get state() { return state; }, get rides() { return rides; }, get riding() { return riding; }, startRide, openRideGame, openPuzzle, flyby: () => { flybyT = 0; }, get flybyObj() { return flyby; }, get puzzle() { return puzzle; }, flingZombie, leaveCar, get parked() { return parked; }, infectPlayer, get infected() { return infected; }, get goo() { return goo; }, dropGoo, openWheelGame, get wg() { return wg; }, get mg() { return mg; }, camera, fx, explodeAt, burnBuilding, burnCar, get city() { return city; } };

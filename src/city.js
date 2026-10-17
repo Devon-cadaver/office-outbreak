@@ -149,7 +149,7 @@ export function buildCity(scene, wall, level) {
   const T = makeTextures(); resetLandmarks();
   const rows = wall.length, cols = wall[0].length;
   const group = new THREE.Group(); scene.add(group);
-  const obstacles = [], buildings = [];
+  const obstacles = [], buildings = [], cars = [], hazards = [];
   const rng = mulberry32(level * 7919 + 13);
   const W = cols * CELL, D = rows * CELL;
   const M = (o) => new THREE.MeshLambertMaterial(o);
@@ -314,7 +314,7 @@ export function buildCity(scene, wall, level) {
   for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) if (wall[y][x]) {
     const w = toWorld(x, y, cols, rows);
     const lm = landmarkCells.get(y * cols + x);
-    if (lm) { buildLandmark(lm, group, w, rng, M, add); obstacles.push({ x: w.x, z: w.z, hw: CELL / 2 - 0.05, hd: CELL / 2 - 0.05 }); continue; }
+    if (lm) { buildLandmark(lm, group, w, rng, M, add); obstacles.push({ x: w.x, z: w.z, hw: CELL / 2 - 0.05, hd: CELL / 2 - 0.05 }); hazards.push({ type: lm, pos: new THREE.Vector3(w.x, 0, w.z) }); continue; }
     const edge = x === 0 || y === 0 || x === cols - 1 || y === rows - 1;
     if (edge) {
       // varied perimeter: fence runs, low walls with sandbags, and only some buildings
@@ -377,7 +377,7 @@ export function buildCity(scene, wall, level) {
       for (const hx of [-0.3, 0.3]) { const hl = new THREE.Mesh(box, headMat); hl.scale.set(0.16, 0.1, 0.05); hl.position.set(hx, 0.42, 0.91); car.add(hl); const tl = new THREE.Mesh(box, tailMat); tl.scale.set(0.16, 0.08, 0.05); tl.position.set(hx, 0.42, -0.91); car.add(tl); }
       if (straightH) { car.rotation.y = Math.PI / 2 * (rng() < 0.5 ? 1 : -1); car.position.set(w.x, 0, w.z + sideSign * 0.95); obstacles.push({ x: w.x, z: w.z + sideSign * 0.95, hw: 0.9, hd: 0.45 }); }
       else { car.rotation.y = rng() < 0.5 ? 0 : Math.PI; car.position.set(w.x + sideSign * 0.95, 0, w.z); obstacles.push({ x: w.x + sideSign * 0.95, z: w.z, hw: 0.45, hd: 0.9 }); }
-      group.add(car);
+      group.add(car); cars.push(car);
     }
   }
 
@@ -479,5 +479,5 @@ export function buildCity(scene, wall, level) {
     rainGeo.attributes.position.needsUpdate = true;
   };
 
-  return { group, obstacles, cols, rows, updateRain: (dt) => { updateRain(dt); updateLandmarks(dt); }, buildings };
+  return { group, obstacles, cols, rows, updateRain: (dt) => { updateRain(dt); updateLandmarks(dt); }, buildings, cars, hazards };
 }
