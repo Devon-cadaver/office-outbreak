@@ -1,6 +1,6 @@
 # Survive Dead City — itch.io page kit
 
-Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.5.0**. Upload `release/survive-dead-city-web-v1.5.0.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
+Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.5.1**. Upload `release/survive-dead-city-web-v1.5.1.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
 
 ## Upload settings (Edit game page)
 
@@ -11,7 +11,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 | Short description / tagline | Two zombie games in your browser: survive six nights in Dead City, or extract the crowds in a snake-style maze run. |
 | Classification | Game |
 | Kind of project | **HTML** |
-| Uploads | `survive-dead-city-web-v1.5.0.zip` (0.4 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
+| Uploads | `survive-dead-city-web-v1.5.1.zip` (0.4 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
 | Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
 | Frame options | Leave SharedArrayBuffer off. No special headers needed. |
 | Pricing | Free (or "No payments"). |
@@ -31,7 +31,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 | Page background (Theme → Background image) | `background-1920x1080.png` | 1920 × 1080 | No fixed size. Set "Don't repeat", position Top centre, and background colour #0e0818 so it fades into the edge. The dark middle band sits behind the 960 px page column. |
 | Banner (page theme → Banner) | `banner-960x400.png` | 960 × 400 | Any width up to 960 px, replaces the title. Optional. |
 | Screenshots | `shot-1-dead-city-title.png` … `shot-7-tornado.png` | 1280 × 720 | At least 3, up to 8. |
-| Logo (optional, for the page header or devlog) | `logo-extraction-dead-city.png` | 768 × 512 | Original Extraction: Dead City logo. |
+| Logo (optional, for the page header or devlog) | `logo-dead-city.png` | 768 × 512 | New 3D logo with the tornado (rendered from `logo-scene.html`). The original `logo-extraction-dead-city.png` is kept. |
 
 ## Description (paste into the page body; Markdown works)
 
@@ -78,6 +78,7 @@ Small browser games built fast, tested on a phone, and tuned by playing. Survive
 
 ## Version history
 
+- **1.5.1** (2026-10-18): New logo, cover and banner: a 3D render of the town with a realistic tornado tearing down the avenue under a storm sky. The animated main-menu logo now has a spinning tornado with debris and lightning.
 - **1.5.0** (2026-10-18): Tornado Alley: storm chasers (an armoured intercept vehicle drives in, stops to photograph you, then races off on the roads a little faster than you; catch it for +800, or if it gets away with its pictures another seeding plane joins the hunt), zoom (pinch, mouse wheel or +/- buttons, both views), seasons picker, and your survivor and car skins on the townsfolk and traffic. Chests: new players get coins fast (very generous until 2 coins, generous until 5).
 - **1.4.0** (2026-10-18): Tornado skins in the shop (2 coins each), used by every tornado in every mode: Hallowstorm (black, bats and jack-o-lanterns, green/purple/orange lights), Blizzard (white, snow, reindeer and snowmen, red and green lightning), Firenado (fire, embers, red lightning), Sharknado (waterspout full of sharks), Bunnynado (pastels, bunnies and eggs, pink lightning) and Liberty Twister (red, white and blue, flags, fireworks, multicolour lightning).
 - **1.3.3** (2026-10-18): Tornado Alley: cloud seeders are easier to dodge early on. They arrive later (and only once you have started growing on the first two levels), fly slower and turn wider on early levels, spray a smaller zone, and fly on after each pass instead of circling over you. Full strength again by the Megacity.
