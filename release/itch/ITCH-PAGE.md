@@ -8,7 +8,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 |---|---|
 | Title | Survive Dead City |
 | Project URL | survive-dead-city |
-| Short description / tagline | Two zombie games in your browser: survive six nights in Dead City, or extract the crowds in a snake-style maze run. |
+| Short description / tagline | Three games in your browser: survive six nights in Dead City, extract the crowds in a snake-style maze, or BE the tornado in Tornado Alley. |
 | Classification | Game |
 | Kind of project | **HTML** |
 | Uploads | `survive-dead-city-web-v1.5.1.zip` (0.4 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
@@ -57,9 +57,19 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 - Weapons aim themselves. Crowds panic and chain-infect, so lead the horde away from them.
 - Store between districts: ammo, medkit, vest, shoes, flare, car.
 
-**TORNADO ALLEY (side game)** — You are the storm. Drag to steer a tornado through town: rip up houses and towers, suck up the residents fleeing in the streets, toss the traffic, shrug off the army squads and tanks shooting at you, dodge the cloud-seeding planes whose spray shrinks you (grow big enough and you can swallow them), and run down the storm chasers before they get away with their photos. Everything you wreck makes you bigger, up to three times your size, and only a big storm can bring down the towers and the three big targets: the power plant (blackout!), the water station (waterspout!) and the fairground. Five levels, from Small Town to a huge Megacity, each unlocked by flattening enough of the last. Combos for chained wreckage, chests at the end.
+## 🌪️ TORNADO ALLEY — be the storm
 
-**Both games**
+Ever wanted to be the disaster? In Tornado Alley you *are* the tornado. Drag to steer a twister through town and tear it apart before the clock runs out.
+
+- **Wreck everything.** Houses, shops, towers, parked cars, benches and lamp posts. The bigger the building, the bigger the score.
+- **Sweep up the town.** Hundreds of residents run for their lives, traffic tries to escape, and your suction drags in anyone who gets too close.
+- **Grow.** Everything you destroy feeds the storm, from F0 up to a monster F5 three times your starting size. Tall towers only give way once you're big enough.
+- **Three big targets.** The water station turns you into a waterspout, the power plant blacks out the whole city, and the fairground's ferris wheel, roller coaster and carousel go spinning into the sky.
+- **They fight back.** Army squads and tanks open fire (you shrug it off). Cloud-seeding planes hunt you and their spray shrinks you: dodge them, or grow big enough to swallow them. Storm chasers race in to photograph you; run them down before they get away, or another seeding plane joins the hunt.
+- **Five towns.** Small Town, Suburbs, Downtown, Metro and the huge Megacity. Flatten enough of each to unlock the next.
+- **Make it yours.** Six tornado skins in the shop (Hallowstorm, Blizzard, Firenado, Sharknado, Bunnynado and Liberty Twister), plus seasons, an ISO or chase camera, and zoom.
+
+**All three**
 
 - Seasons: Halloween, Christmas and the 4th of July dress every house, shop and park (random by default, or pick one).
 - Beat either game to earn a coin and spend it in the skin shop: 32 outfits for you, survivor sets you can mix, 23 rides from an A-Team van to a dragon, six tornado skins (Sharknado included), and fire colours.
@@ -71,6 +81,8 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 **Dead City (Survival):** Left thumb is the joystick. Drag the right side to turn the camera. Hold **FIRE** to shoot (space on PC). Tap the spell buttons once a book is found. Double-tap next to a vehicle to drive it, double-tap again to get out. Double-tap next to a ride to play its operator game. **SCAN** sends a pulse toward your objective, three times a day. **ISO/3RD** switches the camera. Pinch or scroll to zoom. ❚❚ pauses; Esc or P on PC.
 
 **Extract:** You walk on your own. Tap the **left** side of the screen (or ◀) to turn left at the next corner, the **right** side (or ▶) to turn right. Hold **WALK** to slow down or **RUN** to speed up; both burn stamina, purple gems refill it. Tap a spot up to five cells ahead to walk there. Walk up to people and they join your line. Gather the number shown (10 in district 1, up to 70 by district 10), then reach the green beam for the heli. Never turn back into your line, and avoid dead ends. Double-tap a ride to use it. Hold a finger down to preview the way. Arrow keys on PC.
+
+**Tornado Alley:** Drag anywhere to steer the storm (WASD or arrow keys on PC). Pinch, scroll or tap **+ / −** to zoom. **ISO/3RD** switches between the top-down and chase cameras. Watch for the ✈ and 📷 arrows at the screen edge: seeding planes to dodge, storm chasers to catch.
 
 ## Bio (for the devs66 profile)
 
