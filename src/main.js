@@ -22,7 +22,7 @@ const STORE = [
   { id: 'vest', name: 'Kevlar vest', desc: 'Absorbs one zombie touch next district.', price: 300, once: true },
   { id: 'shoes', name: 'Running shoes', desc: '+10% speed, permanent. Stacks 3 times.', price: 350, max: 3 },
   { id: 'flare', name: 'Flare pack', desc: 'Sprinting drops a flare that lures zombies for 6 s.', price: 150, once: true },
-  { id: 'car', name: 'Car keys', desc: 'Drive the next district. Run zombies down. 5 hits wrecks it.', price: 2500 },
+  { id: 'car', name: 'Car keys', desc: 'Drive the next district. Run zombies down. 5 hits wrecks it.', price: 1800 },
   { id: 'repair', name: 'Repair car', desc: 'Restore the car to full health.', price: 800 },
 ];
 let car = null, driving = false, carHits = 0;
@@ -164,7 +164,8 @@ const pool = { civ: [], zom: [] };
 // Smashy Road controls: you always go straight. Tap the left half (or ◀) to turn left at the next chance, right half for right.
 // WALK and RUN are held and burn stamina; stamina trickles back and purple gems refill it.
 let heading = [0, 1], turnQ = 0, autoT = 0, stam = 100, stamMode = 0;
-function queueTurn(dir) { if (state !== 'play') return; turnQ = dir; $('turnL').classList.toggle('on', dir < 0); $('turnR').classList.toggle('on', dir > 0); }
+let turnQT = 0;
+function queueTurn(dir) { if (state !== 'play') return; turnQ = dir; turnQT = 1.2; $('turnL').classList.toggle('on', dir < 0); $('turnR').classList.toggle('on', dir > 0); }
 function setStamMode(mode) { stamMode = mode && stam > 0 ? mode : 0; $('walkBtn').classList.toggle('on', stamMode < 0); $('runBtn').classList.toggle('on', stamMode > 0); }
 $('turnL').addEventListener('pointerdown', (e) => { e.stopPropagation(); queueTurn(-1); }); $('turnR').addEventListener('pointerdown', (e) => { e.stopPropagation(); queueTurn(1); });
 for (const [id, mode] of [['walkBtn', -1], ['runBtn', 1]]) { const b = $(id); b.addEventListener('pointerdown', (e) => { e.stopPropagation(); setStamMode(mode); }); for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) b.addEventListener(ev, () => setStamMode(0)); }
@@ -694,7 +695,7 @@ function show(screen) { if (screen) setTip(''); for (const s of [ui.start, ui.cl
 function startRun(save) { seen = true; unlockAudio(); setMusicChase(false); startMusic(); level = 1; score = 0; lives = 3; time = 0; cash = 0; cashThisDistrict = 0; Object.assign(inv, { shoes: 0, vest: false, flare: false, ammo: false, car: null, carHp: 0 }); if (car) { scene.remove(car); car = null; } driving = false;
   if (save) { level = save.level || 1; score = save.score || 0; lives = save.lives || 3; cash = save.cash || 0; Object.assign(inv, save.inv || {}); }
   buildLevel(level); snapshot(); show(null); state = 'play'; }
-function nextLevel() { if (state !== "cleared") return; level++; buildLevel(level); snapshot(); show(null); state = 'play'; }
+function nextLevel() { if (state !== "cleared") return; level++; if (lives < 3) lives++; buildLevel(level); snapshot(); show(null); state = 'play'; }
 // ---- save: the run as it stood at the start of this district ----
 const SAVE_KEY = 'oo_save_zv'; let levelStart = null;
 function snapshot() { levelStart = { level, score, lives, cash, inv: { ...inv, car: inv.car ? true : null } }; }
@@ -814,7 +815,7 @@ function frame(now) {
 
     // player: always moving. No route means keep going the way you face
     let moving = 0;
-    autoT -= dt;
+    autoT -= dt; if (turnQ) { turnQT -= dt; if (turnQT <= 0) queueTurn(0); }
     if (stamMode) { stam -= 28 * dt; if (stam <= 0) { stam = 0; setStamMode(0); } } else stam = Math.min(100, stam + 5 * dt);
     $('stam').style.width = stam + '%';
     if (!route.length && !riding && autoT <= 0) {
@@ -973,7 +974,7 @@ function frame(now) {
       const civ = civilians[i];
       const u = civ.userData;
       if (u.infect <= 0) for (const g of goo) if (Math.abs(g.position.x - civ.position.x) < 0.3 && Math.abs(g.position.z - civ.position.z) < 0.3) { u.infect = 0.05; break; }
-      if (u.infect > 0) { u.infect += dt * 0.2; u.infectT = (u.infectT || 0) + dt; civ.position.y = Math.random() * 0.1; if (u.infect >= 1) { turnCivilian(civ); continue; } }
+      if (u.infect > 0) { u.infect += dt * 0.12; u.infectT = (u.infectT || 0) + dt; civ.position.y = Math.random() * 0.1; if (u.infect >= 1) { turnCivilian(civ); continue; } }
       else { civ.position.y = 0; u.infectT = 0; u.sick = false; u.warned = false; }
       if (u.infect > 0) {
         if (!u.sick) { u.sick = true; say(civ, ['I feel sick...', 'Something bit me.', "I'm fine. Go."][(Math.random() * 3) | 0], 2); }
@@ -987,7 +988,8 @@ function frame(now) {
       if (u.follow) {
         // target: a spot behind the player, staggered per follower
         const idx = followers.indexOf(civ); const leaderPos = idx <= 0 ? player.position : followers[idx - 1].position;
-        if (idx > 0 && !(u.infect > 0) && !riding && civ.position.distanceTo(player.position) < 0.55) { u.infect = 0.6; u.infectT = 0; sfx.hurt(); say(civ, 'You touched me!', 1.6); if (!crossWarned) { crossWarned = true; setTip('You crossed your own line. Anyone you touch turns. Plan the route.'); } }
+        if (idx > 0 && !(u.infect > 0) && !riding && civ.position.distanceTo(player.position) < 0.55) u.touch = (u.touch || 0) + dt; else u.touch = 0;
+        if (u.touch > 0.3) { u.touch = 0; u.infect = 0.6; u.infectT = 0; sfx.hurt(); say(civ, 'You touched me!', 1.6); if (!crossWarned) { crossWarned = true; setTip('You crossed your own line. Anyone you touch turns. Plan the route.'); } }
         const dx = leaderPos.x - civ.position.x, dz = leaderPos.z - civ.position.z, d = Math.hypot(dx, dz);
         if (riding) { animateWalk(civ, dt, 0); continue; }
         if (d > 0.9) { const st = Math.min(d - 0.7, PLAYER_SPEED * (1 + inv.shoes * 0.1) * (u.infect > 0 ? 0.7 : 1.15) * dt); civ.position.x += dx / d * st; civ.position.z += dz / d * st; civ.rotation.y = Math.atan2(dx, dz); collide(civ.position, 0.2); animateWalk(civ, dt, 1); }
