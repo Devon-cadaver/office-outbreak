@@ -39,17 +39,17 @@ const vcl = new Map(); const vcLam = (flat, side) => { const key = flat + '|' + 
 
 // Keep the frame rate up by drawing at a lower resolution when frames run long, and creeping back up when there's room.
 // Big screens (tablets, laptops) get a pixel budget, so they don't draw several times a phone's pixels.
-const BUDGET = 1.5e6;
+const BUDGET = 1.3e6;
 export function autoResolution(renderer, cap = 1.5) {
   const top = () => Math.max(0.6, Math.min(devicePixelRatio, cap, Math.sqrt(BUDGET / Math.max(1, innerWidth * innerHeight))));
-  let maxRatio = top(), minRatio = Math.min(maxRatio, 0.8), ratio = maxRatio, acc = 0, n = 0, last = performance.now(), good = 0;
+  let maxRatio = top(), minRatio = Math.min(maxRatio, innerWidth * innerHeight > 6e5 ? 0.65 : 0.8), ratio = maxRatio, acc = 0, n = 0, last = performance.now(), good = 0;
   renderer.setPixelRatio(ratio);
-  addEventListener('resize', () => { maxRatio = top(); minRatio = Math.min(maxRatio, 0.8); if (ratio > maxRatio) { ratio = maxRatio; renderer.setPixelRatio(ratio); } });
+  addEventListener('resize', () => { maxRatio = top(); minRatio = Math.min(maxRatio, innerWidth * innerHeight > 6e5 ? 0.65 : 0.8); if (ratio > maxRatio) { ratio = maxRatio; renderer.setPixelRatio(ratio); } });
   const fn = function tick() {
     const now = performance.now(), ms = now - last; last = now; if (ms > 250) return; // tab was hidden or paused
     acc += ms; n++; if (acc < 1500) return; const fps = 1000 * n / acc; acc = 0; n = 0;
     if (fps < 48 && ratio > minRatio) { ratio = Math.max(minRatio, ratio - 0.15); good = 0; renderer.setPixelRatio(ratio); }
-    else if (fps > 57 && ratio < maxRatio) { if (++good >= 3) { good = 0; ratio = Math.min(maxRatio, ratio + 0.1); renderer.setPixelRatio(ratio); } }
+    else if (fps > 58 && ratio < maxRatio) { if (++good >= 6) { good = 0; ratio = Math.min(maxRatio, ratio + 0.1); renderer.setPixelRatio(ratio); } }
     else good = 0;
   };
   Object.defineProperty(fn, 'ratio', { get: () => ratio }); return fn;
