@@ -1,6 +1,6 @@
 # Survive Dead City — itch.io page kit
 
-Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.4.0**. Upload `release/survive-dead-city-web-v1.4.0.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
+Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.5.0**. Upload `release/survive-dead-city-web-v1.5.0.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
 
 ## Upload settings (Edit game page)
 
@@ -11,7 +11,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 | Short description / tagline | Two zombie games in your browser: survive six nights in Dead City, or extract the crowds in a snake-style maze run. |
 | Classification | Game |
 | Kind of project | **HTML** |
-| Uploads | `survive-dead-city-web-v1.4.0.zip` (0.4 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
+| Uploads | `survive-dead-city-web-v1.5.0.zip` (0.4 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
 | Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
 | Frame options | Leave SharedArrayBuffer off. No special headers needed. |
 | Pricing | Free (or "No payments"). |
@@ -57,7 +57,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 - Weapons aim themselves. Crowds panic and chain-infect, so lead the horde away from them.
 - Store between districts: ammo, medkit, vest, shoes, flare, car.
 
-**TORNADO ALLEY (side game)** — You are the storm. Drag to steer a tornado through town: rip up houses and towers, suck up the residents fleeing in the streets, toss the traffic, shrug off the army squads and tanks shooting at you, and dodge the cloud-seeding planes whose spray shrinks you (grow big enough and you can swallow them). Everything you wreck makes you bigger, up to three times your size, and only a big storm can bring down the towers and the three big targets: the power plant (blackout!), the water station (waterspout!) and the fairground. Five levels, from Small Town to a huge Megacity, each unlocked by flattening enough of the last. Combos for chained wreckage, chests at the end.
+**TORNADO ALLEY (side game)** — You are the storm. Drag to steer a tornado through town: rip up houses and towers, suck up the residents fleeing in the streets, toss the traffic, shrug off the army squads and tanks shooting at you, dodge the cloud-seeding planes whose spray shrinks you (grow big enough and you can swallow them), and run down the storm chasers before they get away with their photos. Everything you wreck makes you bigger, up to three times your size, and only a big storm can bring down the towers and the three big targets: the power plant (blackout!), the water station (waterspout!) and the fairground. Five levels, from Small Town to a huge Megacity, each unlocked by flattening enough of the last. Combos for chained wreckage, chests at the end.
 
 **Both games**
 
@@ -78,6 +78,7 @@ Small browser games built fast, tested on a phone, and tuned by playing. Survive
 
 ## Version history
 
+- **1.5.0** (2026-10-18): Tornado Alley: storm chasers (an armoured intercept vehicle drives in, stops to photograph you, then races off on the roads a little faster than you; catch it for +800, or if it gets away with its pictures another seeding plane joins the hunt), zoom (pinch, mouse wheel or +/- buttons, both views), seasons picker, and your survivor and car skins on the townsfolk and traffic. Chests: new players get coins fast (very generous until 2 coins, generous until 5).
 - **1.4.0** (2026-10-18): Tornado skins in the shop (2 coins each), used by every tornado in every mode: Hallowstorm (black, bats and jack-o-lanterns, green/purple/orange lights), Blizzard (white, snow, reindeer and snowmen, red and green lightning), Firenado (fire, embers, red lightning), Sharknado (waterspout full of sharks), Bunnynado (pastels, bunnies and eggs, pink lightning) and Liberty Twister (red, white and blue, flags, fireworks, multicolour lightning).
 - **1.3.3** (2026-10-18): Tornado Alley: cloud seeders are easier to dodge early on. They arrive later (and only once you have started growing on the first two levels), fly slower and turn wider on early levels, spray a smaller zone, and fly on after each pass instead of circling over you. Full strength again by the Megacity.
 - **1.3.2** (2026-10-18): Tornado Alley gets a 3RD chase camera (ISO/3RD button, remembered): low behind the storm, turning with it, pulling back as it grows.

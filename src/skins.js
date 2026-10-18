@@ -9,7 +9,8 @@ const K = { coins: 'oo_coins', owned: 'oo_skins_owned', equip: 'oo_skins_equip' 
 const get = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const set = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* ignore */ } };
 export function getCoins() { return +get(K.coins, 0) || 0; }
-export function addCoins(n) { set(K.coins, Math.round((getCoins() + n) * 100) / 100); return getCoins(); } // coins can be fractional (chests pay 0.01s)
+export function getEarned() { const e = get('oo_coins_earned', null); return e == null ? getCoins() : +e || 0; }
+export function addCoins(n) { if (n > 0) set('oo_coins_earned', Math.round((getEarned() + n) * 100) / 100); set(K.coins, Math.round((getCoins() + n) * 100) / 100); return getCoins(); } // coins can be fractional (chests pay 0.01s)
 export function fmtCoins(c = getCoins()) { const v = Math.round(c * 100) / 100; return v + (v === 1 ? ' coin' : ' coins'); }
 export function grantSkin(id) { const owned = getOwned(); if (owned.includes(id)) return false; owned.push(id); set(K.owned, owned); return true; }
 export function getOwned() { return get(K.owned, []); }
@@ -68,6 +69,8 @@ export const SKINS = [
   ...Object.entries(TWISTER_SKINS).map(([id, s]) => ({ id: 'tornado:' + id, key: id, cat: 'tornado', name: s.name, price: s.price, desc: s.desc })),
 ];
 export function equippedTornado() { const e = getEquipped().tornado; return e ? e.split(':')[1] : null; }
+// a car in the player's equipped car skin (or plain, in the given colour)
+export function skinnedCarArgs(color) { const s = equippedSkin('car'); return s ? [s.color, s] : [color]; }
 export function equippedSkin(cat) { let e = getEquipped()[cat]; if (cat === 'npc') e = e.length ? e[(Math.random() * e.length) | 0] : null; if (!e) return null; const key = e.split(':')[1] || e; return cat === 'car' ? CAR_SKINS[key] || null : cat === 'fx' ? FX_SKINS[key] || null : CHAR_SKINS[key] || null; }
 // ghost cars: every material on the finished group goes see-through
 export function ghostify(group) { group.traverse((m) => { if (m.isMesh && m.material && m.material.color) { m.material = m.material.clone(); m.material.transparent = true; m.material.opacity = 0.45; } }); }

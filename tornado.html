@@ -26,6 +26,10 @@
     #taLevels .lvl b { font-size: 18px; } #taLevels .lvl i { font-style: normal; color: #ffd24a; font-size: 10px; }
     #taLevels .lvl.on { outline: 3px solid #7dff3a; } #taLevels .lvl:disabled { opacity: .45; }
     #taLevel { color: #c9a6ff; }
+    .zoomBtn { position: absolute; right: 10px; width: 34px; height: 34px; padding: 0; font-size: 20px; line-height: 1; pointer-events: auto; }
+    #taZoomIn { top: calc(90px + env(safe-area-inset-top, 0)); } #taZoomOut { top: calc(130px + env(safe-area-inset-top, 0)); }
+    .chaserArrow { color: #fff; font-size: 24px; }
+    .photoBar { position: fixed; left: 0; top: 0; width: 64px; height: 8px; border-radius: 4px; background: #000a; border: 1px solid #fff8; overflow: hidden; display: none; pointer-events: none; z-index: 4; } .photoBar i { display: block; height: 100%; width: 0; background: #ffffff; }
     #taView { position: absolute; right: 52px; top: calc(54px + env(safe-area-inset-top, 0)); pointer-events: auto; font-size: 11px; padding: 4px 8px; height: 26px; }
     .planeArrow { position: fixed; left: 0; top: 0; font-size: 26px; color: #9fd6ff; text-shadow: 0 0 8px #000, 0 0 3px #2a6aa0; pointer-events: none; display: none; z-index: 4; }
     #taSeeded { position: absolute; left: 50%; bottom: calc(110px + env(safe-area-inset-bottom, 0)); transform: translateX(-50%); padding: 6px 12px; border-radius: 8px; background: #0a2a44cc; border: 2px solid #9fd6ff; color: #cfeaff; font-weight: 900; font-size: 15px; opacity: 0; transition: opacity .15s; }
@@ -39,6 +43,7 @@
       <div id="taSub"><span id="taLevel"></span><span id="taPct">0% destroyed</span><span id="taPeople">0 people</span><span id="taPois"><span id="poiPower">⚡</span><span id="poiWater">💧</span><span id="poiFair">🎡</span></span></div></div>
     <div id="taGrow"><div id="taGrowFill"></div></div>
     <button id="taView" class="ghost">ISO</button>
+    <button id="taZoomIn" class="ghost zoomBtn">+</button><button id="taZoomOut" class="ghost zoomBtn">−</button>
     <button id="taPause" class="ghost">❚❚</button>
     <div id="taStick"><div id="taKnob"></div></div>
     <div id="taBanner"></div>
@@ -51,9 +56,11 @@
     <p class="small">Drag anywhere to steer (or WASD / arrows). Bigger buildings are worth more, and every person you suck up scores. The more you wreck, the bigger you grow, up to three times your size. Tall towers only give way once you've grown.</p>
     <p class="poi">Three big targets: ⚡ the <b>power plant</b> (F3), 💧 the <b>water station</b> (F2) and 🎡 the <b>fairground</b> (F4). Chain wreckage quickly for a combo.</p>
     <p class="poi">✈ Watch the sky: <b>cloud-seeding planes</b> hunt you and their spray shrinks you. They fly faster than you but turn slowly: cut sideways or double back as one lines up and it overshoots. Stay out of the blue zone under it, or grow to F3 and swallow them.</p>
+    <p class="poi">📷 <b>Storm chasers</b> drive in to photograph you, then race off on the roads. Catch one for a big bonus; if it gets away with its pictures, another seeding plane joins the hunt.</p>
     <div id="taLevels"></div>
     <button id="taPlay">UNLEASH</button>
     <button class="ghost menuBtn" onclick="location.href='index.html'">MAIN MENU</button>
+    <p class="small">Season: <select id="seasonSel" class="ghost" style="font-size:13px;padding:4px 8px"></select></p>
 
   </div>
   <div id="taPaused" class="screen hidden"><h1>PAUSED</h1><button id="taResume">RESUME</button><button class="ghost menuBtn" onclick="location.href='index.html'">MAIN MENU</button></div>

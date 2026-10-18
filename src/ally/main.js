@@ -8,7 +8,8 @@ import { makeCar } from '../car.js';
 import { createTwisters } from '../tornado.js';
 import { createFires } from '../fire.js';
 import { unlockAudio, sfx, startMusic, stopMusic, setMusicChase } from '../audio.js';
-import { equippedSkin, equippedTornado, CHAR_SKINS } from '../skins.js';
+import { equippedSkin, equippedTornado, skinnedCarArgs, CHAR_SKINS } from '../skins.js';
+import { bindSeasonSelect } from '../season.js';
 import { showChests } from '../chests.js';
 import { stampVersion } from '../version.js';
 
@@ -103,7 +104,7 @@ function buildWorld() {
   // traffic, army squads and tanks
   roadCells = roads; for (const o of [...drivers, ...soldiers, ...tanks]) scene.remove(o.g || o); drivers = []; soldiers = []; tanks = []; for (const s of shots) scene.remove(s.m); shots = [];
   const farRoad = (min) => { for (let k = 0; k < 60; k++) { const [x, y] = roads[(rng() * roads.length) | 0]; const w = toWorld(x, y, cols, rows); if (Math.hypot(w.x, w.z) > min) return [x, y]; } return roads[0]; };
-  for (let i = 0; i < 9 + 3 * (level - 1); i++) { const [x, y] = farRoad(5); const c = makeCar([0xc23b3b, 0x4f8fd6, 0xe8d54a, 0xd8dde0, 0x3a8a5a][(rng() * 5) | 0]); c.scale.setScalar(0.8); const w = toWorld(x, y, cols, rows); c.position.set(w.x, 0, w.z); scene.add(c); drivers.push({ g: c, cell: [x, y], path: [], speed: 3 + rng() * 1.5 }); }
+  for (let i = 0; i < 9 + 3 * (level - 1); i++) { const [x, y] = farRoad(5); const c = makeCar(...skinnedCarArgs([0xc23b3b, 0x4f8fd6, 0xe8d54a, 0xd8dde0, 0x3a8a5a][(rng() * 5) | 0])); c.scale.setScalar(0.8); const w = toWorld(x, y, cols, rows); c.position.set(w.x, 0, w.z); scene.add(c); drivers.push({ g: c, cell: [x, y], path: [], speed: 3 + rng() * 1.5 }); }
   for (let sq = 0; sq < 5 + 2 * (level - 1); sq++) { const [x, y] = farRoad(12); const w = toWorld(x, y, cols, rows); for (let i = 0; i < 3; i++) { const s = makeCharacter('vest', { skin: CHAR_SKINS.hunter }); s.scale.setScalar(0.25); s.position.set(w.x + (i - 1) * 0.5, 0, w.z + (rng() - 0.5) * 0.6); const gun = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, 0.6), new THREE.MeshLambertMaterial({ color: 0x22262a })); gun.position.set(0, -0.72, 0.25); s.userData.armR.add(gun); s.userData.cd = rng() * 2; scene.add(s); soldiers.push(s); } }
   for (let i = 0; i < 3 + (level - 1); i++) { const [x, y] = farRoad(16); const t = makeTank(); const w = toWorld(x, y, cols, rows); t.position.set(w.x, 0, w.z); scene.add(t); tanks.push({ g: t, cell: [x, y], path: [], cd: 2 + rng() * 2, repath: 0 }); }
   massTarget = buildings.reduce((s, x) => s + x.h, 0) * 0.42 * Math.sqrt(1 / big) + 12; // bigger towns: a smaller share grows you to full size
@@ -112,7 +113,7 @@ function buildWorld() {
 // ---------- the storm ----------
 let tw = null, twObj = null, size = 1, sizeShown = 1, mass = 0;
 function makeStorm() {
-  const junk = []; const c = makeCar([0xc23b3b, 0x4f8fd6, 0xe8d54a][(Math.random() * 3) | 0]); c.scale.setScalar(0.28); junk.push(c);
+  const junk = []; const c = makeCar(...skinnedCarArgs([0xc23b3b, 0x4f8fd6, 0xe8d54a][(Math.random() * 3) | 0])); c.scale.setScalar(0.28); junk.push(c);
   junk.push(new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.45, 10), new THREE.MeshLambertMaterial({ color: 0x3a6a8a })));
   twObj = twisters.make(true, junk, equippedTornado()); twObj.position.set(0, 0, 0); scene.add(twObj); tw = twObj.userData.twister; tw.layers.forEach((L) => { L.userData.op0 = L.material.opacity; });
   size = sizeShown = 1; mass = 0; twObj.scale.setScalar(S0);
@@ -157,7 +158,7 @@ function spawnPlane() {
   planes.push({ g, zone, arrow, heading: Math.atan2(-g.position.x, -g.position.z), life: 26, spraying: false }); banner('✈ CLOUD SEEDER!'); sfx.whoosh();
 }
 function updatePlanes(dt, px, pz, R) {
-  const S = SEED(); seedT -= dt; const maxUp = 1 + Math.floor((level - 1) / 2); if (seedT <= 0 && rankOf(sizeShown) >= S.minRank) { seedT = S.every + Math.random() * 6; if (planes.length < maxUp) spawnPlane(); }
+  const S = SEED(); seedT -= dt; const maxUp = 1 + Math.floor((level - 1) / 2) + extraSeeders; if (seedT <= 0 && rankOf(sizeShown) >= S.minRank) { seedT = S.every + Math.random() * 6; if (planes.length < maxUp) spawnPlane(); }
   const topR = R * 1.4, stormH = 11 * S0 * sizeShown; let sprayed = false;
   for (let i = planes.length - 1; i >= 0; i--) { const pl = planes[i], g = pl.g; pl.life -= dt;
     // hunt: turn toward the storm (with a limited turn rate, so they swing past and come round again); leave when time's up
@@ -184,7 +185,61 @@ function updatePlanes(dt, px, pz, R) {
   seededT -= dt; const pale = seededT > 0; for (const L of tw.layers) L.material.opacity = L.userData.op0 * (pale ? 0.45 + Math.random() * 0.15 : 1);
   $('taSeeded').style.opacity = pale ? 1 : 0;
 }
-function clearPlanes() { for (const pl of planes) { scene.remove(pl.g); scene.remove(pl.zone); pl.arrow.remove(); } planes = []; for (const s of sprayDrops) scene.remove(s.m); sprayDrops.length = 0; seedT = SEED().first; seededT = 0; }
+// ---------- storm chaser: an armoured intercept vehicle that drives in on the roads, stops close to photograph the storm,
+// then races off, a little faster than the storm but stuck to the streets. Catch it for a big bonus; if it gets away with
+// its pictures, an extra seeding plane joins the hunt for the rest of the level. ----------
+let chaser = null, chaserT = 25, extraSeeders = 0, chasersCaught = 0, chasersLost = 0;
+function makeChaser() {
+  const g = new THREE.Group(); const steel = new THREE.MeshLambertMaterial({ color: 0x8a9096 }), dark = new THREE.MeshLambertMaterial({ color: 0x4a5056 }), glass = new THREE.MeshLambertMaterial({ color: 0x3a5a6a }), tire = new THREE.MeshLambertMaterial({ color: 0x1a1a1c });
+  const bx = new THREE.BoxGeometry(1, 1, 1); const part = (mat, sx, sy, sz, x, y, z, rx = 0, parent = g) => { const m = new THREE.Mesh(bx, mat); m.scale.set(sx, sy, sz); m.position.set(x, y, z); m.rotation.x = rx; parent.add(m); return m; };
+  part(steel, 0.95, 0.42, 1.9, 0, 0.42, 0); // hull
+  part(steel, 0.82, 0.32, 1.05, 0, 0.78, -0.15); // cabin
+  part(glass, 0.78, 0.04, 0.42, 0, 0.82, 0.52, -0.55); // sloped windshield
+  for (const x of [-0.42, 0.42]) { part(glass, 0.02, 0.18, 0.32, x, 0.8, -0.05); part(dark, 0.06, 0.34, 1.75, x * 1.12, 0.32, 0.02); } // side windows, armour skirts over the wheels
+  part(dark, 1.0, 0.36, 0.12, 0, 0.36, 1.0, 0.35); // front plow
+  const lit = new THREE.MeshBasicMaterial({ color: 0xfff2c0 }), amber = new THREE.MeshBasicMaterial({ color: 0xffa020 });
+  for (let i = 0; i < 5; i++) part(lit, 0.09, 0.08, 0.04, -0.24 + i * 0.12, 0.3, 1.08); for (const x of [-0.42, 0.42]) part(amber, 0.08, 0.06, 0.04, x, 0.42, 1.06);
+  const wheel = new THREE.CylinderGeometry(0.17, 0.17, 0.14, 12); for (const z of [0.6, -0.4, -0.72]) for (const x of [-0.46, 0.46]) { const w = new THREE.Mesh(wheel, tire); w.rotation.z = Math.PI / 2; w.position.set(x, 0.17, z); g.add(w); }
+  part(steel, 0.42, 0.18, 0.4, 0, 1.03, -0.2); part(glass, 0.38, 0.1, 0.36, 0, 1.08, -0.2); // turret
+  const mast = new THREE.Group(); mast.position.set(0, 1.12, -0.25); g.add(mast); part(dark, 0.04, 0.55, 0.04, 0, 0.28, 0, 0, mast); part(dark, 0.6, 0.03, 0.03, 0, 0.52, 0, 0, mast); part(dark, 0.03, 0.03, 0.4, 0.28, 0.52, 0, 0, mast);
+  const cup = new THREE.SphereGeometry(0.05, 6, 4); for (const a of [0, 2.1, 4.2]) { const c = new THREE.Mesh(cup, steel); c.position.set(-0.28 + Math.cos(a) * 0.07, 0.6, Math.sin(a) * 0.07); mast.add(c); } g.userData.mast = mast;
+  const flash = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending })); flash.position.set(0, 1.0, 0.4); g.add(flash); g.userData.flash = flash;
+  g.scale.setScalar(1.15); return g;
+}
+function spawnChaser() {
+  const far = []; for (const c of roadCells) { const w = toWorld(c[0], c[1], cols, rows); const d = Math.hypot(w.x - twObj.position.x, w.z - twObj.position.z); if (d > 22 && d < 40) far.push(c); }
+  const cell = (far.length ? far : roadCells)[(Math.random() * (far.length || roadCells.length)) | 0]; const w = toWorld(cell[0], cell[1], cols, rows);
+  const g = makeChaser(); g.position.set(w.x, 0, w.z); scene.add(g); const arrow = document.createElement('div'); arrow.className = 'planeArrow chaserArrow'; arrow.textContent = '📷'; document.body.appendChild(arrow);
+  const bar = document.createElement('div'); bar.className = 'photoBar'; bar.innerHTML = '<i></i>'; document.body.appendChild(bar);
+  chaser = { g, cell, path: [], repath: 0, mode: 'approach', shots: 0, fleeT: 0, arrow, bar, flashT: 0 }; banner('📷 STORM CHASER!'); sfx.whoosh();
+}
+function removeChaser() { if (!chaser) return; scene.remove(chaser.g); chaser.arrow.remove(); chaser.bar.remove(); chaser = null; }
+function edgeArrow(el, pos, show) { const v = pos.clone().project(viewCam()); const off = Math.abs(v.x) > 0.95 || Math.abs(v.y) > 0.95 || v.z > 1; el.style.display = show && off ? 'block' : 'none'; if (!off) return v;
+  const a = Math.atan2(v.y, v.x), k = 0.9 / Math.max(Math.abs(Math.cos(a)), Math.abs(Math.sin(a))); el.style.transform = 'translate(' + ((Math.cos(a) * k * 0.5 + 0.5) * innerWidth) + 'px,' + ((-Math.sin(a) * k * 0.5 + 0.5) * innerHeight) + 'px) translate(-50%,-50%)'; return v; }
+function updateChaser(dt, px, pz, R) {
+  if (!chaser) { chaserT -= dt; if (chaserT <= 0) { chaserT = 32 + Math.random() * 14; spawnChaser(); } return; }
+  const c = chaser, g = c.g, p = g.position, d = Math.hypot(p.x - px, p.z - pz), stormSpeed = 3.2 + sizeShown * 0.7;
+  if (d < R + 1.1) { chasersCaught++; twisters.suck(g, tw); g.userData.flash.visible = false; c.g = null; chaser.arrow.remove(); chaser.bar.remove(); chaser = null; award(800, p, 'CHASER CAUGHT'); grow(1.5); banner('📷 CHASER CAUGHT!'); sfx.boom(); return; }
+  c.repath -= dt;
+  if (c.mode === 'approach') { // drive in until close enough for a good picture
+    if (d < 9 + sizeShown * 1.5 && d > R + 2.5) { c.mode = 'shoot'; c.path = []; }
+    else if (c.repath <= 0) { c.repath = 1.2; c.path = roadPathTo(c.cell, px, pz, false); }
+    followPath(c, stormSpeed * 0.9, dt);
+  } else if (c.mode === 'shoot') { // parked, snapping away; bolts early if the storm comes right at it
+    const want = Math.atan2(px - p.x, pz - p.z); let dr = want - g.rotation.y; dr = Math.atan2(Math.sin(dr), Math.cos(dr)); g.rotation.y += dr * Math.min(1, dt * 3);
+    c.shots += dt; c.flashT -= dt; if (c.flashT <= 0) { c.flashT = 0.35 + Math.random() * 0.3; g.userData.flash.material.opacity = 1; if (Math.random() < 0.5) popup(p, 'SNAP!', '#ffffff'); }
+    if (c.shots >= 3 || d < R + 3.2) { c.mode = 'flee'; c.repath = 0; banner(c.shots >= 3 ? '📷 GOT THE SHOT! CATCH IT!' : '📷 CHASER BOLTING!'); }
+  } else { // flee: race off along the streets, a touch faster than the storm
+    // head for the road farthest from the storm and stick with it; only re-plan when the storm closes in or it arrives
+    c.fleeT += dt; if (!c.path.length || (c.repath <= 0 && d < 7)) { c.repath = 2; let best = null, bd = -1; for (const rc of roadCells) { const w = toWorld(rc[0], rc[1], cols, rows); const dd = Math.hypot(w.x - px, w.z - pz) - Math.hypot(w.x - p.x, w.z - p.z) * 0.35; if (dd > bd) { bd = dd; best = rc; } } c.path = findPath(maze, { cx: c.cell[0], cy: c.cell[1] }, { cx: best[0], cy: best[1] }); }
+    followPath(c, stormSpeed * 1.12, dt);
+    if (c.fleeT > 4 && d > 26 + sizeShown * 4) { if (c.shots >= 1.5) { chasersLost++; extraSeeders++; banner('📷 IT GOT AWAY! +1 SEEDER'); seedT = Math.min(seedT, 2); } else banner('📷 CHASER LEFT'); removeChaser(); return; }
+  }
+  g.userData.flash.material.opacity = Math.max(0, g.userData.flash.material.opacity - dt * 6); g.userData.mast.rotation.y += dt * 4;
+  const v = edgeArrow(c.arrow, p, true);
+  if (v && c.mode === 'shoot') { c.bar.style.display = 'block'; c.bar.style.transform = 'translate(' + ((v.x * 0.5 + 0.5) * innerWidth) + 'px,' + ((-v.y * 0.5 + 0.5) * innerHeight - 38) + 'px) translate(-50%,-50%)'; c.bar.firstChild.style.width = Math.min(100, c.shots / 3 * 100) + '%'; } else c.bar.style.display = 'none';
+}
+function clearPlanes() { removeChaser(); chaserT = 25; extraSeeders = 0; chasersCaught = 0; chasersLost = 0; for (const pl of planes) { scene.remove(pl.g); scene.remove(pl.zone); pl.arrow.remove(); } planes = []; for (const s of sprayDrops) scene.remove(s.m); sprayDrops.length = 0; seedT = SEED().first; seededT = 0; }
 function wreckBuilding(x) {
   x.done = true; bDone++; { const i = city.obstacles.findIndex((o) => Math.abs(o.x - x.pos.x) < 0.3 && Math.abs(o.z - x.pos.z) < 0.3); if (i >= 0) city.obstacles.splice(i, 1); } const size3 = new THREE.Box3().setFromObject(x.obj).getSize(new THREE.Vector3()); const loose = x.obj === x.b ? (x.b.userData.extras || []).filter((m) => m.parent) : [];
   if (x.b.userData.edges) x.b.userData.edges.visible = false; twisters.tear(x.obj, x.pos, size3, tw, loose); award(x.pts, x.pos); grow(x.h); sfx.boom();
@@ -210,8 +265,15 @@ const stick = { id: null, cx: 0, cy: 0, x: 0, y: 0 }; const stickEl = $('taStick
 function sDown(id, x, y) { if (stick.id !== null || state !== 'play') return; stick.id = id; stick.cx = x; stick.cy = y; stick.x = stick.y = 0; stickEl.style.left = x + 'px'; stickEl.style.top = y + 'px'; stickEl.style.display = 'block'; knobEl.style.transform = 'translate(-50%,-50%)'; }
 function sMove(id, x, y) { if (id !== stick.id) return; const dx = x - stick.cx, dy = y - stick.cy, d = Math.hypot(dx, dy) || 1, m = Math.min(d, 55); stick.x = dx / d * m / 55; stick.y = dy / d * m / 55; knobEl.style.transform = 'translate(calc(-50% + ' + stick.x * 36 + 'px), calc(-50% + ' + stick.y * 36 + 'px))'; }
 function sUp(id) { if (id !== stick.id) return; stick.id = null; stick.x = stick.y = 0; stickEl.style.display = 'none'; }
-canvas.addEventListener('touchstart', (e) => { for (const t of e.changedTouches) sDown('t' + t.identifier, t.clientX, t.clientY); }, { passive: true });
-canvas.addEventListener('touchmove', (e) => { for (const t of e.changedTouches) sMove('t' + t.identifier, t.clientX, t.clientY); if (state === 'play') e.preventDefault(); }, { passive: false });
+// zoom: pinch with two fingers, the mouse wheel, or the +/- buttons; remembered
+let zoom = 1; try { zoom = Math.max(0.55, Math.min(1.9, +localStorage.getItem('ta_zoom') || 1)); } catch { /* ignore */ }
+function setZoom(z) { zoom = Math.max(0.55, Math.min(1.9, z)); try { localStorage.setItem('ta_zoom', String(zoom)); } catch { /* ignore */ } }
+let pinch = 0; const pinchD = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+canvas.addEventListener('touchstart', (e) => { if (e.touches.length >= 2) { sUp(stick.id); pinch = pinchD(e.touches); return; } for (const t of e.changedTouches) sDown('t' + t.identifier, t.clientX, t.clientY); }, { passive: true });
+canvas.addEventListener('touchmove', (e) => { if (e.touches.length >= 2 && pinch > 0) { const d = pinchD(e.touches); if (d > 0) setZoom(zoom * pinch / d); pinch = d; e.preventDefault(); return; } for (const t of e.changedTouches) sMove('t' + t.identifier, t.clientX, t.clientY); if (state === 'play') e.preventDefault(); }, { passive: false });
+addEventListener('touchend', (e) => { if (e.touches.length < 2) pinch = 0; });
+addEventListener('wheel', (e) => { e.preventDefault(); setZoom(zoom * (e.deltaY > 0 ? 1.1 : 0.9)); }, { passive: false });
+for (const [id, k] of [['taZoomIn', 0.85], ['taZoomOut', 1.18]]) document.getElementById(id).addEventListener('pointerdown', (e) => { e.stopPropagation(); setZoom(zoom * k); });
 const tUp = (e) => { for (const t of e.changedTouches) sUp('t' + t.identifier); }; addEventListener('touchend', tUp); addEventListener('touchcancel', tUp);
 canvas.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'touch') sDown(e.pointerId, e.clientX, e.clientY); });
 addEventListener('pointermove', (e) => { if (e.pointerType !== 'touch') sMove(e.pointerId, e.clientX, e.clientY); });
@@ -238,13 +300,14 @@ function finish() {
   $('taAgain').textContent = cleared && level < LEVELS.length ? 'NEXT LEVEL' : cleared ? 'PLAY AGAIN' : 'TRY AGAIN';
   $('taAgain').dataset.next = cleared && level < LEVELS.length ? '1' : '';
   $('taGoalLine').textContent = cleared ? (level < LEVELS.length ? 'Level ' + (level + 1) + ' unlocked: ' + LEVELS[level].name + '.' : 'You flattened every town. Legend.') : 'Flatten ' + L().goal + '% of ' + L().name + ' to clear it (you got ' + pct + '%).';
-  $('taStats').innerHTML = [['Buildings', bDone + ' / ' + totalB + ' (' + pct + '%)'], ['People swept up', peopleN], ['Cars thrown', carsN], ['Power plant', pois.power.done ? '⚡ down' : 'standing'], ['Water station', pois.water.done ? '💧 down' : 'standing'], ['Fairground', pois.fair.done ? '🎡 down' : 'standing'], ['Peak size', 'F' + rankOf(size) + ' (' + size.toFixed(1) + 'x)'], ['Score', score], ['Best', best]].map(([a, b]) => '<tr><td>' + a + '</td><td>' + b + '</td></tr>').join('');
+  $('taStats').innerHTML = [['Buildings', bDone + ' / ' + totalB + ' (' + pct + '%)'], ['People swept up', peopleN], ['Cars thrown', carsN], ['Storm chasers', chasersCaught + ' caught, ' + chasersLost + ' got away'], ['Power plant', pois.power.done ? '⚡ down' : 'standing'], ['Water station', pois.water.done ? '💧 down' : 'standing'], ['Fairground', pois.fair.done ? '🎡 down' : 'standing'], ['Peak size', 'F' + rankOf(size) + ' (' + size.toFixed(1) + 'x)'], ['Score', score], ['Best', best]].map(([a, b]) => '<tr><td>' + a + '</td><td>' + b + '</td></tr>').join('');
   showChests($('taChests'), Math.min(3, 1 + done.length));
   $('ta').classList.add('hidden'); $('taEnd').classList.remove('hidden');
 }
 $('taPlay').addEventListener('click', start); $('taAgain').addEventListener('click', () => { if ($('taAgain').dataset.next) level++; start(); });
 function drawLevels() { const box = $('taLevels'); box.innerHTML = ''; const un = unlocked(); LEVELS.forEach((lv, i) => { const b = document.createElement('button'); const n = i + 1; let best = 0; try { best = +localStorage.getItem('ta_best_' + n) || 0; } catch { /* ignore */ }
   b.className = 'lvl' + (n === level ? ' on' : ''); b.disabled = n > un; b.innerHTML = '<b>' + (n > un ? '🔒' : n) + '</b><span>' + lv.name + '</span>' + (best ? '<i>' + best + '</i>' : ''); b.addEventListener('click', () => { level = n; drawLevels(); }); box.appendChild(b); }); }
+bindSeasonSelect(document.getElementById('seasonSel')); document.getElementById('seasonSel').addEventListener('change', () => { if (state !== 'play') { buildWorld(); makeStorm(); twObj.position.set(-12, 0, -12); } });
 level = unlocked(); if (import.meta.env.DEV) { const q = +new URLSearchParams(location.search).get('level'); if (q >= 1 && q <= LEVELS.length) level = q; } drawLevels();
 $('taPause').addEventListener('click', togglePause); $('taResume').addEventListener('click', togglePause);
 
@@ -299,7 +362,7 @@ function update(dt) {
     const tur = t.g.userData.turret; const want = Math.atan2(px - p.x, pz - p.z) - t.g.rotation.y; tur.rotation.y += (Math.atan2(Math.sin(want - tur.rotation.y), Math.cos(want - tur.rotation.y))) * Math.min(1, dt * 4);
     t.cd -= dt; if (d < 20 && t.cd <= 0) { t.cd = 2 + Math.random() * 1.5; const muzzle = new THREE.Vector3(0, 0.64, 1.25).applyMatrix4(tur.matrixWorld); fireAt(muzzle, true); } }
   for (let i = shots.length - 1; i >= 0; i--) { const s = shots[i]; s.life -= dt; if (s.big) s.vel.y -= 2 * dt; s.m.position.addScaledVector(s.vel, dt); if (s.life <= 0) { if (s.big) fx.explode(s.m.position.clone(), 0.5); else fx.puff('smoke', s.m.position.clone(), 0.25); scene.remove(s.m); shots.splice(i, 1); } }
-  updatePlanes(dt, px, pz, R);
+  updatePlanes(dt, px, pz, R); updateChaser(dt, px, pz, R);
   // HUD
   const m = Math.floor(tLeft / 60), s = Math.floor(tLeft % 60);
   $('taTime').textContent = m + ':' + String(s).padStart(2, '0'); $('taTime').style.color = tLeft < 15 ? '#ff5a3a' : '';
@@ -321,10 +384,10 @@ function frame(now) {
   bannerT -= dt; if (bannerT <= 0) $('taBanner').style.opacity = 0;
   flashT = Math.max(0, flashT - dt); flashEl.style.opacity = Math.min(0.75, flashT * 3);
   // camera: iso, following the storm and pulling back as it grows
-  const a = innerWidth / innerHeight, s = twObj ? sizeShown : 1, half = (a < 1 ? (6.5 + s * 2.6) / a * 0.8 : 6.5 + s * 2.6);
+  const a = innerWidth / innerHeight, s = twObj ? sizeShown : 1, half = (a < 1 ? (6.5 + s * 2.6) / a * 0.8 : 6.5 + s * 2.6) * zoom;
   cam.left = -half * a; cam.right = half * a; cam.top = half; cam.bottom = -half; cam.updateProjectionMatrix();
   if (twObj) camTarget.lerp(tmp.set(twObj.position.x, 1.2 * s, twObj.position.z), Math.min(1, dt * 3)); cam.position.copy(camTarget).addScaledVector(isoDir, 80); cam.lookAt(camTarget);
-  if (third && twObj) { const fx = Math.sin(camYaw), fz = Math.cos(camYaw), back = 6 + s * 7.5, up = 2.5 + s * 4.5; const want = tmp.set(twObj.position.x - fx * back, up, twObj.position.z - fz * back); cam3.position.lerp(want, Math.min(1, dt * 2.5)); cam3.lookAt(twObj.position.x + fx * 5, 1.4 * s, twObj.position.z + fz * 5); }
+  if (third && twObj) { const fx = Math.sin(camYaw), fz = Math.cos(camYaw), back = (6 + s * 7.5) * zoom, up = (2.5 + s * 4.5) * zoom; const want = tmp.set(twObj.position.x - fx * back, up, twObj.position.z - fz * back); cam3.position.lerp(want, Math.min(1, dt * 2.5)); cam3.lookAt(twObj.position.x + fx * 5, 1.4 * s, twObj.position.z + fz * 5); }
   scene.fog.near = third ? 28 : 60; scene.fog.far = third ? 95 : 120;
   updatePops(dt);
   renderer.render(scene, viewCam());
@@ -332,4 +395,4 @@ function frame(now) {
 // a calm town behind the title screen
 buildWorld(); makeStorm(); twObj.position.set(-12, 0, -12); camTarget.set(0, 1, 0);
 requestAnimationFrame(frame);
-window.__ta = { setView, get third() { return third; }, spawnPlane, get planes() { return planes; }, get mass() { return mass; }, get level() { return level; }, set level(v) { level = v; }, get bDone() { return bDone; }, get totalB() { return totalB; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, get drivers() { return drivers; }, get state() { return state; }, get score() { return score; }, get size() { return sizeShown; }, get storm() { return twObj; }, get pois() { return pois; }, get buildings() { return buildings; }, get people() { return people; }, set tLeft(v) { tLeft = v; }, grow, start };
+window.__ta = { spawnChaser, get chaser() { return chaser; }, get zoom() { return zoom; }, setZoom, get extraSeeders() { return extraSeeders; }, setView, get third() { return third; }, spawnPlane, get planes() { return planes; }, get mass() { return mass; }, get level() { return level; }, set level(v) { level = v; }, get bDone() { return bDone; }, get totalB() { return totalB; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, get drivers() { return drivers; }, get state() { return state; }, get score() { return score; }, get size() { return sizeShown; }, get storm() { return twObj; }, get pois() { return pois; }, get buildings() { return buildings; }, get people() { return people; }, set tLeft(v) { tLeft = v; }, grow, start };
