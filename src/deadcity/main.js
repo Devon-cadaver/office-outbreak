@@ -9,6 +9,7 @@ import { createFires, setFlamePalette } from '../fire.js';
 import { makeChopper, animateChopper } from '../chopper.js';
 import { makeCar, rollVehicle } from '../car.js';
 import { stampVersion, VERSION } from '../version.js';
+import { autoResolution } from '../perf.js';
 import { createTwisters } from '../tornado.js';
 import { unlockAudio, sfx, startMusic, stopMusic, setMusicChase } from '../audio.js';
 import { loadMap, decodeCustom } from '../tools.js';
@@ -17,7 +18,7 @@ import { rides } from '../landmarks.js';
 const $ = (id) => document.getElementById(id);
 const canvas = $('game');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+const perfTick = autoResolution(renderer); // drops the draw resolution a notch when frames run long
 const scene = new THREE.Scene(); scene.background = new THREE.Color(NIGHT.sky); scene.fog = new THREE.Fog(NIGHT.sky, 30, 70);
 const hemi = new THREE.HemisphereLight(0xb8e0d8, 0x2a4448, 1.7); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xd0e8ff, 0.9); sun.position.set(-6, 10, 8); scene.add(sun);
@@ -582,7 +583,7 @@ function frame(now) {
       const fade = iso && d > 0.3 && d < ch + 1 && perp < 2.2 && h > target.y + d * slope - 0.6; const op = fade ? 0.15 : 1; for (const m of b.userData.fade) if (m.opacity !== op) m.opacity = op; if (b.userData.extras) for (const e of b.userData.extras) e.visible = !fade; if (b.userData.edges) b.userData.edges.visible = fade; } }
   if (city && city.detail) city.detail.sky(iso);
   drawInDbg();
-  renderer.render(scene, cam);
+  perfTick(); renderer.render(scene, cam);
 }
 function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); const a = innerWidth / innerHeight, half = (a < 1 ? 8 / a * 0.8 : 8) * zoom; isoCam.left = -half * a; isoCam.right = half * a; isoCam.top = half; isoCam.bottom = -half; isoCam.updateProjectionMatrix(); }
 $('view').addEventListener('pointerdown', (e) => { e.stopPropagation(); iso = !iso; $('view').textContent = iso ? 'ISO' : '3RD'; });

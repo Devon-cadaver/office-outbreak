@@ -110,17 +110,23 @@ export function createSeason(scene, group, rng, W, D) {
   // ---- particles: snow and fireworks ----
   let snowPts = null;
   if (season === 'christmas') { const N = 700; const pos = new Float32Array(N * 3); for (let i = 0; i < N; i++) pos.set([(rng() - 0.5) * (W + 10), rng() * 20, (rng() - 0.5) * (D + 10)], i * 3); const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); snowPts = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.12, transparent: true, opacity: 0.85 })); group.add(snowPts); }
-  const sparks = [], sparkPool = []; let fwT = 2; const fwCols = [0xff4a4a, 0xffffff, 0x4a7aff, 0xffd24a, 0x7dff3a];
-  const spark = (p, vel, col, life, s) => { let m = sparkPool.pop(); if (!m) { m = new THREE.Mesh(ball, B(0xffffff)); m.userData.mat = m.material; } m.material.color.set(col); m.position.copy(p); m.scale.setScalar(s); scene.add(m); sparks.push({ m, vel, life, max: life, s }); };
-  const launch = () => { const site = sites.length ? sites[(rng() * sites.length) | 0] : { x: (rng() - 0.5) * W, z: (rng() - 0.5) * D }; const col = fwCols[(rng() * fwCols.length) | 0]; const s = { m: null, rocket: true, col, t: 0.9 + rng() * 0.5 }; spark(new THREE.Vector3(site.x, 0.3, site.z), new THREE.Vector3((rng() - 0.5) * 1.5, 11 + rng() * 3, (rng() - 0.5) * 1.5), 0xffe0a0, s.t, 0.12); sparks[sparks.length - 1].rocket = col; };
+  const sparks = []; let fwT = 2; const fwCols = [0xff4a4a, 0xffffff, 0x4a7aff, 0xffd24a, 0x7dff3a];
+  // every spark lives in one Points cloud: one draw call however many bursts are going off
+  const FW_N = 600; const fwPos = new Float32Array(FW_N * 3), fwCol = new Float32Array(FW_N * 3); const fwGeo = new THREE.BufferGeometry(); fwGeo.setAttribute('position', new THREE.BufferAttribute(fwPos, 3)); fwGeo.setAttribute('color', new THREE.BufferAttribute(fwCol, 3)); fwGeo.setDrawRange(0, 0);
+  let fwPts = null; if (season === 'july4') { const c = document.createElement('canvas'); c.width = c.height = 32; const x = c.getContext('2d'); const gr = x.createRadialGradient(16, 16, 0, 16, 16, 16); gr.addColorStop(0, '#fff'); gr.addColorStop(0.4, '#fffb'); gr.addColorStop(1, '#fff0'); x.fillStyle = gr; x.fillRect(0, 0, 32, 32);
+    fwPts = new THREE.Points(fwGeo, new THREE.PointsMaterial({ size: 0.55, map: new THREE.CanvasTexture(c), vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); fwPts.frustumCulled = false; group.add(fwPts); }
+  const spark = (p, vel, col, life, s) => { if (sparks.length >= FW_N) return; sparks.push({ p: p.clone(), vel, c: new THREE.Color(col), life, max: life, s }); };
+  const launch = () => { const site = sites.length ? sites[(rng() * sites.length) | 0] : { x: (rng() - 0.5) * W, z: (rng() - 0.5) * D }; const col = fwCols[(rng() * fwCols.length) | 0]; const s = { m: null, rocket: true, col, t: 0.9 + rng() * 0.5 }; spark(new THREE.Vector3(site.x, 0.3, site.z), new THREE.Vector3((rng() - 0.5) * 1.5, 11 + rng() * 3, (rng() - 0.5) * 1.5), 0xffe0a0, s.t, 0.12); if (sparks.length) sparks[sparks.length - 1].rocket = col; };
   const burst = (p, col) => { for (let i = 0; i < 46; i++) { const v = new THREE.Vector3(rng() - 0.5, rng() - 0.5, rng() - 0.5).normalize().multiplyScalar(3.5 + rng() * 3); spark(p, v, rng() < 0.8 ? col : 0xffffff, 1.1 + rng() * 0.5, 0.16); } };
   api.update = (dt) => {
     for (const a of anim) { a.k += dt; if (a.bob) a.m.position.y = a.y + Math.sin(a.k * 2) * a.bob; else if (a.pulse) a.m.visible = Math.sin(a.k * 7) > -0.8; else if (a.wave) a.m.rotation.y = a.rx + Math.sin(a.k * 4) * 0.25; }
     if (snowPts) { const a = snowPts.geometry.attributes.position.array; for (let i = 0; i < a.length; i += 3) { a[i + 1] -= dt * 1.4; a[i] += Math.sin(a[i + 1] + i) * dt * 0.3; if (a[i + 1] < 0) a[i + 1] += 20; } snowPts.geometry.attributes.position.needsUpdate = true; }
     if (season === 'july4') { fwT -= dt; if (fwT <= 0) { fwT = 1.2 + rng() * 2.5; launch(); } }
-    for (let i = sparks.length - 1; i >= 0; i--) { const s = sparks[i]; s.life -= dt; if (!s.rocket) s.vel.y -= 3.5 * dt; s.m.position.addScaledVector(s.vel, dt); s.m.scale.setScalar(s.s * (s.rocket ? 1 : Math.max(0.1, s.life / s.max)));
-      if (s.life <= 0) { if (s.rocket) burst(s.m.position.clone(), s.rocket); scene.remove(s.m); sparkPool.push(s.m); sparks.splice(i, 1); } }
+    for (let i = sparks.length - 1; i >= 0; i--) { const s = sparks[i]; s.life -= dt; if (!s.rocket) s.vel.y -= 3.5 * dt; s.p.addScaledVector(s.vel, dt);
+      if (s.life <= 0) { if (s.rocket) burst(s.p.clone(), s.rocket); sparks.splice(i, 1); } }
+    if (fwPts) { for (let i = 0; i < sparks.length; i++) { const s = sparks[i], k = s.rocket ? 1 : Math.max(0, s.life / s.max); fwPos[i * 3] = s.p.x; fwPos[i * 3 + 1] = s.p.y; fwPos[i * 3 + 2] = s.p.z; fwCol[i * 3] = s.c.r * k; fwCol[i * 3 + 1] = s.c.g * k; fwCol[i * 3 + 2] = s.c.b * k; }
+      fwGeo.setDrawRange(0, sparks.length); fwGeo.attributes.position.needsUpdate = true; fwGeo.attributes.color.needsUpdate = true; }
   };
-  api.clear = () => { for (const s of sparks) scene.remove(s.m); sparks.length = 0; };
+  api.clear = () => { sparks.length = 0; fwGeo.setDrawRange(0, 0); };
   return api;
 }

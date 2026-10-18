@@ -3,6 +3,7 @@ import { bindSeasonSelect } from './season.js';
 import { equippedSkin, addCoins } from './skins.js';
 import { showChests } from './chests.js';
 import { stampVersion } from './version.js';
+import { autoResolution } from './perf.js';
 stampVersion(document.getElementById('start'));
 { const e = equippedSkin('fx'); if (e && e.flames) setFlamePalette(e); }
 import { makeCharacter, animateWalk } from './poster/characters.js';
@@ -65,7 +66,7 @@ const FINAL_LEVEL = 10;
 // ---------- renderer / scene ----------
 const canvas = document.getElementById('game');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+const perfTick = autoResolution(renderer); // drops the draw resolution a notch when frames run long
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(NIGHT.sky);
 scene.fog = new THREE.Fog(NIGHT.sky, 70, 120);
@@ -888,7 +889,7 @@ function clearDistrict(rescued) {
   state = 'cleared'; input.reset(); setMusicChase(false); sfx.wave();
   const need = needFor(level), gained = rescued * 100; score += gained;
   const pay = rescued * 20 + 50; earn(pay);
-  showChests($('chests'), chestPicks(rescued));
+  showChests($('chests'), chestPicks(rescued), '1 chest, +1 for every 10 survivors over the target', () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify({ level: level + 1, score, lives: lives < 3 ? lives + 1 : lives, cash, seed: runSeed, inv: { ...inv, car: inv.car ? true : null } })); } catch { /* ignore */ } location.href = 'store.html?from=extract'; });
   ui.clearedText.innerHTML = 'Escaped with you: <b>' + rescued + '</b> (needed ' + need + ')<br>Score: +' + gained + ' (100 per survivor)<br>Total score: <b>' + score + '</b><br><span class="pay">Paid out: $' + cashThisDistrict + '</span>';
   cashThisDistrict = 0; if (driving) parkCar();
   renderStore(); show(ui.cleared); updateHud();
@@ -925,7 +926,7 @@ function finishGame(rescued) { clearRun(); addCoins(1);
   state = 'won'; stopMusic();
   const gained = rescued * 100; score += gained;
   const best = Math.max(getBest(), score); setBest(best);
-  showChests($('wonChests'), Math.min(3, chestPicks(rescued) + 1));
+  showChests($('wonChests'), Math.min(3, chestPicks(rescued) + 1), '1 chest +1 for the win, +1 for every 10 survivors over the target', () => { location.href = 'store.html?from=extract'; });
   $('wonText').innerHTML = 'Extracted.<br>On the heli with you: <b>' + rescued + '</b> (+' + gained + ')<br><br>Final score: <b>' + score + '</b><br>Best: ' + best;
   show($('won'));
 }
@@ -1249,7 +1250,7 @@ function render(dt = 0.016) {
     void lim;
   }
   if (city && city.detail) city.detail.sky(false, !BUILD); // the builder gets a clear, still view
-  if (thirdPerson) { const back = new THREE.Vector3(-Math.sin(player.rotation.y), 0, -Math.cos(player.rotation.y)); const want = player.position.clone().addScaledVector(back, 2.6).add(new THREE.Vector3(0, 2.9, 0)); tpPos.lerp(want, 1 - Math.pow(0.001, dt)); tpCam.position.copy(tpPos); tpCam.lookAt(player.position.x - back.x * 2.2, 0.3, player.position.z - back.z * 2.2); renderer.render(scene, tpCam); } else renderer.render(scene, camera);
+  if (thirdPerson) { const back = new THREE.Vector3(-Math.sin(player.rotation.y), 0, -Math.cos(player.rotation.y)); const want = player.position.clone().addScaledVector(back, 2.6).add(new THREE.Vector3(0, 2.9, 0)); tpPos.lerp(want, 1 - Math.pow(0.001, dt)); tpCam.position.copy(tpPos); tpCam.lookAt(player.position.x - back.x * 2.2, 0.3, player.position.z - back.z * 2.2); perfTick(); renderer.render(scene, tpCam); } else { perfTick(); renderer.render(scene, camera); }
 }
 resize();
 requestAnimationFrame(frame);

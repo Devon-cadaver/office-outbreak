@@ -118,6 +118,8 @@ body.look #game { cursor: grab; }
 .chest.open.coin, .chest.open.dupe { border-color: #ffd24a; background: #3a2a14; }
 .chest.open.skin { border-color: #7dff3a; background: #1a3a14; animation: chestWin 1s 2; }
 .chest.done { opacity: 0.35; }
+.chestWhy { font-size: 11px; opacity: .8; margin-top: 6px; }
+.shopBtn { margin-top: 8px; width: 100%; font-size: 13px; padding: 8px 10px; color: #ffd24a; border-color: #ffd24a; }
 @keyframes chestShake { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(-9deg); } 40% { transform: rotate(9deg); } 60% { transform: rotate(-6deg); } 80% { transform: rotate(6deg) scale(1.08); } }
 @keyframes chestWin { 50% { transform: scale(1.12); box-shadow: 0 0 18px #7dff3a; } }
 

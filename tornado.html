@@ -13,8 +13,11 @@
     #taScore { font-size: 22px; } #taCombo { color: #ffd24a; font-size: 16px; } #taTime { margin-left: auto; font-size: 18px; } #taRank { color: #7dff3a; font-size: 16px; }
     #taSub { width: 100%; display: flex; gap: 10px; font-size: 12px; font-weight: 700; opacity: .92; white-space: nowrap; } #taSub > span { white-space: nowrap; }
     #taPois span { margin-right: 6px; opacity: .45; } #taPois span.done { opacity: 1; color: #7dff3a; text-decoration: line-through; }
-    #taGrow { position: absolute; left: 10px; right: 104px; top: calc(62px + env(safe-area-inset-top, 0)); height: 6px; background: #ffffff22; border-radius: 3px; overflow: hidden; }
-    #taGrowFill { height: 100%; width: 0; background: linear-gradient(90deg, #7dff3a, #ffd24a, #ff5a3a); }
+    #taGrow { position: absolute; left: 10px; right: 104px; top: calc(62px + env(safe-area-inset-top, 0)); height: 7px; background: #ffffff22; border-radius: 3px; }
+    #taGrowFill { height: 100%; width: 0; border-radius: 3px; background: linear-gradient(90deg, #7dff3a, #ffd24a, #ff5a3a); }
+    #taGrow .tick { position: absolute; top: -2px; width: 2px; height: 11px; background: #ffffffcc; transform: translateX(-1px); }
+    #taGrow .tick b { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); font-size: 9px; font-weight: 900; color: #fff; text-shadow: 0 1px 2px #000; }
+    #taGrow .tick.got b { color: #7dff3a; }
     #taPause { position: absolute; right: 10px; top: calc(54px + env(safe-area-inset-top, 0)); pointer-events: auto; font-size: 11px; padding: 4px 8px; height: 26px; }
     #taStick { position: absolute; width: 120px; height: 120px; border-radius: 50%; background: #ffffff1a; border: 2px solid #ffffff55; transform: translate(-50%, -50%); display: none; }
     #taKnob { position: absolute; left: 50%; top: 50%; width: 48px; height: 48px; border-radius: 50%; background: #c9a6ffcc; transform: translate(-50%, -50%); }
@@ -41,7 +44,7 @@
   <div id="ta" class="hidden">
     <div class="top"><span id="taScore">0</span><span id="taCombo"></span><span id="taRank">F0</span><span id="taTime">2:00</span>
       <div id="taSub"><span id="taLevel"></span><span id="taPct">0% destroyed</span><span id="taPeople">0 people</span><span id="taPois"><span id="poiPower">⚡</span><span id="poiWater">💧</span><span id="poiFair">🎡</span></span></div></div>
-    <div id="taGrow"><div id="taGrowFill"></div></div>
+    <div id="taGrow"><div id="taGrowFill"></div><i class="tick" style="left:20%"><b>F1</b></i><i class="tick" style="left:40%"><b>F2</b></i><i class="tick" style="left:60%"><b>F3</b></i><i class="tick" style="left:80%"><b>F4</b></i><i class="tick" style="left:100%"><b>F5</b></i></div>
     <button id="taView" class="ghost">ISO</button>
     <button id="taZoomIn" class="ghost zoomBtn">+</button><button id="taZoomOut" class="ghost zoomBtn">−</button>
     <button id="taPause" class="ghost">❚❚</button>

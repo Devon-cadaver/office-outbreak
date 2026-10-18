@@ -1,6 +1,7 @@
 // Rounded, flat-shaded characters in the poster's style: round heads, capsule bodies and limbs,
 // big glowing eyes on zombies. Same animation hooks as the blocky characters.
 import * as THREE from 'three';
+import { mergeParts } from '../perf.js';
 
 export const OUTFITS = {
   worker:  { skin: 0xf0c9a6, hair: 0x4a2f1c, shirt: 0x4f8fd6, pants: 0x3b3f55, tie: 0x2a3d7a },
@@ -73,6 +74,7 @@ export function makeCharacter(outfitName, { zombie = false, clown = null, skin =
   }
   if (skin && !zombie && skin.dress) skin.dress({ g, body, head, armL, armR, legL, legR, part });
   g.userData = { body, legL, legR, armL, armR, head, zombie, clown, phase: Math.random() * 6, idle: Math.random() * 6, lean: zombie ? 0.12 : 0, limp: 0.5 + Math.random() * 0.5 };
+  mergeParts(g); // ~25 pieces become ~7 (one per limb group), same look, same animation
   return g;
 }
 

@@ -11,10 +11,14 @@ const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); rend
 const scene = new THREE.Scene(); scene.add(new THREE.HemisphereLight(0xd0e8ff, 0x3a3a4a, 1.6)); const sun = new THREE.DirectionalLight(0xffffff, 0.8); sun.position.set(3, 6, 4); scene.add(sun);
 const cam = new THREE.PerspectiveCamera(32, 1, 0.1, 50); cam.position.set(0, 1.6, 5.2); cam.lookAt(0, 1.0, 0);
 const items = []; const twPreview = createTwisters(scene);
+const CATS = [['player', 'You'], ['npc', 'Survivors'], ['car', 'Rides'], ['tornado', 'Tornadoes'], ['fx', 'Effects']];
+let tab = 'player'; try { tab = sessionStorage.getItem('shop_tab') || 'player'; } catch { /* ignore */ }
+function drawTabs() { const box = $('tabs'); box.innerHTML = ''; const owned = getOwned(); for (const [cat, name] of CATS) { const all = SKINS.filter((x) => x.cat === cat), have = all.filter((x) => owned.includes(x.id)).length; const b = document.createElement('button'); b.className = cat === tab ? 'on' : ''; b.innerHTML = name + '<i>' + have + '/' + all.length + '</i>';
+  b.addEventListener('click', () => { tab = cat; try { sessionStorage.setItem('shop_tab', cat); } catch { /* ignore */ } drawTabs(); build(); renderAll(); $('wrap').scrollTop = 0; }); box.appendChild(b); } }
 function build() {
   const grid = $('grid'); grid.innerHTML = ''; items.length = 0; const owned = getOwned(), eq = getEquipped();
-  $('coins').textContent = '🪙 ' + fmtCoins();
-  for (const cat of ['player', 'npc', 'car', 'tornado', 'fx']) {
+  $('coins').textContent = '🪙 ' + fmtCoins(); drawTabs();
+  for (const cat of [tab]) {
     const h = document.createElement('h2'); h.textContent = { player: 'YOUR CHARACTER (2 coins)', npc: 'SURVIVORS & CROWDS (1 coin, pick up to 10)', car: 'VEHICLES', tornado: 'TORNADOES (Tornado Alley and storms)', fx: 'EFFECTS' }[cat]; grid.appendChild(h);
     for (const s of SKINS.filter((x) => x.cat === cat)) {
       const card = document.createElement('button'); card.className = 'skin'; const own = owned.includes(s.id), on = isEquipped(cat, s.id);
@@ -30,6 +34,8 @@ function build() {
     const none = document.createElement('button'); const noneOn = cat === 'npc' ? !eq.npc.length : !eq[cat]; none.className = 'skin plain' + (noneOn ? ' on' : ''); none.innerHTML = '<b>Default</b><span>' + (cat === 'npc' ? 'Clears the set (' + eq.npc.length + '/' + NPC_MAX + ' picked).' : 'No skin.') + '</span><em>' + (noneOn ? 'EQUIPPED' : 'Tap to equip') + '</em>'; none.addEventListener('click', () => { const sp = document.getElementById('wrap').scrollTop; equip(cat, null); build(); renderAll(); document.getElementById('wrap').scrollTop = sp; }); grid.appendChild(none);
   }
 }
+{ const from = new URLSearchParams(location.search).get('from'); const ok = { extract: 'zombieville.html', alley: 'tornado.html', survival: 'deadcity.html' }[from];
+  if (ok) { const b = $('backBtn'); b.style.display = 'inline-block'; b.textContent = '◀ ' + { extract: 'EXTRACT', alley: 'TORNADO ALLEY', survival: 'DEAD CITY' }[from]; b.addEventListener('click', () => { location.href = ok; }); } }
 build();
 // one static render per card at a three-quarter angle: no per-frame WebGL work, so the page scrolls freely
 function renderAll() { for (let k = 0; k < 4; k++) twPreview.update(0.05); for (const it of items) { scene.add(it.obj); it.obj.rotation.y = -0.6; renderer.render(scene, cam); scene.remove(it.obj); it.ctx.clearRect(0, 0, 150, 150); it.ctx.drawImage(renderer.domElement, 0, 0); } }

@@ -14,11 +14,12 @@ function roll() {
 }
 
 // picks: how many of the three chests the player may open
-export function showChests(el, picks) {
+export function showChests(el, picks, why = '', onShop = null) {
   el.innerHTML = ''; el.classList.remove('hidden');
   const head = document.createElement('div'); head.className = 'chestHead'; el.appendChild(head);
   const row = document.createElement('div'); row.className = 'chestRow'; el.appendChild(row);
-  let left = picks; const coinsAt = () => head.textContent = (left > 0 ? 'Open ' + left + (left === 1 ? ' chest' : ' chests') : 'Chests opened') + '  ·  🪙 ' + fmtCoins();
+  let left = picks; const coinsAt = () => head.textContent = (left > 0 ? 'Open ' + left + ' of 3' : 'Chests opened') + '  ·  🪙 ' + fmtCoins();
+  if (why) { const w = document.createElement('div'); w.className = 'chestWhy'; w.textContent = 'You earned ' + picks + (picks === 1 ? ' chest' : ' chests') + ': ' + why + '.'; el.appendChild(w); }
   coinsAt();
   for (let i = 0; i < 3; i++) {
     const b = document.createElement('button'); b.className = 'chest'; b.innerHTML = '<span class="lid">🧰</span><span class="res"></span>';
@@ -26,7 +27,8 @@ export function showChests(el, picks) {
       e.stopPropagation(); if (left <= 0 || b.classList.contains('open') || b.classList.contains('shake')) return;
       left--; b.classList.add('shake'); coinsAt();
       setTimeout(() => { const res = roll(); b.classList.remove('shake'); b.classList.add('open', res.kind); b.querySelector('.lid').textContent = res.kind === 'skin' ? '👕' : res.kind === 'empty' ? '💨' : '🪙'; b.querySelector('.res').textContent = res.text; coinsAt();
-        if (left <= 0) for (const o of row.children) if (!o.classList.contains('open') && !o.classList.contains('shake')) o.classList.add('done'); }, 650);
+        if (left <= 0) { for (const o of row.children) if (!o.classList.contains('open') && !o.classList.contains('shake')) { o.classList.add('done'); o.querySelector('.lid').textContent = '🔒'; o.querySelector('.res').textContent = 'Locked'; }
+          if (onShop && !el.querySelector('.shopBtn')) { const s = document.createElement('button'); s.className = 'ghost shopBtn'; s.textContent = '🪙 SPEND COINS IN THE SKIN SHOP'; s.addEventListener('click', (ev) => { ev.stopPropagation(); onShop(); }); el.appendChild(s); } } }, 650);
     });
     row.appendChild(b);
   }
