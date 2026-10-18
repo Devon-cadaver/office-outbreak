@@ -28,28 +28,34 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 | Slot | File | Size | itch requirement |
 |---|---|---|---|
 | Cover image | `cover-630x500.png` | 630 × 500 | Minimum 315 × 250, recommended 630 × 500. |
-| Page background (Theme → Background image) | `background-1920x1080.png` | 1920 × 1080 | No fixed size. Set "Don't repeat", position Top centre, and background colour #0e0818 so it fades into the edge. |
+| Page background (Theme → Background image) | `background-1920x1080.gif` (animated, 2.1 MB) or `background-1920x1080.png` (still) | 1920 × 1080 | Set "Don't repeat", position Top centre, background colour #0e0818. The animation stays on the two edges (the storm on the left, debris flying out to the right); the middle is still, behind the page column. Keep GIFs under about 3 MB: bigger ones can stop animating. Source: `background-scene.html`. |
 | Banner (page theme → Banner) | `banner-960x400.png` | 960 × 400 | Any width up to 960 px, replaces the title. |
 | Screenshots | `shot-ta-1-title.png` … `shot-ta-8-shop.png` | 1280 × 720 | Upload all eight in order and remove the old Survival/Extract shots (`shot-1` … `shot-7`). |
 | Logo (optional, for the page header or devlog) | `logo-dead-city.png` | 768 × 512 | Rendered from `logo-scene.html` with the game's own city and storm. |
 
 ## Description (paste into the page body; Markdown works)
 
-**You are the storm.**
+# You are the storm.
 
-Ever wanted to be the disaster? In Dead City: Tornado Alley you *are* the tornado. Drag to steer a twister through town, or tap anywhere to call down lightning and send the storm there. Tear the place apart before the clock runs out.
+Dead City is about to have a very bad day. Drag to steer a tornado through town, tap to call down lightning, and grow from a dust devil into an F5 monster that rips towers out of the ground.
 
-- **Wreck everything.** Houses, shops, towers, parked cars, benches and lamp posts. The bigger the building, the bigger the score. Chain wreckage fast for a combo.
-- **Grow.** Everything you destroy feeds the storm, from F0 up to a monster F5 three times your starting size, with a speed boost at every new rank. Tall towers only give way once you're big enough.
-- **Call the lightning.** Tap to strike: buildings burn down, cars blow up, people catch fire and run, seeding planes turn tail and storm chasers lose their photos.
-- **Ten big targets.** Power plant (blackout), water station (waterspout), fairground, graveyard (the dead rise), weather station (no more planes), fire station (fires spread), police station (jailbreak), sewage plant (stink storm), radio tower (no more chasers) and, in the biggest cities, a nuclear plant that melts down. Arrows at the screen edge and a minimap show where they are.
-- **They fight back.** Cloud-seeding planes hunt you and their spray shrinks you. Storm chasers race in for a photo, and if they get away, another plane joins the hunt. Army squads and tanks open fire (you shrug it off).
-- **Five towns.** Small Town, Suburbs, Downtown, Metro and the huge Megacity. Flatten enough of each and take out enough of its big targets to unlock the next; Megacity needs every last one.
-- **Make it yours.** Earn coins from chests and your score and spend them in the skin shop: six tornado skins (Hallowstorm, Blizzard, Firenado, Sharknado, Bunnynado, Liberty Twister), townsfolk outfits and the cars in town. Beat Megacity to unlock the Acid Storm, with acid rain, green lightning and baby tornadoes that roam the town.
-- **Seasons.** Halloween, Christmas and the 4th of July take turns dressing the town, round by round.
-- **New to it?** Hit 🎓 TUTORIAL for a quick step-by-step run through the basics.
+🌪️ **Tear it all down.** Houses, shops, towers, cars, lamp posts, and everyone running from you. Keep the chaos going for a x5 combo.
 
-Built for phones in portrait. Works with mouse and keyboard too.
+⚡ **Call the lightning.** Tap anywhere: buildings burn, cars explode, people run around on fire. Zap a seeding plane and it turns tail. Zap a storm chaser and its photos are toast.
+
+🎯 **Hunt ten big targets.** Black out the power plant. Wake the graveyard and the dead rise. Spring a jailbreak at the police station. Turn the sewage plant into a stink storm. Topple the radio tower. And in the biggest cities... melt down the nuclear plant.
+
+✈️ **They fight back.** Listen for the siren: cloud-seeding planes hunt you, and their spray shrinks you. Storm chasers race in for a photo, and if they get away, more planes come.
+
+🏙️ **Five towns.** From Small Town to the sprawling Megacity. Every round is a new map, new target spots and a new season.
+
+🏆 **Earn the Acid Storm.** Beat Megacity to unlock a toxic green twister with acid rain, green lightning and baby tornadoes that roam the town.
+
+🛒 **Make it yours.** Spend your coins on tornado skins (Sharknado, Firenado, Blizzard and more), townsfolk outfits and the cars in town.
+
+New here? Hit **🎓 TUTORIAL** and you'll be flattening the suburbs in a minute.
+
+*Plays in your browser. Built for phones (hold it upright); works with mouse and keyboard too.*
 
 ## How to play (paste below the description or into a "Controls" section)
 
@@ -96,7 +102,7 @@ Design: Sean Duvall. Built with Three.js and Vite. Original Extraction: Dead Cit
 
 1. Create (or edit) the project → Title **Dead City: Tornado Alley**, URL, Kind **HTML**, upload the zip, tick "played in the browser", set viewport and Mobile friendly.
 2. Paste the description and controls into the body.
-3. Under Edit theme: background image `background-1920x1080.png` (don't repeat, top centre), background colour #0e0818, page background #1a0f2e, text #e9e4f5, links and buttons #7dff3a. Upload `cover-630x500.png` as the cover, the eight `shot-ta-*` screenshots in order (remove the older `shot-1` … `shot-7`), and (optionally) `banner-960x400.png` under Theme → Banner.
+3. Under Edit theme: background image `background-1920x1080.gif` (or the still `.png`; don't repeat, top centre), background colour #0e0818, page background #1a0f2e, text #e9e4f5, links and buttons #7dff3a. Upload `cover-630x500.png` as the cover, the eight `shot-ta-*` screenshots in order (remove the older `shot-1` … `shot-7`), and (optionally) `banner-960x400.png` under Theme → Banner.
 4. Tags, genre, status, pricing as above. Save, then **Public** when you are happy.
 5. Test the embed on your phone: the page is portrait first; use the fullscreen button.
 

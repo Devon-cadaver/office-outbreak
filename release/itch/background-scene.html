@@ -1,0 +1,75 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Background scene</title>
+<style>html, body { margin: 0; background: #0e0818; overflow: hidden; } canvas { display: block; }</style></head>
+<body><canvas id="c"></canvas>
+<script type="module">
+// The itch page background, as a seamless loop: the edge of a huge tornado spinning on the left, cars, people, planks
+// and chunks of houses flung out of it across to the right, rain and a lightning strike. The middle stays still (the
+// page column covers it), which keeps the GIF small. window.renderAt(t) draws the frame t seconds into the loop.
+import * as THREE from 'three';
+import { createTwisters } from '/src/tornado.js';
+import { makeCar } from '/src/car.js';
+import { makeCharacter } from '/src/poster/characters.js';
+const Q = new URLSearchParams(location.search); const W = 1920, H = 1080, L = 2.4, TAU = Math.PI * 2, PAGE = 500, RAIN = Q.has('rain') ? +Q.get('rain') : 1; // PAGE: half-width of the still middle, in screen px
+const canvas = document.getElementById('c'); const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true }); renderer.setPixelRatio(1); renderer.setSize(W, H);
+const scene = new THREE.Scene();
+{ const c = document.createElement('canvas'); c.width = 2; c.height = 256; const g = c.getContext('2d'); const gr = g.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, '#060409'); gr.addColorStop(0.3, '#121019'); gr.addColorStop(0.58, '#262b29'); gr.addColorStop(0.72, '#30352c'); gr.addColorStop(0.86, '#171521'); gr.addColorStop(1, '#0e0818'); g.fillStyle = gr; g.fillRect(0, 0, 2, 256); scene.background = new THREE.CanvasTexture(c); }
+scene.fog = new THREE.Fog(0x1a1a22, 1500, 3200);
+scene.add(new THREE.HemisphereLight(0xa8b8b0, 0x2a2430, 1.6)); const sun = new THREE.DirectionalLight(0xd8f0e0, 1.0); sun.position.set(400, 600, 900); scene.add(sun);
+const flash = new THREE.PointLight(0xd8ffd0, 0, 2500, 0); flash.position.set(-600, 300, 400); scene.add(flash);
+const cam = new THREE.PerspectiveCamera(40, W / H, 10, 6000); cam.position.set(0, 0, 1480); cam.lookAt(0, 0, 0);
+// the storm: only its right flank shows at the left edge
+const tw = createTwisters(scene); const storm = tw.make(true, []); storm.scale.setScalar(104); storm.position.set(-1000, -640, -250); storm.rotation.z = -0.06; scene.add(storm);
+const T = storm.userData.twister; tw.update(0.0001); T.junk.visible = false; if (T.lights) T.lights.visible = false; T.dust.visible = false;
+[[0x3e3c36, 0.96], [0x605c52, 0.7], [0x86806e, 0.46]].forEach(([c, o], i) => { const m = T.layers[i].material; m.color.setHex(c); m.opacity = o; });
+T.cap.material.color.setHex(0x141418); T.cap.material.opacity = 0.97;
+// a long low cloud deck across the top
+{ const geo = new THREE.IcosahedronGeometry(1, 2); const ms = [0x0c0b10, 0x15141b, 0x1e1d26].map((c) => new THREE.MeshLambertMaterial({ color: c, transparent: true, opacity: 0.9, depthWrite: false }));
+  for (let i = 0; i < 70; i++) { const p = new THREE.Mesh(geo, ms[i % 3]); p.position.set(-1300 + Math.random() * 2600, 470 + Math.random() * 120, -400 + Math.random() * 300); p.scale.set(160 + Math.random() * 220, 40 + Math.random() * 50, 100); scene.add(p); } }
+// rooftops along the bottom
+{ const roof = new THREE.MeshLambertMaterial({ color: 0x100e16 }), lit = new THREE.MeshBasicMaterial({ color: 0x9a8a44 }); let x = -1200;
+  while (x < 1200) { const w = 70 + Math.random() * 110, h = 60 + Math.random() * 150; const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, 60), roof); b.position.set(x + w / 2, -560 + h / 2, -150); scene.add(b);
+    if (Math.random() < 0.6) for (let k = 0; k < 3; k++) { const wdw = new THREE.Mesh(new THREE.PlaneGeometry(9, 11), lit); wdw.position.set(x + 16 + Math.random() * (w - 32), -560 + 24 + Math.random() * (h - 40), -119); scene.add(wdw); } x += w + 5; } }
+// debris flung out of the storm: each piece crosses once per loop on its own arc, coming toward the camera, spinning a
+// whole number of turns (so the loop is seamless)
+const mat = (c) => new THREE.MeshLambertMaterial({ color: c }); const box = new THREE.BoxGeometry(1, 1, 1);
+const kinds = [
+  () => { const c = makeCar(0xc23b3b); c.scale.setScalar(52); return c; },
+  () => { const c = makeCharacter('worker', {}); c.scale.setScalar(36); return c; },
+  () => { const m = new THREE.Mesh(box, mat(0x7a5a3a)); m.scale.set(130, 11, 20); return m; },
+  () => { const g = new THREE.Group(); const a = new THREE.Mesh(box, mat(0xb8473a)); a.scale.set(80, 56, 56); g.add(a); const r = new THREE.Mesh(new THREE.ConeGeometry(60, 40, 4), mat(0x3a3a44)); r.position.y = 48; r.rotation.y = Math.PI / 4; g.add(r); return g; },
+  () => { const c = makeCar(0x4f8fd6); c.scale.setScalar(46); return c; },
+  () => { const c = makeCharacter('pink', {}); c.scale.setScalar(34); return c; },
+  () => { const m = new THREE.Mesh(box, mat(0x5a6a7c)); m.scale.set(70, 46, 34); return m; },
+  () => { const m = new THREE.Mesh(new THREE.CylinderGeometry(15, 15, 40, 12), mat(0x2a3a40)); return m; },
+  () => { const c = makeCar(0xe8d54a); c.scale.setScalar(44); return c; },
+  () => { const m = new THREE.Mesh(box, mat(0x8a6a44)); m.scale.set(96, 9, 16); return m; },
+  () => { const c = makeCharacter('suit', {}); c.scale.setScalar(34); return c; },
+  () => { const m = new THREE.Mesh(box, mat(0xd8d0c0)); m.scale.set(54, 54, 12); return m; },
+  () => { const g = new THREE.Group(); const t = new THREE.Mesh(new THREE.CylinderGeometry(6, 8, 60, 6), mat(0x4a3324)); g.add(t); const l = new THREE.Mesh(new THREE.IcosahedronGeometry(34, 0), mat(0x2f7a3f)); l.position.y = 44; g.add(l); return g; },
+  () => { const m = new THREE.Mesh(box, mat(0x3a6a4a)); m.scale.set(36, 36, 36); return m; },
+];
+const pieces = []; const N = 22;
+for (let i = 0; i < N; i++) { const o = kinds[i % kinds.length](); scene.add(o); pieces.push({ o, ph: i / N + (Math.random() - 0.5) * 0.02, y0: -200 + Math.random() * 520, arc: 80 + Math.random() * 260, drop: 60 + Math.random() * 420, z0: -150 + Math.random() * 120, z1: -60 + Math.random() * 560, spin: [1 + (i % 3), (i % 2) ? -1 : 1, 2 - (i % 2)] }); }
+// chunks whipping round the visible flank of the funnel
+const orbit = []; for (let i = 0; i < 26; i++) { const m = new THREE.Mesh(box, mat([0x3a2e24, 0x5a4a3a, 0x2a2a2e, 0x7a6a58][i % 4])); const s = 9 + Math.random() * 18; m.scale.set(s * 2.2, s * 0.6, s); scene.add(m); orbit.push({ m, a: Math.random() * TAU, y: -480 + Math.random() * 900, k: 1 + (i % 2), sp: [1 + (i % 3), 1, 2] }); }
+// rain on both sides, falling a whole number of screens per loop
+const rainN = Math.round(260 * RAIN), rain = []; const rainPos = new Float32Array(rainN * 6); const rainGeo = new THREE.BufferGeometry(); rainGeo.setAttribute('position', new THREE.BufferAttribute(rainPos, 3));
+scene.add(new THREE.LineSegments(rainGeo, new THREE.LineBasicMaterial({ color: 0x8a96a4, transparent: true, opacity: 0.35 })));
+for (let i = 0; i < rainN; i++) { const side = i % 2 ? 1 : -1; rain.push({ x: side * (560 + Math.random() * 520), z: -100 + Math.random() * 600, y0: Math.random(), k: 2 + (i % 2) }); }
+// one lightning strike per loop, off the cloud deck down to the rooftops on the left
+const boltPts = []; { let x = -560, y = 560; while (y > -470) { boltPts.push(new THREE.Vector3(x, y, 200)); y -= 70 + Math.random() * 60; x += (Math.random() - 0.4) * 90; } boltPts.push(new THREE.Vector3(x, -470, 200)); }
+const bolt = new THREE.Group(); bolt.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(boltPts), new THREE.LineBasicMaterial({ color: 0xffffff }))); for (const o of [3, -3, 6]) bolt.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(boltPts.map((p) => p.clone().add(new THREE.Vector3(o, 0, 0)))), new THREE.LineBasicMaterial({ color: 0xc8ffb0, transparent: true, opacity: 0.6 }))); scene.add(bolt);
+const lerp = (a, b, k) => a + (b - a) * k; const v = new THREE.Vector3();
+const offPage = (o) => { v.copy(o.position).project(cam); return Math.abs(v.x * W / 2) > PAGE; };
+window.renderAt = (t) => {
+  const u = ((t / L) % 1 + 1) % 1;
+  T.layers.forEach((Lr, i) => { Lr.material.map.offset.x = -u * (3 + i); Lr.material.map.offset.y = u; Lr.rotation.y = TAU * u * (i === 2 ? 1 : 2); });
+  for (const p of pieces) { const s = (u + p.ph) % 1; p.o.position.set(lerp(-760, 1250, s), p.y0 + Math.sin(Math.PI * s) * p.arc - s * p.drop, lerp(p.z0, p.z1, s)); p.o.rotation.set(TAU * u * p.spin[0], TAU * u * p.spin[1], TAU * u * p.spin[2]); p.o.visible = offPage(p.o); }
+  for (const c of orbit) { const a = c.a + TAU * u * c.k, r = 90 + (c.y + 600) * 0.36; c.m.position.set(storm.position.x + Math.cos(a) * r, c.y, storm.position.z + Math.sin(a) * r * 0.8); c.m.rotation.set(TAU * u * c.sp[0], TAU * u * c.sp[1], TAU * u * c.sp[2]); }
+  for (let i = 0; i < rainN; i++) { const r = rain[i]; const y = 600 - (((r.y0 + u * r.k) % 1) * 1300); rainPos.set([r.x, y, r.z, r.x - 10, y - 46, r.z], i * 6); } rainGeo.attributes.position.needsUpdate = true;
+  const f = u > 0.55 && u < 0.62; bolt.visible = f; flash.intensity = f ? 2.2 : 0;
+  renderer.render(scene, cam);
+};
+window.renderAt(0); document.body.dataset.ready = '1';
+</script></body></html>
