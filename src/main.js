@@ -256,7 +256,7 @@ function startBuild() {
   $('bMenu').addEventListener('change', () => { const v = $('bMenu').value; $('bMenu').value = '';
     if (v === 'play') location.href = 'zombieville.html?custom=1';
     else if (v === 'playdc') location.href = 'deadcity.html?custom=1';
-    else if (v === 'export') { const s = JSON.stringify(bMap); try { navigator.clipboard.writeText(s); } catch { /* ignore */ } prompt('Map text (copied). Paste it to Claude:', s); }
+    else if (v === 'export') { const s = JSON.stringify(bMap); try { navigator.clipboard.writeText(s); } catch { /* ignore */ } prompt('Map text (copied):', s); }
     else if (v === 'import') { const s = prompt('Paste map text:'); try { const mm = JSON.parse(s); if (mm && mm.cells) { bMap = mm; saveMap(bMap); buildRefresh(); } } catch { alert('That is not a map.'); } }
     else if (v === 'random') { const wall = generateMaze(bMap.cols, bMap.rows, Math.floor(bMap.cols * bMap.rows * 0.08)); bMap.cells = wall.map((row) => row.map((x) => (x ? 1 : 0))); bMap.cells[bMap.rows - 2][1] = 11; bMap.cells[1][bMap.cols - 2] = 12; saveMap(bMap); buildRefresh(); }
     else if (v === 'clear') { bMap = blankMap(bMap.cols, bMap.rows); bMap.cells[bMap.rows - 2][1] = 11; bMap.cells[1][bMap.cols - 2] = 12; saveMap(bMap); buildRefresh(); }
