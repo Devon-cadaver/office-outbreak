@@ -110,7 +110,7 @@ function makeTextures() {
   };
   const [facadeA, glowA] = facade(true, false), [facadeB, glowB] = facade(false, false);
 
-  const asphalt = (g) => { g.fillStyle = '#3e5257'; g.fillRect(0, 0, 96, 96); g.fillStyle = '#445a60'; for (let i = 0; i < 60; i++) g.fillRect((Math.random() * 96) | 0, (Math.random() * 96) | 0, 2, 2); };
+  const asphalt = (g) => { g.fillStyle = '#3e5257'; g.fillRect(0, 0, 96, 96); g.fillStyle = '#445a60'; const nr = mulberry32(96); for (let i = 0; i < 60; i++) g.fillRect((nr() * 96) | 0, (nr() * 96) | 0, 2, 2); };
   const [sc, sg] = canvas(96, 96); asphalt(sg);
   sg.fillStyle = '#e0cf6a'; sg.fillRect(0, 44, 96, 2); sg.fillRect(0, 50, 96, 2); // avenue: double yellow line
   const roadStraight = tex(sc);
@@ -352,11 +352,11 @@ export function buildCity(scene, wall, level) {
       for (let k = -1; k <= 1; k++) add(cyl, pfenceMat, 0.08, 1.6, 0.08, w.x + (vertical ? 0 : k * 1.0), 0.8, w.z + (vertical ? k * 1.0 : 0));
       const panel = add(box, meshMat, vertical ? 0.03 : L, 1.5, vertical ? L : 0.03, w.x, 0.8, w.z); void panel;
       add(box, wireMat2, vertical ? 0.05 : L, 0.05, vertical ? L : 0.05, w.x, 1.58, w.z); // top rail (barbed)
-      if (rng() < 0.6) { const b = add(box, barrierMat, vertical ? 0.5 : 1.6, 0.6, vertical ? 1.6 : 0.5, w.x + (vertical ? (x === 0 ? 0.9 : -0.9) : 0), 0.3, w.z + (vertical ? 0 : (y === 0 ? 0.9 : -0.9))); void b; }
+      if (prng() < 0.6) { const b = add(box, barrierMat, vertical ? 0.5 : 1.6, 0.6, vertical ? 1.6 : 0.5, w.x + (vertical ? (x === 0 ? 0.9 : -0.9) : 0), 0.3, w.z + (vertical ? 0 : (y === 0 ? 0.9 : -0.9))); void b; }
     } else if (style === 'wall') {
       add(box, wallMat2, vertical ? 0.5 : L, 1.0, vertical ? L : 0.5, w.x, 0.5, w.z);
       for (let k = -1; k <= 1; k++) for (let r = 0; r < 2; r++) add(box, sandMat, 0.55, 0.28, 0.4, w.x + (vertical ? (x === 0 ? 0.6 : -0.6) : k * 0.8), 0.14 + r * 0.26, w.z + (vertical ? k * 0.8 : (y === 0 ? 0.6 : -0.6)));
-      if (rng() < 0.3) add(box, wireMat2, vertical ? 0.08 : 1.2, 0.08, vertical ? 1.2 : 0.08, w.x, 1.1, w.z);
+      if (prng() < 0.3) add(box, wireMat2, vertical ? 0.08 : 1.2, 0.08, vertical ? 1.2 : 0.08, w.x, 1.1, w.z);
     }
   };
   const HOUSE_WALLS = [0xe8d54a, 0x3f6fb0, 0xb8473a, 0x8a5a3a, 0xd9c7a8, 0x6a8f5a], HOUSE_ROOFS = [0x4a3324, 0x3a3a44, 0x5a2e2a, 0x2f3d4a];
@@ -593,6 +593,6 @@ const sp = prop(px, pz, 'street', false);
   };
 
   const parkFn = wall.park || (() => false);
-  const detail = createDetail(group, { grassCells: [...streetCells.filter(([x, y]) => parkFn(x, y)).map(([x, y]) => ({ ...toWorld(x, y, cols, rows), roads: wall.custom ? [] : [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([dx, dy]) => open(x + dx, y + dy)) })), ...treeLots.map((w) => ({ ...w, roads: [] }))], streetCells: streetCells.filter(([x, y]) => !parkFn(x, y)).map(([x, y]) => toWorld(x, y, cols, rows)), cell: CELL, W, D, rng });
+  const detail = createDetail(group, { grassCells: [...streetCells.filter(([x, y]) => parkFn(x, y)).map(([x, y]) => ({ ...toWorld(x, y, cols, rows), roads: wall.custom ? [] : [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([dx, dy]) => open(x + dx, y + dy)) })), ...treeLots.map((w) => ({ ...w, roads: [] }))], streetCells: streetCells.filter(([x, y]) => !parkFn(x, y)).map(([x, y]) => toWorld(x, y, cols, rows)), cell: CELL, W, D, rng: mulberry32(borderSeed * 613 + 11), skyRng: mulberry32(borderSeed * 131 + 9) });
   return { group, obstacles, cols, rows, updateRain: (dt) => { updateRain(dt); updateLandmarks(dt); updateProps(dt); season.update(dt); detail.update(dt); }, season, detail, buildings, cars, hazards, props, knock };
 }

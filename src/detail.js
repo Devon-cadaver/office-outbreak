@@ -22,7 +22,7 @@ function swayMaterial() {
   return m;
 }
 
-export function createDetail(group, { grassCells, streetCells, cell, W, D, rng = Math.random }) {
+export function createDetail(group, { grassCells, streetCells, cell, W, D, rng = Math.random, skyRng = rng }) {
   const out = { group: new THREE.Group() }; group.add(out.group); const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), s = new THREE.Vector3(), p = new THREE.Vector3(), col = new THREE.Color();
 
   // grass
@@ -63,7 +63,7 @@ export function createDetail(group, { grassCells, streetCells, cell, W, D, rng =
   const shadowGeo = new THREE.CircleGeometry(1, 20); shadowGeo.rotateX(-Math.PI / 2);
   const shadows = new THREE.InstancedMesh(shadowGeo, new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.2, depthWrite: false }), CL * PUFFS);
   const span = Math.max(W, D) + 40; const cloud = [];
-  for (let i = 0; i < CL; i++) { const base = new THREE.Vector3((rng() - 0.5) * span, 22 + rng() * 5, (rng() - 0.5) * span); const puffs = []; for (let j = 0; j < PUFFS; j++) puffs.push({ o: new THREE.Vector3((rng() - 0.5) * 9, (rng() - 0.5) * 1.5, (rng() - 0.5) * 5), r: 2.5 + rng() * 3 }); cloud.push({ base, puffs, v: 0.6 + rng() * 0.6 }); }
+  const sr = skyRng; for (let i = 0; i < CL; i++) { const base = new THREE.Vector3((sr() - 0.5) * span, 22 + sr() * 5, (sr() - 0.5) * span); const puffs = []; for (let j = 0; j < PUFFS; j++) puffs.push({ o: new THREE.Vector3((sr() - 0.5) * 9, (sr() - 0.5) * 1.5, (sr() - 0.5) * 5), r: 2.5 + sr() * 3 }); cloud.push({ base, puffs, v: 0.6 + sr() * 0.6 }); }
   clouds.frustumCulled = false; shadows.frustumCulled = false; shadows.renderOrder = 1; out.group.add(clouds, shadows); out.clouds = clouds;
   const halfS = span / 2;
   out.update = (dt) => {
@@ -73,6 +73,6 @@ export function createDetail(group, { grassCells, streetCells, cell, W, D, rng =
     clouds.instanceMatrix.needsUpdate = true; shadows.instanceMatrix.needsUpdate = true;
   };
   // the chase cameras sit under the clouds, so only their shadows show there
-  out.sky = (topDown = true) => { clouds.visible = topDown; };
+  out.sky = (topDown = true, shadowsOn = true) => { clouds.visible = topDown; shadows.visible = shadowsOn; };
   return out;
 }

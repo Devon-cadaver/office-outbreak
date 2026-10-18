@@ -1233,7 +1233,7 @@ function render(dt = 0.016) {
     } else arrowEl.classList.add('hidden');
     void lim;
   }
-  if (city && city.detail) city.detail.sky(!thirdPerson);
+  if (city && city.detail) city.detail.sky(!thirdPerson && !BUILD, !BUILD); // the builder gets a clear, still view
   if (thirdPerson) { const back = new THREE.Vector3(-Math.sin(player.rotation.y), 0, -Math.cos(player.rotation.y)); const want = player.position.clone().addScaledVector(back, 2.6).add(new THREE.Vector3(0, 2.9, 0)); tpPos.lerp(want, 1 - Math.pow(0.001, dt)); tpCam.position.copy(tpPos); tpCam.lookAt(player.position.x - back.x * 2.2, 0.3, player.position.z - back.z * 2.2); renderer.render(scene, tpCam); } else renderer.render(scene, camera);
 }
 resize();
