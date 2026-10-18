@@ -1,0 +1,55 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>
+  html, body { margin: 0; background: #0e0818; }
+  svg { display: block; }
+</style></head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#140a26"/><stop offset=".55" stop-color="#22103d"/><stop offset="1" stop-color="#0c0715"/></linearGradient>
+    <radialGradient id="moon"><stop offset="0" stop-color="#d9ff9a" stop-opacity=".9"/><stop offset=".35" stop-color="#7dff3a" stop-opacity=".35"/><stop offset="1" stop-color="#7dff3a" stop-opacity="0"/></radialGradient>
+    <radialGradient id="glowL" cx="0" cy="1" r="1"><stop offset="0" stop-color="#7dff3a" stop-opacity=".16"/><stop offset="1" stop-color="#7dff3a" stop-opacity="0"/></radialGradient>
+    <radialGradient id="glowR" cx="1" cy="1" r="1"><stop offset="0" stop-color="#b05cff" stop-opacity=".22"/><stop offset="1" stop-color="#b05cff" stop-opacity="0"/></radialGradient>
+    <g id="zed"><circle cx="0" cy="-34" r="9"/><rect x="-8" y="-25" width="16" height="22" rx="4"/><rect x="-8" y="-4" width="6" height="16"/><rect x="2" y="-4" width="6" height="16"/><rect x="-24" y="-22" width="16" height="5"/><rect x="8" y="-22" width="16" height="5"/></g>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#sky)"/>
+  <circle cx="1560" cy="210" r="170" fill="url(#moon)"/>
+  <circle cx="1560" cy="210" r="62" fill="#e8ffc8" opacity=".85"/>
+  <!-- far skyline -->
+  <g fill="#1d0f33">
+    <rect x="0" y="640" width="90" height="440"/><rect x="95" y="580" width="70" height="500"/><rect x="170" y="690" width="110" height="390"/><rect x="290" y="610" width="60" height="470"/><rect x="355" y="660" width="95" height="420"/>
+    <rect x="1460" y="630" width="80" height="450"/><rect x="1545" y="590" width="110" height="490"/><rect x="1660" y="680" width="70" height="400"/><rect x="1735" y="620" width="90" height="460"/><rect x="1830" y="660" width="90" height="420"/>
+  </g>
+  <!-- near skyline -->
+  <g fill="#120a20">
+    <rect x="0" y="760" width="120" height="320"/><rect x="125" y="720" width="80" height="360"/><rect x="210" y="800" width="140" height="280"/><rect x="355" y="740" width="70" height="340"/>
+    <rect x="1500" y="750" width="100" height="330"/><rect x="1605" y="710" width="85" height="370"/><rect x="1695" y="790" width="120" height="290"/><rect x="1820" y="740" width="100" height="340"/>
+  </g>
+  <!-- lit windows -->
+  <g fill="#ffe27a" opacity=".55">
+    <rect x="20" y="790" width="10" height="12"/><rect x="50" y="830" width="10" height="12"/><rect x="140" y="760" width="10" height="12"/><rect x="230" y="840" width="10" height="12"/><rect x="380" y="780" width="10" height="12"/>
+    <rect x="1520" y="790" width="10" height="12"/><rect x="1630" y="750" width="10" height="12"/><rect x="1720" y="830" width="10" height="12"/><rect x="1850" y="780" width="10" height="12"/><rect x="1880" y="820" width="10" height="12"/>
+  </g>
+  <g fill="#b05cff" opacity=".5"><rect x="100" y="880" width="10" height="12"/><rect x="300" y="900" width="10" height="12"/><rect x="1580" y="870" width="10" height="12"/><rect x="1760" y="900" width="10" height="12"/></g>
+  <!-- ferris wheel on the right -->
+  <g stroke="#3a1f5a" stroke-width="5" fill="none" opacity=".9">
+    <line x1="1700" y1="1080" x2="1760" y2="760"/><line x1="1820" y1="1080" x2="1760" y2="760"/>
+    <circle cx="1760" cy="760" r="150"/><line x1="1760" y1="610" x2="1760" y2="910"/><line x1="1610" y1="760" x2="1910" y2="760"/><line x1="1654" y1="654" x2="1866" y2="866"/><line x1="1866" y1="654" x2="1654" y2="866"/>
+  </g>
+  <g fill="#7dff3a" opacity=".55"><circle cx="1760" cy="610" r="9"/><circle cx="1910" cy="760" r="9"/><circle cx="1610" cy="760" r="9"/><circle cx="1760" cy="910" r="9"/></g>
+  <!-- horde silhouettes along the bottom edges -->
+  <g fill="#07040c">
+    <use href="#zed" x="60" y="1060"/><use href="#zed" x="130" y="1070"/><use href="#zed" x="205" y="1058"/><use href="#zed" x="280" y="1072"/><use href="#zed" x="350" y="1062"/>
+    <use href="#zed" x="1560" y="1066"/><use href="#zed" x="1630" y="1058"/><use href="#zed" x="1700" y="1070"/><use href="#zed" x="1860" y="1062"/>
+  </g>
+  <g fill="#7dff3a" opacity=".85">
+    <circle cx="57" cy="1025" r="2"/><circle cx="63" cy="1025" r="2"/><circle cx="202" cy="1023" r="2"/><circle cx="208" cy="1023" r="2"/><circle cx="347" cy="1027" r="2"/><circle cx="353" cy="1027" r="2"/>
+    <circle cx="1627" cy="1023" r="2"/><circle cx="1633" cy="1023" r="2"/><circle cx="1857" cy="1027" r="2"/><circle cx="1863" cy="1027" r="2"/>
+  </g>
+  <rect width="1920" height="1080" fill="url(#glowL)"/><rect width="1920" height="1080" fill="url(#glowR)"/>
+  <!-- lightning far left -->
+  <polyline points="440,0 430,90 450,150 425,250 445,330" fill="none" stroke="#bfe0ff" stroke-width="3" opacity=".35"/>
+  <!-- keep the centre calm for the page column -->
+  <rect x="460" y="0" width="1000" height="1080" fill="#0e0818" opacity=".55"/>
+</svg>
+</body></html>

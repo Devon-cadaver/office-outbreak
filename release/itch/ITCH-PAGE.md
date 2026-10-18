@@ -28,6 +28,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Upload `releas
 | Slot | File | Size | itch requirement |
 |---|---|---|---|
 | Cover image | `cover-630x500.png` | 630 × 500 | Minimum 315 × 250, recommended 630 × 500. |
+| Page background (Theme → Background image) | `background-1920x1080.png` | 1920 × 1080 | No fixed size. Set "Don't repeat", position Top centre, and background colour #0e0818 so it fades into the edge. The dark middle band sits behind the 960 px page column. |
 | Banner (page theme → Banner) | `banner-960x400.png` | 960 × 400 | Any width up to 960 px, replaces the title. Optional. |
 | Screenshots | `shot-1-dead-city-title.png` … `shot-6-skin-shop.png` | 1280 × 720 | At least 3, up to 8. |
 | Logo (optional, for the page header or devlog) | `logo-extraction-dead-city.png` | 768 × 512 | Original Extraction: Dead City logo. |
@@ -77,6 +78,6 @@ Design: Sean Duvall. Built with Three.js and Vite. Original Extraction: Dead Cit
 
 1. Create project → Title, URL, Kind **HTML**, upload the zip, tick "played in the browser", set viewport and Mobile friendly.
 2. Paste the description and controls into the body.
-3. Upload `cover-630x500.png` as the cover, the six screenshots in order, and (optionally) `banner-960x400.png` under Theme → Banner.
+3. Under Edit theme: background image `background-1920x1080.png` (don't repeat, top centre), background colour #0e0818, page background #1a0f2e, text #e9e4f5, links and buttons #7dff3a. Upload `cover-630x500.png` as the cover, the six screenshots in order, and (optionally) `banner-960x400.png` under Theme → Banner.
 4. Tags, genre, status, pricing as above. Save, then **Public** when you are happy.
 5. Test the embed on your phone: the page is portrait first; use the fullscreen button.
