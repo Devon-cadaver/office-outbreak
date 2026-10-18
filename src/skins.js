@@ -9,8 +9,10 @@ const set = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catc
 export function getCoins() { return +get(K.coins, 0) || 0; }
 export function addCoins(n) { set(K.coins, getCoins() + n); return getCoins(); }
 export function getOwned() { return get(K.owned, []); }
-export function getEquipped() { return { player: null, npc: null, car: null, fx: null, ...get(K.equip, {}) }; }
-export function equip(cat, id) { const e = getEquipped(); e[cat] = id; set(K.equip, e); }
+export function getEquipped() { const e = { player: null, npc: [], car: null, fx: null, ...get(K.equip, {}) }; if (typeof e.npc === 'string') e.npc = [e.npc]; if (!Array.isArray(e.npc)) e.npc = []; return e; }
+export const NPC_MAX = 10;
+export function equip(cat, id) { const e = getEquipped(); if (cat === 'npc') { if (id == null) e.npc = []; else if (e.npc.includes(id)) e.npc = e.npc.filter((x) => x !== id); else if (e.npc.length < NPC_MAX) e.npc.push(id); } else e[cat] = id; set(K.equip, e); }
+export function isEquipped(cat, id) { const e = getEquipped(); return cat === 'npc' ? e.npc.includes(id) : e[cat] === id; }
 export function buy(id) { const s = SKINS.find((x) => x.id === id); if (!s) return false; const owned = getOwned(); if (owned.includes(id)) return true; if (getCoins() < s.price) return false; addCoins(-s.price); owned.push(id); set(K.owned, owned); return true; }
 
 const box = new THREE.BoxGeometry(1, 1, 1), cone = new THREE.ConeGeometry(0.5, 1, 10), cyl = new THREE.CylinderGeometry(0.5, 0.5, 1, 10), sphere = new THREE.SphereGeometry(0.5, 12, 8), ring = new THREE.TorusGeometry(0.5, 0.08, 6, 14);
@@ -56,10 +58,10 @@ export const CAR_SKINS = {
 Object.assign(CHAR_SKINS, CHAR_SKINS2); Object.assign(CAR_SKINS, CAR_SKINS2); CAR_SKINS.dragon.price = 3; CAR_SKINS.sleigh.price = 2; CAR_SKINS.reindeer.price = 2;
 export { FX_SKINS };
 export const SKINS = [
-  ...Object.entries(CHAR_SKINS).flatMap(([id, s]) => s.cats.map((cat) => ({ id: cat + ':' + id, key: id, cat, name: s.name + (cat === 'npc' ? ' survivors' : ''), price: s.price, desc: cat === 'npc' ? 'Every civilian and survivor wears it.' : 'Your character wears it in both games.' }))),
+  ...Object.entries(CHAR_SKINS).flatMap(([id, s]) => s.cats.map((cat) => ({ id: cat + ':' + id, key: id, cat, name: s.name + (cat === 'npc' ? ' survivors' : ''), price: cat === 'npc' ? 1 : 2, desc: cat === 'npc' ? 'Pick up to ten; survivors and crowds wear a random mix.' : 'Your character wears it in both games.' }))),
   ...Object.entries(FX_SKINS).map(([id, s]) => ({ id: 'fx:' + id, key: id, cat: 'fx', name: s.name, price: s.price, desc: s.flames ? 'Hellfire, burning zombies and fires change colour.' : 'What you throw turns to gold.' })),
   ...Object.entries(CAR_SKINS).map(([id, s]) => ({ id: 'car:' + id, key: id, cat: 'car', name: s.name, price: s.price, desc: 'Your car and the parked cars and vans.' })),
 ];
-export function equippedSkin(cat) { const e = getEquipped()[cat]; if (!e) return null; const key = e.split(':')[1] || e; return cat === 'car' ? CAR_SKINS[key] || null : cat === 'fx' ? FX_SKINS[key] || null : CHAR_SKINS[key] || null; }
+export function equippedSkin(cat) { let e = getEquipped()[cat]; if (cat === 'npc') e = e.length ? e[(Math.random() * e.length) | 0] : null; if (!e) return null; const key = e.split(':')[1] || e; return cat === 'car' ? CAR_SKINS[key] || null : cat === 'fx' ? FX_SKINS[key] || null : CHAR_SKINS[key] || null; }
 // ghost cars: every material on the finished group goes see-through
 export function ghostify(group) { group.traverse((m) => { if (m.isMesh && m.material && m.material.color) { m.material = m.material.clone(); m.material.transparent = true; m.material.opacity = 0.45; } }); }

@@ -2,8 +2,8 @@
 // city.js calls the hooks while it builds (houses, shops, parks, street trees) and ticks update() each frame.
 import * as THREE from 'three';
 
-export const SEASONS = [['none', 'No season'], ['halloween', 'Halloween'], ['christmas', 'Christmas'], ['july4', '4th of July']];
-export function getSeason() { const q = new URLSearchParams(location.search).get('season'); if (q) return q; try { return localStorage.getItem('oo_season') || 'none'; } catch { return 'none'; } }
+export const SEASONS = [['random', 'Random'], ['none', 'No season'], ['halloween', 'Halloween'], ['christmas', 'Christmas'], ['july4', '4th of July']];
+export function getSeason() { const q = new URLSearchParams(location.search).get('season'); if (q) return q; try { return localStorage.getItem('oo_season') || 'random'; } catch { return 'random'; } }
 export function setSeason(s) { try { localStorage.setItem('oo_season', s); } catch { /* ignore */ } }
 export function bindSeasonSelect(sel) { if (!sel) return; sel.innerHTML = SEASONS.map(([k, n]) => '<option value="' + k + '">' + n + '</option>').join(''); sel.value = getSeason(); sel.addEventListener('change', () => setSeason(sel.value)); }
 
@@ -20,7 +20,7 @@ function flagTexture() {
 }
 
 export function createSeason(scene, group, rng, W, D) {
-  const season = getSeason(); const anim = []; const sites = []; const none = season === 'none';
+  let season = getSeason(); if (season === 'random') season = ['none', 'halloween', 'christmas', 'july4'][(rng() * 4) | 0]; const anim = []; const sites = []; const none = season === 'none';
   const mesh = (parent, geo, mat, sx, sy, sz, x, y, z, ry = 0) => { const m = new THREE.Mesh(geo, mat); m.scale.set(sx, sy, sz); m.position.set(x, y, z); m.rotation.y = ry; parent.add(m); return m; };
   // palettes
   const orange = B(0xff8a1a), purpleG = B(0xb05cff), greenG = B(0x7dff3a), white = M(0xf2f2f2), snow = M(0xf4f8ff), black = M(0x111111), bone = M(0xe8e2c8), wood = M(0x5a3a22), iron = M(0x1a1a22), pine = M(0x1f5a2f, { flatShading: true }), red = M(0xc62828), blue = M(0x1e3a8a), gold = B(0xffd24a);

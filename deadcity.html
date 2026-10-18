@@ -18,6 +18,8 @@
     #books { font-size: 11px; opacity: .9; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
     #mission { color: #7dff3a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
     #veh { color: #ffd24a; white-space: nowrap; }
+    #scan { pointer-events: auto; font-size: 13px; font-weight: 800; padding: 7px 14px; border-color: #7dff3a; color: #7dff3a; height: 32px; line-height: 1; flex: none; }
+    #dc .row2 { align-items: center; }
     #clock { font-size: 11px; opacity: .8; }
     #dcStick { position: absolute; left: 24px; bottom: calc(28px + env(safe-area-inset-bottom, 0)); width: 130px; height: 130px; border-radius: 50%; background: #ffffff22; border: 2px solid #ffffff66; box-shadow: 0 0 0 1px #0006 inset; }
     #dcKnob { position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; border-radius: 50%; background: #7dff3acc; transform: translate(-50%, -50%); box-shadow: 0 0 12px #7dff3a88; }
@@ -33,7 +35,7 @@
 <body>
   <canvas id="game"></canvas>
   <div id="dc" class="hidden">
-    <div class="top"><div class="row1"><div id="hpbar2"><span id="hp2">❤️❤️❤️</span></div><div id="night">Day 1 / 6</div><div id="clock">55 s</div><div id="books">📖 0 · $0</div><div class="btns"><button id="view" class="ghost">ISO</button><button id="scan" class="ghost" style="border-color:#7dff3a">SCAN 3</button><button id="dcPause" class="ghost">❚❚</button></div></div><div class="row2"><span id="mission"></span><span id="veh"></span></div></div>
+    <div class="top"><div class="row1"><div id="hpbar2"><span id="hp2">❤️❤️❤️</span></div><div id="night">Day 1 / 6</div><div id="clock">55 s</div><div id="books">📖 0 · $0</div><div class="btns"><button id="view" class="ghost">ISO</button><button id="dcPause" class="ghost">❚❚</button></div></div><div class="row2"><span id="mission"></span><span id="veh"></span><button id="scan" class="ghost">SCAN 3</button></div></div>
     <div id="msg"></div>
     <div id="dcStick"><div id="dcKnob"></div></div>
     <div id="acts"><button class="act empty" data-slot="0">—</button><button class="act empty" data-slot="1">—</button><button class="act empty" data-slot="2">—</button><button class="act trash" id="trash">FIRE</button></div>
