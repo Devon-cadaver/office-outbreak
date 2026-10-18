@@ -1,10 +1,40 @@
-# Project notes: Extract from Zombieville, Dead City Nights, the map builder, the Duvallville poster game
+# Project notes: Survive Dead City Extraction (Dead City survival + Extract), skin shop, map builder
 
-Read this first after a compaction. Three games in one Vite repo, deployed to GitHub Pages on push to main (~1 min):
-- index.html = Extract from Zombieville (tap-to-route maze game). index.html?build=1 = in-world map builder. editor.html = 2D grid builder.
-- deadcity.html = Dead City Nights (third-person joystick, six nights, missions, vehicles, spells). ?custom=1 plays the builder map, ?horde=100 spawns a horde.
-- poster.html = Duvallville poster game (separate, not linked from the start screen).
-Shared engine: src/city.js (maze, roads, buildings, props, vehicles), src/landmarks.js (gas, rides, school, skate, slime, base, cemetery, lab), src/fire.js, src/chopper.js, src/audio.js, src/poster/characters.js, src/tools.js (builder palette, map decode). Dated bullets below are the change log, newest last.
+READ THIS FIRST after a compaction. Current as of 2026-10-18. Dated bullets further down are the full change log; where they conflict with this header, THIS HEADER wins.
+
+## Pages (Vite multi-page, deployed to GitHub Pages on push to main, ~1 min; repo Devon-cadaver/office-outbreak)
+- index.html = MAIN MENU "Survive Dead City Extraction": animated title art (public/title.svg: spinning ferris wheel, zombies chase hero, hero returns in a car, lightning, sandstorm), cards for DEAD CITY (SURVIVAL), EXTRACT, SKIN SHOP, link to map builder.
+- deadcity.html + src/deadcity/main.js = DEAD CITY (survival). Debug hook window.__dc. ?horde=100, ?custom=1 (builder map).
+- zombieville.html + src/main.js = EXTRACT (snake-style maze). Debug hook window.__oo. ?build=1 = in-world map builder; editor.html = 2D grid builder.
+- store.html + src/store.js = skin shop (static previews, scroll inside #wrap). ?coins=N grants test coins.
+- Poster game removed. src/poster/characters.js stays (shared character builder, takes { skin }).
+- Shared: src/city.js, src/landmarks.js, src/fire.js (setFlamePalette), src/chopper.js, src/audio.js, src/season.js (Halloween/Christmas/July4/none; default 'random'), src/skins.js + src/skins2.js (CHAR_SKINS, CAR_SKINS, FX_SKINS, equip API, coins), src/car.js, src/tools.js, src/input.js.
+
+## Dead City (survival) as it stands
+- Six nights. nightTotal = round(18*1.4^(n-1) * missionDebt); fastFrac = (n-1)*0.15; day 55 s, night 45+5n s; dusk burst 10% never within 10 u; at night the whole horde drifts to the player; standing still 10 s day / 5 s night spawns zombies from the ground; zombies spawn from house doors or crawl from the ground; spawn rate +10-30% per night.
+- Player walk 2.0 (sprint 1.45x). Joystick left half, right-drag camera, quick tap/click = tap-to-move (tapMove/goRoute). ISO default, 3RD camera trails behind. Pinch/wheel zoom (dc_zoom).
+- Hearts: 3 start, max 5, flak = 2 blue; bite 1 (charged 2), 2 s cover + knockback. +1 heart every dawn. Night mission done = +$250 + full hearts; unfinished = half pay, missionDebt x1.25 (saved).
+- FIRE manual with auto-aim (hold to repeat); guns spend ammo only with a target in range; trash infinite. Pistol 12 / shotgun 6 / rifle 24, one gun drop at a time (45 s); store refills held gun for $60.
+- Spells (8 books): HELLFIRE flamethrower, BEAM, REPULSE (cd 2.8), ENTOMB (3.4), WRATH, MAELSTROM (tornado, spares player), ARC (chain lightning), DIMINISH.
+- Missions: RESCUE (1 survivor to green zone), POWER (mini-game), WATER (mini-game), SUPPLIES (3 crates), CEMETERY (3 crypts), LAB (+heart slot). Survivors taken to the green zone (park LZ with searchlight) are lifted by chopper in 5 s. Mini-games won't open with a zombie within 4 u.
+- Vehicles: car/van/truck/tank (tank needs keys game), fuel ~1 min per tank, gas pump game, gas cans (cap 2, auto-pour <20%), repair kits (rare). Followers board with you. Engine noise spawns alerted zombies faster the longer you drive. A stopped car gets chewed (0.25 hp/s per zombie).
+- Weather (fades in/out over 4 s): sand, fog, rain, storm (blue warning ring 2.5 s before each jagged bolt; no close strikes before night 3; charges zombies), tornado (wrecks buildings, ragdolls). Signs at junctions, survivor smoke + shouts, SCAN pulse (3/day).
+- After night 6 the chopper lands at the helipad; 70% of the horde despawns. Win = +1 coin. Pause ❚❚ (save at start of day, CONTINUE on start screen). HUD is two compact rows.
+
+## Extract as it stands
+- Snake rules: player is immune but a carrier; touching any follower except the one directly behind (0.1 s within 0.7 u) infects them. Infected civilians turn in ~3.5 s; horde capped at 12+4*level.
+- Always walking. ◀/▶ (or tap left/right half when the tap isn't a reachable street) queue a turn relative to the player's heading, expiring after 1.2 s. Tap a street up to 5 cells ahead = route there, then keep walking. Hold WALK/RUN (stamina bar, purple gems). Stall guard frees stuck corners. ISO/3RD view button.
+- 10 districts, power-box gate puzzle, rides, fires, chopper finale. +1 life per district cleared (to 3). Start pistol 6, ammo crate 24. Store: car $1800, repair $800. OVERRUN offers RETRY DISTRICT (from district-start snapshot) or NEW RUN. Save/continue. Win = +1 coin.
+
+## Skin shop
+- Player skins 2 coins (32 looks), survivor skins 1 coin, up to 10 equipped as a random mix, vehicles 1-3 coins (23 incl. sleigh, reindeer, dragon, UFO, unicorn, monster truck), effects (purple/blue/green fire, gold trash). localStorage oo_coins, oo_skins_owned, oo_skins_equip.
+
+## itch.io package
+- release/survive-dead-city-web.zip (rebuild: npx vite build, then Compress-Archive dist* releasesurvive-dead-city-web.zip). release/itch/: ITCH-PAGE.md (settings, description, how-to, bio, checklist), cover-630x500.png, banner-960x400.png, six 1280x720 screenshots, original Extraction: Dead City logo. Target page devs66.itch.io.
+
+## Workflow
+- Patch with node .cjs scripts in the scratchpad (normalise CRLF; anchors must match exactly; script throws before writing if any anchor is missing). Build with npx vite build, test in the browser pane via the debug hooks (pane must be visible or the loop doesn't run; mobile preset), commit with the attribution line, push.
+- Testers: spawn on cheaper models (sonnet) unless the user asks for opus; give them the debug-hook cheatsheet; they report as their final message.
 
 Reference for continuing work after a context compaction. Everything here was true on 2026-10-17.
 
