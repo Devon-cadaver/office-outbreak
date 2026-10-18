@@ -8,7 +8,7 @@ import { makeCharacter, animateWalk } from '../poster/characters.js';
 import { createFires, setFlamePalette } from '../fire.js';
 import { makeChopper, animateChopper } from '../chopper.js';
 import { makeCar, rollVehicle } from '../car.js';
-import { stampVersion } from '../version.js';
+import { stampVersion, VERSION } from '../version.js';
 import { unlockAudio, sfx, startMusic, stopMusic, setMusicChase } from '../audio.js';
 import { loadMap, decodeCustom } from '../tools.js';
 import { rides } from '../landmarks.js';
@@ -72,18 +72,22 @@ function boardFollowers(on) { for (const s of survivors) { if (!s.userData.follo
 function enterCar(c) { if (driving) leaveCar(); const u = vehState(c); if (!u.keys) { openGame('keys', c); return; } car = c; driving = true; carHp = u.hp; player.visible = false; outOfGasSaid = false; const wp = c.userData.worldPos().clone(); const pr = c.userData.prop; if (!pr.detached) { pr.g.remove(c); scene.add(c); c.position.set(wp.x, 0, wp.z); pr.knocked = true; pr.detached = true; pr.t = 1; c.userData.worldPos = () => c.position; } if (pr.ob) { const i = obstacles.indexOf(pr.ob); if (i >= 0) obstacles.splice(i, 1); } yaw = car.rotation.y; boardFollowers(true); carNoise = 0; say(VEH[u.kind || 'car'].name + ': ' + Math.round(u.fuel) + '% fuel. Double-tap to get out.'); sfx.pickup(); }
 function leaveCar() { if (!car) return; car.userData.hp = carHp; driving = false; player.visible = true; player.position.set(car.position.x + Math.cos(yaw) * 1.2, 0, car.position.z - Math.sin(yaw) * 1.2); collide(player.position, 0.25); if (carHp <= 0) car.userData.wrecked = true; car = null; boardFollowers(false); }
 const stick = { x: 0, y: 0, id: null, cx: 0, cy: 0 }; const look = { id: null, lx: 0 };
-const knob = $('dcKnob'), stickEl = $('dcStick'); stampVersion($('dcPlay').closest('.screen') || document.body);
+const knob = $('dcKnob'), stickEl = $('dcStick'); const verEl = stampVersion($('dcPlay').closest('.screen') || document.body);
+const inDbg = { on: false, ts: 0, tm: 0, te: 0, pd: 0, pm: 0, tgt: '' }; try { inDbg.on = new URLSearchParams(location.search).has('input') || localStorage.getItem('dc_input_dbg') === '1'; } catch { /* ignore */ }
+const inDbgEl = document.createElement('div'); inDbgEl.style.cssText = 'position:fixed;left:6px;top:70px;z-index:60;font:11px monospace;color:#7dff3a;background:#000a;padding:3px 5px;border-radius:4px;pointer-events:none;white-space:pre'; document.body.appendChild(inDbgEl);
+{ let n = 0, t0 = 0; verEl.style.pointerEvents = 'auto'; verEl.addEventListener('click', () => { const now = performance.now(); n = now - t0 < 700 ? n + 1 : 1; t0 = now; if (n >= 3) { n = 0; inDbg.on = !inDbg.on; try { localStorage.setItem('dc_input_dbg', inDbg.on ? '1' : '0'); } catch { /* ignore */ } verEl.textContent = 'v' + VERSION + (inDbg.on ? ' · input on' : ''); } }); if (inDbg.on) verEl.textContent += ' · input on'; }
+function drawInDbg() { inDbgEl.style.display = inDbg.on ? 'block' : 'none'; if (!inDbg.on) return; inDbgEl.textContent = 'touch s/m/e ' + inDbg.ts + '/' + inDbg.tm + '/' + inDbg.te + '  ptr d/m ' + inDbg.pd + '/' + inDbg.pm + '\ntarget ' + inDbg.tgt + '  state ' + state + '\nstick ' + stick.id + ' ' + stick.x.toFixed(2) + ',' + stick.y.toFixed(2) + '  look ' + look.id + '\nplayer ' + player.position.x.toFixed(1) + ',' + player.position.z.toFixed(1); }
 function resetStick() { stick.id = null; stick.x = stick.y = 0; knob.style.transform = 'translate(-50%, -50%)'; look.id = null; }
 // one set of stick/look handlers, fed by mouse/pen pointer events or by raw touches (ids 't' + identifier)
 function stickDown(id, x, y) { if (x < innerWidth / 2 && stick.id === null) { stick.id = id; stick.cx = x; stick.cy = y; stickEl.style.left = (x - 65) + 'px'; stickEl.style.top = (y - 65) + 'px'; stickEl.style.bottom = 'auto'; } else if (look.id === null) { look.id = id; look.lx = x; } }
 function stickMove(id, x, y) { if (id === stick.id) { const dx = x - stick.cx, dy = y - stick.cy; const d = Math.hypot(dx, dy) || 1, m = Math.min(d, 55); stick.x = dx / d * m / 55; stick.y = dy / d * m / 55; knob.style.transform = 'translate(calc(-50% + ' + (stick.x * 40) + 'px), calc(-50% + ' + (stick.y * 40) + 'px))'; } if (id === look.id) { camYaw -= (x - look.lx) * 0.008; look.lx = x; } }
 function stickUp(id) { if (id === stick.id) { stick.id = null; stick.x = stick.y = 0; knob.style.transform = 'translate(-50%, -50%)'; } if (id === look.id) look.id = null; }
-addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch' || e.target.closest('button') || state !== 'play') return; if (e.isPrimary && (stick.id !== null || look.id !== null)) resetStick(); stickDown(e.pointerId, e.clientX, e.clientY); });
-addEventListener('pointermove', (e) => { if (e.pointerType !== 'touch') stickMove(e.pointerId, e.clientX, e.clientY); });
+canvas.addEventListener('pointerdown', (e) => { inDbg.pd++; if (e.pointerType === 'touch' || state !== 'play') return; if (e.isPrimary && (stick.id !== null || look.id !== null)) resetStick(); stickDown(e.pointerId, e.clientX, e.clientY); });
+addEventListener('pointermove', (e) => { inDbg.pm++; if (e.pointerType !== 'touch') stickMove(e.pointerId, e.clientX, e.clientY); });
 const onUi = (t) => t && t.closest && t.closest('button, select, a, .screen, #dcStore');
-addEventListener('touchstart', (e) => { if (state !== 'play' || onUi(e.target)) return; if (e.touches.length === e.changedTouches.length && (stick.id !== null || look.id !== null)) resetStick(); if (e.touches.length >= 2 && stick.id === null) return; for (const t of e.changedTouches) stickDown('t' + t.identifier, t.clientX, t.clientY); }, { passive: true });
-addEventListener('touchmove', (e) => { for (const t of e.changedTouches) stickMove('t' + t.identifier, t.clientX, t.clientY); if (state === 'play' && !onUi(e.target)) e.preventDefault(); }, { passive: false }); // no page scroll/bounce while playing
-const touchUp = (e) => { for (const t of e.changedTouches) stickUp('t' + t.identifier); };
+canvas.addEventListener('touchstart', (e) => { inDbg.ts++; inDbg.tgt = e.target && (e.target.id || e.target.tagName); if (state !== 'play') return; if (e.touches.length === e.changedTouches.length && (stick.id !== null || look.id !== null)) resetStick(); if (e.touches.length >= 2 && stick.id === null) return; for (const t of e.changedTouches) stickDown('t' + t.identifier, t.clientX, t.clientY); }, { passive: true });
+canvas.addEventListener('touchmove', (e) => { inDbg.tm++; for (const t of e.changedTouches) stickMove('t' + t.identifier, t.clientX, t.clientY); if (state === 'play') e.preventDefault(); }, { passive: false }); // no page scroll/bounce while playing
+const touchUp = (e) => { inDbg.te++; for (const t of e.changedTouches) stickUp('t' + t.identifier); };
 addEventListener('touchend', touchUp); addEventListener('touchcancel', touchUp);
 let lastTap = 0, lastTapX = 0, lastTapY = 0;
 addEventListener('pointerdown', (e) => { if (e.target.closest('button') || state !== 'play') return; const now = performance.now(); if (now - lastTap < 350 && Math.hypot(e.clientX - lastTapX, e.clientY - lastTapY) < 30) { lastTap = 0; const nearRide = !driving && !riding && rides.find((rr) => Math.hypot(rr.pos.x - player.position.x, rr.pos.z - player.position.z) < 3.4); if (nearRide) { openGame('ride', nearRide); return; }
@@ -96,7 +100,7 @@ addEventListener('touchstart', (e) => { if (e.touches.length >= 2) { e.preventDe
 addEventListener('touchmove', (e) => { if (e.touches.length >= 2) { e.preventDefault(); const d = dist2(e.touches); if (pinchD > 0 && d > 0) setZoom(zoom * pinchD / d); pinchD = d; } }, { passive: false });
 addEventListener('touchend', (e) => { if (e.touches.length < 2) pinchD = 0; if (!e.touches.length) resetStick(); });
 addEventListener('touchcancel', (e) => { if (!e.touches.length) { pinchD = 0; resetStick(); } });
-addEventListener('blur', resetStick); document.addEventListener('visibilitychange', resetStick);
+document.addEventListener('visibilitychange', () => { if (document.hidden) resetStick(); });
 addEventListener('wheel', (e) => { e.preventDefault(); setZoom(zoom * (e.deltaY > 0 ? 1.1 : 0.9)); }, { passive: false });
 let goRoute = []; const tapStart = new Map();
 function tapMove(cx, cy) { const ndc = new THREE.Vector2((cx / innerWidth) * 2 - 1, -(cy / innerHeight) * 2 + 1); const ray = new THREE.Raycaster(); const cam0 = iso ? isoCam : camera; if (iso) { const tg = (driving ? car : player).position.clone().setY(0.9); isoCam.position.copy(tg).addScaledVector(isoDir, 60); isoCam.lookAt(tg); } cam0.updateMatrixWorld(); ray.setFromCamera(ndc, cam0); const o = ray.ray.origin, dr = ray.ray.direction; if (Math.abs(dr.y) < 1e-4) return 'flat'; const t = -o.y / dr.y; if (t < 0) return 'behind'; const w = { x: o.x + dr.x * t, z: o.z + dr.z * t }; const target = toCell(w.x, w.z, cols, rows); if (!openCell(target)) return 'blocked ' + target.cx + ',' + target.cy; const from = toCell(player.position.x, player.position.z, cols, rows); const path = findPath(maze, from, target); if (!path.length) return 'nopath'; goRoute = path.slice(0, 12); say('Heading there.'); return 'ok ' + path.length; }
@@ -569,6 +573,7 @@ function frame(now) {
     for (const b of city.buildings) { const wp = b.getWorldPosition(fadeTmp); const rx = wp.x - target.x, rz = wp.z - target.z; const d = rx * ux + rz * uz; const perp = Math.abs(-rx * uz + rz * ux); const h = b.userData.h || 2;
       const fade = iso && d > 0.3 && d < ch + 1 && perp < 2.2 && h > target.y + d * slope - 0.6; const op = fade ? 0.15 : 1; for (const m of b.userData.fade) if (m.opacity !== op) m.opacity = op; if (b.userData.extras) for (const e of b.userData.extras) e.visible = !fade; if (b.userData.edges) b.userData.edges.visible = fade; } }
   if (city && city.detail) city.detail.sky(iso);
+  drawInDbg();
   renderer.render(scene, cam);
 }
 function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); const a = innerWidth / innerHeight, half = (a < 1 ? 8 / a * 0.8 : 8) * zoom; isoCam.left = -half * a; isoCam.right = half * a; isoCam.top = half; isoCam.bottom = -half; isoCam.updateProjectionMatrix(); }
