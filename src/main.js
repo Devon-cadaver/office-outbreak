@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { bindSeasonSelect } from './season.js';
 import { equippedSkin, addCoins } from './skins.js';
 import { showChests } from './chests.js';
+import { stampVersion } from './version.js';
+stampVersion(document.getElementById('start'));
 { const e = equippedSkin('fx'); if (e && e.flames) setFlamePalette(e); }
 import { makeCharacter, animateWalk } from './poster/characters.js';
 import { generateMaze, buildCity, flowField, findPath, toWorld, toCell, CELL, mulberry32, NIGHT } from './city.js';
@@ -232,7 +234,7 @@ function setRouteTo(w) {
   if (path.length > MAXR) { path = path.slice(0, MAXR); if (!routeHintT || performance.now() - routeHintT > 4000) { routeHintT = performance.now(); say(player, "That's as far as I plan.", 1.4); } }
   if (!path.length) return false; route = path; routeEndCell = { cx: path[path.length - 1][0], cy: path[path.length - 1][1] }; showRoute(); return true;
 }
-let routeHintT = 0, wasOnExit = false, levelTip = '';
+let routeHintT = 0, wasOnExit = false, levelTip = '', routeFrom = null;
 function extendRoute(w, first) {
   if (state !== 'play') return;
   const target = toCell(w.x, w.z, cols, rows); if (!openCell(target)) return;
@@ -351,6 +353,7 @@ function fitCamera() {
   camera.updateProjectionMatrix();
 }
 
+function clampToGrid(pos, r) { if (!cols) return; const a = toWorld(1, 1, cols, rows), b = toWorld(cols - 2, rows - 2, cols, rows); const h = CELL / 2 - r; pos.x = Math.max(Math.min(a.x, b.x) - h, Math.min(Math.max(a.x, b.x) + h, pos.x)); pos.z = Math.max(Math.min(a.z, b.z) - h, Math.min(Math.max(a.z, b.z) + h, pos.z)); }
 function collide(pos, radius) {
   for (const o of obstacles) {
     const dx = pos.x - o.x, dz = pos.z - o.z;
@@ -358,6 +361,7 @@ function collide(pos, radius) {
     const px = o.hw + radius - Math.abs(dx), pz = o.hd + radius - Math.abs(dz);
     if (px < pz) pos.x += Math.sign(dx || 1) * px; else pos.z += Math.sign(dz || 1) * pz;
   }
+  clampToGrid(pos, radius);
 }
 
 function clearLevel() {
@@ -797,8 +801,8 @@ function show(screen) { if (screen) setTip(''); for (const s of [ui.start, ui.cl
 
 function startRun(save) { seen = true; unlockAudio(); setMusicChase(false); startMusic(); level = 1; score = 0; lives = 3; time = 0; cash = 0; cashThisDistrict = 0; Object.assign(inv, { shoes: 0, vest: false, flare: false, ammo: false, car: null, carHp: 0 }); if (car) { scene.remove(car); car = null; } driving = false;
   if (save) { level = save.level || 1; score = save.score || 0; lives = save.lives || 3; cash = save.cash || 0; Object.assign(inv, save.inv || {}); }
-  buildLevel(level); snapshot(); show(null); state = 'play'; }
-function nextLevel() { if (state !== "cleared") return; level++; if (lives < 3) lives++; buildLevel(level); snapshot(); show(null); state = 'play'; }
+  snapshot(); buildLevel(level); show(null); state = 'play'; }
+function nextLevel() { if (state !== "cleared") return; level++; if (lives < 3) lives++; snapshot(); buildLevel(level); show(null); state = 'play'; }
 // ---- save: the run as it stood at the start of this district ----
 const SAVE_KEY = 'oo_save_zv'; let levelStart = null;
 function snapshot() { levelStart = { level, score, lives, cash, inv: { ...inv, car: inv.car ? true : null } }; }
@@ -914,7 +918,7 @@ function finishGame(rescued) { clearRun(); addCoins(1);
   state = 'won'; stopMusic();
   const gained = rescued * 100; score += gained;
   const best = Math.max(getBest(), score); setBest(best);
-  showChests($('wonChests'), chestPicks(rescued) + 1);
+  showChests($('wonChests'), Math.min(3, chestPicks(rescued) + 1));
   $('wonText').innerHTML = 'Extracted.<br>On the heli with you: <b>' + rescued + '</b> (+' + gained + ')<br><br>Final score: <b>' + score + '</b><br>Best: ' + best;
   show($('won'));
 }
@@ -937,7 +941,7 @@ function frame(now) {
     // player: always moving. No route means keep going the way you face
     let moving = 0;
     autoT -= dt; if (turnQ) { turnQT -= dt; if (turnQT <= 0) queueTurn(0); }
-    if (route.length && !riding) { if (player.position.distanceTo(stuckPos) < 0.08) { stuckT += dt; if (stuckT > 1.2) { stuckT = 0; route = []; const { left, right } = perps(heading); heading = Math.random() < 0.5 ? left : right; player.position.add(new THREE.Vector3((Math.random() - 0.5) * 0.3, 0, (Math.random() - 0.5) * 0.3)); } } else { stuckT = 0; stuckPos.copy(player.position); } }
+    if (route.length && !riding) { if (player.position.distanceTo(stuckPos) < 0.08) { stuckT += dt; if (stuckT > 1.2) { stuckT = 0; route = []; const { left, right } = perps(heading); { const c0 = playerCell(); const op = (v) => maze[c0.cy + v[1]]?.[c0.cx + v[0]] === false; const opts = [left, right].filter(op); if (opts.length) heading = opts[(Math.random() * opts.length) | 0]; } player.position.add(new THREE.Vector3((Math.random() - 0.5) * 0.3, 0, (Math.random() - 0.5) * 0.3)); } } else { stuckT = 0; stuckPos.copy(player.position); } }
     if (stamMode) { stam -= 28 * dt; if (stam <= 0) { stam = 0; setStamMode(0); } } else stam = Math.min(100, stam + 5 * dt);
     $('stam').style.width = stam + '%';
     if (!route.length && !riding && autoT <= 0) {
@@ -949,9 +953,10 @@ function frame(now) {
       heading = next; route = [[c.cx + next[0], c.cy + next[1]]]; routeEndCell = { cx: c.cx + next[0], cy: c.cy + next[1] };
     }
     if (route.length) {
+      if (!routeFrom || routeFrom.t !== route[0]) routeFrom = { ...toCell(player.position.x, player.position.z, cols, rows), t: route[0] };
       const w = toWorld(route[0][0], route[0][1], cols, rows);
       const dx = w.x - player.position.x, dz = w.z - player.position.z, d = Math.hypot(dx, dz);
-      if (d < 0.35) { const c = toCell(player.position.x, player.position.z, cols, rows); const hx = route[0][0] - c.cx, hz = route[0][1] - c.cy; if (Math.abs(hx) + Math.abs(hz) === 1) heading = [hx, hz]; route.shift(); showRoute(); }
+      if (d < 0.35) { const c = routeFrom; const hx = route[0][0] - c.cx, hz = route[0][1] - c.cy; if (Math.abs(hx) + Math.abs(hz) === 1) heading = [hx, hz]; route.shift(); showRoute(); }
       else { const spd = PLAYER_SPEED * (stamMode < 0 ? 0.5 : stamMode > 0 ? 1.55 : 1) * (1 + inv.shoes * 0.1) * (driving ? 1.6 : 1); const step = Math.min(d, spd * dt); player.position.x += dx / d * step; player.position.z += dz / d * step; player.rotation.y = Math.atan2(dx, dz); moving = 1; if (sprint > 0 && Math.random() < 0.5) particle(player.position, previewMat); }
     }
     if (driving && car) { car.position.copy(player.position); car.rotation.y = player.rotation.y; animateCar(car, dt, moving); car.userData.hp = inv.carHp;

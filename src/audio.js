@@ -6,7 +6,7 @@ export function audioState() { return ctx ? ctx.state : "none"; }
 try { muted = localStorage.getItem("oo_mute") === "1"; } catch { /* ignore */ }
 export function unlockAudio() {
   if (!ctx) {
-    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch { ctx = null; return; }
     master = ctx.createGain(); master.gain.value = muted ? 0 : 0.9; master.connect(ctx.destination);
     musicGain = ctx.createGain(); musicGain.gain.value = 0.35; musicGain.connect(master);
     const len = ctx.sampleRate * 0.5; noiseBuf = ctx.createBuffer(1, len, ctx.sampleRate);

@@ -8,6 +8,7 @@ import { makeCharacter, animateWalk } from '../poster/characters.js';
 import { createFires, setFlamePalette } from '../fire.js';
 import { makeChopper, animateChopper } from '../chopper.js';
 import { makeCar, rollVehicle } from '../car.js';
+import { stampVersion } from '../version.js';
 import { unlockAudio, sfx, startMusic, stopMusic, setMusicChase } from '../audio.js';
 import { loadMap, decodeCustom } from '../tools.js';
 import { rides } from '../landmarks.js';
@@ -48,7 +49,8 @@ function buildWorld() {
 }
 const poi = (type) => { const h = city.hazards.find((x) => x.type === type); return h ? h.pos : toWorld(startCell.cx, startCell.cy, cols, rows); };
 const beacon = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.6, 10, 12, 1, true), new THREE.MeshBasicMaterial({ color: 0x7dff3a, transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending })); beacon.position.y = 5; beacon.visible = false; scene.add(beacon);
-function collide(pos, r) { for (const o of obstacles) { const dx = pos.x - o.x, dz = pos.z - o.z; if (Math.abs(dx) > o.hw + r || Math.abs(dz) > o.hd + r) continue; const px = o.hw + r - Math.abs(dx), pz = o.hd + r - Math.abs(dz); if (px < pz) pos.x += Math.sign(dx || 1) * px; else pos.z += Math.sign(dz || 1) * pz; } }
+function collide(pos, r) { for (const o of obstacles) { const dx = pos.x - o.x, dz = pos.z - o.z; if (Math.abs(dx) > o.hw + r || Math.abs(dz) > o.hd + r) continue; const px = o.hw + r - Math.abs(dx), pz = o.hd + r - Math.abs(dz); if (px < pz) pos.x += Math.sign(dx || 1) * px; else pos.z += Math.sign(dz || 1) * pz; } clampToGrid(pos, r); }
+function clampToGrid(pos, r) { if (!cols) return; const a = toWorld(1, 1, cols, rows), b = toWorld(cols - 2, rows - 2, cols, rows); const h = CELL / 2 - r; pos.x = Math.max(Math.min(a.x, b.x) - h, Math.min(Math.max(a.x, b.x) + h, pos.x)); pos.z = Math.max(Math.min(a.z, b.z) - h, Math.min(Math.max(a.z, b.z) + h, pos.z)); }
 const openCell = (c) => maze[c.cy]?.[c.cx] === false;
 function collideCar(pos) { for (const o of obstacles) { const dx = pos.x - o.x, dz = pos.z - o.z; if (Math.abs(dx) > o.hw + 0.6 || Math.abs(dz) > o.hd + 0.6) continue; const px = o.hw + 0.6 - Math.abs(dx), pz = o.hd + 0.6 - Math.abs(dz); if (px < pz) pos.x += Math.sign(dx || 1) * px; else pos.z += Math.sign(dz || 1) * pz; } }
 function lineClear(a, b) { const n = Math.ceil(a.distanceTo(b) / 0.8); for (let i = 1; i < n; i++) { const t = i / n; if (!openCell(toCell(a.x + (b.x - a.x) * t, a.z + (b.z - a.z) * t, cols, rows))) return false; } return true; }
@@ -62,19 +64,27 @@ const vstat = () => VEH[(car && car.userData.kind) || 'car'];
 function vehState(c) { const u = c.userData; if (u.fuel == null) { u.fuel = 70 + Math.random() * 30; u.hp = VEH[u.kind || 'car'].hp; u.keys = u.kind !== 'tank'; } return u; }
 let outOfGasSaid = false;
 // hearts: red up to 5, blue armour hearts from a flak jacket on top
-function drawHearts() { $('hp2').textContent = '❤️'.repeat(hearts) + '🖤'.repeat(Math.max(0, maxHearts - hearts)) + '💙'.repeat(armor); }
-function hurt(n) { invuln = Math.max(invuln, 2); sfx.hurt(); while (n-- > 0) { if (armor > 0) armor--; else hearts--; } drawHearts(); if (hearts <= 0) { gameOver(false); return true; } return false; }
+function drawHearts() { $('hp2').textContent = '❤️'.repeat(Math.max(0, hearts)) + '🖤'.repeat(Math.max(0, maxHearts - hearts)) + '💙'.repeat(armor); }
+function hurt(n) { if (state !== 'play') return true; invuln = Math.max(invuln, 2); sfx.hurt(); while (n-- > 0 && hearts > 0) { if (armor > 0) armor--; else hearts--; } drawHearts(); if (hearts <= 0) { gameOver(false); return true; } return false; }
 function addHeart() { if (maxHearts < 5) maxHearts++; hearts = Math.min(maxHearts, hearts + 1); drawHearts(); }
 function addFlak() { armor = 2; drawHearts(); }
 function boardFollowers(on) { for (const s of survivors) { if (!s.userData.follow || s.userData.saved) continue; if (on) { s.userData.aboard = true; s.visible = false; } else if (s.userData.aboard) { s.userData.aboard = false; s.visible = true; const a = Math.random() * 6.28; s.position.set(player.position.x + Math.cos(a) * 0.9, 0, player.position.z + Math.sin(a) * 0.9); collide(s.position, 0.2); } } }
 function enterCar(c) { if (driving) leaveCar(); const u = vehState(c); if (!u.keys) { openGame('keys', c); return; } car = c; driving = true; carHp = u.hp; player.visible = false; outOfGasSaid = false; const wp = c.userData.worldPos().clone(); const pr = c.userData.prop; if (!pr.detached) { pr.g.remove(c); scene.add(c); c.position.set(wp.x, 0, wp.z); pr.knocked = true; pr.detached = true; pr.t = 1; c.userData.worldPos = () => c.position; } if (pr.ob) { const i = obstacles.indexOf(pr.ob); if (i >= 0) obstacles.splice(i, 1); } yaw = car.rotation.y; boardFollowers(true); carNoise = 0; say(VEH[u.kind || 'car'].name + ': ' + Math.round(u.fuel) + '% fuel. Double-tap to get out.'); sfx.pickup(); }
 function leaveCar() { if (!car) return; car.userData.hp = carHp; driving = false; player.visible = true; player.position.set(car.position.x + Math.cos(yaw) * 1.2, 0, car.position.z - Math.sin(yaw) * 1.2); collide(player.position, 0.25); if (carHp <= 0) car.userData.wrecked = true; car = null; boardFollowers(false); }
 const stick = { x: 0, y: 0, id: null, cx: 0, cy: 0 }; const look = { id: null, lx: 0 };
-const knob = $('dcKnob'), stickEl = $('dcStick');
+const knob = $('dcKnob'), stickEl = $('dcStick'); stampVersion($('dcPlay').closest('.screen') || document.body);
 function resetStick() { stick.id = null; stick.x = stick.y = 0; knob.style.transform = 'translate(-50%, -50%)'; look.id = null; }
-addEventListener('pointerdown', (e) => { if (e.target.closest('button')) return; if (state !== 'play') return; if (e.isPrimary && (stick.id !== null || look.id !== null)) resetStick(); // first finger down: nothing else can be held
-  if (e.clientX < innerWidth / 2 && stick.id === null) { stick.id = e.pointerId; stick.cx = e.clientX; stick.cy = e.clientY; stickEl.style.left = (e.clientX - 65) + 'px'; stickEl.style.top = (e.clientY - 65) + 'px'; stickEl.style.bottom = 'auto'; } else if (look.id === null) { look.id = e.pointerId; look.lx = e.clientX; } });
-addEventListener('pointermove', (e) => { if (e.pointerId === stick.id) { const dx = e.clientX - stick.cx, dy = e.clientY - stick.cy; const d = Math.hypot(dx, dy) || 1, m = Math.min(d, 55); stick.x = dx / d * m / 55; stick.y = dy / d * m / 55; knob.style.transform = 'translate(calc(-50% + ' + (stick.x * 40) + 'px), calc(-50% + ' + (stick.y * 40) + 'px))'; } if (e.pointerId === look.id) { camYaw -= (e.clientX - look.lx) * 0.008; look.lx = e.clientX; } });
+// one set of stick/look handlers, fed by mouse/pen pointer events or by raw touches (ids 't' + identifier)
+function stickDown(id, x, y) { if (x < innerWidth / 2 && stick.id === null) { stick.id = id; stick.cx = x; stick.cy = y; stickEl.style.left = (x - 65) + 'px'; stickEl.style.top = (y - 65) + 'px'; stickEl.style.bottom = 'auto'; } else if (look.id === null) { look.id = id; look.lx = x; } }
+function stickMove(id, x, y) { if (id === stick.id) { const dx = x - stick.cx, dy = y - stick.cy; const d = Math.hypot(dx, dy) || 1, m = Math.min(d, 55); stick.x = dx / d * m / 55; stick.y = dy / d * m / 55; knob.style.transform = 'translate(calc(-50% + ' + (stick.x * 40) + 'px), calc(-50% + ' + (stick.y * 40) + 'px))'; } if (id === look.id) { camYaw -= (x - look.lx) * 0.008; look.lx = x; } }
+function stickUp(id) { if (id === stick.id) { stick.id = null; stick.x = stick.y = 0; knob.style.transform = 'translate(-50%, -50%)'; } if (id === look.id) look.id = null; }
+addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch' || e.target.closest('button') || state !== 'play') return; if (e.isPrimary && (stick.id !== null || look.id !== null)) resetStick(); stickDown(e.pointerId, e.clientX, e.clientY); });
+addEventListener('pointermove', (e) => { if (e.pointerType !== 'touch') stickMove(e.pointerId, e.clientX, e.clientY); });
+const onUi = (t) => t && t.closest && t.closest('button, select, a, .screen, #dcStore');
+addEventListener('touchstart', (e) => { if (state !== 'play' || onUi(e.target)) return; if (e.touches.length === e.changedTouches.length && (stick.id !== null || look.id !== null)) resetStick(); if (e.touches.length >= 2 && stick.id === null) return; for (const t of e.changedTouches) stickDown('t' + t.identifier, t.clientX, t.clientY); }, { passive: true });
+addEventListener('touchmove', (e) => { for (const t of e.changedTouches) stickMove('t' + t.identifier, t.clientX, t.clientY); if (state === 'play' && !onUi(e.target)) e.preventDefault(); }, { passive: false }); // no page scroll/bounce while playing
+const touchUp = (e) => { for (const t of e.changedTouches) stickUp('t' + t.identifier); };
+addEventListener('touchend', touchUp); addEventListener('touchcancel', touchUp);
 let lastTap = 0, lastTapX = 0, lastTapY = 0;
 addEventListener('pointerdown', (e) => { if (e.target.closest('button') || state !== 'play') return; const now = performance.now(); if (now - lastTap < 350 && Math.hypot(e.clientX - lastTapX, e.clientY - lastTapY) < 30) { lastTap = 0; const nearRide = !driving && !riding && rides.find((rr) => Math.hypot(rr.pos.x - player.position.x, rr.pos.z - player.position.z) < 3.4); if (nearRide) { openGame('ride', nearRide); return; }
     if (driving) { const g = city.hazards.find((x) => x.type === 'gas'); if (g && Math.hypot(g.pos.x - car.position.x, g.pos.z - car.position.z) < 4) openGame('pump', car); else leaveCar(); } else { let best = null, bd = 2.2; for (const c of city.cars) { if (c.userData.wrecked || (c.userData.prop.knocked && !c.userData.prop.detached)) continue; const wp = c.userData.worldPos(); const d = Math.hypot(wp.x - player.position.x, wp.z - player.position.z); if (d < bd) { bd = d; best = c; } } if (best) enterCar(best); else say('No car close enough.'); } } else { lastTap = now; lastTapX = e.clientX; lastTapY = e.clientY; } });
@@ -92,7 +102,7 @@ let goRoute = []; const tapStart = new Map();
 function tapMove(cx, cy) { const ndc = new THREE.Vector2((cx / innerWidth) * 2 - 1, -(cy / innerHeight) * 2 + 1); const ray = new THREE.Raycaster(); const cam0 = iso ? isoCam : camera; if (iso) { const tg = (driving ? car : player).position.clone().setY(0.9); isoCam.position.copy(tg).addScaledVector(isoDir, 60); isoCam.lookAt(tg); } cam0.updateMatrixWorld(); ray.setFromCamera(ndc, cam0); const o = ray.ray.origin, dr = ray.ray.direction; if (Math.abs(dr.y) < 1e-4) return 'flat'; const t = -o.y / dr.y; if (t < 0) return 'behind'; const w = { x: o.x + dr.x * t, z: o.z + dr.z * t }; const target = toCell(w.x, w.z, cols, rows); if (!openCell(target)) return 'blocked ' + target.cx + ',' + target.cy; const from = toCell(player.position.x, player.position.z, cols, rows); const path = findPath(maze, from, target); if (!path.length) return 'nopath'; goRoute = path.slice(0, 12); say('Heading there.'); return 'ok ' + path.length; }
 addEventListener('pointerdown', (e) => { if (!e.target.closest('button')) tapStart.set(e.pointerId, { x: e.clientX, y: e.clientY, t: performance.now() }); });
 const release = (e) => { const ts = tapStart.get(e.pointerId); tapStart.delete(e.pointerId); if (ts && state === 'play' && performance.now() - ts.t < 300 && Math.hypot(e.clientX - ts.x, e.clientY - ts.y) < 12 && !e.target.closest('button')) tapMove(e.clientX, e.clientY);
-  if (e.pointerId === stick.id) { stick.id = null; stick.x = stick.y = 0; knob.style.transform = 'translate(-50%, -50%)'; } if (e.pointerId === look.id) look.id = null; };
+  if (e.pointerType !== 'touch') stickUp(e.pointerId); };
 addEventListener('pointerup', release); addEventListener('pointercancel', release);
 // keyboard for the PC crowd
 const keys = {}; addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] = true; if (['1', '2', '3'].includes(e.key)) castSlot(+e.key - 1); if (e.key === ' ') { fireHeld = true; throwTrash(); } }); addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; if (e.key === ' ') fireHeld = false; });
@@ -537,7 +547,7 @@ function frame(now) {
     else if (goRoute.length && !riding && !toss) { const w = toWorld(goRoute[0][0], goRoute[0][1], cols, rows); const dx = w.x - player.position.x, dz = w.z - player.position.z, dl = Math.hypot(dx, dz); if (dl < 0.4) goRoute.shift(); else { const cy0 = iso ? ISO_YAW + Math.PI : camYaw; const fwd = new THREE.Vector3(Math.sin(cy0), 0, Math.cos(cy0)), right = new THREE.Vector3(-fwd.z, 0, fwd.x); const d = new THREE.Vector3(dx / dl, 0, dz / dl); mx = d.dot(right); my = -d.dot(fwd); } }
     const mag = Math.min(1, Math.hypot(mx, my)) * (goRoute.length && stick.id === null ? 0.94 : 1);
     if (toss) { toss.y -= 16 * dt; player.position.addScaledVector(toss, dt); player.rotation.x += dt * 6; if (player.position.y <= 0) { player.position.y = 0; player.rotation.x = 0; toss = null; collide(player.position, 0.25); } }
-    carMoving = false;
+    carMoving = false; if (!toss && !riding) clampToGrid(player.position, 0.25); if (car && driving) clampToGrid(car.position, 0.6);
     if (mag > 0.08 && !extracting && !riding && !toss) { carMoving = driving;
       const cy = iso ? ISO_YAW + Math.PI : camYaw; const fwd = new THREE.Vector3(Math.sin(cy), 0, Math.cos(cy)), right = new THREE.Vector3(-fwd.z, 0, fwd.x);
       const dir = fwd.multiplyScalar(-my).add(right.multiplyScalar(mx)).normalize(); yaw = Math.atan2(dir.x, dir.z); if (look.id === null && !iso) { let dd = yaw - camYaw; dd = Math.atan2(Math.sin(dd), Math.cos(dd)); camYaw += dd * Math.min(1, dt * 2.5); }

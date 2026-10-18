@@ -1,5 +1,5 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; overflow: hidden; background: #120a1f; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #fff; touch-action: none; -webkit-user-select: none; user-select: none; }
+html, body { height: 100%; overflow: hidden; background: #120a1f; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #fff; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 .hidden { display: none !important; }
 #hud { position: fixed; top: env(safe-area-inset-top, 0); left: 0; right: 0; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; pointer-events: none; text-shadow: 0 2px 4px #000; }
@@ -9,10 +9,12 @@ html, body { height: 100%; overflow: hidden; background: #120a1f; font-family: s
 #hp { height: 100%; width: 100%; background: linear-gradient(#6f6, #2b2); transition: width .15s; }
 #joystick { position: fixed; width: 120px; height: 120px; border-radius: 50%; background: #ffffff22; border: 2px solid #ffffff55; pointer-events: none; transform: translate(-50%, -50%); }
 #stick { position: absolute; left: 50%; top: 50%; width: 50px; height: 50px; border-radius: 50%; background: #ffffff99; transform: translate(-50%, -50%); }
-.screen { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; background: #1a0f2ecc; text-align: center; padding: 24px; }
+.screen { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 16px; background: #1a0f2ecc; text-align: center; padding: 24px; overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+.screen::before, .screen::after { content: ''; flex: 1 0 0; } /* centred when it fits, scrolls from the top when it doesn't */
+.screen > * { flex-shrink: 0; }
 .screen h1 { font-size: clamp(40px, 10vw, 72px); line-height: .95; letter-spacing: 2px; color: #7dff3a; text-shadow: 0 4px 0 #5a2f80, 0 8px 16px #000; }
 .screen h2 { color: #7dff3a !important; text-shadow: 0 2px 0 #5a2f80; }
-#logo { width: min(92vw, 420px); height: auto; filter: drop-shadow(0 8px 20px #000a); }
+#logo { width: min(92vw, 420px); height: auto; aspect-ratio: 420 / 300; flex-shrink: 0; }
 .screen p { font-size: 18px; max-width: 360px; }
 .screen .small { font-size: 14px; opacity: .75; }
 button { font: inherit; font-size: 20px; font-weight: 800; padding: 14px 36px; border: 0; border-radius: 12px; background: #7dff3a; color: #120a1f; box-shadow: 0 4px 0 #3f9a1f; cursor: pointer; }
@@ -118,3 +120,6 @@ body.look #game { cursor: grab; }
 .chest.done { opacity: 0.35; }
 @keyframes chestShake { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(-9deg); } 40% { transform: rotate(9deg); } 60% { transform: rotate(-6deg); } 80% { transform: rotate(6deg) scale(1.08); } }
 @keyframes chestWin { 50% { transform: scale(1.12); box-shadow: 0 0 18px #7dff3a; } }
+
+/* version label in the corner of menus */
+.ver { position: fixed; top: calc(6px + env(safe-area-inset-top, 0px)); right: 10px; z-index: 50; font-size: 13px; font-weight: 800; color: #c9a6ff; background: #1a0f2ecc; border: 1px solid #c9a6ff55; border-radius: 6px; padding: 2px 7px; pointer-events: none; }
