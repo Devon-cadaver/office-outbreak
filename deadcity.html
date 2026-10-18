@@ -30,6 +30,8 @@
     .act.trash { border-color: #7dff3a; }
     #msg { position: absolute; left: 50%; top: 22%; transform: translateX(-50%); font-weight: 800; font-size: 18px; text-align: center; text-shadow: 0 2px 6px #000; max-width: 80vw; }
     #dcStart p, #dcOver p { max-width: 340px; }
+    #dcStart { overflow-y: auto; justify-content: flex-start; padding-top: 18px; gap: 10px; }
+    @media (max-height: 820px) { #titleArt { width: min(60vw, 300px) !important; } #dcStart p { font-size: 14px; margin: 0; } #dcStart p.small { font-size: 11px; } #dcStart button { padding: 8px 18px; } }
   </style>
 </head>
 <body>
