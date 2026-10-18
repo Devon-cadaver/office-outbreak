@@ -10,7 +10,13 @@
     #menu { gap: 14px; }
     #menu h1 { font-size: clamp(34px, 9vw, 64px); }
     #menu { overflow-y: auto; justify-content: flex-start; padding-top: 16px; }
-    @media (max-height: 820px) { #titleArt { width: min(50vw, 280px) !important; } }
+    @media (max-height: 820px) { #titleArt { width: min(80vw, 340px) !important; } }
+    #titleArt { position: relative; flex: none; width: min(92vw, 420px); aspect-ratio: 420 / 300; border-radius: 22px; overflow: hidden; box-shadow: 0 10px 30px #000a; border: 3px solid #7dff3a; background: #0e0c18; }
+    #titleArt canvas, #titleArt img { width: 100%; height: 100%; display: block; }
+    #titleArt .ttl { position: absolute; top: 6%; left: 0; right: 0; text-align: center; pointer-events: none; font-family: system-ui, 'Segoe UI', sans-serif; }
+    #titleArt .ttl small { display: block; letter-spacing: .5em; color: #c9a6ff; font-weight: 800; font-size: clamp(10px, 3vw, 14px); text-shadow: 0 2px 6px #000; }
+    #titleArt .ttl b { display: block; font-size: clamp(28px, 9.5vw, 46px); font-weight: 900; letter-spacing: .02em; line-height: 1; color: #7dff3a; -webkit-text-stroke: 2px #120a1f; paint-order: stroke fill; text-shadow: 0 0 14px #7dff3a99, 0 4px 0 #3a1a5a, 0 8px 18px #000; }
+    #titleFlash { position: absolute; inset: 0; background: #eaffd8; opacity: 0; pointer-events: none; }
     #menu .tag { color: #c9a6ff; font-size: 14px; margin-top: -6px; }
     .choice { width: min(88vw, 360px); text-align: left; padding: 14px 18px; display: grid; gap: 4px; border: 2px solid #7dff3a; background: #1a0f2e; color: #fff; border-radius: 14px; box-shadow: 0 6px 0 #3a1f5a; }
     .choice b { font-size: 20px; color: #7dff3a; letter-spacing: 1px; }
@@ -20,7 +26,7 @@
 </head>
 <body>
   <div id="menu" class="screen">
-    <object id="titleArt" data="./title.svg" type="image/svg+xml" style="width:min(92vw,420px);aspect-ratio:420/300;border-radius:22px;box-shadow:0 10px 30px #000a;border:3px solid #7dff3a;pointer-events:none"></object>
+    <div id="titleArt"><canvas id="titleCanvas"></canvas><div class="ttl"><small>DEAD CITY</small><b>TORNADO ALLEY</b></div><div id="titleFlash"></div></div>
     <p class="tag">You are the storm. Wreck the town.</p>
     <button class="choice" onclick="location.href='tornado.html'"><b>🌪️ PLAY TORNADO ALLEY</b><span>Five towns, ten big targets, seeding planes and storm chasers. New? Try the tutorial.</span></button>
     <!-- Survival and Extract are hidden for now; the pages still work and can come back by removing hidden -->
@@ -29,7 +35,9 @@
     <button class="choice" onclick="location.href='store.html'" style="border-color:#ffd24a;box-shadow:0 6px 0 #5a4a1a"><b style="color:#ffd24a">SKIN SHOP</b><span>Spend your coins on tornado skins, townsfolk outfits and the cars in town.</span><span class="saved" id="coins"></span></button>
 
   </div>
-  <script type="module">import { stampVersion } from './src/version.js'; stampVersion();</script>
+  <script type="module">import { stampVersion } from './src/version.js'; import { startMenuScene } from './src/menuScene.js'; stampVersion();
+    // the title is a live scene from the game; without WebGL it falls back to the drawn logo
+    const art = document.getElementById('titleArt'); window.__menu = startMenuScene(document.getElementById('titleCanvas'), document.getElementById('titleFlash')); if (!window.__menu) art.innerHTML = '<img src="./title.svg" alt="Dead City: Tornado Alley">';</script>
   <script>
     try { if (localStorage.getItem('oo_save_dc')) document.getElementById('dcSaved').textContent = 'Saved game: night ' + (JSON.parse(localStorage.getItem('oo_save_dc')).night + 1); } catch (e) {}
     try { const c = Math.round(+JSON.parse(localStorage.getItem('oo_coins') || '0') * 100) / 100; document.getElementById('coins').textContent = c ? '🪙 ' + c + (c === 1 ? ' coin' : ' coins') : ''; } catch (e) {}
