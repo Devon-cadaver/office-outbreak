@@ -30,7 +30,7 @@ READ THIS FIRST after a compaction. Current as of 2026-10-18. Dated bullets furt
 - Player skins 2 coins (32 looks), survivor skins 1 coin, up to 10 equipped as a random mix, vehicles 1-3 coins (23 incl. sleigh, reindeer, dragon, UFO, unicorn, monster truck), effects (purple/blue/green fire, gold trash). localStorage oo_coins, oo_skins_owned, oo_skins_equip.
 
 ## itch.io package
-- release/survive-dead-city-web.zip (rebuild: npx vite build, then Compress-Archive dist* releasesurvive-dead-city-web.zip). release/itch/: ITCH-PAGE.md (settings, description, how-to, bio, checklist), cover-630x500.png, banner-960x400.png, six 1280x720 screenshots, original Extraction: Dead City logo. Target page devs66.itch.io.
+- release/survive-dead-city-web.zip (rebuild: npx vite build, then inside dist run C:/Windows/System32/tar.exe -a -c -f ../release/survive-dead-city-web.zip * . NEVER use PowerShell Compress-Archive: it writes backslash paths and itch shows the page unstyled with no scripts). release/itch/: ITCH-PAGE.md (settings, description, how-to, bio, checklist), cover-630x500.png, banner-960x400.png, six 1280x720 screenshots, original Extraction: Dead City logo. Target page devs66.itch.io.
 
 ## Workflow
 - Patch with node .cjs scripts in the scratchpad (normalise CRLF; anchors must match exactly; script throws before writing if any anchor is missing). Build with npx vite build, test in the browser pane via the debug hooks (pane must be visible or the loop doesn't run; mobile preset), commit with the attribution line, push.
