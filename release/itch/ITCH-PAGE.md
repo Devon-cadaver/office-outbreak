@@ -1,6 +1,6 @@
 # Survive Dead City — itch.io page kit
 
-Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.2.0**. Upload `release/survive-dead-city-web-v1.2.0.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
+Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.2.1**. Upload `release/survive-dead-city-web-v1.2.1.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
 
 ## Upload settings (Edit game page)
 
@@ -11,7 +11,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 | Short description / tagline | Two zombie games in your browser: survive six nights in Dead City, or extract the crowds in a snake-style maze run. |
 | Classification | Game |
 | Kind of project | **HTML** |
-| Uploads | `survive-dead-city-web-v1.2.0.zip` (0.4 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
+| Uploads | `survive-dead-city-web-v1.2.1.zip` (0.4 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
 | Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
 | Frame options | Leave SharedArrayBuffer off. No special headers needed. |
 | Pricing | Free (or "No payments"). |
@@ -49,7 +49,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 - Ride the ferris wheel, coaster and carousel to fling the horde. Clown zombies included.
 - Spend cash at dawn: hearts, flak jacket, guns, running shoes, spell focus.
 
-**EXTRACT** — Pac-Man meets Snake. Gather a line of survivors and get them to the extraction point, where a helicopter drops a rope and the whole line climbs up with you. The heli only comes for a full load: 10 survivors in district 1, 20 in district 2, and so on. Your score is the people you get out, and they pay for the upgrades that get you through the next district. After every district you open chests: most are empty, some hold a sliver of a coin, and a very rare one holds a free skin. You never stop walking: tap left or right to turn at the next corner, or tap up to five cells ahead. You can't turn back into your own line, and a dead end forces you to, infecting everyone behind you. You are immune, but you carry it. Cross your own line and whoever you touch turns.
+**EXTRACT** — Pac-Man meets Snake. Gather a line of survivors and get them to the extraction point, where a helicopter drops a rope and the whole line climbs up with you. The heli only comes for a full load: 10 survivors in district 1, 20 in district 2, 30, 40, then easing up to 70 by district 10. Your score is the people you get out, and they pay for the upgrades that get you through the next district. After every district you open chests: most are empty, some hold a sliver of a coin, and a very rare one holds a free skin. You never stop walking: tap left or right to turn at the next corner, or tap up to five cells ahead. You can't turn back into your own line, and a dead end forces you to, infecting the back of your line. You are immune, but you carry it. Cross your own line and whoever you touch turns.
 
 - Rival crews start at the far end of town and gather survivors into their own lines. Get close and their leader opens fire. Drop the leader and his people are yours.
 - Some of the people who join you carry a gun and shoot zombies and rivals as they follow.
@@ -70,7 +70,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 
 **Dead City (Survival):** Left thumb is the joystick. Drag the right side to turn the camera. Hold **FIRE** to shoot (space on PC). Tap the spell buttons once a book is found. Double-tap next to a vehicle to drive it, double-tap again to get out. Double-tap next to a ride to play its operator game. **SCAN** sends a pulse toward your objective, three times a day. **ISO/3RD** switches the camera. Pinch or scroll to zoom. ❚❚ pauses; Esc or P on PC.
 
-**Extract:** You walk on your own. Tap the **left** side of the screen (or ◀) to turn left at the next corner, the **right** side (or ▶) to turn right. Hold **WALK** to slow down or **RUN** to speed up; both burn stamina, purple gems refill it. Tap a spot up to five cells ahead to walk there. Walk up to people and they join your line. Gather 10 × the district number, then reach the green beam for the heli. Never turn back into your line, and avoid dead ends. Double-tap a ride to use it. Hold a finger down to preview the way. Arrow keys on PC.
+**Extract:** You walk on your own. Tap the **left** side of the screen (or ◀) to turn left at the next corner, the **right** side (or ▶) to turn right. Hold **WALK** to slow down or **RUN** to speed up; both burn stamina, purple gems refill it. Tap a spot up to five cells ahead to walk there. Walk up to people and they join your line. Gather the number shown (10 in district 1, up to 70 by district 10), then reach the green beam for the heli. Never turn back into your line, and avoid dead ends. Double-tap a ride to use it. Hold a finger down to preview the way. Arrow keys on PC.
 
 ## Bio (for the devs66 profile)
 
@@ -78,6 +78,7 @@ Small browser games built fast, tested on a phone, and tuned by playing. Survive
 
 ## Version history
 
+- **1.2.1** (2026-10-18): Extract: the heli need eases off after district 4 (10, 20, 30, 40, 45, 50, 56, 62, 66, 70); a dead end now infects only the last 6 people in your line; a street prop on the road can no longer trap you (you slip past it).
 - **1.2.0** (2026-10-18): New side game TORNADO ALLEY (button on the main menu): you are the storm. Two minutes to wreck the town, sweep up 130 fleeing residents, traffic, soldiers and tanks that shoot back (harmlessly), and grow from F0 to F5 (3x). Three big targets: the power plant (blackout), the water station (turns you into a waterspout) and the fairground. Combos, best score, chests. Survival menu: Horde Test button removed.
 - **1.1.2** (2026-10-18): Survival: tapping FIRE while holding the joystick no longer stops you (a second finger on a button was read as a pinch-zoom and cancelled the stick).
 - **1.1.1** (2026-10-18): Epic tornadoes in Survival: streaked three-layer funnel, dark cloud cap, dust skirt, junk and a car tumbling up the vortex, lightning forking out of it; buildings it hits are lifted, torn into chunks that orbit the funnel and get flung across town as rubble. Shop doors, frames, awnings and roof trim now go with their building instead of floating in place.

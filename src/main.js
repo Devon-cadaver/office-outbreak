@@ -180,12 +180,13 @@ addEventListener('keyup', (e) => { if (['ArrowDown', 'ArrowUp', 's', 'w'].includ
 // pathfind with one cell treated as a wall (the cell you just came from)
 function pathAvoiding(from, to, avoid) { const was = avoid && maze[avoid.cy]?.[avoid.cx]; if (was === false) maze[avoid.cy][avoid.cx] = true; const p = findPath(maze, from, to); if (was === false) maze[avoid.cy][avoid.cx] = false; return p; }
 let deadEnds = 0;
+const DEAD_END_TAIL = 6; // how many at the back of the line a dead-end U-turn infects
 function deadEnd() { deadEnds++;
-  const line = civilians.filter((c) => c.userData.follow && !(c.userData.infect > 0));
+  const line = civilians.filter((c) => c.userData.follow && !(c.userData.infect > 0)).sort((a, b) => (a.userData.joinN || 0) - (b.userData.joinN || 0));
   if (!line.length) { say(player, 'Dead end.', 1.2); return; }
-  for (const c of line) { c.userData.infect = Math.max(c.userData.infect, 0.4); c.userData.infectT = 2; }
-  sfx.hurt(); say(player, 'Dead end! Back through the line...', 1.8); say(line[0], 'You touched us!', 1.6);
-  setTip('Dead end. Turning back walks you through your own line, and they all caught it. Steer clear of dead ends.');
+  const hit = line.slice(-DEAD_END_TAIL); for (const c of hit) { c.userData.infect = Math.max(c.userData.infect, 0.4); c.userData.infectT = 2; }
+  sfx.hurt(); say(player, 'Dead end! Back through the line...', 1.8); say(hit[0], 'You touched us!', 1.6);
+  setTip('Dead end. Turning back walks you through the back of your line, and the last ' + hit.length + ' caught it. Steer clear of dead ends.');
 }
 function perps(h) { return { left: [h[1], -h[0]], right: [-h[1], h[0]] }; }
 let weapon = null, ammo = 0, fireTimer = 0, flow = null, flowTimer = 0, invuln = 0, totalPeople = 0, kills = 0;
@@ -215,7 +216,8 @@ function updateBubbles(dt) {
   }
 }
 function objectiveCell() { return infected > 0 && antidote ? antidote : gate && !gate.open ? (gate.found ? switchCell : gate) : exitCell; }
-function needFor(n) { return 10 * n; }
+const NEED = [10, 20, 30, 40, 45, 50, 56, 62, 66, 70];
+function needFor(n) { return NEED[Math.min(NEED.length, Math.max(1, n)) - 1]; }
 // one chest, plus one for every 10 survivors over the minimum (max 3)
 function chestPicks(rescued) { return Math.min(3, 1 + Math.floor(Math.max(0, rescued - needFor(level)) / 10)); }
 function followCount() { let n = 0; for (const c of civilians) if (c.userData.follow) n++; return n; }
@@ -236,7 +238,7 @@ function setRouteTo(w) {
   if (path.length > MAXR) { path = path.slice(0, MAXR); if (!routeHintT || performance.now() - routeHintT > 4000) { routeHintT = performance.now(); say(player, "That's as far as I plan.", 1.4); } }
   if (!path.length) return false; route = path; routeEndCell = { cx: path[path.length - 1][0], cy: path[path.length - 1][1] }; showRoute(); return true;
 }
-let routeHintT = 0, wasOnExit = false, levelTip = '', routeFrom = null, joinSeq = 0, runSeed = 0;
+let ghostT = 0, routeHintT = 0, wasOnExit = false, levelTip = '', routeFrom = null, joinSeq = 0, runSeed = 0;
 function extendRoute(w, first) {
   if (state !== 'play') return;
   const target = toCell(w.x, w.z, cols, rows); if (!openCell(target)) return;
@@ -477,7 +479,7 @@ function buildLevel(n) {
   const pick = (filter) => { const arr = streets.filter(filter); if (!arr.length) return null; const i = (rng() * arr.length) | 0; const s = arr[i]; streets.splice(streets.indexOf(s), 1); return s; };
 
   // crowds
-  const crowdCount = Math.max(tutorial ? 7 : Math.min(40, 6 + n * 2 + Math.floor(cols * rows / 45)), Math.ceil(needFor(n) * 2.2 / 3)); totalPeople = 0;
+  const crowdCount = Math.max(tutorial ? 7 : Math.min(40, 6 + n * 2 + Math.floor(cols * rows / 45)), Math.ceil(Math.max(needFor(n), 8 * n) * 2.2 / 3)); totalPeople = 0;
   const deadEndCell = (x, y) => [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([dx, dy]) => maze[y + dy]?.[x + dx] === false).length <= 1;
   for (let i = 0; i < crowdCount; i++) {
     const s = pick((c) => !deadEndCell(c.x, c.y)) || pick(() => true); if (!s) break;
@@ -894,8 +896,8 @@ function clearDistrict(rescued) {
 // ---------- how to play slides ----------
 const SLIDES = [
   ['howto/1-move.jpg', 'You never stop walking. Tap the left side of the screen to turn left at the next corner, the right side to turn right, or tap a spot up to five cells ahead. Hold WALK or RUN to change pace; both burn stamina, purple gems refill it.'],
-  ['howto/6-follow.jpg', 'Walk up to people and they join your line. The heli only comes for a full load: 10 survivors in district 1, 20 in district 2, and so on. Every survivor you get out is 100 points and cash for upgrades. After each district, open chests for a sliver of a coin, or a very rare free skin.'],
-  ['howto/3-crowd.jpg', 'You are immune, but you carry it. Cross your own line and whoever you touch turns. You can never turn back into your line, so dead ends are deadly: turning around there infects everyone following you.'],
+  ['howto/6-follow.jpg', 'Walk up to people and they join your line. The heli only comes for a full load: 10 survivors in district 1, 20 in district 2, rising to 70 by district 10. Every survivor you get out is 100 points and cash for upgrades. After each district, open chests for a sliver of a coin, or a very rare free skin.'],
+  ['howto/3-crowd.jpg', 'You are immune, but you carry it. Cross your own line and whoever you touch turns. You can never turn back into your line, so dead ends hurt: turning around there walks you back through the last few people in your line, and they catch it.'],
   ['howto/2-weapon.jpg', 'You start each district with a few pistol shots. Pick up more weapons on the way. They aim and fire by themselves. Some survivors who join you are armed too and cover the line.'],
   ['howto/7-rival.jpg', 'From district 2, rival crews (red markers) gather survivors into their own lines, and their leader shoots if you get close. Drop the leader and his whole line is yours to take.'],
   ['howto/4-gate.jpg', 'Some districts are gated. Glowing beams mark your goal: red for the gate, yellow for the power box. Rotate the wires to power the gate open.'],
@@ -946,7 +948,7 @@ function frame(now) {
     // player: always moving. No route means keep going the way you face
     let moving = 0;
     autoT -= dt; if (turnQ) { turnQT -= dt; if (turnQT <= 0) queueTurn(0); }
-    if (route.length && !riding) { if (player.position.distanceTo(stuckPos) < 0.08) { stuckT += dt; if (stuckT > 1.2) { stuckT = 0; route = []; const { left, right } = perps(heading); { const c0 = playerCell(); const op = (v) => maze[c0.cy + v[1]]?.[c0.cx + v[0]] === false; const opts = [left, right].filter(op); if (opts.length) heading = opts[(Math.random() * opts.length) | 0]; } player.position.add(new THREE.Vector3((Math.random() - 0.5) * 0.3, 0, (Math.random() - 0.5) * 0.3)); } } else { stuckT = 0; stuckPos.copy(player.position); } }
+    if (route.length && !riding) { if (player.position.distanceTo(stuckPos) < 0.08) { stuckT += dt; if (stuckT > 0.6) { stuckT = 0; ghostT = 0.9; /* the route only uses open road, so whatever stops us is a street prop: slip past it */ } } else { stuckT = 0; stuckPos.copy(player.position); } }
     if (stamMode) { stam -= 28 * dt; if (stam <= 0) { stam = 0; setStamMode(0); } } else stam = Math.min(100, stam + 5 * dt);
     $('stam').style.width = stam + '%';
     if (!route.length && !riding && autoT <= 0) {
@@ -970,7 +972,7 @@ function frame(now) {
     noiseT -= dt;
     sprint -= dt; sprintCd -= dt; streakT -= dt; if (streakT <= 0 && streak) { streak = 0; updateHud(); }
     previewT -= dt; if (previewT <= 0 && previews[0].visible) showPreview([]);
-    collide(player.position, R); animateWalk(player, dt, Math.min(1, moving));
+    ghostT -= dt; if (ghostT <= 0) collide(player.position, R); else clampToGrid(player.position, R); animateWalk(player, dt, Math.min(1, moving));
     stepTimer -= dt; if (moving && stepTimer <= 0) { sfx.step(); stepTimer = 0.28; }
     // chase music while an alerted zombie is close
     { let hunted = false; for (const z of zombies) if (z.userData.alert > 0 && !z.userData.rag && z.position.distanceTo(player.position) < 13) { hunted = true; break; } setMusicChase(hunted); }
@@ -1005,7 +1007,7 @@ function frame(now) {
       if (tipStage === 0 && !route.length) setTip('You walk on your own. Tap the left or right side of the screen to turn.');
       if (tipStage === 0 && route.length) { tipStage = 1; setTip('Nice. Tap the left or right side to turn at the next corner. Hold RUN to hurry, WALK to slow down.'); }
       if (tipStage === 1 && time > 6) { tipStage = 2; setTip('Your pistol fires by itself. Walk up to a crowd and they join your line. You need 10 for the heli.'); }
-      if (tipStage === 2 && time > 25) { tipStage = 3; setTip('Never turn back into your line, and avoid dead ends: turning around there infects everyone following you.'); }
+      if (tipStage === 2 && time > 25) { tipStage = 3; setTip('Never turn back into your line, and avoid dead ends: turning around there infects the back of your line.'); }
     } else if (gate && !gate.open) {
       if (!gate.found && Math.abs(pc.cx - gate.cx) + Math.abs(pc.cy - gate.cy) <= 3) { gate.found = true; tipStage = 2; sfx.hit(); setTip('Locked. No power. The arrow now points to the power box that opens it.'); }
       else if (tipStage === 0 && time > 5) { tipStage = 1; setTip('Follow the arrow. Something is blocking the way out. The heli needs ' + needFor(level) + ' survivors.'); }
