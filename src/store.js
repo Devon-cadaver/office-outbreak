@@ -11,8 +11,9 @@ const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); rend
 const scene = new THREE.Scene(); scene.add(new THREE.HemisphereLight(0xd0e8ff, 0x3a3a4a, 1.6)); const sun = new THREE.DirectionalLight(0xffffff, 0.8); sun.position.set(3, 6, 4); scene.add(sun);
 const cam = new THREE.PerspectiveCamera(32, 1, 0.1, 50); cam.position.set(0, 1.6, 5.2); cam.lookAt(0, 1.0, 0);
 const items = []; const twPreview = createTwisters(scene);
-const CATS = [['player', 'You'], ['npc', 'Survivors'], ['car', 'Rides'], ['tornado', 'Tornadoes'], ['fx', 'Effects']];
-let tab = 'player'; try { tab = sessionStorage.getItem('shop_tab') || 'player'; } catch { /* ignore */ }
+// You and Effects only show in Survival/Extract, which are hidden for now: add them back here when those games return
+const CATS = [['tornado', 'Tornadoes'], ['npc', 'Townsfolk'], ['car', 'Cars']];
+let tab = 'tornado'; try { tab = sessionStorage.getItem('shop_tab') || 'tornado'; } catch { /* ignore */ } if (!CATS.some(([c]) => c === tab)) tab = 'tornado';
 function drawTabs() { const box = $('tabs'); box.innerHTML = ''; const owned = getOwned(); for (const [cat, name] of CATS) { const all = SKINS.filter((x) => x.cat === cat), have = all.filter((x) => owned.includes(x.id)).length; const b = document.createElement('button'); b.className = cat === tab ? 'on' : ''; b.innerHTML = name + '<i>' + have + '/' + all.length + '</i>';
   b.addEventListener('click', () => { tab = cat; try { sessionStorage.setItem('shop_tab', cat); } catch { /* ignore */ } drawTabs(); build(); renderAll(); $('wrap').scrollTop = 0; }); box.appendChild(b); } }
 // purchase confirmation
@@ -26,7 +27,7 @@ function build() {
   const grid = $('grid'); grid.innerHTML = ''; items.length = 0; const owned = getOwned(), eq = getEquipped();
   $('coins').textContent = '🪙 ' + fmtCoins(); drawTabs();
   for (const cat of [tab]) {
-    const h = document.createElement('h2'); h.textContent = { player: 'YOUR CHARACTER (2 coins)', npc: 'SURVIVORS & CROWDS (1 coin, pick up to 10)', car: 'VEHICLES', tornado: 'TORNADOES (Tornado Alley and storms)', fx: 'EFFECTS' }[cat]; grid.appendChild(h);
+    const h = document.createElement('h2'); h.textContent = { player: 'YOUR CHARACTER (2 coins)', npc: 'TOWNSFOLK OUTFITS (1 coin, pick up to 10)', car: 'CARS IN TOWN', tornado: 'TORNADO SKINS', fx: 'EFFECTS' }[cat]; grid.appendChild(h);
     for (const s of SKINS.filter((x) => x.cat === cat)) {
       const card = document.createElement('button'); card.className = 'skin'; const own = owned.includes(s.id), on = isEquipped(cat, s.id);
       card.innerHTML = '<canvas width="150" height="150"></canvas><b>' + s.name + '</b><span>' + s.desc + '</span><em>' + (on ? 'EQUIPPED' : own ? 'Tap to equip' : s.bonus ? '🏆 ' + s.bonus : '🪙 ' + s.price) + '</em>';

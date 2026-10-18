@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
-  <title>Survive Dead City Extraction</title>
+  <title>Dead City: Tornado Alley</title>
   <link rel="stylesheet" href="./src/style.css" />
   <style>
     body { background: radial-gradient(circle at 50% 30%, #2a1449, #120a1f 70%); }
@@ -21,12 +21,13 @@
 <body>
   <div id="menu" class="screen">
     <object id="titleArt" data="./title.svg" type="image/svg+xml" style="width:min(92vw,420px);aspect-ratio:420/300;border-radius:22px;box-shadow:0 10px 30px #000a;border:3px solid #7dff3a;pointer-events:none"></object>
-    <p class="tag">Survive Dead City Extraction · three ways to get out of town</p>
-    <button class="choice" onclick="location.href='deadcity.html'"><b>DEAD CITY (SURVIVAL)</b><span>Third-person joystick. Six nights, spells, guns, vehicles, survivors and a chopper at dawn.</span><span class="saved" id="dcSaved"></span></button>
-    <button class="choice" onclick="location.href='zombieville.html'"><b>EXTRACT</b><span>Snake-style maze run. Gather a line of survivors and get them out by heli. Ten districts.</span><span class="saved" id="zvSaved"></span></button>
-    <button class="choice" onclick="location.href='store.html'" style="border-color:#ffd24a;box-shadow:0 6px 0 #5a4a1a"><b style="color:#ffd24a">SKIN SHOP</b><span>Spend the coins you earn for beating a game on outfits for you, the survivors and your ride.</span><span class="saved" id="coins"></span></button>
-    <button class="choice" onclick="location.href='tornado.html'" style="border-color:#c9a6ff;box-shadow:0 6px 0 #3a2a5a"><b style="color:#c9a6ff">🌪️ TORNADO ALLEY</b><span>Side game: you are the storm. Wreck the town, sweep up the people, grow three times bigger.</span></button>
-    <p class="small"><a href="zombieville.html?build=1" style="color:#c9a6ff">Build your own map</a></p>
+    <p class="tag">You are the storm. Wreck the town.</p>
+    <button class="choice" onclick="location.href='tornado.html'"><b>🌪️ PLAY TORNADO ALLEY</b><span>Five towns, ten big targets, seeding planes and storm chasers. New? Try the tutorial.</span></button>
+    <!-- Survival and Extract are hidden for now; the pages still work and can come back by removing hidden -->
+    <button class="choice hidden" onclick="location.href='deadcity.html'"><b>DEAD CITY (SURVIVAL)</b><span>Third-person joystick. Six nights, spells, guns, vehicles, survivors and a chopper at dawn.</span><span class="saved" id="dcSaved"></span></button>
+    <button class="choice hidden" onclick="location.href='zombieville.html'"><b>EXTRACT</b><span>Snake-style maze run. Gather a line of survivors and get them out by heli. Ten districts.</span><span class="saved" id="zvSaved"></span></button>
+    <button class="choice" onclick="location.href='store.html'" style="border-color:#ffd24a;box-shadow:0 6px 0 #5a4a1a"><b style="color:#ffd24a">SKIN SHOP</b><span>Spend your coins on tornado skins, townsfolk outfits and the cars in town.</span><span class="saved" id="coins"></span></button>
+
   </div>
   <script type="module">import { stampVersion } from './src/version.js'; stampVersion();</script>
   <script>

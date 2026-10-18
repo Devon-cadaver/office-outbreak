@@ -1,17 +1,17 @@
 # Survive Dead City — itch.io page kit
 
-Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.6.2**. Upload `release/survive-dead-city-web-v1.6.2.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
+Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.7.0**. Upload `release/survive-dead-city-web-v1.7.0.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
 
 ## Upload settings (Edit game page)
 
 | Field | Value |
 |---|---|
-| Title | Survive Dead City |
+| Title | Dead City: Tornado Alley |
 | Project URL | survive-dead-city |
-| Short description / tagline | Three games in your browser: survive six nights in Dead City, extract the crowds in a snake-style maze, or BE the tornado in Tornado Alley. |
+| Short description / tagline | You are the storm. Tear through five towns, take out big targets, dodge seeding planes and outrun storm chasers. |
 | Classification | Game |
 | Kind of project | **HTML** |
-| Uploads | `survive-dead-city-web-v1.6.2.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
+| Uploads | `survive-dead-city-web-v1.7.0.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
 | Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
 | Frame options | Leave SharedArrayBuffer off. No special headers needed. |
 | Pricing | Free (or "No payments"). |
@@ -90,6 +90,7 @@ Small browser games built fast, tested on a phone, and tuned by playing. Survive
 
 ## Version history
 
+- **1.7.0** (2026-10-18): The game is now Dead City: Tornado Alley. The main menu shows Tornado Alley and the skin shop (Survival and Extract are parked for now). New 🎓 tutorial teaches one thing at a time: steering, tap to move, growing, finding a target, zapping a seeding plane and dealing with a storm chaser. Short start screen, five quick HOW TO PLAY cards (shown before your first round) and one-time tips the first time something happens. The chase camera is hidden for now. The shop shows the tornado, townsfolk and car skins.
 - **1.6.2** (2026-10-18): Tornado Alley lightning hits more than buildings: strike a seeding plane and it turns round, strike a storm chaser and its photos are fried and it flees, cars blow up, and people catch fire and run about. Megacity always has clear skies (lighter to draw). Fewer hitches: materials compile when the town is built, and the resolution steps up less often. The skin shop fits narrow phones (all five tabs on screen) and asks before spending coins.
 - **1.6.1** (2026-10-18): Tornado Alley runs much smoother in big towns. The town is split into blocks that are set up once and switched off whole when off screen (or past the fog in the chase view), people and soldiers far from the storm stop costing anything, and the score bar only redraws when something changes. On Megacity the per-frame work dropped about sevenfold and the draw count by about two thirds. Gameplay is unchanged.
 - **1.6.0** (2026-10-18): Tornado Alley gets seven new big targets (graveyard, weather station, fire station, police station, sewage plant, radio tower, nuclear plant), each with its own effect when it falls; more of them in bigger towns, and clearing a level now also needs some of them (2 in Small Town up to all 10 in Megacity). Target chips under the size bar light up when you are big enough and turn green with a check when they fall; arrows at the screen edge point to each one; a minimap shows the whole town (tap it to head there). Beat Megacity to unlock the bonus Acid Storm skin: acid rain, bright green lightning and baby tornadoes that roam the town. Smoother on tablets and big screens: zoom-out is capped, buildings draw in far fewer pieces, and large screens draw fewer pixels. The Survival water-station pond shows again.

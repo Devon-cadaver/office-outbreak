@@ -9,6 +9,7 @@ import { createFires, setFlamePalette } from '../fire.js';
 import { makeChopper, animateChopper } from '../chopper.js';
 import { makeCar, rollVehicle } from '../car.js';
 import { stampVersion, VERSION } from '../version.js';
+import { showHowTo, tipsSeen, markSeen } from '../howto.js';
 import { autoResolution } from '../perf.js';
 import { createTwisters } from '../tornado.js';
 import { unlockAudio, sfx, startMusic, stopMusic, setMusicChase } from '../audio.js';
@@ -613,7 +614,15 @@ function startRun(save) {
   $('dcStart').classList.add('hidden'); $('dcOver').classList.add('hidden'); $('dc').classList.remove('hidden'); state = 'play'; say(save ? 'Day ' + (night + 1) + '. Welcome back.' : 'Find the spell books before dark.');
 }
 function gameOver(won) { state = 'over'; clearGame(); if (won) addCoins(1); stopMusic(); (won ? sfx.wave : sfx.over)(); $('dcOverTitle').textContent = won ? 'EXTRACTED' : 'OVERRUN'; $('dcOverText').textContent = (won ? 'You survived all six nights and made the chopper. +1 coin for the skin shop. Cash: $' + cash + ' · ' : 'The dead got you on night ' + night + '. ') + 'Kills: ' + kills + ' · Books: ' + booksFound + ' · Rescued: ' + rescued; $('dc').classList.add('hidden'); $('dcOver').classList.remove('hidden'); }
-$('dcPlay').addEventListener('click', () => startRun()); $('dcAgain').addEventListener('click', () => startRun());
+const HOWTO = [
+  ['🕹️', 'Move', 'Your left thumb is the joystick. Drag the right side of the screen to turn the camera.'],
+  ['🔫', 'Fight', 'Guns aim for you. Hold FIRE to shoot.'],
+  ['🌙', 'Survive six nights', 'Each night the horde is bigger and faster. Survive night six and the chopper comes for you.'],
+  ['🧍', 'Save survivors', 'Lead survivors to the green zone for a chopper pick-up. Spend your cash at dawn.'],
+  ['🚗', 'Drive', 'Double-tap next to a vehicle to drive it, double-tap again to get out. Refuel at the gas station.'],
+];
+$('dcHow').addEventListener('click', () => showHowTo(HOWTO));
+$('dcPlay').addEventListener('click', () => { if (tipsSeen('dc_howto')) startRun(); else { markSeen('dc_howto'); showHowTo(HOWTO, () => startRun()); } }); $('dcAgain').addEventListener('click', () => startRun());
 requestAnimationFrame(frame);
 window.__dc = { get cars() { return city.cars; }, get driving() { return driving; }, get game() { return game; }, openGame, enterCar, get riding() { return riding; }, rides, setWeather, get weather() { return weather; }, spawnTornado, strike, dropCan, dropLoot, hurt, get hearts() { return [hearts, maxHearts, armor]; }, spawnFrom, doScan, get houseDoors() { return houseDoors; }, get spawnRate() { return spawnRate; }, get stillT() { return stillT; }, tapMove, get goRoute() { return goRoute; }, ambient: (k) => ({ car: ambFleeingCar, runner: ambRunner, horde: ambHorde, crash: ambCrash })[k](), get amb() { return amb; }, get mercs() { return mercs; }, dropGun, get gun() { return gun; }, get gasCans() { return gasCans; }, get tornadoes() { return tornadoes; }, twisters, set iso(v) { iso = v; }, setZoom, get zoom() { return zoom; }, get iso() { return iso; }, get city() { return city; }, get zombies() { return zombies; }, get player() { return player; }, get state() { return state; }, get slots() { return slots; }, spawnZombie, castSlot, throwTrash, get night() { return night; }, set clock(v) { clock = v; }, get books() { return books; }, get hp() { return hearts; }, set clock(v) { clock = v; }, get clock() { return clock; }, get night() { return night; }, get isNight() { return isNight; }, get nightLeft() { return nightLeft; }, get cash() { return cash; }, set cash(v) { cash = v; hudBooks(); }, get lz() { return lz; }, get survivors() { return survivors; }, get chopper() { return chopper; }, get lzChopper() { return lzChopper; }, get extracting() { return extracting; }, get exit() { return toWorld(exitCell.cx, exitCell.cy, cols, rows); }, buy, STORE, get rescued() { return rescued; } };
 
