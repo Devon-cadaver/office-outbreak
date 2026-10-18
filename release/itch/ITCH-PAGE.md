@@ -1,6 +1,6 @@
 # Survive Dead City — itch.io page kit
 
-Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.3.0**. Upload `release/survive-dead-city-web-v1.3.0.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
+Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.3.1**. Upload `release/survive-dead-city-web-v1.3.1.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
 
 ## Upload settings (Edit game page)
 
@@ -11,7 +11,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 | Short description / tagline | Two zombie games in your browser: survive six nights in Dead City, or extract the crowds in a snake-style maze run. |
 | Classification | Game |
 | Kind of project | **HTML** |
-| Uploads | `survive-dead-city-web-v1.3.0.zip` (0.4 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
+| Uploads | `survive-dead-city-web-v1.3.1.zip` (0.4 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
 | Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
 | Frame options | Leave SharedArrayBuffer off. No special headers needed. |
 | Pricing | Free (or "No payments"). |
@@ -57,7 +57,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 - Weapons aim themselves. Crowds panic and chain-infect, so lead the horde away from them.
 - Store between districts: ammo, medkit, vest, shoes, flare, car.
 
-**TORNADO ALLEY (side game)** — You are the storm. Drag to steer a tornado through town: rip up houses and towers, suck up the residents fleeing in the streets, toss the traffic, and shrug off the army squads and tanks shooting at you. Everything you wreck makes you bigger, up to three times your size, and only a big storm can bring down the towers and the three big targets: the power plant (blackout!), the water station (waterspout!) and the fairground. Five levels, from Small Town to a huge Megacity, each unlocked by flattening enough of the last. Combos for chained wreckage, chests at the end.
+**TORNADO ALLEY (side game)** — You are the storm. Drag to steer a tornado through town: rip up houses and towers, suck up the residents fleeing in the streets, toss the traffic, shrug off the army squads and tanks shooting at you, and dodge the cloud-seeding planes whose spray shrinks you (grow big enough and you can swallow them). Everything you wreck makes you bigger, up to three times your size, and only a big storm can bring down the towers and the three big targets: the power plant (blackout!), the water station (waterspout!) and the fairground. Five levels, from Small Town to a huge Megacity, each unlocked by flattening enough of the last. Combos for chained wreckage, chests at the end.
 
 **Both games**
 
@@ -78,6 +78,7 @@ Small browser games built fast, tested on a phone, and tuned by playing. Survive
 
 ## Version history
 
+- **1.3.1** (2026-10-18): Tornado Alley gets an enemy: cloud-seeding planes hunt the storm and their spray shrinks it. They fly faster but turn slowly, so dodge sideways; a blue zone shows where the spray lands and an edge arrow warns of incoming planes. Grow to F3 and you can swallow them (+500). More planes on later levels.
 - **1.3.0** (2026-10-18): Tornado Alley gets five levels, each a bigger town: Small Town, Suburbs, Downtown, Metro and the huge Megacity. Flatten the goal share of each to unlock the next; best score per level; more people, traffic, soldiers and tanks as the towns grow.
 - **1.2.1** (2026-10-18): Extract: the heli need eases off after district 4 (10, 20, 30, 40, 45, 50, 56, 62, 66, 70); a dead end now infects only the last 6 people in your line; a street prop on the road can no longer trap you (you slip past it).
 - **1.2.0** (2026-10-18): New side game TORNADO ALLEY (button on the main menu): you are the storm. Two minutes to wreck the town, sweep up 130 fleeing residents, traffic, soldiers and tanks that shoot back (harmlessly), and grow from F0 to F5 (3x). Three big targets: the power plant (blackout), the water station (turns you into a waterspout) and the fairground. Combos, best score, chests. Survival menu: Horde Test button removed.

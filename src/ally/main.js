@@ -111,7 +111,7 @@ let tw = null, twObj = null, size = 1, sizeShown = 1, mass = 0;
 function makeStorm() {
   const junk = []; const c = makeCar([0xc23b3b, 0x4f8fd6, 0xe8d54a][(Math.random() * 3) | 0]); c.scale.setScalar(0.28); junk.push(c);
   junk.push(new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.45, 10), new THREE.MeshLambertMaterial({ color: 0x3a6a8a })));
-  twObj = twisters.make(true, junk); twObj.position.set(0, 0, 0); scene.add(twObj); tw = twObj.userData.twister; [0x55555f, 0x8b8b98, 0xb0a48c].forEach((c, i) => tw.layers[i] && tw.layers[i].material.color.setHex(c));
+  twObj = twisters.make(true, junk); twObj.position.set(0, 0, 0); scene.add(twObj); tw = twObj.userData.twister; tw.layers.forEach((L, i) => { L.userData.op0 = [0.6, 0.38, 0.2][i]; }); [0x55555f, 0x8b8b98, 0xb0a48c].forEach((c, i) => tw.layers[i] && tw.layers[i].material.color.setHex(c));
   size = sizeShown = 1; mass = 0; twObj.scale.setScalar(S0);
 }
 const reach = () => 1.6 * sizeShown; // ground radius that wrecks things
@@ -131,7 +131,55 @@ function updatePops(dt) { for (const o of pops) { if (o.t <= 0) continue; o.t -=
 let bannerT = 0; function banner(text) { $('taBanner').textContent = text; $('taBanner').style.opacity = 1; bannerT = 2.2; }
 
 // ---------- wreckage ----------
-function grow(m) { mass += m; size = Math.min(MAX_S, 1 + (MAX_S - 1) * Math.min(1, mass / massTarget)); }
+function grow(m) { mass = Math.max(0, mass + m); size = Math.min(MAX_S, 1 + (MAX_S - 1) * Math.min(1, mass / massTarget)); }
+
+// ---------- the storm's enemy: cloud-seeding planes. They hunt the storm and spray it, and the spray shrinks it.
+// Grow to F3 and a plane that flies into the funnel gets swallowed instead. ----------
+let planes = [], seedT = 30, seededT = 0; const sprayDrops = [];
+const sprayGeo = new THREE.SphereGeometry(0.07, 6, 4), sprayMat = new THREE.MeshBasicMaterial({ color: 0xe8f6ff, transparent: true, opacity: 0.85, depthWrite: false });
+function makePlane() {
+  const g = new THREE.Group(); const white = new THREE.MeshLambertMaterial({ color: 0xf2f2f2 }), orange = new THREE.MeshLambertMaterial({ color: 0xf07a28 }), dark = new THREE.MeshLambertMaterial({ color: 0x2a2e33 }), glass = new THREE.MeshLambertMaterial({ color: 0x5a86a8 });
+  const bx = new THREE.BoxGeometry(1, 1, 1); const part = (mat, sx, sy, sz, x, y, z, parent = g) => { const m = new THREE.Mesh(bx, mat); m.scale.set(sx, sy, sz); m.position.set(x, y, z); parent.add(m); return m; };
+  part(white, 0.42, 0.42, 2.4, 0, 0, 0); part(glass, 0.36, 0.2, 0.45, 0, 0.2, 0.75); part(orange, 3.4, 0.08, 0.6, 0, 0.05, 0.1); part(white, 1.3, 0.06, 0.38, 0, 0.05, -1.05); part(orange, 0.06, 0.5, 0.42, 0, 0.3, -1.05);
+  const props = []; for (const x of [-0.9, 0.9]) { part(white, 0.22, 0.22, 0.6, x, 0, 0.35); const p = part(dark, 0.9, 0.06, 0.06, x, 0, 0.67); props.push(p); }
+  for (const x of [-1.5, 1.5]) part(orange, 0.12, 0.12, 0.3, x, -0.06, 0.05); // spray pods under the wingtips
+  g.userData.props = props; g.scale.setScalar(0.9); return g;
+}
+function spawnPlane() {
+  const lim = toWorld(cols - 1, rows - 1, cols, rows); const a = Math.random() * Math.PI * 2, R0 = Math.max(lim.x, lim.z) + 8;
+  const g = makePlane(); g.position.set(Math.cos(a) * R0, 6.5 + Math.random(), Math.sin(a) * R0); scene.add(g);
+  const zone = new THREE.Mesh(new THREE.RingGeometry(3.2, 4, 32), new THREE.MeshBasicMaterial({ color: 0x9fd6ff, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide })); zone.rotation.x = -Math.PI / 2; scene.add(zone);
+  const arrow = document.createElement('div'); arrow.className = 'planeArrow'; arrow.textContent = '✈'; document.body.appendChild(arrow);
+  planes.push({ g, zone, arrow, heading: Math.atan2(-g.position.x, -g.position.z), life: 26, spraying: false }); banner('✈ CLOUD SEEDER!'); sfx.whoosh();
+}
+function updatePlanes(dt, px, pz, R) {
+  seedT -= dt; const maxUp = 1 + Math.floor((level - 1) / 2); if (seedT <= 0) { seedT = Math.max(14, 30 - 3 * level) + Math.random() * 6; if (planes.length < maxUp) spawnPlane(); }
+  const topR = R * 1.4, stormH = 11 * S0 * sizeShown; let sprayed = false;
+  for (let i = planes.length - 1; i >= 0; i--) { const pl = planes[i], g = pl.g; pl.life -= dt;
+    // hunt: turn toward the storm (with a limited turn rate, so they swing past and come round again); leave when time's up
+    const dx = px - g.position.x, dz = pz - g.position.z, d = Math.hypot(dx, dz);
+    if (pl.life > 0) { const want = Math.atan2(dx, dz); let dr = want - pl.heading; dr = Math.atan2(Math.sin(dr), Math.cos(dr)); pl.heading += Math.max(-1, Math.min(1, dr)) * 0.9 * dt; }
+    g.position.x += Math.sin(pl.heading) * 8.5 * dt; g.position.z += Math.cos(pl.heading) * 8.5 * dt; g.rotation.set(0, pl.heading, 0); g.rotateZ(-Math.max(-0.6, Math.min(0.6, (pl.lastH != null ? (pl.heading - pl.lastH) / Math.max(dt, 1e-3) : 0) * 0.5))); pl.lastH = pl.heading;
+    for (const p of g.userData.props) p.rotation.z += dt * 40;
+    { const zr = (4 + R) / 4; pl.zone.position.set(g.position.x, 0.09, g.position.z); pl.zone.scale.setScalar(zr); pl.zone.material.opacity = pl.spraying ? 0.5 + Math.sin(played * 12) * 0.15 : 0.22; pl.zone.visible = pl.life > 0;
+      const v = g.position.clone().project(cam); const off = Math.abs(v.x) > 0.95 || Math.abs(v.y) > 0.95; pl.arrow.style.display = off && pl.life > 0 ? 'block' : 'none';
+      if (off) { const a = Math.atan2(v.y, v.x), k = 0.9 / Math.max(Math.abs(Math.cos(a)), Math.abs(Math.sin(a))); const sx = (Math.cos(a) * k * 0.5 + 0.5) * innerWidth, sy = (-Math.sin(a) * k * 0.5 + 0.5) * innerHeight; pl.arrow.style.transform = 'translate(' + sx + 'px,' + sy + 'px) translate(-50%,-50%) rotate(' + (-a + Math.PI / 4) + 'rad)'; } }
+    // swallowed by a big enough storm
+    if (rankOf(sizeShown) >= 3 && d < topR && g.position.y < stormH + 1) { planes.splice(i, 1); scene.remove(pl.zone); pl.arrow.remove(); twisters.suck(g, tw); award(500, g.position, 'PLANE DOWN'); grow(2); banner('PLANE DOWN!'); sfx.boom(); fx.explode(g.position.clone(), 1); continue; }
+    // spraying: when it's over the storm, seeding drops rain down and the storm shrinks
+    pl.spraying = d < 9 && pl.life > 0;
+    if (pl.spraying && Math.random() < dt * 40) { for (const sx of [-1.35, 1.35]) { const m = new THREE.Mesh(sprayGeo, sprayMat); m.position.copy(new THREE.Vector3(sx, -0.1, 0).applyMatrix4(g.matrixWorld)); scene.add(m); sprayDrops.push({ m, vel: new THREE.Vector3((Math.random() - 0.5) * 1.5, -3 - Math.random() * 2, (Math.random() - 0.5) * 1.5), life: 2.2 }); } }
+    if (pl.spraying && d < 4 + R) sprayed = true;
+    if (pl.life <= 0 && Math.hypot(g.position.x, g.position.z) > Math.max(cols, rows) * CELL * 0.75) { scene.remove(g); scene.remove(pl.zone); pl.arrow.remove(); planes.splice(i, 1); }
+  }
+  for (let i = sprayDrops.length - 1; i >= 0; i--) { const s = sprayDrops[i]; s.life -= dt; s.m.position.addScaledVector(s.vel, dt); s.m.scale.setScalar(1 + (2.2 - s.life) * 1.5); if (s.life <= 0 || s.m.position.y < 0) { scene.remove(s.m); sprayDrops.splice(i, 1); } }
+  // the seeding bites: the storm loses size while it's under the spray
+  if (sprayed) { if (seededT <= 0) sfx.hurt(); seededT = 3; } // the seed sticks: it keeps shrinking the storm for 3 s after a pass
+  if (seededT > 0) { grow(-massTarget * 0.07 * dt); if (Math.random() < dt * 2.5) popup(twObj.position, '-SIZE', '#9fd6ff'); }
+  seededT -= dt; const pale = seededT > 0; for (const L of tw.layers) L.material.opacity = L.userData.op0 * (pale ? 0.45 + Math.random() * 0.15 : 1);
+  $('taSeeded').style.opacity = pale ? 1 : 0;
+}
+function clearPlanes() { for (const pl of planes) { scene.remove(pl.g); scene.remove(pl.zone); pl.arrow.remove(); } planes = []; for (const s of sprayDrops) scene.remove(s.m); sprayDrops.length = 0; seedT = Math.max(16, 32 - 3 * level); seededT = 0; }
 function wreckBuilding(x) {
   x.done = true; bDone++; { const i = city.obstacles.findIndex((o) => Math.abs(o.x - x.pos.x) < 0.3 && Math.abs(o.z - x.pos.z) < 0.3); if (i >= 0) city.obstacles.splice(i, 1); } const size3 = new THREE.Box3().setFromObject(x.obj).getSize(new THREE.Vector3()); const loose = x.obj === x.b ? (x.b.userData.extras || []).filter((m) => m.parent) : [];
   if (x.b.userData.edges) x.b.userData.edges.visible = false; twisters.tear(x.obj, x.pos, size3, tw, loose); award(x.pts, x.pos); grow(x.h); sfx.boom();
@@ -169,11 +217,11 @@ addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
 // ---------- flow ----------
 let state = 'start';
 function start() {
-  ROUND = L().time; unlockAudio(); buildWorld(); makeStorm(); score = 0; chain = 0; lastHit = -9; tLeft = ROUND; played = 0; peopleN = carsN = propsN = bDone = 0;
+  ROUND = L().time; unlockAudio(); buildWorld(); makeStorm(); score = 0; chain = 0; lastHit = -9; tLeft = ROUND; played = 0; peopleN = carsN = propsN = bDone = 0; clearPlanes();
   for (const k of ['Power', 'Water', 'Fair']) $('poi' + k).classList.remove('done');
   for (const s of ['taStart', 'taEnd', 'taPaused']) $(s).classList.add('hidden'); $('ta').classList.remove('hidden');
   state = 'play'; startMusic(); setMusicChase(true); sfx.whoosh(); banner('LEVEL ' + level + ': ' + L().name.toUpperCase());
-  $('taLevel').textContent = 'Lv ' + level + ' · flatten ' + L().goal + '%';
+  $('taLevel').textContent = 'L' + level + ' · goal ' + L().goal + '%';
 }
 function togglePause() { if (state === 'play') { state = 'paused'; $('taPaused').classList.remove('hidden'); } else if (state === 'paused') { state = 'play'; $('taPaused').classList.add('hidden'); } }
 function finish() {
@@ -245,6 +293,7 @@ function update(dt) {
     const tur = t.g.userData.turret; const want = Math.atan2(px - p.x, pz - p.z) - t.g.rotation.y; tur.rotation.y += (Math.atan2(Math.sin(want - tur.rotation.y), Math.cos(want - tur.rotation.y))) * Math.min(1, dt * 4);
     t.cd -= dt; if (d < 20 && t.cd <= 0) { t.cd = 2 + Math.random() * 1.5; const muzzle = new THREE.Vector3(0, 0.64, 1.25).applyMatrix4(tur.matrixWorld); fireAt(muzzle, true); } }
   for (let i = shots.length - 1; i >= 0; i--) { const s = shots[i]; s.life -= dt; if (s.big) s.vel.y -= 2 * dt; s.m.position.addScaledVector(s.vel, dt); if (s.life <= 0) { if (s.big) fx.explode(s.m.position.clone(), 0.5); else fx.puff('smoke', s.m.position.clone(), 0.25); scene.remove(s.m); shots.splice(i, 1); } }
+  updatePlanes(dt, px, pz, R);
   // HUD
   const m = Math.floor(tLeft / 60), s = Math.floor(tLeft % 60);
   $('taTime').textContent = m + ':' + String(s).padStart(2, '0'); $('taTime').style.color = tLeft < 15 ? '#ff5a3a' : '';
@@ -273,4 +322,4 @@ function frame(now) {
 // a calm town behind the title screen
 buildWorld(); makeStorm(); twObj.position.set(-12, 0, -12); camTarget.set(0, 1, 0);
 requestAnimationFrame(frame);
-window.__ta = { get level() { return level; }, set level(v) { level = v; }, get bDone() { return bDone; }, get totalB() { return totalB; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, get drivers() { return drivers; }, get state() { return state; }, get score() { return score; }, get size() { return sizeShown; }, get storm() { return twObj; }, get pois() { return pois; }, get buildings() { return buildings; }, get people() { return people; }, set tLeft(v) { tLeft = v; }, grow, start };
+window.__ta = { spawnPlane, get planes() { return planes; }, get mass() { return mass; }, get level() { return level; }, set level(v) { level = v; }, get bDone() { return bDone; }, get totalB() { return totalB; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, get drivers() { return drivers; }, get state() { return state; }, get score() { return score; }, get size() { return sizeShown; }, get storm() { return twObj; }, get pois() { return pois; }, get buildings() { return buildings; }, get people() { return people; }, set tLeft(v) { tLeft = v; }, grow, start };
