@@ -9,6 +9,8 @@
     body { background: radial-gradient(circle at 50% 30%, #2a1449, #120a1f 70%); }
     #menu { gap: 14px; }
     #menu h1 { font-size: clamp(34px, 9vw, 64px); }
+    #menu { overflow-y: auto; justify-content: flex-start; padding-top: 16px; }
+    @media (max-height: 820px) { #titleArt { width: min(50vw, 280px) !important; } }
     #menu .tag { color: #c9a6ff; font-size: 14px; margin-top: -6px; }
     .choice { width: min(88vw, 360px); text-align: left; padding: 14px 18px; display: grid; gap: 4px; border: 2px solid #7dff3a; background: #1a0f2e; color: #fff; border-radius: 14px; box-shadow: 0 6px 0 #3a1f5a; }
     .choice b { font-size: 20px; color: #7dff3a; letter-spacing: 1px; }
@@ -18,8 +20,8 @@
 </head>
 <body>
   <div id="menu" class="screen">
-    <h1>SURVIVE<br>DEAD CITY<br>EXTRACTION</h1>
-    <p class="tag">Two ways to get out of town</p>
+    <object id="titleArt" data="./title.svg" type="image/svg+xml" style="width:min(92vw,420px);aspect-ratio:420/300;border-radius:22px;box-shadow:0 10px 30px #000a;border:3px solid #7dff3a;pointer-events:none"></object>
+    <p class="tag">Survive Dead City Extraction · two ways to get out of town</p>
     <button class="choice" onclick="location.href='deadcity.html'"><b>DEAD CITY (SURVIVAL)</b><span>Third-person joystick. Six nights, spells, guns, vehicles, survivors and a chopper at dawn.</span><span class="saved" id="dcSaved"></span></button>
     <button class="choice" onclick="location.href='zombieville.html'"><b>EXTRACT</b><span>Tap-to-route maze run. Lead the horde, rescue the crowds, make the chopper in ten districts.</span><span class="saved" id="zvSaved"></span></button>
     <button class="choice" onclick="location.href='store.html'" style="border-color:#ffd24a;box-shadow:0 6px 0 #5a4a1a"><b style="color:#ffd24a">SKIN SHOP</b><span>Spend the coins you earn for beating a game on outfits for you, the survivors and your ride.</span><span class="saved" id="coins"></span></button>
