@@ -13,7 +13,7 @@
     #taScore { font-size: 22px; } #taCombo { color: #ffd24a; font-size: 16px; } #taTime { margin-left: auto; font-size: 18px; } #taRank { color: #7dff3a; font-size: 16px; }
     #taSub { width: 100%; display: flex; gap: 10px; font-size: 12px; font-weight: 700; opacity: .92; white-space: nowrap; } #taSub > span { white-space: nowrap; }
     #taPois span { margin-right: 6px; opacity: .45; } #taPois span.done { opacity: 1; color: #7dff3a; text-decoration: line-through; }
-    #taGrow { position: absolute; left: 10px; right: 64px; top: calc(62px + env(safe-area-inset-top, 0)); height: 6px; background: #ffffff22; border-radius: 3px; overflow: hidden; }
+    #taGrow { position: absolute; left: 10px; right: 104px; top: calc(62px + env(safe-area-inset-top, 0)); height: 6px; background: #ffffff22; border-radius: 3px; overflow: hidden; }
     #taGrowFill { height: 100%; width: 0; background: linear-gradient(90deg, #7dff3a, #ffd24a, #ff5a3a); }
     #taPause { position: absolute; right: 10px; top: calc(54px + env(safe-area-inset-top, 0)); pointer-events: auto; font-size: 11px; padding: 4px 8px; height: 26px; }
     #taStick { position: absolute; width: 120px; height: 120px; border-radius: 50%; background: #ffffff1a; border: 2px solid #ffffff55; transform: translate(-50%, -50%); display: none; }
@@ -26,6 +26,7 @@
     #taLevels .lvl b { font-size: 18px; } #taLevels .lvl i { font-style: normal; color: #ffd24a; font-size: 10px; }
     #taLevels .lvl.on { outline: 3px solid #7dff3a; } #taLevels .lvl:disabled { opacity: .45; }
     #taLevel { color: #c9a6ff; }
+    #taView { position: absolute; right: 52px; top: calc(54px + env(safe-area-inset-top, 0)); pointer-events: auto; font-size: 11px; padding: 4px 8px; height: 26px; }
     .planeArrow { position: fixed; left: 0; top: 0; font-size: 26px; color: #9fd6ff; text-shadow: 0 0 8px #000, 0 0 3px #2a6aa0; pointer-events: none; display: none; z-index: 4; }
     #taSeeded { position: absolute; left: 50%; bottom: calc(110px + env(safe-area-inset-bottom, 0)); transform: translateX(-50%); padding: 6px 12px; border-radius: 8px; background: #0a2a44cc; border: 2px solid #9fd6ff; color: #cfeaff; font-weight: 900; font-size: 15px; opacity: 0; transition: opacity .15s; }
     #taEnd table { margin: 0 auto; font-size: 15px; border-collapse: collapse; } #taEnd td { padding: 2px 8px; text-align: left; } #taEnd td:last-child { text-align: right; font-weight: 800; }
@@ -37,6 +38,7 @@
     <div class="top"><span id="taScore">0</span><span id="taCombo"></span><span id="taRank">F0</span><span id="taTime">2:00</span>
       <div id="taSub"><span id="taLevel"></span><span id="taPct">0% destroyed</span><span id="taPeople">0 people</span><span id="taPois"><span id="poiPower">⚡</span><span id="poiWater">💧</span><span id="poiFair">🎡</span></span></div></div>
     <div id="taGrow"><div id="taGrowFill"></div></div>
+    <button id="taView" class="ghost">ISO</button>
     <button id="taPause" class="ghost">❚❚</button>
     <div id="taStick"><div id="taKnob"></div></div>
     <div id="taBanner"></div>
