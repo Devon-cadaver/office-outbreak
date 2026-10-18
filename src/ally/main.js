@@ -28,7 +28,18 @@ const twisters = createTwisters(scene, { onBolt: (p, ground) => { flashT = Math.
 stampVersion($('taStart'));
 
 // ---------- tuning ----------
-const ROUND = 120, S0 = 0.42, MAX_S = 3; // tornado scale at size 1, and the final size (3x)
+const S0 = 0.42, MAX_S = 3; // tornado scale at size 1, and the final size (3x)
+// five levels, each a bigger town; clear one by flattening the goal share of its buildings
+const LEVELS = [
+  { name: 'Small Town', size: 21, time: 120, goal: 35 },
+  { name: 'Suburbs', size: 27, time: 140, goal: 35 },
+  { name: 'Downtown', size: 33, time: 165, goal: 35 },
+  { name: 'Metro', size: 39, time: 190, goal: 30 },
+  { name: 'Megacity', size: 47, time: 240, goal: 30 },
+];
+let level = 1; const L = () => LEVELS[level - 1];
+const unlocked = () => { try { return Math.max(1, Math.min(LEVELS.length, +localStorage.getItem('ta_level') || 1)); } catch { return 1; } };
+let ROUND = LEVELS[0].time;
 const F_NEED = { water: 2, power: 3, fair: 4 }; // Fujita rank needed for each target
 const POI_PTS = { power: 3000, water: 2500, fair: 4000 }, POI_NAME = { power: 'POWER PLANT', water: 'WATER STATION', fair: 'FAIRGROUND' };
 const rankOf = (s) => Math.min(5, Math.floor(((s - 1) / (MAX_S - 1)) * 5 + 0.0001));
@@ -62,9 +73,10 @@ function fireAt(from, big) {
 }
 function buildWorld() {
   if (city) { scene.remove(city.group); twisters.clear(); fx.clear(); for (const p of people) scene.remove(p); }
-  cols = 21; rows = 21; const seed = (Math.random() * 1e6) | 0; const rng = mulberry32(seed);
+  cols = rows = L().size; const seed = (Math.random() * 1e6) | 0; const rng = mulberry32(seed); const big = cols / 21;
   maze = generateMaze(cols, rows, Math.floor(cols * rows * 0.12), rng);
   const mid = (cols - 1) / 2; for (let i = 1; i < cols - 1; i++) { maze[mid][i] = false; maze[i][mid] = false; } maze.avenues = { row: mid, col: mid };
+  if (cols >= 33) for (const q of [Math.round((cols - 1) / 4) | 1, Math.round((cols - 1) * 3 / 4) | 1]) for (let i = 1; i < cols - 1; i++) { maze[q][i] = false; maze[i][q] = false; }
   // the fairground: three rides side by side on the south side, facing an open street
   const fy = rows - 4, fx0 = mid - 1; for (let x = fx0; x <= fx0 + 2; x++) maze[fy][x] = true; for (let x = fx0 - 1; x <= fx0 + 3; x++) maze[fy + 1][x] = false;
   const near = (tx, ty) => { let best = null, bd = 1e9; for (let y = 2; y < rows - 2; y++) for (let x = 2; x < cols - 2; x++) { if (!maze[y][x] || (y === fy && x >= fx0 && x <= fx0 + 2)) continue; if (!(maze[y - 1][x] === false || maze[y + 1][x] === false || maze[y][x - 1] === false || maze[y][x + 1] === false)) continue; const d = Math.abs(x - tx) + Math.abs(y - ty); if (d < bd) { bd = d; best = [x, y]; } } return best; };
@@ -81,16 +93,17 @@ function buildWorld() {
   hMax = Math.max(3.2, ...buildings.map((x) => x.h)); totalB = buildings.length;
   // people: small crowds out on the streets
   people = []; const roads = []; for (let y = 1; y < rows - 1; y++) for (let x = 1; x < cols - 1; x++) if (!maze[y][x]) roads.push([x, y]);
-  for (let g = 0; g < 44; g++) { const [x, y] = roads[(rng() * roads.length) | 0]; const w = toWorld(x, y, cols, rows); if (Math.hypot(w.x, w.z) < 6) continue; const n = 2 + ((rng() * 3) | 0);
+  const groups = Math.min(80, Math.round(44 * Math.pow(big, 1.3)));
+  for (let g = 0; g < groups; g++) { const [x, y] = roads[(rng() * roads.length) | 0]; const w = toWorld(x, y, cols, rows); if (Math.hypot(w.x, w.z) < 6) continue; const n = 2 + ((rng() * 3) | 0);
     for (let i = 0; i < n; i++) { const c = makeCharacter(['worker', 'pink', 'plaid', 'hivis', 'suit', 'hoodie', 'punk', 'vest'][(rng() * 8) | 0], { skin: equippedSkin('npc') }); c.scale.setScalar(0.25); c.position.set(w.x + (rng() - 0.5) * 1.6, 0, w.z + (rng() - 0.5) * 1.6); c.rotation.y = rng() * 6.28; c.userData.home = c.position.clone(); c.userData.goal = null; c.userData.wait = rng() * 3; scene.add(c); people.push(c); } }
   cars = city.cars.slice();
   // traffic, army squads and tanks
   roadCells = roads; for (const o of [...drivers, ...soldiers, ...tanks]) scene.remove(o.g || o); drivers = []; soldiers = []; tanks = []; for (const s of shots) scene.remove(s.m); shots = [];
   const farRoad = (min) => { for (let k = 0; k < 60; k++) { const [x, y] = roads[(rng() * roads.length) | 0]; const w = toWorld(x, y, cols, rows); if (Math.hypot(w.x, w.z) > min) return [x, y]; } return roads[0]; };
-  for (let i = 0; i < 9; i++) { const [x, y] = farRoad(5); const c = makeCar([0xc23b3b, 0x4f8fd6, 0xe8d54a, 0xd8dde0, 0x3a8a5a][(rng() * 5) | 0]); c.scale.setScalar(0.8); const w = toWorld(x, y, cols, rows); c.position.set(w.x, 0, w.z); scene.add(c); drivers.push({ g: c, cell: [x, y], path: [], speed: 3 + rng() * 1.5 }); }
-  for (let sq = 0; sq < 5; sq++) { const [x, y] = farRoad(12); const w = toWorld(x, y, cols, rows); for (let i = 0; i < 3; i++) { const s = makeCharacter('vest', { skin: CHAR_SKINS.hunter }); s.scale.setScalar(0.25); s.position.set(w.x + (i - 1) * 0.5, 0, w.z + (rng() - 0.5) * 0.6); const gun = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, 0.6), new THREE.MeshLambertMaterial({ color: 0x22262a })); gun.position.set(0, -0.72, 0.25); s.userData.armR.add(gun); s.userData.cd = rng() * 2; scene.add(s); soldiers.push(s); } }
-  for (let i = 0; i < 3; i++) { const [x, y] = farRoad(16); const t = makeTank(); const w = toWorld(x, y, cols, rows); t.position.set(w.x, 0, w.z); scene.add(t); tanks.push({ g: t, cell: [x, y], path: [], cd: 2 + rng() * 2, repath: 0 }); }
-  massTarget = buildings.reduce((s, x) => s + x.h, 0) * 0.42 + 12;
+  for (let i = 0; i < 9 + 3 * (level - 1); i++) { const [x, y] = farRoad(5); const c = makeCar([0xc23b3b, 0x4f8fd6, 0xe8d54a, 0xd8dde0, 0x3a8a5a][(rng() * 5) | 0]); c.scale.setScalar(0.8); const w = toWorld(x, y, cols, rows); c.position.set(w.x, 0, w.z); scene.add(c); drivers.push({ g: c, cell: [x, y], path: [], speed: 3 + rng() * 1.5 }); }
+  for (let sq = 0; sq < 5 + 2 * (level - 1); sq++) { const [x, y] = farRoad(12); const w = toWorld(x, y, cols, rows); for (let i = 0; i < 3; i++) { const s = makeCharacter('vest', { skin: CHAR_SKINS.hunter }); s.scale.setScalar(0.25); s.position.set(w.x + (i - 1) * 0.5, 0, w.z + (rng() - 0.5) * 0.6); const gun = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, 0.6), new THREE.MeshLambertMaterial({ color: 0x22262a })); gun.position.set(0, -0.72, 0.25); s.userData.armR.add(gun); s.userData.cd = rng() * 2; scene.add(s); soldiers.push(s); } }
+  for (let i = 0; i < 3 + (level - 1); i++) { const [x, y] = farRoad(16); const t = makeTank(); const w = toWorld(x, y, cols, rows); t.position.set(w.x, 0, w.z); scene.add(t); tanks.push({ g: t, cell: [x, y], path: [], cd: 2 + rng() * 2, repath: 0 }); }
+  massTarget = buildings.reduce((s, x) => s + x.h, 0) * 0.42 * Math.sqrt(1 / big) + 12; // bigger towns: a smaller share grows you to full size
 }
 
 // ---------- the storm ----------
@@ -156,24 +169,32 @@ addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
 // ---------- flow ----------
 let state = 'start';
 function start() {
-  unlockAudio(); buildWorld(); makeStorm(); score = 0; chain = 0; lastHit = -9; tLeft = ROUND; played = 0; peopleN = carsN = propsN = bDone = 0;
+  ROUND = L().time; unlockAudio(); buildWorld(); makeStorm(); score = 0; chain = 0; lastHit = -9; tLeft = ROUND; played = 0; peopleN = carsN = propsN = bDone = 0;
   for (const k of ['Power', 'Water', 'Fair']) $('poi' + k).classList.remove('done');
   for (const s of ['taStart', 'taEnd', 'taPaused']) $(s).classList.add('hidden'); $('ta').classList.remove('hidden');
-  state = 'play'; startMusic(); setMusicChase(true); sfx.whoosh(); banner('TOUCHDOWN!');
+  state = 'play'; startMusic(); setMusicChase(true); sfx.whoosh(); banner('LEVEL ' + level + ': ' + L().name.toUpperCase());
+  $('taLevel').textContent = 'Lv ' + level + ' · flatten ' + L().goal + '%';
 }
 function togglePause() { if (state === 'play') { state = 'paused'; $('taPaused').classList.remove('hidden'); } else if (state === 'paused') { state = 'play'; $('taPaused').classList.add('hidden'); } }
 function finish() {
   state = 'over'; stopMusic(); sUp(stick.id); const done = ['power', 'water', 'fair'].filter((k) => pois[k].done);
-  let best = 0; try { best = +localStorage.getItem('ta_best') || 0; if (score > best) { best = score; localStorage.setItem('ta_best', String(score)); } } catch { /* ignore */ }
-  const pct = Math.round((bDone / totalB) * 100);
-  $('taEndTitle').innerHTML = pct >= 90 && done.length === 3 ? 'TOWN<br>FLATTENED' : "STORM'S<br>OVER";
+  let best = 0; const bk = 'ta_best_' + level; try { best = +localStorage.getItem(bk) || 0; if (score > best) { best = score; localStorage.setItem(bk, String(score)); } } catch { /* ignore */ }
+  const pct = Math.round((bDone / totalB) * 100); const cleared = pct >= L().goal;
+  if (cleared && level < LEVELS.length && unlocked() <= level) { try { localStorage.setItem('ta_level', String(level + 1)); } catch { /* ignore */ } }
+  $('taEndTitle').innerHTML = cleared ? (level === LEVELS.length ? 'MEGACITY<br>FLATTENED' : 'LEVEL ' + level + '<br>CLEARED') : "STORM'S<br>OVER";
+  $('taAgain').textContent = cleared && level < LEVELS.length ? 'NEXT LEVEL' : cleared ? 'PLAY AGAIN' : 'TRY AGAIN';
+  $('taAgain').dataset.next = cleared && level < LEVELS.length ? '1' : '';
+  $('taGoalLine').textContent = cleared ? (level < LEVELS.length ? 'Level ' + (level + 1) + ' unlocked: ' + LEVELS[level].name + '.' : 'You flattened every town. Legend.') : 'Flatten ' + L().goal + '% of ' + L().name + ' to clear it (you got ' + pct + '%).';
   $('taStats').innerHTML = [['Buildings', bDone + ' / ' + totalB + ' (' + pct + '%)'], ['People swept up', peopleN], ['Cars thrown', carsN], ['Power plant', pois.power.done ? '⚡ down' : 'standing'], ['Water station', pois.water.done ? '💧 down' : 'standing'], ['Fairground', pois.fair.done ? '🎡 down' : 'standing'], ['Peak size', 'F' + rankOf(size) + ' (' + size.toFixed(1) + 'x)'], ['Score', score], ['Best', best]].map(([a, b]) => '<tr><td>' + a + '</td><td>' + b + '</td></tr>').join('');
   showChests($('taChests'), Math.min(3, 1 + done.length));
   $('ta').classList.add('hidden'); $('taEnd').classList.remove('hidden');
 }
-$('taPlay').addEventListener('click', start); $('taAgain').addEventListener('click', start);
+$('taPlay').addEventListener('click', start); $('taAgain').addEventListener('click', () => { if ($('taAgain').dataset.next) level++; start(); });
+function drawLevels() { const box = $('taLevels'); box.innerHTML = ''; const un = unlocked(); LEVELS.forEach((lv, i) => { const b = document.createElement('button'); const n = i + 1; let best = 0; try { best = +localStorage.getItem('ta_best_' + n) || 0; } catch { /* ignore */ }
+  b.className = 'lvl' + (n === level ? ' on' : ''); b.disabled = n > un; b.innerHTML = '<b>' + (n > un ? '🔒' : n) + '</b><span>' + lv.name + '</span>' + (best ? '<i>' + best + '</i>' : ''); b.addEventListener('click', () => { level = n; drawLevels(); }); box.appendChild(b); }); }
+level = unlocked(); if (import.meta.env.DEV) { const q = +new URLSearchParams(location.search).get('level'); if (q >= 1 && q <= LEVELS.length) level = q; } drawLevels();
 $('taPause').addEventListener('click', togglePause); $('taResume').addEventListener('click', togglePause);
-try { const b = +localStorage.getItem('ta_best') || 0; if (b) $('taBestLine').textContent = 'Best: ' + b; } catch { /* ignore */ }
+
 
 // ---------- update ----------
 const right = new THREE.Vector3(), upv = new THREE.Vector3(), tmp = new THREE.Vector3();
@@ -202,6 +223,7 @@ function update(dt) {
     if (d < R + 0.35) { people.splice(i, 1); twisters.suck(c, tw); peopleN++; award(25, c.position); grow(0.12); continue; }
     const pull = R * 2.6; if (d < pull) { const k = 1 - d / pull; const sp = (2.8 * k - 1.2 * (1 - k)) * dt; c.position.x -= dx / d * sp; c.position.z -= dz / d * sp; c.position.y = k * k * 0.6; c.rotation.y += dt * 8 * k; animateWalk(c, dt, 1.5); collidePerson(c); u.goal = null; }
     else if (d < 9 + sizeShown * 2) { const sp = 1.7 * dt; c.position.y = 0; c.position.x += dx / d * sp; c.position.z += dz / d * sp; c.rotation.y = Math.atan2(dx, dz); animateWalk(c, dt, 1.3); collidePerson(c); u.goal = null; }
+    else if (d > 34) { /* out of sight: hold still */ }
     else { u.wait -= dt; if (!u.goal && u.wait <= 0) { u.goal = new THREE.Vector3(u.home.x + (Math.random() - 0.5) * 2, 0, u.home.z + (Math.random() - 0.5) * 2); }
       if (u.goal) { const gx = u.goal.x - c.position.x, gz = u.goal.z - c.position.z, gl = Math.hypot(gx, gz); if (gl < 0.1) { u.goal = null; u.wait = 1 + Math.random() * 3; animateWalk(c, dt, 0); } else { c.position.x += gx / gl * 0.6 * dt; c.position.z += gz / gl * 0.6 * dt; c.rotation.y = Math.atan2(gx, gz); animateWalk(c, dt, 0.5); } } else animateWalk(c, dt, 0); } }
   // cars and street props
@@ -251,4 +273,4 @@ function frame(now) {
 // a calm town behind the title screen
 buildWorld(); makeStorm(); twObj.position.set(-12, 0, -12); camTarget.set(0, 1, 0);
 requestAnimationFrame(frame);
-window.__ta = { get tanks() { return tanks; }, get soldiers() { return soldiers; }, get drivers() { return drivers; }, get state() { return state; }, get score() { return score; }, get size() { return sizeShown; }, get storm() { return twObj; }, get pois() { return pois; }, get buildings() { return buildings; }, get people() { return people; }, set tLeft(v) { tLeft = v; }, grow, start };
+window.__ta = { get level() { return level; }, set level(v) { level = v; }, get bDone() { return bDone; }, get totalB() { return totalB; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, get drivers() { return drivers; }, get state() { return state; }, get score() { return score; }, get size() { return sizeShown; }, get storm() { return twObj; }, get pois() { return pois; }, get buildings() { return buildings; }, get people() { return people; }, set tLeft(v) { tLeft = v; }, grow, start };

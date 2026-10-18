@@ -21,6 +21,11 @@
     #taBanner { position: absolute; left: 50%; top: 24%; transform: translateX(-50%); font-size: clamp(22px, 7vw, 40px); font-weight: 900; color: #ffd24a; text-shadow: 0 3px 0 #5a2f80, 0 6px 14px #000; white-space: nowrap; opacity: 0; transition: opacity .2s; }
     .pop { position: fixed; left: 0; top: 0; font-weight: 900; font-size: 15px; color: #ffe27a; text-shadow: 0 2px 4px #000; pointer-events: none; white-space: nowrap; }
     #taStart .poi { font-size: 14px; max-width: 360px; }
+    #taLevels { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; width: min(92vw, 420px); }
+    #taLevels .lvl { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 2px; font-size: 10px; min-height: 58px; border-radius: 10px; }
+    #taLevels .lvl b { font-size: 18px; } #taLevels .lvl i { font-style: normal; color: #ffd24a; font-size: 10px; }
+    #taLevels .lvl.on { outline: 3px solid #7dff3a; } #taLevels .lvl:disabled { opacity: .45; }
+    #taLevel { color: #c9a6ff; }
     #taEnd table { margin: 0 auto; font-size: 15px; border-collapse: collapse; } #taEnd td { padding: 2px 8px; text-align: left; } #taEnd td:last-child { text-align: right; font-weight: 800; }
   </style>
 </head>
@@ -28,7 +33,7 @@
   <canvas id="game"></canvas>
   <div id="ta" class="hidden">
     <div class="top"><span id="taScore">0</span><span id="taCombo"></span><span id="taRank">F0</span><span id="taTime">2:00</span>
-      <div id="taSub"><span id="taPct">0% destroyed</span><span id="taPeople">0 people</span><span id="taPois"><span id="poiPower">⚡ Power</span><span id="poiWater">💧 Water</span><span id="poiFair">🎡 Fair</span></span></div></div>
+      <div id="taSub"><span id="taLevel"></span><span id="taPct">0% destroyed</span><span id="taPeople">0 people</span><span id="taPois"><span id="poiPower">⚡ Power</span><span id="poiWater">💧 Water</span><span id="poiFair">🎡 Fair</span></span></div></div>
     <div id="taGrow"><div id="taGrowFill"></div></div>
     <button id="taPause" class="ghost">❚❚</button>
     <div id="taStick"><div id="taKnob"></div></div>
@@ -37,16 +42,18 @@
 
   <div id="taStart" class="screen">
     <h1>TORNADO<br>ALLEY</h1>
-    <p>You are the storm. Tear the town apart before the clock runs out.</p>
+    <p>You are the storm. Five towns, each bigger than the last. Flatten enough of each to unlock the next.</p>
     <p class="small">Drag anywhere to steer (or WASD / arrows). Bigger buildings are worth more, and every person you suck up scores. The more you wreck, the bigger you grow, up to three times your size. Tall towers only give way once you've grown.</p>
     <p class="poi">Three big targets: ⚡ the <b>power plant</b> (F3), 💧 the <b>water station</b> (F2) and 🎡 the <b>fairground</b> (F4). Chain wreckage quickly for a combo.</p>
+    <div id="taLevels"></div>
     <button id="taPlay">UNLEASH</button>
     <button class="ghost menuBtn" onclick="location.href='index.html'">MAIN MENU</button>
-    <p class="small" id="taBestLine"></p>
+
   </div>
   <div id="taPaused" class="screen hidden"><h1>PAUSED</h1><button id="taResume">RESUME</button><button class="ghost menuBtn" onclick="location.href='index.html'">MAIN MENU</button></div>
   <div id="taEnd" class="screen hidden">
     <h1 id="taEndTitle">STORM'S OVER</h1>
+    <p class="small" id="taGoalLine"></p>
     <table id="taStats"></table>
     <div id="taChests" class="chests"></div>
     <button id="taAgain">GO AGAIN</button>
