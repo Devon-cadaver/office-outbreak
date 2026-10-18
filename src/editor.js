@@ -1,6 +1,6 @@
 // Map builder: paint a district on a grid, export it as JSON, play it as district 1.
 // Cell codes: 0 road, 1 building, 2 house, 3 park, 4 gas, 5 ferris, 6 coaster, 7 carousel, 8 school, 9 skate, 10 slime, 11 start, 12 exit
-import { GROUPS, TOOLS, ROAD_CODES, nextShape } from './tools.js';
+import { GROUPS, TOOLS, ROAD_CODES, nextShape, sendMapToClaude } from './tools.js';
 let conn = {};
 const $ = (id) => document.getElementById(id);
 let cols = 19, rows = 29, cells = [], tool = 0;
@@ -73,7 +73,8 @@ toolSel.value = String(tool); toolSel.addEventListener('change', () => { tool = 
 $('eErase').addEventListener('click', () => { tool = 3; toolSel.value = '3'; });
 $('eRestart').addEventListener('click', () => { if (confirm('Clear the whole map and start over?')) { cells = blank(cols, rows); save(); draw(); } });
 const menu = $('menu');
-menu.addEventListener('change', () => { const v = menu.value; menu.value = ''; if (v === 'help') $('help').classList.toggle('hidden'); else if (v === 'resize') { const c = +prompt('Width (9-41)', cols) || cols, r = +prompt('Height (9-41)', rows) || rows; $('w').value = c; $('h').value = r; $('resize').click(); } else if (v) $(v).click(); });
+if (!import.meta.env.DEV) menu.querySelector('option[value="send"]')?.remove();
+menu.addEventListener('change', () => { const v = menu.value; menu.value = ''; if (v === 'send') sendMapToClaude({ cols, rows, cells, conn }); else if (v === 'help') $('help').classList.toggle('hidden'); else if (v === 'resize') { const c = +prompt('Width (9-41)', cols) || cols, r = +prompt('Height (9-41)', rows) || rows; $('w').value = c; $('h').value = r; $('resize').click(); } else if (v) $(v).click(); });
 // hidden buttons the menu drives
 for (const id of ['export', 'import', 'random', 'clear', 'resize']) { const b = document.createElement('button'); b.id = id; b.className = 'hidden'; document.body.appendChild(b); }
 $('export').addEventListener('click', () => { const s = JSON.stringify({ cols, rows, cells }); $('iobox').classList.remove('hidden'); $('io').value = s; $('io').select(); try { navigator.clipboard.writeText(s); } catch { /* ignore */ } });

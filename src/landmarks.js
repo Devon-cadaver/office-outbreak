@@ -139,7 +139,7 @@ export function buildLandmark(type, group, w, rng, M, add) {
     for (const [dx, dz, ry] of [[0, 1, 0], [1, 0, Math.PI / 2], [0, -1, Math.PI], [-1, 0, -Math.PI / 2]]) for (const row of [0.6, 1.6]) for (const off of [-0.8, 0, 0.8]) {
       add(box, rng() < 0.45 ? winMat : dark, 0.45, 0.55, 0.06, w.x + dx * (F / 2 + 0.03) + (dz ? off : 0), row, w.z + dz * (F / 2 + 0.03) + (dx ? off : 0), ry);
     }
-    const sign = signMesh('DUVALL HIGH SCHOOL', '#3e5a5a', '#dfe8e8', 512, 80, 2.4, 0.4, 'bold 44px sans-serif'); sign.position.set(w.x, 2.0, w.z + F / 2 + 0.05); group.add(sign);
+    const sign = signMesh('ASHFORD HIGH SCHOOL', '#3e5a5a', '#dfe8e8', 512, 80, 2.4, 0.4, 'bold 44px sans-serif'); sign.position.set(w.x, 2.0, w.z + F / 2 + 0.05); group.add(sign);
     add(cyl, M({ color: 0x9aa7ab }), 0.06, 3.2, 0.06, w.x + 1.1, 1.6, w.z + 1.1); add(box, M({ color: 0xc23b3b }), 0.5, 0.3, 0.02, w.x + 1.35, 3.0, w.z + 1.1);
     add(box, M({ color: 0x2a3a40 }), 0.8, 1.0, 0.1, w.x, 0.5, w.z + F / 2 + 0.02);
   } else if (type === 'skate') {

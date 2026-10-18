@@ -11,7 +11,7 @@ import { buildRuins } from './ruins.js';
 import { makeCar, animateCar } from './car.js';
 import { rides } from './landmarks.js';
 import { createFires, setFlamePalette } from './fire.js';
-import { GROUPS, loadMap, saveMap, blankMap, fillSelect, ROAD_CODES, nextShape, VARIANT_CODES, nextVariant, decodeCustom } from './tools.js';
+import { GROUPS, loadMap, saveMap, blankMap, fillSelect, ROAD_CODES, nextShape, VARIANT_CODES, nextVariant, decodeCustom, sendMapToClaude } from './tools.js';
 const BUILD = new URLSearchParams(location.search).get('build') === '1';
 // ---------- economy / store ----------
 let cash = 0, cashThisDistrict = 0;
@@ -245,7 +245,7 @@ function buildPlace(w) {
 function buildRefresh() { const keep = camPan.clone(); buildLevel(1); for (const cv of civilians) scene.remove(cv); for (const z of zombies) scene.remove(z); civilians = []; zombies = []; for (const p of pickups) scene.remove(p.mesh); pickups = []; camPan.copy(keep); state = 'build'; player.visible = true; updateHud(); }
 const bRay = new THREE.Raycaster(), bGround = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), bHit = new THREE.Vector3();
 function startBuild() {
-  bMap = loadMap(); fillSelect($('bTool')); $('bTool').value = '0'; $('bTool').addEventListener('change', () => { bTool = +$('bTool').value; });
+  bMap = loadMap(); if (!bMap) { bMap = blankMap(); bMap.cells[bMap.rows - 2][1] = 11; bMap.cells[1][bMap.cols - 2] = 12; saveMap(bMap); } fillSelect($('bTool')); $('bTool').value = '0'; $('bTool').addEventListener('change', () => { bTool = +$('bTool').value; });
   $('bView').addEventListener('click', () => { setTopView(!topView); $('bView').textContent = topView ? 'View: Top' : 'View: Angle'; });
   $('bErase').addEventListener('click', () => { bTool = 3; $('bTool').value = '3'; });
   $('bPaint').addEventListener('click', () => { bPaint = !bPaint; $('bPaint').textContent = bPaint ? 'Paint' : 'Pan'; input.setLook(!bPaint); input.lookTap = !bPaint; setTip(bPaint ? 'Paint mode: drag to lay cells. Pinch to zoom.' : 'Pan mode: drag to move, tap to place.'); });
@@ -254,9 +254,11 @@ function startBuild() {
   canvas.addEventListener('touchmove', (e) => { if (bPaint && e.touches.length === 1) { paintMove(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); } }, { passive: false });
   canvas.addEventListener('pointerup', () => { bLastCell = ''; }); canvas.addEventListener('touchend', () => { bLastCell = ''; });
   $('bRestart').addEventListener('click', () => { if (!confirm('Clear the whole map and start over?')) return; bMap = blankMap(bMap.cols, bMap.rows); bMap.cells[bMap.rows - 2][1] = 11; bMap.cells[1][bMap.cols - 2] = 12; saveMap(bMap); buildRefresh(); });
+  if (!import.meta.env.DEV) $('bMenu').querySelector('option[value="send"]')?.remove();
   $('bMenu').addEventListener('change', () => { const v = $('bMenu').value; $('bMenu').value = '';
     if (v === 'play') location.href = 'zombieville.html?custom=1';
     else if (v === 'playdc') location.href = 'deadcity.html?custom=1';
+    else if (v === 'send') sendMapToClaude(bMap);
     else if (v === 'export') { const s = JSON.stringify(bMap); try { navigator.clipboard.writeText(s); } catch { /* ignore */ } prompt('Map text (copied):', s); }
     else if (v === 'import') { const s = prompt('Paste map text:'); try { const mm = JSON.parse(s); if (mm && mm.cells) { bMap = mm; saveMap(bMap); buildRefresh(); } } catch { alert('That is not a map.'); } }
     else if (v === 'random') { const wall = generateMaze(bMap.cols, bMap.rows, Math.floor(bMap.cols * bMap.rows * 0.08)); bMap.cells = wall.map((row) => row.map((x) => (x ? 1 : 0))); bMap.cells[bMap.rows - 2][1] = 11; bMap.cells[1][bMap.cols - 2] = 12; saveMap(bMap); buildRefresh(); }
@@ -770,7 +772,7 @@ function fire(target) {
 function updateHud() {
   ui.score.textContent = String(score) + (streak >= 1 ? '  x' + Math.min(5, 1 + streak) : '');
   ui.lives.textContent = '♥'.repeat(Math.max(0, lives)) + (sprintCd <= 0 ? '  ⚡' : '');
-  ui.level.textContent = level === 1 ? 'Duvallville: Tutorial' : level === FINAL_LEVEL ? 'Duvallville ' + level + ': Evac' : 'Duvallville ' + level + '/' + FINAL_LEVEL;
+  ui.level.textContent = level === 1 ? 'Ashford: Tutorial' : level === FINAL_LEVEL ? 'Ashford ' + level + ': Evac' : 'Ashford ' + level + '/' + FINAL_LEVEL;
   const fol = civilians.filter((c) => c.userData.follow).length; ui.people.textContent = 'People safe: ' + civilians.length + '/' + totalPeople + (fol ? '  ·  Following: ' + fol : '');
   ui.weapon.textContent = (driving ? '🚗 ' + inv.carHp + '/5  ·  ' : '') + (weapon ? WEAPONS[weapon].name + ' x' + ammo : 'Unarmed') + '  ·  $' + cash;
 }

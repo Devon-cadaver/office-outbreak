@@ -1,4 +1,11 @@
 // Shared palette for the map builders (2D grid at editor.html and the in-world build mode).
+// Local dev only: post a map to the Vite dev server, which writes it to maps/ in the project for Claude to read.
+export async function sendMapToClaude(map) {
+  const name = (prompt('Name this map (optional):', '') || '').trim();
+  try { const res = await fetch('/__save-map', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, map }) });
+    const t = await res.text(); alert(res.ok ? 'Saved to ' + t + '. Tell Claude the map is there.' : 'Could not save: ' + t);
+  } catch (e) { alert('Could not reach the dev server: ' + e.message); }
+}
 // Cell codes: 0 road, 1 building, 2 house, 3 grass, 4 gas, 5 ferris, 6 coaster, 7 carousel, 8 school, 9 skate, 10 slime,
 // 11 start, 12 exit, 13 avenue, 14 crosswalk, 15 plaza, 16 tower, 17 tree, 18 bench, 19 parked car
 export const GROUPS = [
