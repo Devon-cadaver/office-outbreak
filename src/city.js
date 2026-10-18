@@ -389,7 +389,7 @@ export function buildCity(scene, wall, level) {
   for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) if (wall[y][x]) {
     const w = toWorld(x, y, cols, rows);
     const lm = landmarkCells.get(y * cols + x);
-    if (lm) { buildLandmark(lm, group, w, rng, M, add); obstacles.push({ x: w.x, z: w.z, hw: CELL / 2 - 0.05, hd: CELL / 2 - 0.05 }); hazards.push({ type: lm, pos: new THREE.Vector3(w.x, 0, w.z) }); continue; }
+    if (lm) { const before = group.children.length; buildLandmark(lm, group, w, rng, M, add); obstacles.push({ x: w.x, z: w.z, hw: CELL / 2 - 0.05, hd: CELL / 2 - 0.05 }); hazards.push({ type: lm, pos: new THREE.Vector3(w.x, 0, w.z), parts: group.children.slice(before) }); continue; }
     const edge = x === 0 || y === 0 || x === cols - 1 || y === rows - 1;
     const vi = wall.custom && wall.custom.vars ? (wall.custom.vars.get(y * cols + x) || 0) : 0;
     const R = edge ? mulberry32(x * 131 + y * 17 + borderSeed * 7) : wall.custom ? mulberry32(x * 131 + y * 17 + vi * 977 + 3) : rng; // border buildings stay the same whatever happens inside; builder cells get a look per variant

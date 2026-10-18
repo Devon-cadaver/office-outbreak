@@ -112,5 +112,6 @@ export function createTwisters(scene, { onBolt } = {}) {
   }
 
   function clear() { for (const tw of twisters) scene.remove(tw.g); twisters.length = 0; for (const b of bolts) scene.remove(b.g); bolts.length = 0; for (const c of chunks) { if (c.m) scene.remove(c.m); } chunks.length = 0; }
-  return { make, remove, tear, scatter, update, clear, radiusAt, get chunks() { return chunks; } };
+  function suck(m, tw) { scene.attach(m); addChunk(m, tw, 0); }
+  return { make, remove, tear, scatter, suck, update, clear, radiusAt, get chunks() { return chunks; } };
 }

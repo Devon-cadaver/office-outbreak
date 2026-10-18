@@ -13,14 +13,15 @@ export function updateLandmarks(dt) {
   for (const r of rides) {
     if (r.type === 'ferris') r.wheel.rotation.z += dt * 0.35 * r.speed;
     else if (r.type === 'carousel') { r.platform.rotation.y += dt * 0.3 * r.speed; r.bob = (r.bob || 0) + dt * 2 * r.speed; r.horses.forEach((h, i) => { h.position.y = 0.55 + Math.sin(r.bob + i) * 0.1; }); }
-    else if (r.type === 'coaster') { r.u = ((r.u || 0) + dt * 0.05 * r.speed) % 1; placeCoasterCars(r); }
+    else if (r.type === 'coaster') { r.u = ((((r.u || 0) + dt * 0.05 * r.speed) % 1) + 1) % 1; placeCoasterCars(r); }
   }
 }
 export function placeCoasterCars(r) {
-  r.cars.forEach((car, i) => { const u = (r.u + i * 0.035) % 1; const p = r.curve.getPointAt(u), t = r.curve.getTangentAt(u); car.position.copy(p); car.position.y += 0.12; car.rotation.set(0, Math.atan2(t.x, t.z), 0); car.rotateX(-Math.asin(Math.max(-1, Math.min(1, t.y)))); });
+  r.cars.forEach((car, i) => { const u = (((r.u + i * 0.035) % 1) + 1) % 1; const p = r.curve.getPointAt(u), t = r.curve.getTangentAt(u); car.position.copy(p); car.position.y += 0.12; car.rotation.set(0, Math.atan2(t.x, t.z), 0); car.rotateX(-Math.asin(Math.max(-1, Math.min(1, t.y)))); });
 }
 
 export function pickLandmarks(wall, rng) {
+  if (wall.forcedLandmarks) return wall.forcedLandmarks; // a mode that lays out its own landmarks (Tornado Alley)
   const rows = wall.length, cols = wall[0].length, picked = new Map(), spots = [];
   for (let y = 2; y < rows - 2; y++) for (let x = 2; x < cols - 2; x++) if (wall[y][x]) {
     if (!wall[y - 1][x] || !wall[y + 1][x] || !wall[y][x - 1] || !wall[y][x + 1]) spots.push([x, y]);
@@ -116,6 +117,25 @@ export function buildLandmark(type, group, w, rng, M, add) {
     for (const dx of [-0.9, 0, 0.9]) { add(box, M({ color: 0x6a7278 }), 0.6, 0.7, 0.6, w.x + dx, 0.35, w.z - 0.9); add(box, iron, 0.3, 0.4, 0.06, w.x + dx, 0.3, w.z - 0.58); }
     add(ball, glowMat(0x7dff3a), 0.3, 0.3, 0.3, w.x, 1.2, w.z - 0.9);
     const sign = signMesh('CEMETERY', '#1a0f2e', '#c9a6ff', 256, 64, 1.5, 0.4); sign.position.set(w.x, 1.9, w.z + 1.2); group.add(sign);
+  } else if (type === 'power') {
+    // power plant: turbine hall, two cooling towers venting steam, a striped smokestack and a transformer yard
+    slab(0x4a5458, 0.06);
+    add(box, M({ color: 0x9aa4a8 }), 1.3, 1.4, 1.1, w.x - 0.55, 0.7, w.z + 0.55); add(box, M({ color: 0x6a7478 }), 1.4, 0.12, 1.2, w.x - 0.55, 1.42, w.z + 0.55);
+    for (const wx of [-0.9, -0.55, -0.2]) add(box, glowMat(0xffe27a), 0.2, 0.3, 0.05, w.x + wx, 0.9, w.z + 1.11);
+    const tower = new THREE.LatheGeometry([0.62, 0.5, 0.42, 0.4, 0.44, 0.5].map((r, i) => new THREE.Vector2(r, i * 0.42)), 16);
+    for (const [tx, tz] of [[0.55, -0.6], [-0.45, -0.75]]) { const t = new THREE.Mesh(tower, M({ color: 0xc9cfd2, side: THREE.DoubleSide })); t.position.set(w.x + tx, 0, w.z + tz); group.add(t); const steam = new THREE.Mesh(ball, new THREE.MeshLambertMaterial({ color: 0xe8eef0, transparent: true, opacity: 0.55, depthWrite: false })); steam.scale.set(0.9, 0.5, 0.9); steam.position.set(w.x + tx, 2.4, w.z + tz); group.add(steam); }
+    for (let i = 0; i < 4; i++) add(cyl, M({ color: i % 2 ? 0xe8e8e8 : 0xc23b3b }), 0.24, 0.65, 0.24, w.x + 0.8, 0.33 + i * 0.65, w.z + 0.6);
+    for (const dx of [0.35, 0.75]) { add(box, M({ color: 0x5a6a50 }), 0.25, 0.4, 0.25, w.x + dx, 0.2, w.z + 1.05); add(box, M({ color: 0x2a2e33 }), 0.04, 0.6, 0.04, w.x + dx, 0.6, w.z + 1.05); }
+    const sign = signMesh('POWER PLANT', '#1a0f2e', '#ffe27a', 320, 64, 1.8, 0.36, 'bold 38px sans-serif'); sign.position.set(w.x - 0.55, 1.75, w.z + 1.12); group.add(sign);
+  } else if (type === 'water') {
+    // water station: a tall tank on legs, a pump house and a treatment pool
+    slab(0x3e5a62, 0.06);
+    for (const [lx, lz] of [[-0.35, -0.35], [0.35, -0.35], [-0.35, 0.35], [0.35, 0.35]]) add(box, M({ color: 0x6a7a80 }), 0.08, 2.4, 0.08, w.x - 0.5 + lx, 1.2, w.z - 0.4 + lz);
+    add(cyl, M({ color: 0x4f8fd6 }), 1.25, 0.9, 1.25, w.x - 0.5, 2.85, w.z - 0.4); add(new THREE.ConeGeometry(0.66, 0.4, 12), M({ color: 0x3a6a9a }), 1, 1, 1, w.x - 0.5, 3.5, w.z - 0.4);
+    const tankSign = signMesh('WATER', '#4f8fd6', '#ffffff', 256, 64, 0.9, 0.24); tankSign.position.set(w.x - 0.5, 2.9, w.z + 0.24); group.add(tankSign);
+    add(box, M({ color: 0xd8d0c0 }), 0.9, 0.8, 0.8, w.x + 0.65, 0.4, w.z - 0.5); add(box, M({ color: 0x7a3f3a }), 1.0, 0.12, 0.9, w.x + 0.65, 0.84, w.z - 0.5);
+    add(box, M({ color: 0x8a9298 }), 1.9, 0.18, 0.95, w.x + 0.1, 0.09, w.z + 0.75); add(box, new THREE.MeshLambertMaterial({ color: 0x3fb8e8, emissive: 0x0a3a5a }), 1.75, 0.04, 0.8, w.x + 0.1, 0.18, w.z + 0.75);
+    add(box, M({ color: 0x5a6a70 }), 0.1, 0.1, 0.9, w.x + 0.45, 0.2, w.z + 0.1);
   } else if (type === 'lab') {
     slab(0x4a5a60, 0.06);
     add(box, M({ color: 0xd8dde0 }), 2.3, 2.0, 1.8, w.x, 1.0, w.z - 0.3);
