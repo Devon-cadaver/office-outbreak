@@ -1,6 +1,6 @@
 # Survive Dead City — itch.io page kit
 
-Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.3.3**. Upload `release/survive-dead-city-web-v1.3.3.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
+Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.4.0**. Upload `release/survive-dead-city-web-v1.4.0.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
 
 ## Upload settings (Edit game page)
 
@@ -11,7 +11,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 | Short description / tagline | Two zombie games in your browser: survive six nights in Dead City, or extract the crowds in a snake-style maze run. |
 | Classification | Game |
 | Kind of project | **HTML** |
-| Uploads | `survive-dead-city-web-v1.3.3.zip` (0.4 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
+| Uploads | `survive-dead-city-web-v1.4.0.zip` (0.4 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
 | Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
 | Frame options | Leave SharedArrayBuffer off. No special headers needed. |
 | Pricing | Free (or "No payments"). |
@@ -62,7 +62,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 **Both games**
 
 - Seasons: Halloween, Christmas and the 4th of July dress every house, shop and park (random by default, or pick one).
-- Beat either game to earn a coin and spend it in the skin shop: 32 outfits for you, survivor sets you can mix, 23 rides from an A-Team van to a dragon, and fire colours.
+- Beat either game to earn a coin and spend it in the skin shop: 32 outfits for you, survivor sets you can mix, 23 rides from an A-Team van to a dragon, six tornado skins (Sharknado included), and fire colours.
 - Save at any time, continue later. Pause with ❚❚.
 - Built for phones in portrait. Works with mouse and keyboard too.
 
@@ -78,6 +78,7 @@ Small browser games built fast, tested on a phone, and tuned by playing. Survive
 
 ## Version history
 
+- **1.4.0** (2026-10-18): Tornado skins in the shop (2 coins each), used by every tornado in every mode: Hallowstorm (black, bats and jack-o-lanterns, green/purple/orange lights), Blizzard (white, snow, reindeer and snowmen, red and green lightning), Firenado (fire, embers, red lightning), Sharknado (waterspout full of sharks), Bunnynado (pastels, bunnies and eggs, pink lightning) and Liberty Twister (red, white and blue, flags, fireworks, multicolour lightning).
 - **1.3.3** (2026-10-18): Tornado Alley: cloud seeders are easier to dodge early on. They arrive later (and only once you have started growing on the first two levels), fly slower and turn wider on early levels, spray a smaller zone, and fly on after each pass instead of circling over you. Full strength again by the Megacity.
 - **1.3.2** (2026-10-18): Tornado Alley gets a 3RD chase camera (ISO/3RD button, remembered): low behind the storm, turning with it, pulling back as it grows.
 - **1.3.1** (2026-10-18): Tornado Alley gets an enemy: cloud-seeding planes hunt the storm and their spray shrinks it. They fly faster but turn slowly, so dodge sideways; a blue zone shows where the spray lands and an edge arrow warns of incoming planes. Grow to F3 and you can swallow them (+500). More planes on later levels.

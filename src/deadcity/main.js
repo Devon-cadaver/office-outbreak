@@ -2,7 +2,7 @@
 // Survive three nights, collect spell books, reach the helipad at dawn. Kept deliberately small.
 import * as THREE from 'three';
 import { bindSeasonSelect } from '../season.js';
-import { equippedSkin, addCoins, CHAR_SKINS } from '../skins.js';
+import { equippedSkin, equippedTornado, addCoins, CHAR_SKINS } from '../skins.js';
 import { generateMaze, buildCity, flowField, findPath, toWorld, toCell, CELL, mulberry32, NIGHT } from '../city.js';
 import { makeCharacter, animateWalk } from '../poster/characters.js';
 import { createFires, setFlamePalette } from '../fire.js';
@@ -213,7 +213,7 @@ const SPELLS = {
 const tornadoes = []; const funnelMat = new THREE.MeshBasicMaterial({ color: 0x9a9aa8, transparent: true, opacity: 0.35, depthWrite: false });
 const twisters = createTwisters(scene, { onBolt: (p, ground) => { lightFlash = Math.max(lightFlash, ground ? 0.22 : 0.12); if (ground) { if (Math.random() < 0.35) sfx.boom(); fx.puff('smoke', new THREE.Vector3(p.x, 0.3, p.z), 0.6); } } });
 function flyingJunk() { const out = []; const c = makeCar([0xc23b3b, 0x4f8fd6, 0xe8d54a][(Math.random() * 3) | 0]); c.scale.setScalar(0.28); out.push(c); const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.45, 10), new THREE.MeshLambertMaterial({ color: 0x3a6a8a })); out.push(barrel); const shed = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.5, 0.6), new THREE.MeshLambertMaterial({ color: 0x8a5a3a })); out.push(shed); return out; }
-function spawnTornado(pos, dir, o) { const g = twisters.make(o.big, o.big ? flyingJunk() : []); g.position.set(pos.x, 0, pos.z); scene.add(g);
+function spawnTornado(pos, dir, o) { const g = twisters.make(o.big, o.big ? flyingJunk() : [], equippedTornado()); g.position.set(pos.x, 0, pos.z); scene.add(g);
   tornadoes.push({ g, dir: new THREE.Vector3(dir.x, 0, dir.z).normalize(), life: o.life, radius: o.radius, speed: o.speed, big: o.big, turn: 0 }); return g; }
 function clearTornadoes() { twisters.clear(); tornadoes.length = 0; wrecks.length = 0; }
 const wrecks = [];

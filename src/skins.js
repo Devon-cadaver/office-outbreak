@@ -2,6 +2,8 @@
 // accessories; car skins recolour and dress the player's car and the parked cars and vans.
 import * as THREE from 'three';
 import { CHAR_SKINS2, CAR_SKINS2, FX_SKINS } from './skins2.js';
+import { TWISTER_SKINS } from './tornado.js';
+export { TWISTER_SKINS };
 
 const K = { coins: 'oo_coins', owned: 'oo_skins_owned', equip: 'oo_skins_equip' };
 const get = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
@@ -11,7 +13,7 @@ export function addCoins(n) { set(K.coins, Math.round((getCoins() + n) * 100) / 
 export function fmtCoins(c = getCoins()) { const v = Math.round(c * 100) / 100; return v + (v === 1 ? ' coin' : ' coins'); }
 export function grantSkin(id) { const owned = getOwned(); if (owned.includes(id)) return false; owned.push(id); set(K.owned, owned); return true; }
 export function getOwned() { return get(K.owned, []); }
-export function getEquipped() { const e = { player: null, npc: [], car: null, fx: null, ...get(K.equip, {}) }; if (typeof e.npc === 'string') e.npc = [e.npc]; if (!Array.isArray(e.npc)) e.npc = []; return e; }
+export function getEquipped() { const e = { player: null, npc: [], car: null, fx: null, tornado: null, ...get(K.equip, {}) }; if (typeof e.npc === 'string') e.npc = [e.npc]; if (!Array.isArray(e.npc)) e.npc = []; return e; }
 export const NPC_MAX = 10;
 export function equip(cat, id) { const e = getEquipped(); if (cat === 'npc') { if (id == null) e.npc = []; else if (e.npc.includes(id)) e.npc = e.npc.filter((x) => x !== id); else if (e.npc.length < NPC_MAX) e.npc.push(id); } else e[cat] = id; set(K.equip, e); }
 export function isEquipped(cat, id) { const e = getEquipped(); return cat === 'npc' ? e.npc.includes(id) : e[cat] === id; }
@@ -63,7 +65,9 @@ export const SKINS = [
   ...Object.entries(CHAR_SKINS).flatMap(([id, s]) => s.cats.map((cat) => ({ id: cat + ':' + id, key: id, cat, name: s.name + (cat === 'npc' ? ' survivors' : ''), price: cat === 'npc' ? 1 : 2, desc: cat === 'npc' ? 'Pick up to ten; survivors and crowds wear a random mix.' : 'Your character wears it in both games.' }))),
   ...Object.entries(FX_SKINS).map(([id, s]) => ({ id: 'fx:' + id, key: id, cat: 'fx', name: s.name, price: s.price, desc: s.flames ? 'Hellfire, burning zombies and fires change colour.' : 'What you throw turns to gold.' })),
   ...Object.entries(CAR_SKINS).map(([id, s]) => ({ id: 'car:' + id, key: id, cat: 'car', name: s.name, price: s.price, desc: 'Your car and the parked cars and vans.' })),
+  ...Object.entries(TWISTER_SKINS).map(([id, s]) => ({ id: 'tornado:' + id, key: id, cat: 'tornado', name: s.name, price: s.price, desc: s.desc })),
 ];
+export function equippedTornado() { const e = getEquipped().tornado; return e ? e.split(':')[1] : null; }
 export function equippedSkin(cat) { let e = getEquipped()[cat]; if (cat === 'npc') e = e.length ? e[(Math.random() * e.length) | 0] : null; if (!e) return null; const key = e.split(':')[1] || e; return cat === 'car' ? CAR_SKINS[key] || null : cat === 'fx' ? FX_SKINS[key] || null : CHAR_SKINS[key] || null; }
 // ghost cars: every material on the finished group goes see-through
 export function ghostify(group) { group.traverse((m) => { if (m.isMesh && m.material && m.material.color) { m.material = m.material.clone(); m.material.transparent = true; m.material.opacity = 0.45; } }); }

@@ -8,7 +8,7 @@ import { makeCar } from '../car.js';
 import { createTwisters } from '../tornado.js';
 import { createFires } from '../fire.js';
 import { unlockAudio, sfx, startMusic, stopMusic, setMusicChase } from '../audio.js';
-import { equippedSkin, CHAR_SKINS } from '../skins.js';
+import { equippedSkin, equippedTornado, CHAR_SKINS } from '../skins.js';
 import { showChests } from '../chests.js';
 import { stampVersion } from '../version.js';
 
@@ -114,7 +114,7 @@ let tw = null, twObj = null, size = 1, sizeShown = 1, mass = 0;
 function makeStorm() {
   const junk = []; const c = makeCar([0xc23b3b, 0x4f8fd6, 0xe8d54a][(Math.random() * 3) | 0]); c.scale.setScalar(0.28); junk.push(c);
   junk.push(new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.45, 10), new THREE.MeshLambertMaterial({ color: 0x3a6a8a })));
-  twObj = twisters.make(true, junk); twObj.position.set(0, 0, 0); scene.add(twObj); tw = twObj.userData.twister; tw.layers.forEach((L, i) => { L.userData.op0 = [0.6, 0.38, 0.2][i]; }); [0x55555f, 0x8b8b98, 0xb0a48c].forEach((c, i) => tw.layers[i] && tw.layers[i].material.color.setHex(c));
+  twObj = twisters.make(true, junk, equippedTornado()); twObj.position.set(0, 0, 0); scene.add(twObj); tw = twObj.userData.twister; tw.layers.forEach((L) => { L.userData.op0 = L.material.opacity; });
   size = sizeShown = 1; mass = 0; twObj.scale.setScalar(S0);
 }
 const reach = () => 1.6 * sizeShown; // ground radius that wrecks things
