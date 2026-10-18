@@ -139,6 +139,7 @@ function grow(m) { mass = Math.max(0, mass + m); size = Math.min(MAX_S, 1 + (MAX
 // ---------- the storm's enemy: cloud-seeding planes. They hunt the storm and spray it, and the spray shrinks it.
 // Grow to F3 and a plane that flies into the funnel gets swallowed instead. ----------
 let planes = [], seedT = 30, seededT = 0; const sprayDrops = [];
+const SEED = () => { const k = level - 1; return { speed: 5.5 + 0.6 * k, turn: 0.5 + 0.08 * k, hit: 2 + 0.3 * k, sticks: 1.5 + 0.25 * k, bite: 0.03 + 0.006 * k, cool: 6 - 0.4 * k, first: [45, 38, 32, 28, 24][k], every: Math.max(14, 34 - 4 * k), minRank: k < 2 ? 1 : 0 }; };
 const sprayGeo = new THREE.SphereGeometry(0.07, 6, 4), sprayMat = new THREE.MeshBasicMaterial({ color: 0xe8f6ff, transparent: true, opacity: 0.85, depthWrite: false });
 function makePlane() {
   const g = new THREE.Group(); const white = new THREE.MeshLambertMaterial({ color: 0xf2f2f2 }), orange = new THREE.MeshLambertMaterial({ color: 0xf07a28 }), dark = new THREE.MeshLambertMaterial({ color: 0x2a2e33 }), glass = new THREE.MeshLambertMaterial({ color: 0x5a86a8 });
@@ -156,33 +157,34 @@ function spawnPlane() {
   planes.push({ g, zone, arrow, heading: Math.atan2(-g.position.x, -g.position.z), life: 26, spraying: false }); banner('✈ CLOUD SEEDER!'); sfx.whoosh();
 }
 function updatePlanes(dt, px, pz, R) {
-  seedT -= dt; const maxUp = 1 + Math.floor((level - 1) / 2); if (seedT <= 0) { seedT = Math.max(14, 30 - 3 * level) + Math.random() * 6; if (planes.length < maxUp) spawnPlane(); }
+  const S = SEED(); seedT -= dt; const maxUp = 1 + Math.floor((level - 1) / 2); if (seedT <= 0 && rankOf(sizeShown) >= S.minRank) { seedT = S.every + Math.random() * 6; if (planes.length < maxUp) spawnPlane(); }
   const topR = R * 1.4, stormH = 11 * S0 * sizeShown; let sprayed = false;
   for (let i = planes.length - 1; i >= 0; i--) { const pl = planes[i], g = pl.g; pl.life -= dt;
     // hunt: turn toward the storm (with a limited turn rate, so they swing past and come round again); leave when time's up
     const dx = px - g.position.x, dz = pz - g.position.z, d = Math.hypot(dx, dz);
-    if (pl.life > 0) { const want = Math.atan2(dx, dz); let dr = want - pl.heading; dr = Math.atan2(Math.sin(dr), Math.cos(dr)); pl.heading += Math.max(-1, Math.min(1, dr)) * 0.9 * dt; }
-    g.position.x += Math.sin(pl.heading) * 8.5 * dt; g.position.z += Math.cos(pl.heading) * 8.5 * dt; g.rotation.set(0, pl.heading, 0); g.rotateZ(-Math.max(-0.6, Math.min(0.6, (pl.lastH != null ? (pl.heading - pl.lastH) / Math.max(dt, 1e-3) : 0) * 0.5))); pl.lastH = pl.heading;
+    pl.cool = (pl.cool || 0) - dt; if (d < 9) pl.near = true; else if (pl.near) { pl.near = false; pl.cool = S.cool; }
+    if (pl.life > 0 && pl.cool <= 0) { const want = Math.atan2(dx, dz); let dr = want - pl.heading; dr = Math.atan2(Math.sin(dr), Math.cos(dr)); pl.heading += Math.max(-1, Math.min(1, dr)) * S.turn * dt; }
+    g.position.x += Math.sin(pl.heading) * S.speed * dt; g.position.z += Math.cos(pl.heading) * S.speed * dt; g.rotation.set(0, pl.heading, 0); g.rotateZ(-Math.max(-0.6, Math.min(0.6, (pl.lastH != null ? (pl.heading - pl.lastH) / Math.max(dt, 1e-3) : 0) * 0.5))); pl.lastH = pl.heading;
     for (const p of g.userData.props) p.rotation.z += dt * 40;
-    { const zr = (4 + R) / 4; pl.zone.position.set(g.position.x, 0.09, g.position.z); pl.zone.scale.setScalar(zr); pl.zone.material.opacity = pl.spraying ? 0.5 + Math.sin(played * 12) * 0.15 : 0.22; pl.zone.visible = pl.life > 0;
+    { const zr = (S.hit + R * 0.5) / 4; pl.zone.position.set(g.position.x, 0.09, g.position.z); pl.zone.scale.setScalar(zr); pl.zone.material.opacity = pl.spraying ? 0.5 + Math.sin(played * 12) * 0.15 : 0.22; pl.zone.visible = pl.life > 0;
       const v = g.position.clone().project(viewCam()); const off = Math.abs(v.x) > 0.95 || Math.abs(v.y) > 0.95; pl.arrow.style.display = off && pl.life > 0 ? 'block' : 'none';
       if (off) { const a = Math.atan2(v.y, v.x), k = 0.9 / Math.max(Math.abs(Math.cos(a)), Math.abs(Math.sin(a))); const sx = (Math.cos(a) * k * 0.5 + 0.5) * innerWidth, sy = (-Math.sin(a) * k * 0.5 + 0.5) * innerHeight; pl.arrow.style.transform = 'translate(' + sx + 'px,' + sy + 'px) translate(-50%,-50%) rotate(' + (-a + Math.PI / 4) + 'rad)'; } }
     // swallowed by a big enough storm
     if (rankOf(sizeShown) >= 3 && d < topR && g.position.y < stormH + 1) { planes.splice(i, 1); scene.remove(pl.zone); pl.arrow.remove(); twisters.suck(g, tw); award(500, g.position, 'PLANE DOWN'); grow(2); banner('PLANE DOWN!'); sfx.boom(); fx.explode(g.position.clone(), 1); continue; }
     // spraying: when it's over the storm, seeding drops rain down and the storm shrinks
-    pl.spraying = d < 9 && pl.life > 0;
+    pl.spraying = d < 9 && pl.life > 0 && pl.cool <= 0;
     if (pl.spraying && Math.random() < dt * 40) { for (const sx of [-1.35, 1.35]) { const m = new THREE.Mesh(sprayGeo, sprayMat); m.position.copy(new THREE.Vector3(sx, -0.1, 0).applyMatrix4(g.matrixWorld)); scene.add(m); sprayDrops.push({ m, vel: new THREE.Vector3((Math.random() - 0.5) * 1.5, -3 - Math.random() * 2, (Math.random() - 0.5) * 1.5), life: 2.2 }); } }
-    if (pl.spraying && d < 4 + R) sprayed = true;
+    if (pl.spraying && d < S.hit + R * 0.5) sprayed = true;
     if (pl.life <= 0 && Math.hypot(g.position.x, g.position.z) > Math.max(cols, rows) * CELL * 0.75) { scene.remove(g); scene.remove(pl.zone); pl.arrow.remove(); planes.splice(i, 1); }
   }
   for (let i = sprayDrops.length - 1; i >= 0; i--) { const s = sprayDrops[i]; s.life -= dt; s.m.position.addScaledVector(s.vel, dt); s.m.scale.setScalar(1 + (2.2 - s.life) * 1.5); if (s.life <= 0 || s.m.position.y < 0) { scene.remove(s.m); sprayDrops.splice(i, 1); } }
   // the seeding bites: the storm loses size while it's under the spray
-  if (sprayed) { if (seededT <= 0) sfx.hurt(); seededT = 3; } // the seed sticks: it keeps shrinking the storm for 3 s after a pass
-  if (seededT > 0) { grow(-massTarget * 0.07 * dt); if (Math.random() < dt * 2.5) popup(twObj.position, '-SIZE', '#9fd6ff'); }
+  if (sprayed) { if (seededT <= 0) sfx.hurt(); seededT = S.sticks; } // the seed sticks: it keeps shrinking the storm for 3 s after a pass
+  if (seededT > 0) { grow(-massTarget * S.bite * dt); if (Math.random() < dt * 2.5) popup(twObj.position, '-SIZE', '#9fd6ff'); }
   seededT -= dt; const pale = seededT > 0; for (const L of tw.layers) L.material.opacity = L.userData.op0 * (pale ? 0.45 + Math.random() * 0.15 : 1);
   $('taSeeded').style.opacity = pale ? 1 : 0;
 }
-function clearPlanes() { for (const pl of planes) { scene.remove(pl.g); scene.remove(pl.zone); pl.arrow.remove(); } planes = []; for (const s of sprayDrops) scene.remove(s.m); sprayDrops.length = 0; seedT = Math.max(16, 32 - 3 * level); seededT = 0; }
+function clearPlanes() { for (const pl of planes) { scene.remove(pl.g); scene.remove(pl.zone); pl.arrow.remove(); } planes = []; for (const s of sprayDrops) scene.remove(s.m); sprayDrops.length = 0; seedT = SEED().first; seededT = 0; }
 function wreckBuilding(x) {
   x.done = true; bDone++; { const i = city.obstacles.findIndex((o) => Math.abs(o.x - x.pos.x) < 0.3 && Math.abs(o.z - x.pos.z) < 0.3); if (i >= 0) city.obstacles.splice(i, 1); } const size3 = new THREE.Box3().setFromObject(x.obj).getSize(new THREE.Vector3()); const loose = x.obj === x.b ? (x.b.userData.extras || []).filter((m) => m.parent) : [];
   if (x.b.userData.edges) x.b.userData.edges.visible = false; twisters.tear(x.obj, x.pos, size3, tw, loose); award(x.pts, x.pos); grow(x.h); sfx.boom();
