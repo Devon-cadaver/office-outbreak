@@ -16,6 +16,8 @@ export function createInput(canvas, camera) {
     return ray.ray.intersectPlane(ground, hit) ? { x: hit.x, z: hit.z } : null;
   };
   canvas.addEventListener('pointerdown', (e) => {
+    // first finger down means nothing else is held: drop pointers whose "up" got lost (system swipe, finger off the iframe)
+    if (e.isPrimary && (pointers.size || id !== null)) { pointers.clear(); down = false; pinching = false; id = null; clearTimeout(holdTimer); }
     pointers.set(e.pointerId, [e.clientX, e.clientY]);
     if (pointers.size === 2) { const [a, b] = [...pointers.values()]; pinchDist = Math.hypot(a[0] - b[0], a[1] - b[1]); pinching = true; down = false; id = null; for (const f of listeners.dragEnd) f(); return; }
     if (id !== null) return; id = e.pointerId; try { canvas.setPointerCapture(e.pointerId); } catch { /* synthetic or stale pointer */ }

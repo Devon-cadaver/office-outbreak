@@ -1,6 +1,6 @@
 # Survive Dead City — itch.io page kit
 
-Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.0**. Upload `release/survive-dead-city-web-v1.0.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
+Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.0.1**. Upload `release/survive-dead-city-web-v1.0.1.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
 
 ## Upload settings (Edit game page)
 
@@ -11,7 +11,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 | Short description / tagline | Two zombie games in your browser: survive six nights in Dead City, or extract the crowds in a snake-style maze run. |
 | Classification | Game |
 | Kind of project | **HTML** |
-| Uploads | `survive-dead-city-web-v1.0.zip` (0.4 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
+| Uploads | `survive-dead-city-web-v1.0.1.zip` (0.4 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
 | Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
 | Frame options | Leave SharedArrayBuffer off. No special headers needed. |
 | Pricing | Free (or "No payments"). |
@@ -76,6 +76,7 @@ Small browser games built fast, tested on a phone, and tuned by playing. Survive
 
 ## Version history
 
+- **1.0.1** (2026-10-18): Survival joystick no longer dies when a touch release is lost (system swipe, finger off the frame); same fix for Extract touch input. Extract tips are smaller, sit at the top and fade out.
 - **1.0** (2026-10-18): Extract end-of-district chests (coin slivers, very rare free skins), slower pacing to match smaller characters, infection in your line only from dead ends or crossing your tail, survivors pay less and upgrades cost more, buildings only go see-through in ISO view. Extract scoring by survivors escaped, 10 per district minimum, heli rope pickup, rival crews, armed followers, no U-turns and dead-end infection, more zombies. Smaller characters that fit through doors. Town renamed Ashford. Survival mercenaries and a living city. Visual pass: grass, flowers, clouds, faces, animations, rolling wheels, zombie eye beams.
 - **0.9**: first itch upload (`survive-dead-city-web-v0.9.zip`).
 

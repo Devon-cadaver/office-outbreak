@@ -219,7 +219,7 @@ function chestPicks(rescued) { return Math.min(3, 1 + Math.floor(Math.max(0, res
 function followCount() { let n = 0; for (const c of civilians) if (c.userData.follow) n++; return n; }
 function addScore(base) { const mult = Math.min(5, 1 + streak); earn(Math.round(base * mult / 4)); streak++; streakT = 8; updateHud(); }
 const tipEl = document.getElementById('tip');
-function setTip(t) { if (tip === t) return; tip = t; tipEl.textContent = t; tipEl.classList.toggle('hidden', !t); }
+let tipT = 0; function setTip(t) { if (tip === t) return; tip = t; tipEl.textContent = t; tipEl.classList.toggle('hidden', !t); clearTimeout(tipT); if (t) tipT = setTimeout(() => tipEl.classList.add('hidden'), 4000 + t.length * 40); } // tips fade out on their own
 const markerGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.05, 10), markerMat = new THREE.MeshBasicMaterial({ color: 0x7dff6a, transparent: true, opacity: 0.75 });
 const markers = []; for (let i = 0; i < 60; i++) { const mk = new THREE.Mesh(markerGeo, markerMat); mk.visible = false; scene.add(mk); markers.push(mk); }
 function showRoute() { markers.forEach((mk, i) => { const c = route[i]; mk.visible = !!c; if (c) { const w = toWorld(c[0], c[1], cols, rows); mk.position.set(w.x, 0.04, w.z); } }); }

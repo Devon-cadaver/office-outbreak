@@ -84,7 +84,7 @@ button.ghost { background: transparent; color: #c9a6ff; border: 2px solid #9a5fd
 #lookBtn.on .pupil { background: #2a1449; animation-duration: 1s; }
 @keyframes lookAround { 0%, 20% { transform: translateX(-4px); } 45%, 65% { transform: translateX(4px); } 85%, 100% { transform: translateX(-4px); } }
 body.look #game { cursor: grab; }
-#tip { position: fixed; left: 50%; bottom: calc(80px + env(safe-area-inset-bottom, 0)); transform: translateX(-50%); max-width: 90vw; padding: 10px 16px; background: #1a0f2edd; border: 1px solid #7dff3a88; border-radius: 10px; font-size: 15px; text-align: center; pointer-events: none; }
+#tip { position: fixed; left: 50%; top: calc(118px + env(safe-area-inset-top, 0)); transform: translateX(-50%); width: max-content; max-width: min(72vw, 360px); padding: 5px 10px; background: #1a0f2ebb; border: 1px solid #7dff3a66; border-radius: 8px; font-size: 12px; line-height: 1.3; text-align: center; pointer-events: none; }
 #slideImg { width: min(78vw, 300px); max-height: 46vh; object-fit: cover; border-radius: 12px; border: 2px solid #ffd24a88; box-shadow: 0 8px 24px #000a; }
 #howto p { max-width: 320px; font-size: 16px; }
 .row-btns { display: flex; gap: 12px; }
