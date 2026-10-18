@@ -15,6 +15,10 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 const vcMats = new Map(); const vcMat = (kind, side) => { const k = kind + side; if (!vcMats.has(k)) vcMats.set(k, kind === 'B' ? new THREE.MeshBasicMaterial({ vertexColors: true, side }) : new THREE.MeshLambertMaterial({ vertexColors: true, side, flatShading: kind === 'LF' })); return vcMats.get(k); };
 const plainKind = (mt) => { if (mt.transparent || mt.map || mt.vertexColors) return null; if (mt.type === 'MeshBasicMaterial') return 'B'; if (mt.type === 'MeshLambertMaterial' && (!mt.emissive || mt.emissive.getHex() === 0)) return mt.flatShading ? 'LF' : 'L'; return null; };
 function batchDecor(root, skip) {
+  // pieces built onto other pieces (wreath berries, gift bows, snowman parts) move up to the nearest group, in place, so they can merge too;
+  // anything riding an animated piece stays put
+  root.updateMatrixWorld(true); const nested = []; root.traverse((m) => { if (m.isMesh && m.userData.deco && m.parent && m.parent.isMesh) nested.push(m); });
+  for (const m of nested) { let anc = m.parent, moving = false; while (anc && anc.isMesh) { if (skip.has(anc)) moving = true; anc = anc.parent; } if (anc && !moving) anc.attach(m); }
   const buckets = new Map();
   root.traverse((m) => { if (!m.isMesh || !m.userData.deco || skip.has(m) || m.children.length || !m.parent || m.parent.isMesh || Array.isArray(m.material)) return; if (![m.position.x, m.position.y, m.position.z, m.scale.x, m.scale.y, m.scale.z].every(Number.isFinite)) return;
     const kind = plainKind(m.material); const key = m.parent.uuid + '|' + (m.userData.owner || 0) + '|' + (kind ? kind + m.material.side : m.material.uuid);
