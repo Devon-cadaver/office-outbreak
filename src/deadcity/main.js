@@ -97,8 +97,9 @@ addEventListener('pointerdown', (e) => { if (e.target.closest('button') || state
 let zoom = 0.7; try { zoom = +localStorage.getItem('dc_zoom') || 0.7; } catch { /* ignore */ }
 function setZoom(z) { zoom = Math.max(0.45, Math.min(1.6, z)); try { localStorage.setItem('dc_zoom', String(zoom)); } catch { /* ignore */ } resize(); }
 let pinchD = 0; const dist2 = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
-addEventListener('touchstart', (e) => { if (e.touches.length >= 2) { e.preventDefault(); pinchD = dist2(e.touches); stick.id = null; stick.x = stick.y = 0; knob.style.transform = 'translate(-50%, -50%)'; look.id = null; } }, { passive: false });
-addEventListener('touchmove', (e) => { if (e.touches.length >= 2) { e.preventDefault(); const d = dist2(e.touches); if (pinchD > 0 && d > 0) setZoom(zoom * pinchD / d); pinchD = d; } }, { passive: false });
+// a pinch is two fingers on the game view with no joystick held; a thumb on the stick plus a finger on FIRE (or looking around) is not a pinch
+addEventListener('touchstart', (e) => { if (e.touches.length >= 2 && stick.id === null && [...e.touches].every((t) => t.target === canvas)) { e.preventDefault(); pinchD = dist2(e.touches); stick.id = null; stick.x = stick.y = 0; knob.style.transform = 'translate(-50%, -50%)'; look.id = null; } }, { passive: false });
+addEventListener('touchmove', (e) => { if (e.touches.length >= 2 && pinchD > 0) { e.preventDefault(); const d = dist2(e.touches); if (pinchD > 0 && d > 0) setZoom(zoom * pinchD / d); pinchD = d; } }, { passive: false });
 addEventListener('touchend', (e) => { if (e.touches.length < 2) pinchD = 0; if (!e.touches.length) resetStick(); });
 addEventListener('touchcancel', (e) => { if (!e.touches.length) { pinchD = 0; resetStick(); } });
 document.addEventListener('visibilitychange', () => { if (document.hidden) resetStick(); });
