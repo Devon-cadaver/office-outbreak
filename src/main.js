@@ -386,7 +386,7 @@ function buildLevel(n) {
   const portrait = innerWidth < innerHeight;
   const tutorial = n === 1;
   const grow = Math.min(12, Math.max(0, n - 2) * 2);
-  let c = (portrait ? (tutorial ? 15 : 19) : (tutorial ? 23 : 29)) + grow, r = (portrait ? (tutorial ? 23 : 29) : (tutorial ? 15 : 19)) + grow;
+  let c = (portrait ? (tutorial ? 11 : 19) : (tutorial ? 15 : 29)) + grow, r = (portrait ? (tutorial ? 15 : 29) : (tutorial ? 11 : 19)) + grow;
   if (c % 2 === 0) c++; if (r % 2 === 0) r++;
   cols = c; rows = r;
   const rng = mulberry32(n * 1337 + 42 + (n > 1 ? runSeed : 0));
@@ -483,7 +483,7 @@ function buildLevel(n) {
   const deadEndCell = (x, y) => [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([dx, dy]) => maze[y + dy]?.[x + dx] === false).length <= 1;
   for (let i = 0; i < crowdCount; i++) {
     const s = pick((c) => !deadEndCell(c.x, c.y)) || pick(() => true); if (!s) break;
-    const w = toWorld(s.x, s.y, cols, rows); const size = 2 + ((rng() * 3) | 0);
+    const w = toWorld(s.x, s.y, cols, rows); const size = tutorial ? 3 + ((rng() * 2) | 0) : 2 + ((rng() * 3) | 0);
     for (let k = 0; k < size; k++) {
       const civ = pool.civ.pop() || makeCharacter(CIV_OUTFITS[(rng() * CIV_OUTFITS.length) | 0], { skin: equippedSkin('npc') });
       civ.position.set(w.x + (rng() - 0.5) * 1.6, 0, w.z + (rng() - 0.5) * 1.6); civ.rotation.y = rng() * 6.28;
@@ -1248,7 +1248,7 @@ function render(dt = 0.016) {
     } else arrowEl.classList.add('hidden');
     void lim;
   }
-  if (city && city.detail) city.detail.sky(!thirdPerson && !BUILD, !BUILD); // the builder gets a clear, still view
+  if (city && city.detail) city.detail.sky(false, !BUILD); // the builder gets a clear, still view
   if (thirdPerson) { const back = new THREE.Vector3(-Math.sin(player.rotation.y), 0, -Math.cos(player.rotation.y)); const want = player.position.clone().addScaledVector(back, 2.6).add(new THREE.Vector3(0, 2.9, 0)); tpPos.lerp(want, 1 - Math.pow(0.001, dt)); tpCam.position.copy(tpPos); tpCam.lookAt(player.position.x - back.x * 2.2, 0.3, player.position.z - back.z * 2.2); renderer.render(scene, tpCam); } else renderer.render(scene, camera);
 }
 resize();

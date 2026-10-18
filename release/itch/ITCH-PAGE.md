@@ -1,6 +1,6 @@
 # Survive Dead City — itch.io page kit
 
-Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.5.3**. Upload `release/survive-dead-city-web-v1.5.3.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
+Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.5.4**. Upload `release/survive-dead-city-web-v1.5.4.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
 
 ## Upload settings (Edit game page)
 
@@ -11,7 +11,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 | Short description / tagline | Three games in your browser: survive six nights in Dead City, extract the crowds in a snake-style maze, or BE the tornado in Tornado Alley. |
 | Classification | Game |
 | Kind of project | **HTML** |
-| Uploads | `survive-dead-city-web-v1.5.3.zip` (0.4 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
+| Uploads | `survive-dead-city-web-v1.5.4.zip` (0.4 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
 | Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
 | Frame options | Leave SharedArrayBuffer off. No special headers needed. |
 | Pricing | Free (or "No payments"). |
@@ -90,6 +90,7 @@ Small browser games built fast, tested on a phone, and tuned by playing. Survive
 
 ## Version history
 
+- **1.5.4** (2026-10-18): Extract district 1 is much smaller (11x15 instead of 15x23) with bigger crowds (about 27 people for the 10 you need). The pale cloud wisps no longer wash over the Extract view.
 - **1.5.3** (2026-10-18): Christmas now costs about the same as no season (wreath berries and gift bows merge with the rest of each house).
 - **1.5.2** (2026-10-18): Smoother seasons in every mode: holiday decorations are merged into a few pieces per building (Halloween and 4th of July now cost about as much as no season, Christmas well under half what it did). Tornado Alley: the season cycles every round (never starting on the last one), the power plant, water station and fairground move each round, and every round builds a new-looking town.
 - **1.5.1** (2026-10-18): New logo, cover and banner: a 3D render of the town with a realistic tornado tearing down the avenue under a storm sky. The animated main-menu logo now has a spinning tornado with debris and lightning.
