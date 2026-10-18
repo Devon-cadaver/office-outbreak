@@ -373,7 +373,7 @@ export function buildCity(scene, wall, level) {
     const soffit = new THREE.Mesh(box, roofTrim); soffit.scale.set(bw + 0.5, 0.06, bd + 0.5); soffit.position.y = bh - 0.07; g.add(soffit);
     const chim = new THREE.Mesh(box, brickMat); chim.scale.set(0.25, 0.7, 0.25); chim.position.set(bw * 0.3, bh + rh * 0.6, -bd * 0.2); g.add(chim);
     // door + windows on the street face (local +z)
-    const door = new THREE.Mesh(box, doorMatH); door.scale.set(0.42, 0.7, 0.06); door.position.set(-0.55, 0.35, bd / 2 + 0.03); g.add(door);
+    const door = new THREE.Mesh(box, doorMatH); door.scale.set(0.42, 0.8, 0.06); door.position.set(-0.55, 0.4, bd / 2 + 0.03); g.add(door);
     for (const [wx, wy] of [[0.45, 0.6], [0.45, bh > 1.2 ? 1.45 : -1]]) if (wy > 0) { const win = new THREE.Mesh(box, rr() < 0.55 ? season.win(litWin, rr) : darkWin); win.scale.set(0.5, 0.4, 0.06); win.position.set(wx, wy, bd / 2 + 0.03); g.add(win); const fr = new THREE.Mesh(box, doorMatH); fr.scale.set(0.56, 0.46, 0.04); fr.position.set(wx, wy, bd / 2 + 0.02); g.add(fr); }
     const side = new THREE.Mesh(box, rr() < 0.4 ? season.win(litWin, rr) : darkWin); side.scale.set(0.06, 0.4, 0.5); side.position.set(bw / 2 + 0.03, 0.6, 0.2); g.add(side);
     if (rr() < 0.5) { const porch = new THREE.Mesh(box, roofMat); porch.scale.set(1.0, 0.06, 0.5); porch.position.set(-0.55, 0.95, bd / 2 + 0.25); g.add(porch); }

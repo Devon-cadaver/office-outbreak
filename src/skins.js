@@ -7,7 +7,9 @@ const K = { coins: 'oo_coins', owned: 'oo_skins_owned', equip: 'oo_skins_equip' 
 const get = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const set = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* ignore */ } };
 export function getCoins() { return +get(K.coins, 0) || 0; }
-export function addCoins(n) { set(K.coins, getCoins() + n); return getCoins(); }
+export function addCoins(n) { set(K.coins, Math.round((getCoins() + n) * 100) / 100); return getCoins(); } // coins can be fractional (chests pay 0.01s)
+export function fmtCoins(c = getCoins()) { const v = Math.round(c * 100) / 100; return v + (v === 1 ? ' coin' : ' coins'); }
+export function grantSkin(id) { const owned = getOwned(); if (owned.includes(id)) return false; owned.push(id); set(K.owned, owned); return true; }
 export function getOwned() { return get(K.owned, []); }
 export function getEquipped() { const e = { player: null, npc: [], car: null, fx: null, ...get(K.equip, {}) }; if (typeof e.npc === 'string') e.npc = [e.npc]; if (!Array.isArray(e.npc)) e.npc = []; return e; }
 export const NPC_MAX = 10;

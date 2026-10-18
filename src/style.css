@@ -100,3 +100,21 @@ body.look #game { cursor: grab; }
 #store .iname { font-weight: 800; }
 #store .iprice { color: #ffd24a; font-weight: 800; }
 #store .idesc { grid-column: 1 / -1; font-weight: 400; opacity: .85; font-size: 12px; }
+
+#people.ok { color: #7dff6a; }
+
+/* end-of-round chests */
+.chests { width: min(92vw, 420px); margin: 4px 0 8px; }
+.chestHead { font-size: 14px; font-weight: 700; color: #ffd24a; margin-bottom: 6px; }
+.chestRow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.chest { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 4px; min-height: 74px; font-size: 13px; background: #2a1a44; border: 2px solid #ffd24a; border-radius: 10px; color: #fff; box-shadow: 0 4px 0 #5a4a1a; }
+.chest .lid { font-size: 30px; line-height: 1; }
+.chest .res { font-size: 11px; font-weight: 700; min-height: 14px; }
+.chest.shake { animation: chestShake 0.65s; }
+.chest.open { box-shadow: none; transform: translateY(3px); }
+.chest.open.empty { border-color: #6a5a8a; opacity: 0.7; }
+.chest.open.coin, .chest.open.dupe { border-color: #ffd24a; background: #3a2a14; }
+.chest.open.skin { border-color: #7dff3a; background: #1a3a14; animation: chestWin 1s 2; }
+.chest.done { opacity: 0.35; }
+@keyframes chestShake { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(-9deg); } 40% { transform: rotate(9deg); } 60% { transform: rotate(-6deg); } 80% { transform: rotate(6deg) scale(1.08); } }
+@keyframes chestWin { 50% { transform: scale(1.12); box-shadow: 0 0 18px #7dff3a; } }

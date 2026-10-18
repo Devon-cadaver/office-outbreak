@@ -1,18 +1,18 @@
 // Skin shop: live 3D previews of every skin, buy with coins, tap again to equip.
 import * as THREE from 'three';
-import { SKINS, CHAR_SKINS, CAR_SKINS, FX_SKINS, NPC_MAX, getCoins, addCoins, getOwned, getEquipped, equip, isEquipped, buy } from './skins.js';
+import { SKINS, CHAR_SKINS, CAR_SKINS, FX_SKINS, NPC_MAX, getCoins, addCoins, getOwned, getEquipped, equip, isEquipped, buy, fmtCoins } from './skins.js';
 import { makeCharacter } from './poster/characters.js';
 import { makeCar } from './car.js';
 
 const $ = (id) => document.getElementById(id);
-{ const q = new URLSearchParams(location.search).get('coins'); if (q) addCoins(+q); } // admin: ?coins=5 to test
+if (import.meta.env.DEV) { const q = new URLSearchParams(location.search).get('coins'); if (q) addCoins(+q); } // local testing only: ?coins=5
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); renderer.setSize(150, 150); renderer.setPixelRatio(1);
 const scene = new THREE.Scene(); scene.add(new THREE.HemisphereLight(0xd0e8ff, 0x3a3a4a, 1.6)); const sun = new THREE.DirectionalLight(0xffffff, 0.8); sun.position.set(3, 6, 4); scene.add(sun);
 const cam = new THREE.PerspectiveCamera(32, 1, 0.1, 50); cam.position.set(0, 1.6, 5.2); cam.lookAt(0, 1.0, 0);
 const items = [];
 function build() {
   const grid = $('grid'); grid.innerHTML = ''; items.length = 0; const owned = getOwned(), eq = getEquipped();
-  $('coins').textContent = '🪙 ' + getCoins() + (getCoins() === 1 ? ' coin' : ' coins');
+  $('coins').textContent = '🪙 ' + fmtCoins();
   for (const cat of ['player', 'npc', 'car', 'fx']) {
     const h = document.createElement('h2'); h.textContent = { player: 'YOUR CHARACTER (2 coins)', npc: 'SURVIVORS & CROWDS (1 coin, pick up to 10)', car: 'VEHICLES', fx: 'EFFECTS' }[cat]; grid.appendChild(h);
     for (const s of SKINS.filter((x) => x.cat === cat)) {

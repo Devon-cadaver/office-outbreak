@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { bindSeasonSelect } from './season.js';
 import { equippedSkin, addCoins } from './skins.js';
+import { showChests } from './chests.js';
 { const e = equippedSkin('fx'); if (e && e.flames) setFlamePalette(e); }
 import { makeCharacter, animateWalk } from './poster/characters.js';
 import { generateMaze, buildCity, flowField, findPath, toWorld, toCell, CELL, mulberry32, NIGHT } from './city.js';
@@ -17,13 +18,13 @@ const BUILD = new URLSearchParams(location.search).get('build') === '1';
 let cash = 0, cashThisDistrict = 0;
 const inv = { shoes: 0, vest: false, flare: false, ammo: false, car: null, carHp: 0 };
 const STORE = [
-  { id: 'ammo', name: 'Ammo crate', desc: 'Start the next district with a rifle, 24 shots.', price: 100, once: true },
-  { id: 'medkit', name: 'Medkit', desc: 'One extra life (max 5).', price: 250 },
-  { id: 'vest', name: 'Kevlar vest', desc: 'Absorbs one zombie touch next district.', price: 300, once: true },
-  { id: 'shoes', name: 'Running shoes', desc: '+10% speed, permanent. Stacks 3 times.', price: 350, max: 3 },
-  { id: 'flare', name: 'Flare pack', desc: 'Sprinting drops a flare that lures zombies for 6 s.', price: 150, once: true },
-  { id: 'car', name: 'Car keys', desc: 'Drive the next district. Run zombies down. 5 hits wrecks it.', price: 1800 },
-  { id: 'repair', name: 'Repair car', desc: 'Restore the car to full health.', price: 800 },
+  { id: 'ammo', name: 'Ammo crate', desc: 'Start the next district with a rifle, 24 shots.', price: 200, once: true },
+  { id: 'medkit', name: 'Medkit', desc: 'One extra life (max 5).', price: 500 },
+  { id: 'vest', name: 'Kevlar vest', desc: 'Absorbs one zombie touch next district.', price: 600, once: true },
+  { id: 'shoes', name: 'Running shoes', desc: '+10% speed, permanent. Stacks 3 times.', price: 700, max: 3 },
+  { id: 'flare', name: 'Flare pack', desc: 'Sprinting drops a flare that lures zombies for 6 s.', price: 300, once: true },
+  { id: 'car', name: 'Car keys', desc: 'Drive the next district. Run zombies down. 5 hits wrecks it.', price: 3000 },
+  { id: 'repair', name: 'Repair car', desc: 'Restore the car to full health.', price: 1400 },
 ];
 let car = null, driving = false, carHits = 0;
 function earn(n) { cash += n; cashThisDistrict += n; }
@@ -85,7 +86,7 @@ const setBest = (v) => { try { localStorage.setItem('oo_best', String(v)); } cat
 ui.best.textContent = getBest() ? 'Best: ' + getBest() : '';
 
 // ---------- constants ----------
-const PLAYER_SPEED = 4.2, R = 0.25;
+const SPEED_K = 0.62, PLAYER_SPEED = 4.2 * SPEED_K, R = 0.2, CHAR_SCALE = 0.25; // speeds scaled with the people's size
 const CIV_OUTFITS = ['vest', 'suit', 'hoodie', 'hivis', 'punk', 'worker', 'pink', 'plaid'];
 const WEAPONS = {
   pistol:  { name: 'Pistol',  ammo: 12, rate: 0.35, range: 9,  speed: 22, pellets: 1, dmg: 1, color: 0x333333 },
@@ -174,6 +175,16 @@ addEventListener('pointerup', () => setStamMode(0));
 addEventListener('keydown', (e) => { if (e.key === 'ArrowLeft' || e.key === 'a') queueTurn(-1); if (e.key === 'ArrowRight' || e.key === 'd') queueTurn(1); if (e.key === 'ArrowDown' || e.key === 's') setStamMode(-1); if (e.key === 'ArrowUp' || e.key === 'w') setStamMode(1); });
 addEventListener('keyup', (e) => { if (['ArrowDown', 'ArrowUp', 's', 'w'].includes(e.key)) setStamMode(0); });
 // which perpendicular reads as "left" on screen depends on the camera, so ask it
+// pathfind with one cell treated as a wall (the cell you just came from)
+function pathAvoiding(from, to, avoid) { const was = avoid && maze[avoid.cy]?.[avoid.cx]; if (was === false) maze[avoid.cy][avoid.cx] = true; const p = findPath(maze, from, to); if (was === false) maze[avoid.cy][avoid.cx] = false; return p; }
+let deadEnds = 0;
+function deadEnd() { deadEnds++;
+  const line = civilians.filter((c) => c.userData.follow && !(c.userData.infect > 0));
+  if (!line.length) { say(player, 'Dead end.', 1.2); return; }
+  for (const c of line) { c.userData.infect = Math.max(c.userData.infect, 0.4); c.userData.infectT = 2; }
+  sfx.hurt(); say(player, 'Dead end! Back through the line...', 1.8); say(line[0], 'You touched us!', 1.6);
+  setTip('Dead end. Turning back walks you through your own line, and they all caught it. Steer clear of dead ends.');
+}
 function perps(h) { return { left: [h[1], -h[0]], right: [-h[1], h[0]] }; }
 let weapon = null, ammo = 0, fireTimer = 0, flow = null, flowTimer = 0, invuln = 0, totalPeople = 0, kills = 0;
 // player route: list of [cx, cy] cells to walk through
@@ -197,12 +208,16 @@ function updateBubbles(dt) {
   for (const b of bubbles) {
     if (b.t <= 0) continue; b.t -= dt;
     if (b.t <= 0 || !b.target) { b.el.classList.add('hidden'); continue; }
-    const v = b.target.position.clone(); v.y += 1.5 * b.target.scale.y + 1.0; v.project(camera);
+    const v = b.target.position.clone(); v.y += 2.7 * b.target.scale.y + 0.35; v.project(camera);
     b.el.style.transform = 'translate(' + ((v.x * 0.5 + 0.5) * innerWidth) + 'px,' + ((-v.y * 0.5 + 0.5) * innerHeight) + 'px) translate(-50%, -100%)';
   }
 }
 function objectiveCell() { return infected > 0 && antidote ? antidote : gate && !gate.open ? (gate.found ? switchCell : gate) : exitCell; }
-function addScore(base) { const mult = Math.min(5, 1 + streak); score += base * mult; earn(Math.round(base * mult / 2)); streak++; streakT = 8; updateHud(); }
+function needFor(n) { return 10 * n; }
+// one chest, plus one for every 10 survivors over the minimum (max 3)
+function chestPicks(rescued) { return Math.min(3, 1 + Math.floor(Math.max(0, rescued - needFor(level)) / 10)); }
+function followCount() { let n = 0; for (const c of civilians) if (c.userData.follow) n++; return n; }
+function addScore(base) { const mult = Math.min(5, 1 + streak); earn(Math.round(base * mult / 4)); streak++; streakT = 8; updateHud(); }
 const tipEl = document.getElementById('tip');
 function setTip(t) { if (tip === t) return; tip = t; tipEl.textContent = t; tipEl.classList.toggle('hidden', !t); }
 const markerGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.05, 10), markerMat = new THREE.MeshBasicMaterial({ color: 0x7dff6a, transparent: true, opacity: 0.75 });
@@ -213,17 +228,18 @@ function openCell(c) { return maze[c.cy]?.[c.cx] === false; }
 function setRouteTo(w) {
   if (state !== 'play') return;
   const target = toCell(w.x, w.z, cols, rows); if (!openCell(target)) return false;
-  const MAXR = 5; let path = findPath(maze, playerCell(), target);
+  const pc0 = playerCell(); const MAXR = 5; let path = pathAvoiding(pc0, target, { cx: pc0.cx - heading[0], cy: pc0.cy - heading[1] });
   if (path.length > MAXR) { path = path.slice(0, MAXR); if (!routeHintT || performance.now() - routeHintT > 4000) { routeHintT = performance.now(); say(player, "That's as far as I plan.", 1.4); } }
   if (!path.length) return false; route = path; routeEndCell = { cx: path[path.length - 1][0], cy: path[path.length - 1][1] }; showRoute(); return true;
 }
-let routeHintT = 0;
+let routeHintT = 0, wasOnExit = false, levelTip = '';
 function extendRoute(w, first) {
   if (state !== 'play') return;
   const target = toCell(w.x, w.z, cols, rows); if (!openCell(target)) return;
   if (first) { route = []; routeEndCell = playerCell(); }
   if (routeEndCell && target.cx === routeEndCell.cx && target.cy === routeEndCell.cy) return;
-  const seg = findPath(maze, routeEndCell || playerCell(), target);
+  const from = routeEndCell || playerCell(); const prev = route.length > 1 ? { cx: route[route.length - 2][0], cy: route[route.length - 2][1] } : route.length === 1 ? playerCell() : { cx: from.cx - heading[0], cy: from.cy - heading[1] };
+  const seg = pathAvoiding(from, target, prev);
   if (seg.length && route.length + seg.length <= 10) { route.push(...seg); routeEndCell = target; showRoute(); }
 }
 // ---- in-world build mode (index.html?build=1): tap a cell to place the selected item on the real map ----
@@ -330,7 +346,7 @@ const camTarget = new THREE.Vector3(), camPan = new THREE.Vector3();
 let zoom = 1; try { zoom = +localStorage.getItem('oo_zoom') || 1; } catch { /* ignore */ }
 function fitCamera() {
   const aspect = innerWidth / innerHeight; camera.aspect = aspect;
-  const half = (aspect < 1 ? 9.5 / aspect * 0.8 : 9.5) * zoom; // portrait: about 3 cells wide, more tall
+  const half = (aspect < 1 ? 7 / aspect * 0.8 : 7) * zoom; // portrait: about 3 cells wide, more tall
   camera.left = -half * aspect; camera.right = half * aspect; camera.top = half; camera.bottom = -half;
   camera.updateProjectionMatrix();
 }
@@ -455,14 +471,14 @@ function buildLevel(n) {
   const pick = (filter) => { const arr = streets.filter(filter); if (!arr.length) return null; const i = (rng() * arr.length) | 0; const s = arr[i]; streets.splice(streets.indexOf(s), 1); return s; };
 
   // crowds
-  const crowdCount = tutorial ? 6 : Math.min(40, 6 + n * 2 + Math.floor(cols * rows / 45)); totalPeople = 0;
+  const crowdCount = Math.max(tutorial ? 7 : Math.min(40, 6 + n * 2 + Math.floor(cols * rows / 45)), Math.ceil(needFor(n) * 1.7 / 3)); totalPeople = 0;
   for (let i = 0; i < crowdCount; i++) {
     const s = pick(() => true); if (!s) break;
     const w = toWorld(s.x, s.y, cols, rows); const size = 2 + ((rng() * 3) | 0);
     for (let k = 0; k < size; k++) {
       const civ = pool.civ.pop() || makeCharacter(CIV_OUTFITS[(rng() * CIV_OUTFITS.length) | 0], { skin: equippedSkin('npc') });
       civ.position.set(w.x + (rng() - 0.5) * 1.6, 0, w.z + (rng() - 0.5) * 1.6); civ.rotation.y = rng() * 6.28;
-      civ.userData.infect = 0; civ.userData.follow = false; civ.userData.home = civ.position.clone(); civ.userData.goal = null; civ.userData.wait = rng() * 3; civ.userData.rival = null; civ.userData.armed = 0; if (civ.userData.gun) civ.userData.gun.visible = false; if (civ.userData.rtag) civ.userData.rtag.visible = false; civ.scale.setScalar(0.55); scene.add(civ); civilians.push(civ); totalPeople++;
+      civ.userData.infect = 0; civ.userData.follow = false; civ.userData.home = civ.position.clone(); civ.userData.goal = null; civ.userData.wait = rng() * 3; civ.visible = true; civ.userData.rival = null; civ.userData.armed = 0; if (civ.userData.gun) civ.userData.gun.visible = false; if (civ.userData.rtag) civ.userData.rtag.visible = false; civ.scale.setScalar(CHAR_SCALE); scene.add(civ); civilians.push(civ); totalPeople++;
     }
   }
   // starter zombies: far from player
@@ -473,7 +489,7 @@ function buildLevel(n) {
   const rivalCount = tutorial ? 0 : Math.min(4, n - 1);
   if (rivalCount) { const far = streets.slice().sort((a, b) => b.ds - a.ds); const top = far.slice(0, Math.max(rivalCount * 2, Math.ceil(far.length * 0.2)));
     for (let i = 0; i < rivalCount && top.length; i++) { const s = top.splice((rng() * top.length) | 0, 1)[0]; spawnRival(toWorld(s.x, s.y, cols, rows)); }
-    if (n <= 4) setTip(rivalCount === 1 ? 'A rival crew is gathering survivors at the far end. Their leader shoots if you get close.' : rivalCount + ' rival crews are out collecting survivors. Drop a leader to free his people.'); }
+    if (n <= 4) levelTip = (rivalCount === 1 ? 'A rival crew is gathering survivors at the far end. Their leader shoots if you get close.' : rivalCount + ' rival crews are out collecting survivors. Drop a leader to free his people.'); }
   // stamina gems
   for (let i = 0; i < 3; i++) { const s = pick(() => true); if (!s) break; const w = toWorld(s.x, s.y, cols, rows); const mesh = new THREE.Mesh(new THREE.OctahedronGeometry(0.22), gemMat); mesh.position.set(w.x, 0.4, w.z); scene.add(mesh); pickups.push({ mesh, type: 'gem' }); }
   // weapons
@@ -488,11 +504,11 @@ function buildLevel(n) {
   }
 
   const sp = toWorld(startCell.cx, startCell.cy, cols, rows);
-  player.position.set(sp.x, 0, sp.z); player.rotation.y = 0; player.visible = true; player.scale.setScalar(0.55);
+  player.position.set(sp.x, 0, sp.z); player.rotation.y = 0; player.visible = true; player.scale.setScalar(CHAR_SCALE);
   weapon = inv.ammo ? 'rifle' : 'pistol'; ammo = inv.ammo ? 24 : 6; inv.ammo = false; vestUp = inv.vest; inv.vest = false; carHits = 0;
   if (inv.car && inv.carHp > 0 && n > 1) startDriving(); else if (driving) parkCar();
   flow = null; flowTimer = 0; invuln = 1; kills = 0; time = 0; autoT = 2; crossWarned = false; stam = 100; setStamMode(0); queueTurn(0); { const c = toCell(player.position.x, player.position.z, cols, rows); heading = [[0, 1], [1, 0], [0, -1], [-1, 0]].find((v) => maze[c.cy + v[1]] && maze[c.cy + v[1]][c.cx + v[0]] === false) || [0, 1]; } respawnCell = null; sprint = 0; sprintCd = 0; streak = 0; previewT = 0; showPreview([]); camTarget.copy(player.position); route = []; routeEndCell = null; showRoute();
-  tipStage = 0; setTip(''); fitCamera(); updateHud();
+  tipStage = 0; setTip(tutorial ? '' : 'District ' + n + ': the heli only comes for ' + needFor(n) + ' survivors. ' + levelTip); levelTip = ''; fitCamera(); updateHud();
   parked = false; ferrisHinted = false; for (const rr of rides) rr.speed = 1; clearAntidote(); fx.clear(); shake = 0; for (const g of goo) scene.remove(g); goo = []; if (flyby) { scene.remove(flyby); flyby = null; } flybyT = 20 + Math.random() * 20; riding = null; rideCd = 0; playerInfect = 0; $('puzzle').classList.add('hidden'); puzzle = null; closeWheelGame(); closeCoasterGame(); closeCarouselGame();
 }
 
@@ -504,8 +520,8 @@ function spawnZombie(pos, n, rng = Math.random) {
   if (wantClown) { const i = pool.zom.findIndex((p) => p.userData.clown === wantClown); if (i >= 0) z = pool.zom.splice(i, 1)[0]; }
   else { const i = pool.zom.findIndex((p) => !p.userData.clown); if (i >= 0) z = pool.zom.splice(i, 1)[0]; }
   if (!z) z = makeCharacter(CIV_OUTFITS[(rng() * CIV_OUTFITS.length) | 0], { zombie: true, clown: wantClown });
-  z.position.set(pos.x, 0, pos.z); z.scale.setScalar(0.55); z.rotation.set(0, 0, 0); z.userData.rag = null; z.userData.stun = 0; z.userData.alert = 0;
-  z.userData.hp = n <= 5 ? 2 : 3; z.userData.speed = Math.min(PLAYER_SPEED * 0.85, (n === 1 ? 1.6 : 2.3 + n * 0.15) + rng() * 0.3); z.userData.flash = 0;
+  z.position.set(pos.x, 0, pos.z); z.scale.setScalar(CHAR_SCALE); z.rotation.set(0, 0, 0); z.userData.rag = null; z.userData.stun = 0; z.userData.alert = 0;
+  z.userData.hp = n <= 5 ? 2 : 3; z.userData.speed = Math.min(PLAYER_SPEED * 0.85, ((n === 1 ? 1.6 : 2.3 + n * 0.15) + rng() * 0.3) * SPEED_K); z.userData.flash = 0;
   scene.add(z); zombies.push(z); return z;
 }
 
@@ -515,7 +531,7 @@ const rivalMat = new THREE.MeshBasicMaterial({ color: 0xff3a3a }), rivalShotMat 
 const tagGeo = new THREE.OctahedronGeometry(0.22), gunGeo = new THREE.BoxGeometry(0.12, 0.14, 0.5), gunMat = new THREE.MeshLambertMaterial({ color: 0x22262a });
 function addGun(c) { const g = new THREE.Mesh(gunGeo, gunMat); g.position.set(0, -0.72, 0.2); c.userData.armR.add(g); return g; }
 function spawnRival(w) {
-  const rv = makeCharacter('punk', {}); rv.scale.setScalar(0.62); rv.position.set(w.x, 0, w.z);
+  const rv = makeCharacter('punk', {}); rv.scale.setScalar(CHAR_SCALE * 1.12); rv.position.set(w.x, 0, w.z);
   const mark = new THREE.Mesh(tagGeo, rivalMat); mark.scale.setScalar(2.4); mark.position.y = 3.5; rv.add(mark);
   const ring = new THREE.Mesh(new THREE.RingGeometry(0.6, 0.8, 20), new THREE.MeshBasicMaterial({ color: 0xff3a3a, transparent: true, opacity: 0.6, side: THREE.DoubleSide })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.05; rv.add(ring);
   addGun(rv); Object.assign(rv.userData, { rivalLeader: true, hp: 5, cd: 1.5, repath: 0, path: [], pi: 0, mark, flash: 0, bitten: false, warned: false });
@@ -551,7 +567,7 @@ function updateRivals(dt) {
     if (target) rv.rotation.y = Math.atan2(target.position.x - rv.position.x, target.position.z - rv.position.z);
     if (target && u.cd <= 0) {
       const atYou = target === player; u.cd = atYou ? 1.7 : 0.9;
-      shoot(rv.position, target.position, { enemy: atYou, rival: true, dmg: 1, speed: atYou ? 9 : 14, range: 8 });
+      shoot(rv.position, target.position, { enemy: atYou, rival: true, dmg: 1, speed: atYou ? 7 : 14, range: 8 });
       if (atYou && !u.warned) { u.warned = true; say(rv, ['Back off, they are ours!', 'Find your own people!', 'This is our turf!'][(Math.random() * 3) | 0], 1.8); if (level <= 4) setTip('Rival crews shoot when you get close. Drop the leader (red marker) and his people are yours.'); }
     }
     // hold ground while trading shots with you; otherwise go collect survivors
@@ -567,7 +583,7 @@ function updateRivals(dt) {
     let tx = null, tz = null;
     if (u.prey && civilians.includes(u.prey) && !u.prey.userData.follow && !u.prey.userData.rival && u.prey.position.distanceTo(rv.position) < CELL * 1.2) { tx = u.prey.position.x; tz = u.prey.position.z; }
     else if (u.path && u.pi < u.path.length) { const w = toWorld(u.path[u.pi][0], u.path[u.pi][1], cols, rows); tx = w.x; tz = w.z; if (Math.hypot(tx - rv.position.x, tz - rv.position.z) < 0.3) u.pi++; }
-    if (tx !== null) { const dx = tx - rv.position.x, dz = tz - rv.position.z, dl = Math.hypot(dx, dz); if (dl > 0.05) { const st = Math.min(dl, 3.0 * dt); rv.position.x += dx / dl * st; rv.position.z += dz / dl * st; if (!target) rv.rotation.y = Math.atan2(dx, dz); collide(rv.position, R); animateWalk(rv, dt, 0.9); } else animateWalk(rv, dt, 0); }
+    if (tx !== null) { const dx = tx - rv.position.x, dz = tz - rv.position.z, dl = Math.hypot(dx, dz); if (dl > 0.05) { const st = Math.min(dl, 3.0 * SPEED_K * dt); rv.position.x += dx / dl * st; rv.position.z += dz / dl * st; if (!target) rv.rotation.y = Math.atan2(dx, dz); collide(rv.position, R); animateWalk(rv, dt, 0.9); } else animateWalk(rv, dt, 0); }
     else animateWalk(rv, dt, 0);
     for (const o of rivals) if (o !== rv) { const dx = rv.position.x - o.position.x, dz = rv.position.z - o.position.z, dd = Math.hypot(dx, dz); if (dd < 1.2 && dd > 0.001) { rv.position.x += dx / dd * (1.2 - dd) * 0.5; rv.position.z += dz / dd * (1.2 - dd) * 0.5; } else if (dd <= 0.001) rv.position.x += 0.3; }
     // recruit anyone free and healthy within reach
@@ -770,10 +786,10 @@ function fire(target) {
 }
 
 function updateHud() {
-  ui.score.textContent = String(score) + (streak >= 1 ? '  x' + Math.min(5, 1 + streak) : '');
+  ui.score.textContent = String(score);
   ui.lives.textContent = '♥'.repeat(Math.max(0, lives)) + (sprintCd <= 0 ? '  ⚡' : '');
   ui.level.textContent = level === 1 ? 'Ashford: Tutorial' : level === FINAL_LEVEL ? 'Ashford ' + level + ': Evac' : 'Ashford ' + level + '/' + FINAL_LEVEL;
-  const fol = civilians.filter((c) => c.userData.follow).length; ui.people.textContent = 'People safe: ' + civilians.length + '/' + totalPeople + (fol ? '  ·  Following: ' + fol : '');
+  const fol = followCount(), need = needFor(level); let alive = 0; for (const c of civilians) if (!c.userData.rival) alive++; ui.people.textContent = 'With you: ' + fol + '/' + need + '  ·  Alive: ' + alive + '/' + totalPeople; ui.people.classList.toggle('ok', fol >= need);
   ui.weapon.textContent = (driving ? '🚗 ' + inv.carHp + '/5  ·  ' : '') + (weapon ? WEAPONS[weapon].name + ' x' + ammo : 'Unarmed') + '  ·  $' + cash;
 }
 
@@ -830,25 +846,51 @@ function dropFlare() {
   if (!flare) { flare = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.25, 8), new THREE.MeshBasicMaterial({ color: 0xff5a3a })); scene.add(flare); }
   flare.position.copy(player.position); flare.position.y = 0.12; flare.visible = true; flareT = 6;
 }
-function clearDistrict() {
-  if (level === FINAL_LEVEL) { state = 'rescue'; input.reset(); route = []; showRoute(); chopperT = 0; sfx.wave(); setTip('The chopper is coming. Hold on!'); return; }
+// ---- extraction: the heli comes in, drops a rope, your line climbs up, you go last ----
+const ropeMat = new THREE.MeshLambertMaterial({ color: 0xc9b07a }); const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1, 6), ropeMat);
+let rescue = null;
+function startExtraction() {
+  state = 'rescue'; input.reset(); route = []; showRoute(); chopperT = 0; sfx.wave(); if (driving) parkCar();
+  const ep = toWorld(exitCell.cx, exitCell.cy, cols, rows);
+  if (!chopper) { chopper = makeChopper(); chopper.scale.setScalar(0.6); chopper.position.set(ep.x + 18, 14, ep.z - 18); scene.add(chopper); }
+  const line = civilians.filter((c) => c.userData.follow);
+  const gap = Math.min(0.3, 6 / Math.max(1, line.length));
+  rescue = { ep, from: chopper.position.clone(), line, gap, n: line.length, climbEnd: 3.4 + line.length * gap + 1.2 };
+  setTip('Heli inbound with ' + line.length + ' survivors. Hold on!');
+}
+function updateRescue(dt) {
+  const R0 = rescue, ep = R0.ep, HOVER = 4.2; chopperT += dt; const t = chopperT; animateChopper(chopper, dt, t);
+  if (t < 3) { const k = t / 3, e = k * (2 - k); chopper.position.set(R0.from.x + (ep.x - R0.from.x) * e, R0.from.y + (HOVER + 0.6 - R0.from.y) * e, R0.from.z + (ep.z - R0.from.z) * e); }
+  else if (t < R0.climbEnd + 0.4) { chopper.position.set(ep.x, HOVER + 0.6 + Math.sin(t * 2) * 0.05, ep.z); if (!rope.parent) scene.add(rope); const len = Math.min(HOVER, (t - 3) * 10); rope.scale.y = len; rope.position.set(ep.x + 0.2, HOVER + 0.3 - len / 2, ep.z); }
+  else { const u = t - R0.climbEnd - 0.4; if (rope.parent) scene.remove(rope); chopper.position.set(ep.x + u * u * 1.5, HOVER + 0.6 + u * u * 2.2, ep.z - u * u * 1.5); chopper.rotation.z = -0.15; if (u > 2.6) { rescue = null; chopper.rotation.z = 0; if (level === FINAL_LEVEL) finishGame(R0.n); else clearDistrict(R0.n); } return; }
+  // the line walks to the rope and climbs one by one; you climb last
+  const top = HOVER + 0.2;
+  R0.line.forEach((c, i) => { if (!c.visible) return; const start = 3.4 + i * R0.gap;
+    if (t < start) { const dx = ep.x + 0.2 - c.position.x, dz = ep.z - c.position.z, d = Math.hypot(dx, dz); if (d > 0.35) { const st = Math.min(d - 0.3, 3.4 * SPEED_K * dt); c.position.x += dx / d * st; c.position.z += dz / d * st; c.rotation.y = Math.atan2(dx, dz); animateWalk(c, dt, 1); } else animateWalk(c, dt, 0); }
+    else { const k = Math.min(1, (t - start) / 1.2); c.position.set(ep.x + 0.2, k * top, ep.z + 0.06); c.userData.armL.rotation.x = -2.8 + Math.sin(t * 12 + i) * 0.3; c.userData.armR.rotation.x = -2.8 - Math.sin(t * 12 + i) * 0.3; if (k >= 1) c.visible = false; } });
+  const pStart = 3.4 + R0.line.length * R0.gap;
+  if (t < pStart) { player.position.set(ep.x - 0.3, 0, ep.z); animateWalk(player, dt, 0); }
+  else { const k = Math.min(1, (t - pStart) / 1.2); player.position.set(ep.x + 0.2, k * top, ep.z - 0.06); player.userData.armL.rotation.x = -2.8; player.userData.armR.rotation.x = -2.8; if (k >= 1) player.visible = false; }
+  for (const z of zombies) animateWalk(z, dt, 0.3);
+}
+function clearDistrict(rescued) {
   state = 'cleared'; input.reset(); setMusicChase(false); sfx.wave();
-  const rescued = civilians.filter((c) => c.userData.follow && c.position.distanceTo(player.position) < 10).length;
-  const saved = civilians.filter((c) => !c.userData.rival).length - rescued, timeBonus = Math.max(0, 60 - Math.floor(time)) * 2;
-  const gained = saved * 100 + rescued * 250 + kills * 10 + timeBonus; score += gained;
-  const pay = rescued * 60 + saved * 10 + 100; earn(pay);
-  ui.clearedText.innerHTML = 'Rescued with you: <b>' + rescued + '</b> (+' + (rescued * 250) + ')<br>Others still alive: ' + saved + '/' + totalPeople + ' (+' + (saved * 100) + ')<br>Zombies dropped: ' + kills + ' (+' + (kills * 10) + ')<br>Speed bonus: +' + timeBonus + '<br>Score: <b>' + score + '</b><br><span class="pay">Paid out: $' + cashThisDistrict + '</span>';
+  const need = needFor(level), gained = rescued * 100; score += gained;
+  const pay = rescued * 20 + 50; earn(pay);
+  showChests($('chests'), chestPicks(rescued));
+  ui.clearedText.innerHTML = 'Escaped with you: <b>' + rescued + '</b> (needed ' + need + ')<br>Score: +' + gained + ' (100 per survivor)<br>Total score: <b>' + score + '</b><br><span class="pay">Paid out: $' + cashThisDistrict + '</span>';
   cashThisDistrict = 0; if (driving) parkCar();
   renderStore(); show(ui.cleared); updateHud();
 }
 // ---------- how to play slides ----------
 const SLIDES = [
-  ['howto/1-move.jpg', 'You never stop walking. Tap the left side of the screen to turn left at the next corner, the right side to turn right. Hold WALK or RUN to change pace; both burn stamina, purple gems refill it. Hold a finger down to preview the way to your objective.'],
-  ['howto/2-weapon.jpg', 'You start each district with a few pistol shots. Pick up more weapons on the way. They aim and fire by themselves. Chain kills and rescues quickly for a score multiplier.'],
-  ['howto/3-crowd.jpg', 'You are immune, but you carry it. Cross your own line of followers and whoever you touch turns, except the one right behind you. Like a snake, the longer the line, the more you plan.'],
-  ['howto/6-follow.jpg', 'Walk up to people and they follow you. Get them to the safe zone for 250 points each. Or keep them between you and the horde: zombies take the nearest person first. Careful: a bitten follower spreads it down the line, and then to you.'],
-  ['howto/4-gate.jpg', 'From district 2 the way out is gated. Glowing beams mark your goal: red for the gate, yellow for the power box. Rotate the wires to power the gate open.'],
-  ['howto/5-exit.jpg', 'Follow the green arrow to the safe zone. One touch from a zombie costs a life. Ten districts, then the chopper pulls you out. Tap the binoculars to look around without walking. Double-tap a fairground ride (wheel, coaster, carousel) to ride it.'],
+  ['howto/1-move.jpg', 'You never stop walking. Tap the left side of the screen to turn left at the next corner, the right side to turn right, or tap a spot up to five cells ahead. Hold WALK or RUN to change pace; both burn stamina, purple gems refill it.'],
+  ['howto/6-follow.jpg', 'Walk up to people and they join your line. The heli only comes for a full load: 10 survivors in district 1, 20 in district 2, and so on. Every survivor you get out is 100 points and cash for upgrades. After each district, open chests for a sliver of a coin, or a very rare free skin.'],
+  ['howto/3-crowd.jpg', 'You are immune, but you carry it. Cross your own line and whoever you touch turns. You can never turn back into your line, so dead ends are deadly: turning around there infects everyone following you.'],
+  ['howto/2-weapon.jpg', 'You start each district with a few pistol shots. Pick up more weapons on the way. They aim and fire by themselves. Some survivors who join you are armed too and cover the line.'],
+  ['howto/7-rival.jpg', 'From district 2, rival crews (red markers) gather survivors into their own lines, and their leader shoots if you get close. Drop the leader and his whole line is yours to take.'],
+  ['howto/4-gate.jpg', 'Some districts are gated. Glowing beams mark your goal: red for the gate, yellow for the power box. Rotate the wires to power the gate open.'],
+  ['howto/5-exit.jpg', 'Reach the green beam with enough people and a heli drops a rope: your whole line climbs up with you. One touch from a zombie costs a life. Ten districts to get out of Ashford.'],
 ];
 let slide = 0;
 function showSlide(i) { slide = i; $('slideImg').src = SLIDES[i][0]; $('slideText').textContent = SLIDES[i][1]; $('slideDots').textContent = SLIDES.map((_, k) => k === i ? '●' : '○').join(' '); $('slideNext').textContent = i === SLIDES.length - 1 ? 'START SHIFT' : 'NEXT'; }
@@ -868,12 +910,12 @@ soundBtn.addEventListener('click', () => { unlockAudio(); setMuted(!isMuted()); 
 $('retryBtn').addEventListener('click', () => { if (levelStart && levelStart.level > 1) startRun({ ...levelStart, lives: 3 }); else startRun(); });
 $('newRunBtn').addEventListener('click', () => startRun());
 $('nextBtn').addEventListener('click', nextLevel);
-function finishGame() { clearRun(); addCoins(1);
+function finishGame(rescued) { clearRun(); addCoins(1);
   state = 'won'; stopMusic();
-  const rescued = civilians.filter((c) => c.userData.follow && c.position.distanceTo(player.position) < 8).length;
-  const saved = civilians.filter((c) => !c.userData.rival).length - rescued, gained = saved * 100 + rescued * 250 + kills * 10 + 500; score += gained;
+  const gained = rescued * 100; score += gained;
   const best = Math.max(getBest(), score); setBest(best);
-  $('wonText').innerHTML = 'Extracted.<br>On the chopper with you: <b>' + rescued + '</b> (+' + rescued * 250 + ')<br>Still alive: ' + saved + '/' + totalPeople + '<br>Rescue bonus: +500<br><br>Final score: <b>' + score + '</b><br>Best: ' + best;
+  showChests($('wonChests'), chestPicks(rescued) + 1);
+  $('wonText').innerHTML = 'Extracted.<br>On the heli with you: <b>' + rescued + '</b> (+' + gained + ')<br><br>Final score: <b>' + score + '</b><br>Best: ' + best;
   show($('won'));
 }
 $('wonBtn').addEventListener('click', startRun);
@@ -885,16 +927,7 @@ function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
 
-  if (state === 'rescue' && chopper) {
-    chopperT += dt; animateChopper(chopper, dt, chopperT);
-    const ep = toWorld(exitCell.cx, exitCell.cy, cols, rows);
-    if (chopperT < 3) { chopper.position.y = 14 - (14 - 1.1) * (chopperT / 3); chopper.position.x = ep.x; chopper.position.z = ep.z; }
-    else if (chopperT < 4) { player.position.set(ep.x, 0.45 + (chopperT - 3) * 0.4, ep.z); animateWalk(player, dt, 0); }
-    else { const u = chopperT - 4; chopper.position.y = 1.1 + u * u * 2.2; chopper.position.x = ep.x + u * 1.5; chopper.position.z = ep.z - u * 1.5; chopper.rotation.z = -0.15; player.position.set(chopper.position.x, chopper.position.y - 0.6, chopper.position.z); if (u > 3.5) finishGame(); }
-    for (const z of zombies) animateWalk(z, dt, 0.3);
-    for (const c of civilians) if (c.userData.follow) { const dx = player.position.x - c.position.x, dz = player.position.z - c.position.z, d = Math.hypot(dx, dz); if (d > 1.0) { c.position.x += dx / d * 3 * dt; c.position.z += dz / d * 3 * dt; animateWalk(c, dt, 1); } }
-    camTarget.lerp(player.position, 1 - Math.pow(0.002, dt));
-  }
+  if (state === 'rescue' && chopper && rescue) { updateRescue(dt); camTarget.lerp(player.position, 1 - Math.pow(0.002, dt)); }
   if (chopper && state === 'play') animateChopper(chopper, dt, time);
   if (state === 'wheel' && wg) updateWheelGame(dt);
   if (state === 'wheel' && cg) updateCoasterGame(dt);
@@ -912,7 +945,7 @@ function frame(now) {
       const { left, right } = perps(heading); let next = null;
       if (turnQ) { const want = turnQ < 0 ? left : right; if (open(want)) { next = want; queueTurn(0); } }
       if (!next && open(heading)) next = heading;
-      if (!next) { next = open(left) && open(right) ? (Math.random() < 0.5 ? left : right) : open(left) ? left : open(right) ? right : [-heading[0], -heading[1]]; }
+      if (!next) { if (open(left) || open(right)) next = open(left) && open(right) ? (Math.random() < 0.5 ? left : right) : open(left) ? left : right; else { next = [-heading[0], -heading[1]]; deadEnd(); } }
       heading = next; route = [[c.cx + next[0], c.cy + next[1]]]; routeEndCell = { cx: c.cx + next[0], cy: c.cy + next[1] };
     }
     if (route.length) {
@@ -936,7 +969,11 @@ function frame(now) {
 
     // exit
     const pc = toCell(player.position.x, player.position.z, cols, rows);
-    if (pc.cx === exitCell.cx && pc.cy === exitCell.cy) { clearDistrict(); return render(dt); }
+    const onExit = pc.cx === exitCell.cx && pc.cy === exitCell.cy;
+    if (onExit) { const fol = followCount(), need = needFor(level);
+      if (fol >= need) { startExtraction(); return render(dt); }
+      if (!wasOnExit) { setTip("The heli won't come without more survivors. You need " + need + ' with you. You have ' + fol + '.'); say(player, 'Need ' + (need - fol) + ' more!', 1.8); sfx.hurt(); } }
+    wasOnExit = onExit;
     if (gate && !gate.open && switchCell) {
       const onSwitch = pc.cx === switchCell.cx && pc.cy === switchCell.cy;
       if (!onSwitch) switchCell.dismissed = false;
@@ -957,13 +994,13 @@ function frame(now) {
     if (level === 1) {
       if (tipStage === 0 && !route.length) setTip('You walk on your own. Tap the left or right side of the screen to turn.');
       if (tipStage === 0 && route.length) { tipStage = 1; setTip('Nice. Tap the left or right side to turn at the next corner. Hold RUN to hurry, WALK to slow down.'); }
-      if (tipStage === 1 && time > 6) { tipStage = 2; setTip('Your pistol fires by itself. Zombies hunt people first, so walk up to a crowd and they follow you.'); }
-      if (tipStage === 2 && time > 25) { tipStage = 3; setTip('Follow the green arrow to the safe zone.'); }
+      if (tipStage === 1 && time > 6) { tipStage = 2; setTip('Your pistol fires by itself. Walk up to a crowd and they join your line. You need 10 for the heli.'); }
+      if (tipStage === 2 && time > 25) { tipStage = 3; setTip('Never turn back into your line, and avoid dead ends: turning around there infects everyone following you.'); }
     } else if (gate && !gate.open) {
       if (!gate.found && Math.abs(pc.cx - gate.cx) + Math.abs(pc.cy - gate.cy) <= 3) { gate.found = true; tipStage = 2; sfx.hit(); setTip('Locked. No power. The arrow now points to the power box that opens it.'); }
-      else if (tipStage === 0) { tipStage = 1; setTip('Follow the arrow. Something is blocking the way out.'); }
+      else if (tipStage === 0 && time > 5) { tipStage = 1; setTip('Follow the arrow. Something is blocking the way out. The heli needs ' + needFor(level) + ' survivors.'); }
     }
-    else if (level === FINAL_LEVEL && tipStage === 0) { tipStage = 1; setTip('Last district. Reach the helipad and the chopper will pull you out.'); }
+    else if (level === FINAL_LEVEL && tipStage === 0) { tipStage = 1; setTip('Last district. Bring ' + needFor(level) + ' survivors to the helipad and the heli pulls you all out.'); }
 
     // flow field toward player, refreshed a few times per second
     if (flowTimer <= 0 || !flow) { const fc = riding ? riding.cell : pc; flow = flowField(maze, fc.cx, fc.cy); flowTimer = 0.2; }
@@ -1047,12 +1084,12 @@ function frame(now) {
       tmp.set(tx - z.position.x, 0, tz - z.position.z); const dl = tmp.length(); if (dl > 0.001) tmp.divideScalar(dl);
       z.position.addScaledVector(tmp, z.userData.speed * speedMul * dt);
       z.rotation.y = Math.atan2(tmp.x, tmp.z);
-      for (const o of zombies) if (o !== z) { const dx = z.position.x - o.position.x, dz = z.position.z - o.position.z, dd = Math.hypot(dx, dz); if (dd < 0.45 && dd > 0.001) { z.position.x += dx / dd * (0.45 - dd) * 0.5; z.position.z += dz / dd * (0.45 - dd) * 0.5; } }
+      for (const o of zombies) if (o !== z) { const dx = z.position.x - o.position.x, dz = z.position.z - o.position.z, dd = Math.hypot(dx, dz); if (dd < 0.32 && dd > 0.001) { z.position.x += dx / dd * (0.32 - dd) * 0.5; z.position.z += dz / dd * (0.32 - dd) * 0.5; } }
       collide(z.position, R * 0.8); animateWalk(z, dt, speedMul);
       if (dl > 0.05 && Math.random() < dt * 2.5) dropGoo(z.position);
       if (z.userData.flash > 0) { z.userData.flash -= dt; z.position.y = 0.1; } else z.position.y = 0;
       // infect civilians
-      for (const civ of civilians) if (Math.hypot(civ.position.x - z.position.x, civ.position.z - z.position.z) < 0.7) civ.userData.infect += dt * 2;
+      for (const civ of civilians) if (Math.hypot(civ.position.x - z.position.x, civ.position.z - z.position.z) < 0.45) civ.userData.infect += dt * 2;
       // touch player
       const touchD = Math.hypot(z.position.x - player.position.x, z.position.z - player.position.z);
       if (driving && touchD < 1.1) {
@@ -1070,36 +1107,37 @@ function frame(now) {
     for (let i = civilians.length - 1; i >= 0; i--) {
       const civ = civilians[i];
       const u = civ.userData;
-      if (u.infect <= 0) for (const g of goo) if (Math.abs(g.position.x - civ.position.x) < 0.3 && Math.abs(g.position.z - civ.position.z) < 0.3) { u.infect = 0.05; break; }
+      if (u.infect <= 0 && !u.follow) for (const g of goo) if (Math.abs(g.position.x - civ.position.x) < 0.3 && Math.abs(g.position.z - civ.position.z) < 0.3) { u.infect = 0.05; break; }
       if (u.infect > 0) { u.infect += dt * 0.12; u.infectT = (u.infectT || 0) + dt; civ.position.y = Math.random() * 0.1; if (u.infect >= 1) { turnCivilian(civ); continue; } }
       else { civ.position.y = 0; u.infectT = 0; u.sick = false; u.warned = false; }
       if (u.infect > 0) {
         if (!u.sick) { u.sick = true; say(civ, ['I feel sick...', 'Something bit me.', "I'm fine. Go."][(Math.random() * 3) | 0], 2); }
         if (u.infectT > 2) {
           // two seconds in, it spreads to anyone close, and onto you if you stay near
-          for (const o of civilians) if (o !== civ && !(o.userData.infect > 0) && o.position.distanceTo(civ.position) < 1.4 && (u.infectT || 0) > 4) o.userData.infect += dt * 0.3;
+          if (!u.follow) for (const o of civilians) if (o !== civ && !o.userData.follow && !(o.userData.infect > 0) && o.position.distanceTo(civ.position) < 1.4 && (u.infectT || 0) > 4) o.userData.infect += dt * 0.3;
           if (!u.warned && civ.position.distanceTo(player.position) < 2.5) { u.warned = true; if (level <= 3) setTip('Infected people spread it to anyone close. You are immune, but you carry it: never cross your own line.'); }
         }
       }
-      if (!u.follow && !u.rival && civ.position.distanceTo(player.position) < 1.3 && !riding) { u.follow = true; u.goal = null; armCiv(civ); rescuedTotal++; addScore(25); sfx.pickup(); updateHud(); say(player, PLAYER_LINES[(Math.random() * PLAYER_LINES.length) | 0]); setTimeout(() => { if (civ.userData.follow) say(civ, CIV_LINES[(Math.random() * CIV_LINES.length) | 0], 1.8); }, 700); if (level === 1 && tipStage < 4) { tipStage = 4; setTip('They will follow you. Bring people to the safe zone for extra points.'); } }
+      if (!u.follow && !u.rival && civ.position.distanceTo(player.position) < 1.3 && !riding) { u.follow = true; u.goal = null; armCiv(civ); rescuedTotal++; addScore(8); sfx.pickup(); updateHud(); say(player, PLAYER_LINES[(Math.random() * PLAYER_LINES.length) | 0]); setTimeout(() => { if (civ.userData.follow) say(civ, CIV_LINES[(Math.random() * CIV_LINES.length) | 0], 1.8); }, 700); if (level === 1 && tipStage < 4) { tipStage = 4; setTip('They will follow you. Bring people to the safe zone for extra points.'); } }
       if (u.rival) {
         // in a rival line: walk in a chain behind the leader
         if (!rivals.includes(u.rival)) { u.rival = null; tagRivalCiv(civ, false); u.home = civ.position.clone(); continue; }
         const line = civilians.filter((c) => c.userData.rival === u.rival); const ri = line.indexOf(civ); const lp = ri <= 0 ? u.rival.position : line[ri - 1].position;
         const dx = lp.x - civ.position.x, dz = lp.z - civ.position.z, d = Math.hypot(dx, dz);
-        if (d > 0.9) { const st = Math.min(d - 0.7, 3.4 * (u.infect > 0 ? 0.7 : 1) * dt); civ.position.x += dx / d * st; civ.position.z += dz / d * st; civ.rotation.y = Math.atan2(dx, dz); collide(civ.position, 0.2); animateWalk(civ, dt, 1); }
+        if (d > 0.6) { const st = Math.min(d - 0.45, 3.4 * SPEED_K * (u.infect > 0 ? 0.7 : 1) * dt); civ.position.x += dx / d * st; civ.position.z += dz / d * st; civ.rotation.y = Math.atan2(dx, dz); collide(civ.position, 0.2); animateWalk(civ, dt, 1); }
         else animateWalk(civ, dt, 0);
         continue;
       }
       if (u.follow) {
         // target: a spot behind the player, staggered per follower
         const idx = followers.indexOf(civ); const leaderPos = idx <= 0 ? player.position : followers[idx - 1].position;
-        if (idx > 0 && !(u.infect > 0) && !riding && civ.position.distanceTo(player.position) < 0.7) u.touch = (u.touch || 0) + dt; else u.touch = 0;
+        // only your tail counts: the first few behind you can't be crossed without a U-turn
+        if (idx >= 4 && !(u.infect > 0) && !riding && civ.position.distanceTo(player.position) < 0.4) u.touch = (u.touch || 0) + dt; else u.touch = 0;
         if (u.touch > 0.1) { u.touch = 0; u.infect = 0.6; u.infectT = 0; sfx.hurt(); say(civ, 'You touched me!', 1.6); if (!crossWarned) { crossWarned = true; setTip('You crossed your own line. Anyone you touch turns. Plan the route.'); } }
         const dx = leaderPos.x - civ.position.x, dz = leaderPos.z - civ.position.z, d = Math.hypot(dx, dz);
         if (u.armed > 0 && !riding && !driving) civShoot(civ, dt);
         if (riding) { animateWalk(civ, dt, 0); continue; }
-        if (d > 0.9) { const st = Math.min(d - 0.7, PLAYER_SPEED * (1 + inv.shoes * 0.1) * (u.infect > 0 ? 0.7 : 1.15) * dt); civ.position.x += dx / d * st; civ.position.z += dz / d * st; civ.rotation.y = Math.atan2(dx, dz); collide(civ.position, 0.2); animateWalk(civ, dt, 1); }
+        if (d > 0.6) { const st = Math.min(d - 0.45, PLAYER_SPEED * (1 + inv.shoes * 0.1) * (u.infect > 0 ? 0.7 : 1.15) * dt); civ.position.x += dx / d * st; civ.position.z += dz / d * st; civ.rotation.y = Math.atan2(dx, dz); collide(civ.position, 0.2); animateWalk(civ, dt, 1); }
         else animateWalk(civ, dt, 0);
         continue;
       }
@@ -1107,21 +1145,21 @@ function frame(now) {
       if (threat && civ.position.distanceTo(player.position) < 7 && !driving) {
         // run to the player for protection
         const dx = player.position.x - civ.position.x, dz = player.position.z - civ.position.z, d = Math.hypot(dx, dz) || 1;
-        civ.position.x += dx / d * 2.8 * dt; civ.position.z += dz / d * 2.8 * dt; collide(civ.position, 0.2); civ.rotation.y = Math.atan2(dx, dz); animateWalk(civ, dt, 1);
+        civ.position.x += dx / d * 2.8 * SPEED_K * dt; civ.position.z += dz / d * 2.8 * SPEED_K * dt; collide(civ.position, 0.2); civ.rotation.y = Math.atan2(dx, dz); animateWalk(civ, dt, 1);
         if (!u.yelled) { u.yelled = true; say(civ, ['Help!', 'Over here!', 'Wait for me!'][(Math.random() * 3) | 0], 1.5); }
         u.goal = null; continue;
       }
       if (threat) {
         if (!u.yelled && Math.random() < 0.3) { u.yelled = true; say(civ, ['Run!', 'Zombies!', 'Get away!'][(Math.random() * 3) | 0], 1.4); }
         const dx = civ.position.x - threat.position.x, dz = civ.position.z - threat.position.z, d = Math.hypot(dx, dz) || 1;
-        const nx = civ.position.x + dx / d * 2.4 * dt, nz = civ.position.z + dz / d * 2.4 * dt; const nc = toCell(nx, nz, cols, rows);
+        const nx = civ.position.x + dx / d * 2.4 * SPEED_K * dt, nz = civ.position.z + dz / d * 2.4 * SPEED_K * dt; const nc = toCell(nx, nz, cols, rows);
         if (openCell(nc)) { civ.position.x = nx; civ.position.z = nz; } collide(civ.position, 0.2);
         civ.rotation.y = Math.atan2(dx, dz); animateWalk(civ, dt, 1); u.goal = null; u.wait = 1; continue;
       }
       if (u.goal) {
         const dx = u.goal.x - civ.position.x, dz = u.goal.z - civ.position.z, d = Math.hypot(dx, dz);
         if (d < 0.1) { u.goal = null; u.wait = 1.5 + Math.random() * 4; animateWalk(civ, dt, 0); }
-        else { const st = Math.min(d, 1.1 * dt); civ.position.x += dx / d * st; civ.position.z += dz / d * st; civ.rotation.y = Math.atan2(dx, dz); collide(civ.position, 0.2); animateWalk(civ, dt, 0.5); }
+        else { const st = Math.min(d, 1.1 * SPEED_K * dt); civ.position.x += dx / d * st; civ.position.z += dz / d * st; civ.rotation.y = Math.atan2(dx, dz); collide(civ.position, 0.2); animateWalk(civ, dt, 0.5); }
       } else {
         u.wait -= dt; animateWalk(civ, dt, 0); u.yelled = false;
         if (Math.random() < dt * 0.02) say(civ, ['Hear that?', 'We should go.', 'Is it safe?', 'Where is everyone?', "I'm scared."][(Math.random() * 5) | 0], 1.6);
@@ -1165,7 +1203,7 @@ function render(dt = 0.016) {
     for (const b of city.buildings) {
       const dx = b.position.x - player.position.x, dz = b.position.z - player.position.z;
       const towardCam = dx * camDir.x + dz * camDir.z; const dist = Math.hypot(dx, dz);
-      const fade = towardCam > 0.25 && dist < 5.5 + (b.userData.h || 2) * 0.9 && Math.abs(dx * camDir.z - dz * camDir.x) < 3.6;
+      const fade = !thirdPerson && towardCam > 0.25 && dist < 5.5 + (b.userData.h || 2) * 0.9 && Math.abs(dx * camDir.z - dz * camDir.x) < 3.6;
       const op = fade ? 0.12 : 1; for (const mat of b.userData.fade) if (mat.opacity !== op) { mat.opacity = op; }
       if (b.userData.edges) b.userData.edges.visible = fade;
       if (b.userData.extras) for (const e of b.userData.extras) e.visible = !fade;
@@ -1176,7 +1214,7 @@ function render(dt = 0.016) {
       const col = kind === 'antidote' ? 0xd07cff : kind === 'gate' ? 0xff5c5c : kind === 'switch' ? 0xffd24a : 0x7dff6a;
       beacon.visible = beaconRing.visible = true; beacon.position.set(ow.x, 6, ow.z); beaconRing.position.set(ow.x, 0.06, ow.z); beaconMat.color.set(col); beaconRing.material.color.set(col);
       const pulse = 0.5 + 0.5 * Math.sin(performance.now() * 0.004); beaconMat.opacity = 0.14 + pulse * 0.14; beaconRing.scale.setScalar(1 + pulse * 0.35);
-      const text = kind === 'antidote' ? '☣ Antidote (purple beam) · ' + Math.ceil(infected) + 's' : level === FINAL_LEVEL && kind === 'exit' ? '➤ Reach the helipad' : kind === 'gate' ? '➤ Find the gate (red beam)' : kind === 'switch' ? '➤ Find the power box (yellow beam)' : '➤ Reach the safe zone (green beam)';
+      const text = kind === 'antidote' ? '☣ Antidote (purple beam) · ' + Math.ceil(infected) + 's' : kind === 'exit' && followCount() < needFor(level) ? '➤ Gather survivors: ' + followCount() + '/' + needFor(level) : level === FINAL_LEVEL && kind === 'exit' ? '➤ Reach the helipad' : kind === 'gate' ? '➤ Find the gate (red beam)' : kind === 'switch' ? '➤ Find the power box (yellow beam)' : '➤ Call the heli: reach the green beam';
       if (objectiveEl.textContent !== text) objectiveEl.textContent = text; objectiveEl.classList.toggle('warn', kind === 'gate' || kind === 'antidote');
     } else { beacon.visible = beaconRing.visible = false; }
     // exit arrow
@@ -1196,14 +1234,14 @@ function render(dt = 0.016) {
     void lim;
   }
   if (city && city.detail) city.detail.sky(!thirdPerson);
-  if (thirdPerson) { const back = new THREE.Vector3(-Math.sin(player.rotation.y), 0, -Math.cos(player.rotation.y)); const want = player.position.clone().addScaledVector(back, 5.5).add(new THREE.Vector3(0, 3.2, 0)); tpPos.lerp(want, 1 - Math.pow(0.001, dt)); tpCam.position.copy(tpPos); tpCam.lookAt(player.position.x, 0.9, player.position.z); renderer.render(scene, tpCam); } else renderer.render(scene, camera);
+  if (thirdPerson) { const back = new THREE.Vector3(-Math.sin(player.rotation.y), 0, -Math.cos(player.rotation.y)); const want = player.position.clone().addScaledVector(back, 2.6).add(new THREE.Vector3(0, 2.9, 0)); tpPos.lerp(want, 1 - Math.pow(0.001, dt)); tpCam.position.copy(tpPos); tpCam.lookAt(player.position.x - back.x * 2.2, 0.3, player.position.z - back.z * 2.2); renderer.render(scene, tpCam); } else renderer.render(scene, camera);
 }
 resize();
 requestAnimationFrame(frame);
 
 // Debug hook for automated testing (harmless in production).
-window.__oo = { get cash() { return cash; }, set cash(v) { cash = v; renderStore(); }, get driving() { return driving; }, get inv() { return inv; }, get chopper() { return chopper; }, get chopperT() { return chopperT; }, set chopperT(v) { chopperT = v; }, routeTo: (cx, cy) => setRouteTo(toWorld(cx, cy, cols, rows)), get civilians() { return civilians; }, get rivals() { return rivals; }, get lives() { return lives; }, arm: (w, n = 50) => { weapon = w; ammo = n; }, get maze() { return maze; }, get player() { return player; }, get gate() { return gate; }, get switchCell() { return switchCell; }, get cols() { return cols; }, get rows() { return rows; }, toWorld: (cx, cy) => toWorld(cx, cy, cols, rows), get pickups() { return pickups; }, get zombies() { return zombies; }, get exit() { return toWorld(exitCell.cx, exitCell.cy, cols, rows); }, get state() { return state; }, get rides() { return rides; }, get riding() { return riding; }, startRide, openRideGame, openPuzzle, flyby: () => { flybyT = 0; }, get flybyObj() { return flyby; }, get puzzle() { return puzzle; }, flingZombie, leaveCar, get parked() { return parked; }, infectPlayer, get infected() { return infected; }, get goo() { return goo; }, dropGoo, openWheelGame, get wg() { return wg; }, get mg() { return mg; }, camera, fx, explodeAt, burnBuilding, burnCar, get city() { return city; } };
+window.__oo = { get cash() { return cash; }, set cash(v) { cash = v; renderStore(); }, get driving() { return driving; }, get inv() { return inv; }, get chopper() { return chopper; }, get chopperT() { return chopperT; }, set chopperT(v) { chopperT = v; }, routeTo: (cx, cy) => setRouteTo(toWorld(cx, cy, cols, rows)), get civilians() { return civilians; }, get rivals() { return rivals; }, get heading() { return heading; }, get deadEnds() { return deadEnds; }, set heading(v) { heading = v; route = []; }, get lives() { return lives; }, arm: (w, n = 50) => { weapon = w; ammo = n; }, get maze() { return maze; }, get player() { return player; }, get gate() { return gate; }, get switchCell() { return switchCell; }, get cols() { return cols; }, get rows() { return rows; }, toWorld: (cx, cy) => toWorld(cx, cy, cols, rows), get pickups() { return pickups; }, get zombies() { return zombies; }, get exit() { return toWorld(exitCell.cx, exitCell.cy, cols, rows); }, get state() { return state; }, get rides() { return rides; }, get riding() { return riding; }, startRide, openRideGame, openPuzzle, flyby: () => { flybyT = 0; }, get flybyObj() { return flyby; }, get puzzle() { return puzzle; }, flingZombie, leaveCar, get parked() { return parked; }, infectPlayer, get infected() { return infected; }, get goo() { return goo; }, dropGoo, openWheelGame, get wg() { return wg; }, get mg() { return mg; }, camera, fx, explodeAt, burnBuilding, burnCar, get city() { return city; } };
 
 bindSeasonSelect(document.getElementById('seasonSel'));
 
-$('viewBtn').addEventListener('click', (e) => { e.stopPropagation(); thirdPerson = !thirdPerson; $('viewBtn').textContent = thirdPerson ? '3RD' : 'ISO'; if (thirdPerson) tpPos.copy(player.position).add(new THREE.Vector3(0, 3.2, -5.5)); });
+$('viewBtn').addEventListener('click', (e) => { e.stopPropagation(); thirdPerson = !thirdPerson; $('viewBtn').textContent = thirdPerson ? '3RD' : 'ISO'; if (thirdPerson) tpPos.copy(player.position).add(new THREE.Vector3(0, 2.9, -2.6)); });

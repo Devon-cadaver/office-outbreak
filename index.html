@@ -26,10 +26,11 @@
     <button class="choice" onclick="location.href='zombieville.html'"><b>EXTRACT</b><span>Tap-to-route maze run. Lead the horde, rescue the crowds, make the chopper in ten districts.</span><span class="saved" id="zvSaved"></span></button>
     <button class="choice" onclick="location.href='store.html'" style="border-color:#ffd24a;box-shadow:0 6px 0 #5a4a1a"><b style="color:#ffd24a">SKIN SHOP</b><span>Spend the coins you earn for beating a game on outfits for you, the survivors and your ride.</span><span class="saved" id="coins"></span></button>
     <p class="small"><a href="zombieville.html?build=1" style="color:#c9a6ff">Build your own map</a></p>
+    <p class="small" style="opacity:.55">v1.0</p>
   </div>
   <script>
     try { if (localStorage.getItem('oo_save_dc')) document.getElementById('dcSaved').textContent = 'Saved game: night ' + (JSON.parse(localStorage.getItem('oo_save_dc')).night + 1); } catch (e) {}
-    try { const c = +JSON.parse(localStorage.getItem('oo_coins') || '0'); document.getElementById('coins').textContent = c ? '🪙 ' + c + (c === 1 ? ' coin' : ' coins') : ''; } catch (e) {}
+    try { const c = Math.round(+JSON.parse(localStorage.getItem('oo_coins') || '0') * 100) / 100; document.getElementById('coins').textContent = c ? '🪙 ' + c + (c === 1 ? ' coin' : ' coins') : ''; } catch (e) {}
     try { if (localStorage.getItem('oo_save_zv')) document.getElementById('zvSaved').textContent = 'Saved game: district ' + JSON.parse(localStorage.getItem('oo_save_zv')).level; } catch (e) {}
   </script>
 </body>

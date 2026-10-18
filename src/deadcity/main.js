@@ -55,7 +55,7 @@ function lineClear(a, b) { const n = Math.ceil(a.distanceTo(b) / 0.8); for (let 
 function randomOpen(minDist) { for (let k = 0; k < 200; k++) { const c = { cx: 1 + ((Math.random() * (cols - 2)) | 0), cy: 1 + ((Math.random() * (rows - 2)) | 0) }; if (!openCell(c)) continue; const w = toWorld(c.cx, c.cy, cols, rows); if (Math.hypot(w.x - player.position.x, w.z - player.position.z) >= minDist) return w; } return toWorld(startCell.cx, startCell.cy, cols, rows); }
 
 // ---------- player, camera, controls ----------
-const SCALE = 0.32; const player = makeCharacter('hoodie', { skin: equippedSkin('player') }); player.scale.setScalar(SCALE); scene.add(player);
+const SCALE = 0.25; const player = makeCharacter('hoodie', { skin: equippedSkin('player') }); player.scale.setScalar(SCALE); scene.add(player);
 let hearts = 3, maxHearts = 3, armor = 0, invuln = 0, yaw = 0, camYaw = 0, state = 'start', driving = false, car = null, carHp = 5;
 const VEH = { car: { hp: 5, speed: 6, burn: 1.5, name: 'Car' }, van: { hp: 8, speed: 5.2, burn: 2, name: 'Van' }, truck: { hp: 10, speed: 4.6, burn: 2.5, name: 'Truck' }, tank: { hp: 25, speed: 3.4, burn: 3.5, name: 'Tank' } };
 const vstat = () => VEH[(car && car.userData.kind) || 'car'];
@@ -548,12 +548,12 @@ function frame(now) {
   }
   // third-person camera: behind and above, buildings in between go see-through
   const back = new THREE.Vector3(-Math.sin(camYaw), 0, -Math.cos(camYaw));
-  const target = (driving ? car : player).position.clone().setY(driving ? 1.0 : 0.9); const want = target.clone().addScaledVector(back, (driving ? 8 : 5.5) * zoom).add(new THREE.Vector3(0, (driving ? 4.5 : 3.2) * zoom, 0));
+  const target = (driving ? car : player).position.clone().setY(driving ? 1.0 : 0.6); const want = target.clone().addScaledVector(back, (driving ? 8 : 5.5) * zoom).add(new THREE.Vector3(0, (driving ? 4.5 : 3.2) * zoom, 0));
   camera.position.lerp(want, 1 - Math.pow(0.001, dt)); camera.lookAt(target);
   isoCam.position.copy(target).addScaledVector(isoDir, 60); isoCam.lookAt(target); const cam = iso ? isoCam : camera;
   if (city) { const cd = cam.position.clone().sub(target); const ch = Math.hypot(cd.x, cd.z) || 1, ux = cd.x / ch, uz = cd.z / ch, slope = cd.y / ch;
     for (const b of city.buildings) { const wp = b.getWorldPosition(fadeTmp); const rx = wp.x - target.x, rz = wp.z - target.z; const d = rx * ux + rz * uz; const perp = Math.abs(-rx * uz + rz * ux); const h = b.userData.h || 2;
-      const fade = d > 0.3 && d < ch + 1 && perp < 2.2 && h > target.y + d * slope - 0.6; const op = fade ? 0.15 : 1; for (const m of b.userData.fade) if (m.opacity !== op) m.opacity = op; if (b.userData.extras) for (const e of b.userData.extras) e.visible = !fade; if (b.userData.edges) b.userData.edges.visible = fade; } }
+      const fade = iso && d > 0.3 && d < ch + 1 && perp < 2.2 && h > target.y + d * slope - 0.6; const op = fade ? 0.15 : 1; for (const m of b.userData.fade) if (m.opacity !== op) m.opacity = op; if (b.userData.extras) for (const e of b.userData.extras) e.visible = !fade; if (b.userData.edges) b.userData.edges.visible = fade; } }
   if (city && city.detail) city.detail.sky(iso);
   renderer.render(scene, cam);
 }
