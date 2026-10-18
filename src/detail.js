@@ -6,8 +6,9 @@ const uTime = { value: 0 };
 
 function bladeGeometry() {
   // two crossed triangles so a blade reads from every angle; normals point up so lighting is even
-  const h = 0.4, w = 0.045;
-  const v = [-w, 0, 0, w, 0, 0, 0, h, 0, 0, 0, -w, 0, 0, w, 0, h, 0];
+  // one thin tapered blade with a slight forward curl
+  const h = 0.4, w = 0.012;
+  const v = [-w, 0, 0, w, 0, 0, w * 0.4, h * 0.55, 0.012, -w, 0, 0, w * 0.4, h * 0.55, 0.012, 0, h, 0.04];
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
   g.setAttribute('normal', new THREE.Float32BufferAttribute([0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0], 3)); return g;
 }
@@ -25,16 +26,21 @@ export function createDetail(group, { grassCells, streetCells, cell, W, D, rng =
   const out = { group: new THREE.Group() }; group.add(out.group); const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), s = new THREE.Vector3(), p = new THREE.Vector3(), col = new THREE.Color();
 
   // grass
-  const cap = 9000, per = grassCells.length ? Math.min(240, Math.floor(cap / grassCells.length)) : 0, count = per * grassCells.length;
+  const cap = 16000, per = grassCells.length ? Math.min(420, Math.floor(cap / grassCells.length)) : 0, count = per * grassCells.length;
   if (count) {
     const grass = new THREE.InstancedMesh(bladeGeometry(), swayMaterial(), count); let k = 0;
     for (const c of grassCells) for (let i = 0; i < per; i++) {
       let ox = 0, oz = 0, tries = 0; do { ox = (rng() - 0.5) * cell * 0.96; oz = (rng() - 0.5) * cell * 0.96; tries++; } while (tries < 12 && c.roads && c.roads.some(([dx, dz]) => (dx ? Math.sign(ox) === dx || Math.abs(ox) < 0.95 : Math.sign(oz) === dz || Math.abs(oz) < 0.95) && (dx ? Math.abs(oz) < 0.95 : Math.abs(ox) < 0.95)));
       if (tries >= 12) { s.set(0, 0, 0); m4.compose(p.set(c.x, -5, c.z), q.identity(), s); grass.setMatrixAt(k, m4); grass.setColorAt(k, col.set(0)); k++; continue; }
-      p.set(c.x + ox, 0.02, c.z + oz); e.set((rng() - 0.5) * 0.4, rng() * 6.28, (rng() - 0.5) * 0.4); q.setFromEuler(e); const sc = 0.5 + rng() * 0.5; s.set(sc * 1.2, sc * (0.45 + rng() * 0.55), sc * 1.2);
+      p.set(c.x + ox, 0.02, c.z + oz); e.set((rng() - 0.5) * 0.4, rng() * 6.28, (rng() - 0.5) * 0.4); q.setFromEuler(e); const sc = 0.8 + rng() * 0.4; s.set(sc, 0.35 + rng() * 0.45, sc);
       m4.compose(p, q, s); grass.setMatrixAt(k, m4); col.setHSL(0.25 + rng() * 0.09, 0.5 + rng() * 0.25, 0.28 + rng() * 0.2); grass.setColorAt(k, col); k++;
     }
     grass.instanceMatrix.needsUpdate = true; grass.frustumCulled = false; out.group.add(grass);
+    // wildflowers in clumps on about a third of the grassy cells
+    const spots = []; for (const c of grassCells) if (rng() < 0.35) for (let cl = 0; cl < 2 + ((rng() * 2) | 0); cl++) { let ox, oz, t = 0; do { ox = (rng() - 0.5) * cell * 0.9; oz = (rng() - 0.5) * cell * 0.9; t++; } while (t < 10 && c.roads && c.roads.some(([dx, dz]) => (dx ? Math.sign(ox) === dx || Math.abs(ox) < 0.95 : Math.sign(oz) === dz || Math.abs(oz) < 0.95) && (dx ? Math.abs(oz) < 0.95 : Math.abs(ox) < 0.95))); if (t >= 10) continue; const n = 4 + ((rng() * 6) | 0), hue = [0.0, 0.13, 0.78, 0.9, -1][(rng() * 5) | 0]; for (let f = 0; f < n; f++) spots.push({ x: c.x + ox + (rng() - 0.5) * 0.5, z: c.z + oz + (rng() - 0.5) * 0.5, hue }); }
+    if (spots.length) { const fg = new THREE.OctahedronGeometry(0.035); fg.translate(0, 0.16, 0); const flowers = new THREE.InstancedMesh(fg, swayMaterial(), Math.min(spots.length, 3000));
+      for (let i = 0; i < flowers.count; i++) { const f = spots[i]; p.set(f.x, 0.02, f.z); q.identity(); const fs = 0.8 + rng() * 0.6; s.set(fs, 0.8 + rng() * 0.5, fs); m4.compose(p, q, s); flowers.setMatrixAt(i, m4); if (f.hue < 0) col.setHSL(0, 0, 0.95); else col.setHSL(f.hue, 0.8, 0.6); flowers.setColorAt(i, col); }
+      flowers.frustumCulled = false; out.group.add(flowers); }
   }
 
   // street litter: paper scraps and the odd trash bag

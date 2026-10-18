@@ -7,7 +7,7 @@ import { generateMaze, buildCity, flowField, findPath, toWorld, toCell, CELL, mu
 import { makeCharacter, animateWalk } from '../poster/characters.js';
 import { createFires, setFlamePalette } from '../fire.js';
 import { makeChopper, animateChopper } from '../chopper.js';
-import { makeCar } from '../car.js';
+import { makeCar, rollVehicle } from '../car.js';
 import { unlockAudio, sfx, startMusic, stopMusic, setMusicChase } from '../audio.js';
 import { loadMap, decodeCustom } from '../tools.js';
 import { rides } from '../landmarks.js';
@@ -361,7 +361,7 @@ function updateAmbient(dt) {
     const cell = a.path[a.i]; if (!cell) { scene.remove(o); amb.actors.splice(i, 1); continue; }
     const w = toWorld(cell[0], cell[1], cols, rows); const dx = w.x - o.position.x, dz = w.z - o.position.z, dl = Math.hypot(dx, dz);
     if (dl < 0.3) { a.i++; continue; }
-    const st = Math.min(dl, a.speed * dt); o.position.x += dx / dl * st; o.position.z += dz / dl * st; o.rotation.y = Math.atan2(dx, dz);
+    const st = Math.min(dl, a.speed * dt); if (a.kind === 'car') rollVehicle(o, st); o.position.x += dx / dl * st; o.position.z += dz / dl * st; o.rotation.y = Math.atan2(dx, dz);
     if (a.kind === 'car') { if (city.knock(o.position.x, o.position.z, 1.1, dx / dl, dz / dl)) sfx.hit(); for (const z of zombies) if (!z.userData.rag && z.position.distanceTo(o.position) < 1.1) fling(z, { x: z.position.x - o.position.x, z: z.position.z - o.position.z }, 8); if (Math.random() < dt * 8) fx.puff('smoke', new THREE.Vector3(o.position.x, 0.3, o.position.z), 0.4); }
     else { animateWalk(o, dt, 1.4);
       if (o.position.distanceTo(player.position) < 1.3) { amb.actors.splice(i, 1); o.userData.follow = true; o.userData.saved = false; survivors.push(o); for (const z of a.chasers || []) z.userData.chase = null; say('Survivor: "You saved me!"'); sfx.pickup(); earn(40); continue; }
@@ -537,7 +537,7 @@ function frame(now) {
     if (mag > 0.08 && !extracting && !riding && !toss) { carMoving = driving;
       const cy = iso ? ISO_YAW + Math.PI : camYaw; const fwd = new THREE.Vector3(Math.sin(cy), 0, Math.cos(cy)), right = new THREE.Vector3(-fwd.z, 0, fwd.x);
       const dir = fwd.multiplyScalar(-my).add(right.multiplyScalar(mx)).normalize(); yaw = Math.atan2(dir.x, dir.z); if (look.id === null && !iso) { let dd = yaw - camYaw; dd = Math.atan2(Math.sin(dd), Math.cos(dd)); camYaw += dd * Math.min(1, dt * 2.5); }
-      const held = zombies.some((z) => z.userData.latch > 0) ? 0.3 : 1; const sprint = (mag > 0.95 ? 1.45 : 1) * held; if (driving) { const u = car.userData; if (u.fuel > 0) { u.fuel = Math.max(0, u.fuel - vstat().burn * mag * dt); car.position.addScaledVector(dir, vstat().speed * mag * dt); collideCar(car.position); car.rotation.y = yaw; player.position.copy(car.position); if (city.knock(car.position.x, car.position.z, 1.3, dir.x, dir.z)) sfx.hit(); } else if (!outOfGasSaid) { outOfGasSaid = true; say('Out of gas. Find the gas station, or walk.'); } } else { player.position.addScaledVector(dir, 2.0 * (1 + shoes * 0.1) * mag * sprint * dt); collide(player.position, 0.25); player.rotation.y = yaw; animateWalk(player, dt, mag * sprint); }
+      const held = zombies.some((z) => z.userData.latch > 0) ? 0.3 : 1; const sprint = (mag > 0.95 ? 1.45 : 1) * held; if (driving) { const u = car.userData; if (u.fuel > 0) { u.fuel = Math.max(0, u.fuel - vstat().burn * mag * dt); car.position.addScaledVector(dir, vstat().speed * mag * dt); rollVehicle(car, vstat().speed * mag * dt); collideCar(car.position); car.rotation.y = yaw; player.position.copy(car.position); if (city.knock(car.position.x, car.position.z, 1.3, dir.x, dir.z)) sfx.hit(); } else if (!outOfGasSaid) { outOfGasSaid = true; say('Out of gas. Find the gas station, or walk.'); } } else { player.position.addScaledVector(dir, 2.0 * (1 + shoes * 0.1) * mag * sprint * dt); collide(player.position, 0.25); player.rotation.y = yaw; animateWalk(player, dt, mag * sprint); }
     } else { animateWalk(player, dt, 0); if (look.id === null && stick.id === null) { let d = yaw - camYaw; d = Math.atan2(Math.sin(d), Math.cos(d)); camYaw += d * Math.min(1, dt * 2); } }
     player.visible = !driving && (invuln <= 0 || Math.sin(now * 0.03) > 0);
     for (let i = books.length - 1; i >= 0; i--) { const b = books[i]; b.mesh.rotation.y += dt * 2; b.mesh.position.y = 0.5 + Math.sin(now * 0.004 + i) * 0.1; if (b.mesh.position.distanceTo(player.position) < 0.9) { scene.remove(b.mesh); books.splice(i, 1); booksFound++; const free = slots.indexOf(null); slots[free >= 0 ? free : booksFound % 3] = b.key; say('Spell book: ' + SPELLS[b.key].name); sfx.pickup(); hudBooks(); } }

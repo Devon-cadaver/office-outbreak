@@ -17,6 +17,9 @@ const mat = (c) => { if (!matCache.has(c)) matCache.set(c, new THREE.MeshLambert
 const sphere = new THREE.SphereGeometry(0.5, 14, 10);
 const capsule = new THREE.CapsuleGeometry(0.5, 1, 4, 10);
 const box = new THREE.BoxGeometry(1, 1, 1);
+// zombie eye beams: a short narrow cone from each eye, widening forward
+const beamGeo = new THREE.ConeGeometry(0.07, 0.55, 8, 1, true); beamGeo.translate(0, -0.275, 0); beamGeo.rotateX(-Math.PI / 2);
+const beamMat = new THREE.MeshBasicMaterial({ color: 0x8aff4a, transparent: true, opacity: 0.32, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
 const part = (geo, c, sx, sy, sz, x, y, z) => { const m = new THREE.Mesh(geo, mat(c)); m.scale.set(sx, sy, sz); m.position.set(x, y, z); return m; };
 
 function zombify(o) {
@@ -49,7 +52,7 @@ export function makeCharacter(outfitName, { zombie = false, clown = null, skin =
   else if (o.hair) { const cap = part(sphere, o.hair, 0.7, 0.5, 0.7, 0, 0.42, -0.04); head.add(cap); }
   const eyeC = zombie ? 0x6cff2a : 0x1a1a1a; const eyeMat = zombie ? new THREE.MeshBasicMaterial({ color: eyeC }) : mat(eyeC);
   for (const ex of [-0.13, 0.13]) { const e = new THREE.Mesh(sphere, eyeMat); e.scale.setScalar(zombie ? 0.14 : 0.08); e.position.set(ex, 0.34, 0.3); head.add(e);
-    if (zombie) { const halo = new THREE.Mesh(sphere, new THREE.MeshBasicMaterial({ color: 0x6cff2a, transparent: true, opacity: 0.35, depthWrite: false })); halo.scale.setScalar(0.24); halo.position.set(ex, 0.34, 0.3); head.add(halo); } }
+    if (zombie) { e.scale.setScalar(0.1); const beam = new THREE.Mesh(beamGeo, beamMat); beam.position.set(ex, 0.34, 0.33); beam.rotation.x = 0.12; head.add(beam); } }
   // face and clothing detail
   const dark = (cc, f) => new THREE.Color(cc).multiplyScalar(f).getHex();
   head.add(part(sphere, dark(o.skin, 0.88), 0.11, 0.1, 0.12, 0, 0.27, 0.33));
@@ -58,8 +61,7 @@ export function makeCharacter(outfitName, { zombie = false, clown = null, skin =
   body.add(part(sphere, dark(o.pants, 0.7), 0.8, 0.09, 0.62, 0, 1.07, 0));
   if (zombie) { const wound = mat(0x5a0f14); for (let i = 0; i < 2; i++) { const w = new THREE.Mesh(sphere, wound); w.scale.set(0.16, 0.12, 0.06); w.position.set((Math.random() - 0.5) * 0.5, 1.15 + Math.random() * 0.35, 0.29); body.add(w); }
     const rag = part(box, o.shirt, 0.14, 0.22, 0.04, (Math.random() - 0.5) * 0.4, 0.98, 0.28); rag.rotation.z = (Math.random() - 0.5) * 0.6; body.add(rag); }
-  if (zombie) { armL.rotation.x = -1.3; armR.rotation.x = -1.3; body.rotation.x = 0.12; head.rotation.z = 0.15;
-    const glow = new THREE.Mesh(sphere, new THREE.MeshBasicMaterial({ color: 0x46ff46, transparent: true, opacity: 0.14, depthWrite: false, blending: THREE.AdditiveBlending })); glow.scale.set(1.5, 2.9, 1.5); glow.position.y = 1.3; body.add(glow); }
+  if (zombie) { armL.rotation.x = -1.3; armR.rotation.x = -1.3; body.rotation.x = 0.12; head.rotation.z = 0.15; }
   if (clown === 'hammer') {
     const hammer = new THREE.Group(); hammer.position.set(0, -0.7, 0.1); armR.add(hammer);
     hammer.add(part(box, 0x8a5a3a, 0.08, 0.9, 0.08, 0, 0.3, 0)); hammer.add(part(box, 0xd6d6e0, 0.32, 0.24, 0.24, 0, 0.8, 0)); hammer.add(part(box, 0xe03a3a, 0.34, 0.06, 0.26, 0, 0.8, 0));

@@ -32,8 +32,22 @@ export function makeCar(color = 0x3f6fd8, skin = null) {
   return g;
 }
 
+// wheels spin about their axle and animal-shaped rides walk, in proportion to distance travelled
+const spokeMat = new THREE.MeshLambertMaterial({ color: 0x8a8f96 }), spokeGeo = new THREE.BoxGeometry(1, 1.1, 0.16);
+function setupMotion(car) {
+  const wheels = [], legs = [];
+  car.traverse((m) => { if (!m.isMesh || !m.geometry) return; const t = m.geometry.type;
+    if (t === 'CylinderGeometry' && Math.abs(m.rotation.z - Math.PI / 2) < 0.01 && m.scale.x === m.scale.z) { const sp = new THREE.Mesh(spokeGeo, spokeMat); m.add(sp); wheels.push(m); }
+    else if (t === 'BoxGeometry' && m.scale.y >= 0.4 && m.scale.y > 2.4 * Math.max(m.scale.x, m.scale.z) && m.position.y - m.scale.y / 2 < 0.06) legs.push({ m, x: m.position.x, y: m.position.y, z: m.position.z, h: m.scale.y }); });
+  car.motion = { wheels, legs, phase: 0 };
+}
+export function rollVehicle(car, dist) {
+  if (!car.motion) setupMotion(car); const mo = car.motion;
+  for (const w of mo.wheels) w.rotation.x += dist / Math.max(0.05, w.scale.x * 0.5);
+  if (mo.legs.length) { mo.phase += dist * 3.2; mo.legs.forEach((L, i) => { const a = Math.sin(mo.phase + ((i % 2) ^ (L.z > 0 ? 1 : 0) ? Math.PI : 0)) * 0.55 * Math.min(1, dist * 30); const top = L.y + L.h / 2; L.m.rotation.x = a; L.m.position.y = top - Math.cos(a) * L.h / 2; L.m.position.z = L.z - Math.sin(a) * L.h / 2; }); }
+}
 export function animateCar(g, dt, moving) {
-  const u = g.userData; u.t += dt;
+  const u = g.userData; u.t += dt; if (moving) rollVehicle(g, 6.5 * dt);
   // engine shake and damage smoke
   g.position.y = moving ? Math.sin(u.t * 40) * 0.01 : 0;
   const dmg = 1 - u.hp / u.maxHp; const n = Math.round(dmg * 4);
