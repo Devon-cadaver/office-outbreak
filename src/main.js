@@ -163,14 +163,14 @@ let civilians = [], zombies = [], pickups = [], projectiles = [], particles = []
 const pool = { civ: [], zom: [] };
 // Smashy Road controls: you always go straight. Tap the left half (or ◀) to turn left at the next chance, right half for right.
 // WALK and RUN are held and burn stamina; stamina trickles back and purple gems refill it.
-let heading = [0, 1], turnQ = 0, autoT = 0, stam = 100, stamMode = 0;
+let heading = [0, 1], turnQ = 0, autoT = 0, stam = 100, stamMode = 0, stuckT = 0; const stuckPos = new THREE.Vector3();
 let turnQT = 0;
 function queueTurn(dir) { if (state !== 'play') return; turnQ = dir; turnQT = 1.2; $('turnL').classList.toggle('on', dir < 0); $('turnR').classList.toggle('on', dir > 0); }
 function setStamMode(mode) { stamMode = mode && stam > 0 ? mode : 0; $('walkBtn').classList.toggle('on', stamMode < 0); $('runBtn').classList.toggle('on', stamMode > 0); }
 $('turnL').addEventListener('pointerdown', (e) => { e.stopPropagation(); queueTurn(-1); }); $('turnR').addEventListener('pointerdown', (e) => { e.stopPropagation(); queueTurn(1); });
 for (const [id, mode] of [['walkBtn', -1], ['runBtn', 1]]) { const b = $(id); b.addEventListener('pointerdown', (e) => { e.stopPropagation(); setStamMode(mode); }); for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) b.addEventListener(ev, () => setStamMode(0)); }
 addEventListener('pointerup', () => setStamMode(0));
-canvas.addEventListener('pointerdown', (e) => { if (state !== 'play' || BUILD || input.look) return; queueTurn(e.clientX < innerWidth / 2 ? -1 : 1); });
+// taps are handled in the input 'tap' listener: a reachable street routes you there, anything else turns you by screen side
 addEventListener('keydown', (e) => { if (e.key === 'ArrowLeft' || e.key === 'a') queueTurn(-1); if (e.key === 'ArrowRight' || e.key === 'd') queueTurn(1); if (e.key === 'ArrowDown' || e.key === 's') setStamMode(-1); if (e.key === 'ArrowUp' || e.key === 'w') setStamMode(1); });
 addEventListener('keyup', (e) => { if (['ArrowDown', 'ArrowUp', 's', 'w'].includes(e.key)) setStamMode(0); });
 // which perpendicular reads as "left" on screen depends on the camera, so ask it
@@ -211,10 +211,10 @@ function playerCell() { return toCell(player.position.x, player.position.z, cols
 function openCell(c) { return maze[c.cy]?.[c.cx] === false; }
 function setRouteTo(w) {
   if (state !== 'play') return;
-  const target = toCell(w.x, w.z, cols, rows); if (!openCell(target)) return;
-  const MAXR = 10; let path = findPath(maze, playerCell(), target);
+  const target = toCell(w.x, w.z, cols, rows); if (!openCell(target)) return false;
+  const MAXR = 5; let path = findPath(maze, playerCell(), target);
   if (path.length > MAXR) { path = path.slice(0, MAXR); if (!routeHintT || performance.now() - routeHintT > 4000) { routeHintT = performance.now(); say(player, "That's as far as I plan.", 1.4); } }
-  route = path; routeEndCell = path.length ? { cx: path[path.length - 1][0], cy: path[path.length - 1][1] } : playerCell(); showRoute();
+  if (!path.length) return false; route = path; routeEndCell = { cx: path[path.length - 1][0], cy: path[path.length - 1][1] }; showRoute(); return true;
 }
 let routeHintT = 0;
 function extendRoute(w, first) {
@@ -296,6 +296,7 @@ input.on('tap', (w) => {
     lastTapT = now; lastTapW = w; if (near) say(player, 'Double-tap to ride.', 1.2); return;
   }
   lastTapT = now; lastTapW = w; camPan.set(0, 0, 0);
+  if (state === 'play' && !setRouteTo(w)) { const ndc = new THREE.Vector3(w.x, 0, w.z).project(thirdPerson ? tpCam : camera); queueTurn(ndc.x < 0 ? -1 : 1); }
 });
 // drag-routing retired: direction comes from the turn buttons
 // binoculars: look mode. One finger pans, pinch zooms, taps never route the player.
@@ -816,6 +817,7 @@ function frame(now) {
     // player: always moving. No route means keep going the way you face
     let moving = 0;
     autoT -= dt; if (turnQ) { turnQT -= dt; if (turnQT <= 0) queueTurn(0); }
+    if (route.length && !riding) { if (player.position.distanceTo(stuckPos) < 0.08) { stuckT += dt; if (stuckT > 1.2) { stuckT = 0; route = []; const { left, right } = perps(heading); heading = Math.random() < 0.5 ? left : right; player.position.add(new THREE.Vector3((Math.random() - 0.5) * 0.3, 0, (Math.random() - 0.5) * 0.3)); } } else { stuckT = 0; stuckPos.copy(player.position); } }
     if (stamMode) { stam -= 28 * dt; if (stam <= 0) { stam = 0; setStamMode(0); } } else stam = Math.min(100, stam + 5 * dt);
     $('stam').style.width = stam + '%';
     if (!route.length && !riding && autoT <= 0) {
@@ -829,7 +831,7 @@ function frame(now) {
     if (route.length) {
       const w = toWorld(route[0][0], route[0][1], cols, rows);
       const dx = w.x - player.position.x, dz = w.z - player.position.z, d = Math.hypot(dx, dz);
-      if (d < 0.35) { route.shift(); showRoute(); }
+      if (d < 0.35) { const c = toCell(player.position.x, player.position.z, cols, rows); const hx = route[0][0] - c.cx, hz = route[0][1] - c.cy; if (Math.abs(hx) + Math.abs(hz) === 1) heading = [hx, hz]; route.shift(); showRoute(); }
       else { const spd = PLAYER_SPEED * (stamMode < 0 ? 0.5 : stamMode > 0 ? 1.55 : 1) * (1 + inv.shoes * 0.1) * (driving ? 1.6 : 1); const step = Math.min(d, spd * dt); player.position.x += dx / d * step; player.position.z += dz / d * step; player.rotation.y = Math.atan2(dx, dz); moving = 1; if (sprint > 0 && Math.random() < 0.5) particle(player.position, previewMat); }
     }
     if (driving && car) { car.position.copy(player.position); car.rotation.y = player.rotation.y; animateCar(car, dt, moving); car.userData.hp = inv.carHp;
@@ -988,8 +990,8 @@ function frame(now) {
       if (u.follow) {
         // target: a spot behind the player, staggered per follower
         const idx = followers.indexOf(civ); const leaderPos = idx <= 0 ? player.position : followers[idx - 1].position;
-        if (idx > 0 && !(u.infect > 0) && !riding && civ.position.distanceTo(player.position) < 0.55) u.touch = (u.touch || 0) + dt; else u.touch = 0;
-        if (u.touch > 0.3) { u.touch = 0; u.infect = 0.6; u.infectT = 0; sfx.hurt(); say(civ, 'You touched me!', 1.6); if (!crossWarned) { crossWarned = true; setTip('You crossed your own line. Anyone you touch turns. Plan the route.'); } }
+        if (idx > 0 && !(u.infect > 0) && !riding && civ.position.distanceTo(player.position) < 0.7) u.touch = (u.touch || 0) + dt; else u.touch = 0;
+        if (u.touch > 0.1) { u.touch = 0; u.infect = 0.6; u.infectT = 0; sfx.hurt(); say(civ, 'You touched me!', 1.6); if (!crossWarned) { crossWarned = true; setTip('You crossed your own line. Anyone you touch turns. Plan the route.'); } }
         const dx = leaderPos.x - civ.position.x, dz = leaderPos.z - civ.position.z, d = Math.hypot(dx, dz);
         if (riding) { animateWalk(civ, dt, 0); continue; }
         if (d > 0.9) { const st = Math.min(d - 0.7, PLAYER_SPEED * (1 + inv.shoes * 0.1) * (u.infect > 0 ? 0.7 : 1.15) * dt); civ.position.x += dx / d * st; civ.position.z += dz / d * st; civ.rotation.y = Math.atan2(dx, dz); collide(civ.position, 0.2); animateWalk(civ, dt, 1); }
