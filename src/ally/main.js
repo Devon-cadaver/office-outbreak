@@ -9,7 +9,7 @@ import { createTwisters } from '../tornado.js';
 import { createFires } from '../fire.js';
 import { unlockAudio, sfx, startMusic, stopMusic, setMusicChase } from '../audio.js';
 import { equippedSkin, equippedTornado, skinnedCarArgs, CHAR_SKINS } from '../skins.js';
-import { bindSeasonSelect } from '../season.js';
+import { forceSeason } from '../season.js';
 import { showChests } from '../chests.js';
 import { stampVersion } from '../version.js';
 
@@ -42,6 +42,9 @@ const LEVELS = [
   { name: 'Megacity', size: 47, time: 240, goal: 30 },
 ];
 let level = 1; const L = () => LEVELS[level - 1];
+const SEASON_CYCLE = ['none', 'halloween', 'christmas', 'july4'], SEASON_NAME = { none: 'Clear skies', halloween: 'Halloween', christmas: 'Christmas', july4: '4th of July' };
+let seasonI = 0; { let last = -1; try { last = +(localStorage.getItem('ta_season_start') ?? -1); } catch { /* ignore */ } seasonI = (Math.max(0, last) + 1 + ((Math.random() * (SEASON_CYCLE.length - 1)) | 0)) % SEASON_CYCLE.length; if (seasonI === last) seasonI = (seasonI + 1) % SEASON_CYCLE.length; try { localStorage.setItem('ta_season_start', String(seasonI)); } catch { /* ignore */ } }
+let roundN = 0; const seasonNow = () => SEASON_CYCLE[(seasonI + roundN) % SEASON_CYCLE.length];
 const unlocked = () => { try { return Math.max(1, Math.min(LEVELS.length, +localStorage.getItem('ta_level') || 1)); } catch { return 1; } };
 let ROUND = LEVELS[0].time;
 const F_NEED = { water: 2, power: 3, fair: 4 }; // Fujita rank needed for each target
@@ -77,17 +80,20 @@ function fireAt(from, big) {
 }
 function buildWorld() {
   if (city) { scene.remove(city.group); twisters.clear(); fx.clear(); for (const p of people) scene.remove(p); }
-  cols = rows = L().size; const seed = (Math.random() * 1e6) | 0; const rng = mulberry32(seed); const big = cols / 21;
+  cols = rows = L().size; const seed = (Math.random() * 1e6) | 0; const rng = mulberry32(seed); const big = cols / 21; forceSeason(seasonNow());
   maze = generateMaze(cols, rows, Math.floor(cols * rows * 0.12), rng);
   const mid = (cols - 1) / 2; for (let i = 1; i < cols - 1; i++) { maze[mid][i] = false; maze[i][mid] = false; } maze.avenues = { row: mid, col: mid };
   if (cols >= 33) for (const q of [Math.round((cols - 1) / 4) | 1, Math.round((cols - 1) * 3 / 4) | 1]) for (let i = 1; i < cols - 1; i++) { maze[q][i] = false; maze[i][q] = false; }
   // the fairground: three rides side by side on the south side, facing an open street
-  const fy = rows - 4, fx0 = mid - 1; for (let x = fx0; x <= fx0 + 2; x++) maze[fy][x] = true; for (let x = fx0 - 1; x <= fx0 + 3; x++) maze[fy + 1][x] = false;
+  const farFromMid = (x, y) => Math.abs(x - mid) + Math.abs(y - mid) > cols * 0.3;
+  let fy = rows - 4, fx0 = mid - 1; for (let k = 0; k < 60; k++) { const y = 3 + ((rng() * (rows - 7)) | 0), x = 2 + ((rng() * (cols - 7)) | 0); if (farFromMid(x + 1, y)) { fy = y; fx0 = x; break; } }
+  for (let x = fx0; x <= fx0 + 2; x++) maze[fy][x] = true; for (let x = fx0 - 1; x <= fx0 + 3; x++) maze[fy + 1][x] = false;
   const near = (tx, ty) => { let best = null, bd = 1e9; for (let y = 2; y < rows - 2; y++) for (let x = 2; x < cols - 2; x++) { if (!maze[y][x] || (y === fy && x >= fx0 && x <= fx0 + 2)) continue; if (!(maze[y - 1][x] === false || maze[y + 1][x] === false || maze[y][x - 1] === false || maze[y][x + 1] === false)) continue; const d = Math.abs(x - tx) + Math.abs(y - ty); if (d < bd) { bd = d; best = [x, y]; } } return best; };
-  const pw = near(3, 3), wt = near(cols - 4, 3);
+  const spot = (avoid) => { for (let k = 0; k < 80; k++) { const x = 2 + ((rng() * (cols - 4)) | 0), y = 2 + ((rng() * (rows - 4)) | 0); if (farFromMid(x, y) && avoid.every(([ax, ay]) => Math.abs(ax - x) + Math.abs(ay - y) > cols * 0.35)) return near(x, y); } return near(2 + ((rng() * (cols - 4)) | 0), 2); };
+  const pw = spot([[fx0 + 1, fy]]), wt = spot([[fx0 + 1, fy], pw]);
   const forced = new Map([[fy * cols + fx0, 'ferris'], [fy * cols + fx0 + 1, 'coaster'], [fy * cols + fx0 + 2, 'carousel'], [pw[1] * cols + pw[0], 'power'], [wt[1] * cols + wt[0], 'water']]);
   maze.forcedLandmarks = forced;
-  hemi.intensity = 1.7; sun.intensity = 0.9; city = buildCity(scene, maze, 4); city.season.light(hemi, sun, scene); city.detail.clouds.visible = false; city.detail.clouds.material.opacity = 0;
+  hemi.intensity = 1.7; sun.intensity = 0.9; city = buildCity(scene, maze, 3 + (seed % 9973)); city.season.light(hemi, sun, scene); city.detail.clouds.visible = false; city.detail.clouds.material.opacity = 0;
   // targets
   pois = { power: { hz: [], done: false }, water: { hz: [], done: false }, fair: { hz: [], done: false } };
   for (const hz of city.hazards) { const k = hz.type === 'power' ? 'power' : hz.type === 'water' ? 'water' : ['ferris', 'coaster', 'carousel'].includes(hz.type) ? 'fair' : null; if (k) pois[k].hz.push(hz); }
@@ -284,10 +290,10 @@ addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
 // ---------- flow ----------
 let state = 'start';
 function start() {
-  ROUND = L().time; unlockAudio(); buildWorld(); makeStorm(); score = 0; chain = 0; lastHit = -9; tLeft = ROUND; played = 0; peopleN = carsN = propsN = bDone = 0; clearPlanes();
+  if (state !== 'start' || roundN > 0) roundN++; ROUND = L().time; unlockAudio(); buildWorld(); makeStorm(); score = 0; chain = 0; lastHit = -9; tLeft = ROUND; played = 0; peopleN = carsN = propsN = bDone = 0; clearPlanes();
   for (const k of ['Power', 'Water', 'Fair']) $('poi' + k).classList.remove('done');
   for (const s of ['taStart', 'taEnd', 'taPaused']) $(s).classList.add('hidden'); $('ta').classList.remove('hidden');
-  state = 'play'; startMusic(); setMusicChase(true); sfx.whoosh(); banner('LEVEL ' + level + ': ' + L().name.toUpperCase());
+  state = 'play'; startMusic(); setMusicChase(true); sfx.whoosh(); banner('LEVEL ' + level + ': ' + L().name.toUpperCase()); setTimeout(() => { if (state === 'play') banner(SEASON_NAME[seasonNow()].toUpperCase()); }, 2300);
   $('taLevel').textContent = 'L' + level + ' · goal ' + L().goal + '%';
 }
 function togglePause() { if (state === 'play') { state = 'paused'; $('taPaused').classList.remove('hidden'); } else if (state === 'paused') { state = 'play'; $('taPaused').classList.add('hidden'); } }
@@ -307,7 +313,6 @@ function finish() {
 $('taPlay').addEventListener('click', start); $('taAgain').addEventListener('click', () => { if ($('taAgain').dataset.next) level++; start(); });
 function drawLevels() { const box = $('taLevels'); box.innerHTML = ''; const un = unlocked(); LEVELS.forEach((lv, i) => { const b = document.createElement('button'); const n = i + 1; let best = 0; try { best = +localStorage.getItem('ta_best_' + n) || 0; } catch { /* ignore */ }
   b.className = 'lvl' + (n === level ? ' on' : ''); b.disabled = n > un; b.innerHTML = '<b>' + (n > un ? '🔒' : n) + '</b><span>' + lv.name + '</span>' + (best ? '<i>' + best + '</i>' : ''); b.addEventListener('click', () => { level = n; drawLevels(); }); box.appendChild(b); }); }
-bindSeasonSelect(document.getElementById('seasonSel')); document.getElementById('seasonSel').addEventListener('change', () => { if (state !== 'play') { buildWorld(); makeStorm(); twObj.position.set(-12, 0, -12); } });
 level = unlocked(); if (import.meta.env.DEV) { const q = +new URLSearchParams(location.search).get('level'); if (q >= 1 && q <= LEVELS.length) level = q; } drawLevels();
 $('taPause').addEventListener('click', togglePause); $('taResume').addEventListener('click', togglePause);
 
@@ -395,4 +400,4 @@ function frame(now) {
 // a calm town behind the title screen
 buildWorld(); makeStorm(); twObj.position.set(-12, 0, -12); camTarget.set(0, 1, 0);
 requestAnimationFrame(frame);
-window.__ta = { spawnChaser, get chaser() { return chaser; }, get zoom() { return zoom; }, setZoom, get extraSeeders() { return extraSeeders; }, setView, get third() { return third; }, spawnPlane, get planes() { return planes; }, get mass() { return mass; }, get level() { return level; }, set level(v) { level = v; }, get bDone() { return bDone; }, get totalB() { return totalB; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, get drivers() { return drivers; }, get state() { return state; }, get score() { return score; }, get size() { return sizeShown; }, get storm() { return twObj; }, get pois() { return pois; }, get buildings() { return buildings; }, get people() { return people; }, set tLeft(v) { tLeft = v; }, grow, start };
+window.__ta = { bench(n = 20) { const vc = viewCam(); renderer.render(scene, vc); const t0 = performance.now(); for (let i = 0; i < n; i++) renderer.render(scene, vc); renderer.getContext().finish(); return (performance.now() - t0) / n; }, get animN() { return city.season.anim.length; }, setSeason(s) { seasonI = SEASON_CYCLE.indexOf(s); roundN = 0; }, get season() { return seasonNow(); }, get calls() { return renderer.info.render.calls; }, get tris() { return renderer.info.render.triangles; }, spawnChaser, get chaser() { return chaser; }, get zoom() { return zoom; }, setZoom, get extraSeeders() { return extraSeeders; }, setView, get third() { return third; }, spawnPlane, get planes() { return planes; }, get mass() { return mass; }, get level() { return level; }, set level(v) { level = v; }, get bDone() { return bDone; }, get totalB() { return totalB; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, get drivers() { return drivers; }, get state() { return state; }, get score() { return score; }, get size() { return sizeShown; }, get storm() { return twObj; }, get pois() { return pois; }, get buildings() { return buildings; }, get people() { return people; }, set tLeft(v) { tLeft = v; }, grow, start };

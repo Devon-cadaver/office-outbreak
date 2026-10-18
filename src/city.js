@@ -5,6 +5,31 @@ import * as THREE from 'three';
 import { pickLandmarks, buildLandmark, resetLandmarks, updateLandmarks } from './landmarks.js';
 import { createSeason } from './season.js';
 import { createDetail } from './detail.js';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+
+// Seasonal decorations are hundreds of tiny meshes (bulbs, fences, pumpkins, bunting...). Merge the static ones that share a
+// parent, an owner building and a material into a single mesh, so a decorated town costs a fraction of the draw calls.
+// Each building keeps its own merged pieces, so wrecking it still takes its decorations with it.
+// Plain solid colours (unlit or Lambert, no texture, no glow) go further: their colour is baked into the vertices so all of an
+// owner's solid decorations share one material and draw in one go.
+const vcMats = new Map(); const vcMat = (kind, side) => { const k = kind + side; if (!vcMats.has(k)) vcMats.set(k, kind === 'B' ? new THREE.MeshBasicMaterial({ vertexColors: true, side }) : new THREE.MeshLambertMaterial({ vertexColors: true, side, flatShading: kind === 'LF' })); return vcMats.get(k); };
+const plainKind = (mt) => { if (mt.transparent || mt.map || mt.vertexColors) return null; if (mt.type === 'MeshBasicMaterial') return 'B'; if (mt.type === 'MeshLambertMaterial' && (!mt.emissive || mt.emissive.getHex() === 0)) return mt.flatShading ? 'LF' : 'L'; return null; };
+function batchDecor(root, skip) {
+  const buckets = new Map();
+  root.traverse((m) => { if (!m.isMesh || !m.userData.deco || skip.has(m) || m.children.length || !m.parent || m.parent.isMesh || Array.isArray(m.material)) return; if (![m.position.x, m.position.y, m.position.z, m.scale.x, m.scale.y, m.scale.z].every(Number.isFinite)) return;
+    const kind = plainKind(m.material); const key = m.parent.uuid + '|' + (m.userData.owner || 0) + '|' + (kind ? kind + m.material.side : m.material.uuid);
+    let b = buckets.get(key); if (!b) buckets.set(key, (b = { parent: m.parent, mat: kind ? vcMat(kind, m.material.side) : m.material, vc: !!kind, list: [] })); b.list.push(m); });
+  const map = new Map();
+  for (const b of buckets.values()) {
+    if (b.list.length < 2 && !b.vc) continue;
+    const geos = b.list.map((m) => { m.updateMatrix(); const g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone(); for (const k of Object.keys(g.attributes)) if (k !== 'position' && k !== 'normal' && k !== 'uv') g.deleteAttribute(k); g.applyMatrix4(m.matrix); if (!g.attributes.normal) g.computeVertexNormals(); if (!g.attributes.uv) g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));
+      if (b.vc) { const c = m.material.color, n = g.attributes.position.count, arr = new Float32Array(n * 3); for (let i = 0; i < n; i++) { arr[i * 3] = c.r; arr[i * 3 + 1] = c.g; arr[i * 3 + 2] = c.b; } g.setAttribute('color', new THREE.BufferAttribute(arr, 3)); } return g; });
+    const merged = mergeGeometries(geos); if (!merged) continue;
+    const mm = new THREE.Mesh(merged, b.mat); mm.userData.deco = 1; mm.userData.owner = b.list[0].userData.owner; b.parent.add(mm);
+    for (const m of b.list) { b.parent.remove(m); map.set(m, mm); }
+  }
+  return map;
+}
 import { equippedSkin, ghostify } from './skins.js';
 
 export const CELL = 3; // world units per grid cell
@@ -592,6 +617,10 @@ const sp = prop(px, pz, 'street', false);
     rainGeo.attributes.position.needsUpdate = true;
   };
 
+  // batch the season's static decorations, then point the buildings' loose-part lists at the merged meshes
+  // keep a lively handful of animated decorations; the rest stand still and batch with everything else
+  if (season.anim.length > 60) { for (let i = season.anim.length - 1; i > 0; i--) { const j = (rng() * (i + 1)) | 0; [season.anim[i], season.anim[j]] = [season.anim[j], season.anim[i]]; } for (const a of season.anim.slice(60)) if (a.m) a.m.visible = true; season.anim.length = 60; }
+  { const merged = batchDecor(group, new Set(season.anim.map((a) => a.m))); if (merged.size) for (const b of buildings) { const ex = b.userData.extras; if (!ex) continue; const out = []; for (const e of ex) { const m = merged.get(e) || e; if (!out.includes(m)) out.push(m); } b.userData.extras = out; } }
   const parkFn = wall.park || (() => false);
   const detail = createDetail(group, { grassCells: [...streetCells.filter(([x, y]) => parkFn(x, y)).map(([x, y]) => ({ ...toWorld(x, y, cols, rows), roads: wall.custom ? [] : [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([dx, dy]) => open(x + dx, y + dy)) })), ...treeLots.map((w) => ({ ...w, roads: [] }))], streetCells: streetCells.filter(([x, y]) => !parkFn(x, y)).map(([x, y]) => toWorld(x, y, cols, rows)), cell: CELL, W, D, rng: mulberry32(borderSeed * 613 + 11), skyRng: mulberry32(borderSeed * 131 + 9) });
   return { group, obstacles, cols, rows, updateRain: (dt) => { updateRain(dt); updateLandmarks(dt); updateProps(dt); season.update(dt); detail.update(dt); }, season, detail, buildings, cars, hazards, props, knock };

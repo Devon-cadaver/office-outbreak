@@ -1,6 +1,6 @@
 # Survive Dead City — itch.io page kit
 
-Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.5.1**. Upload `release/survive-dead-city-web-v1.5.1.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
+Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.5.2**. Upload `release/survive-dead-city-web-v1.5.2.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
 
 ## Upload settings (Edit game page)
 
@@ -11,7 +11,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 | Short description / tagline | Three games in your browser: survive six nights in Dead City, extract the crowds in a snake-style maze, or BE the tornado in Tornado Alley. |
 | Classification | Game |
 | Kind of project | **HTML** |
-| Uploads | `survive-dead-city-web-v1.5.1.zip` (0.4 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
+| Uploads | `survive-dead-city-web-v1.5.2.zip` (0.4 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
 | Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
 | Frame options | Leave SharedArrayBuffer off. No special headers needed. |
 | Pricing | Free (or "No payments"). |
@@ -67,7 +67,7 @@ Ever wanted to be the disaster? In Tornado Alley you *are* the tornado. Drag to 
 - **Three big targets.** The water station turns you into a waterspout, the power plant blacks out the whole city, and the fairground's ferris wheel, roller coaster and carousel go spinning into the sky.
 - **They fight back.** Army squads and tanks open fire (you shrug it off). Cloud-seeding planes hunt you and their spray shrinks you: dodge them, or grow big enough to swallow them. Storm chasers race in to photograph you; run them down before they get away, or another seeding plane joins the hunt.
 - **Five towns.** Small Town, Suburbs, Downtown, Metro and the huge Megacity. Flatten enough of each to unlock the next.
-- **Make it yours.** Six tornado skins in the shop (Hallowstorm, Blizzard, Firenado, Sharknado, Bunnynado and Liberty Twister), plus seasons, an ISO or chase camera, and zoom.
+- **Make it yours.** Six tornado skins in the shop (Hallowstorm, Blizzard, Firenado, Sharknado, Bunnynado and Liberty Twister), plus seasons that change every round, an ISO or chase camera, and zoom.
 
 **All three**
 
@@ -90,6 +90,7 @@ Small browser games built fast, tested on a phone, and tuned by playing. Survive
 
 ## Version history
 
+- **1.5.2** (2026-10-18): Smoother seasons in every mode: holiday decorations are merged into a few pieces per building (Halloween and 4th of July now cost about as much as no season, Christmas well under half what it did). Tornado Alley: the season cycles every round (never starting on the last one), the power plant, water station and fairground move each round, and every round builds a new-looking town.
 - **1.5.1** (2026-10-18): New logo, cover and banner: a 3D render of the town with a realistic tornado tearing down the avenue under a storm sky. The animated main-menu logo now has a spinning tornado with debris and lightning.
 - **1.5.0** (2026-10-18): Tornado Alley: storm chasers (an armoured intercept vehicle drives in, stops to photograph you, then races off on the roads a little faster than you; catch it for +800, or if it gets away with its pictures another seeding plane joins the hunt), zoom (pinch, mouse wheel or +/- buttons, both views), seasons picker, and your survivor and car skins on the townsfolk and traffic. Chests: new players get coins fast (very generous until 2 coins, generous until 5).
 - **1.4.0** (2026-10-18): Tornado skins in the shop (2 coins each), used by every tornado in every mode: Hallowstorm (black, bats and jack-o-lanterns, green/purple/orange lights), Blizzard (white, snow, reindeer and snowmen, red and green lightning), Firenado (fire, embers, red lightning), Sharknado (waterspout full of sharks), Bunnynado (pastels, bunnies and eggs, pink lightning) and Liberty Twister (red, white and blue, flags, fireworks, multicolour lightning).
