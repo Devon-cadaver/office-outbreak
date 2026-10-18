@@ -1,0 +1,82 @@
+# Survive Dead City — itch.io page kit
+
+Everything needed to set up https://devs66.itch.io/ for the game. Upload `release/survive-dead-city-web.zip` as an **HTML** project.
+
+## Upload settings (Edit game page)
+
+| Field | Value |
+|---|---|
+| Title | Survive Dead City |
+| Project URL | survive-dead-city |
+| Short description / tagline | Two zombie games in your browser: survive six nights in Dead City, or extract the crowds in a snake-style maze run. |
+| Classification | Game |
+| Kind of project | **HTML** |
+| Uploads | `survive-dead-city-web.zip` (0.4 MB). Tick **This file will be played in the browser**. |
+| Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
+| Frame options | Leave SharedArrayBuffer off. No special headers needed. |
+| Pricing | Free (or "No payments"). |
+| Genre | Action |
+| Tags | zombies, survival, arcade, browser, mobile, isometric, pixel-free low poly, three-js, snake, single-player |
+| Made with | Three.js |
+| Average session | A few minutes |
+| Inputs | Touchscreen, Mouse, Keyboard |
+| Accessibility | One-button-ish controls, no text-only cues required |
+| Release status | In development |
+
+## Images (itch sizes)
+
+| Slot | File | Size | itch requirement |
+|---|---|---|---|
+| Cover image | `cover-630x500.png` | 630 × 500 | Minimum 315 × 250, recommended 630 × 500. |
+| Banner (page theme → Banner) | `banner-960x400.png` | 960 × 400 | Any width up to 960 px, replaces the title. Optional. |
+| Screenshots | `shot-1-dead-city-title.png` … `shot-6-skin-shop.png` | 1280 × 720 | At least 3, up to 8. |
+| Logo (optional, for the page header or devlog) | `logo-extraction-dead-city.png` | 768 × 512 | Original Extraction: Dead City logo. |
+
+## Description (paste into the page body; Markdown works)
+
+**Two zombie games, one dark little city, straight from your browser.**
+
+**DEAD CITY (Survival)** — Third-person joystick survival. Survive six nights. The first night sends about twenty slow walkers. Every night after sends more, and more of them run. By night six the whole horde is fast. Nothing stays safe: stand still and the dead crawl out of the ground around you; start a car and the engine noise brings them running.
+
+- Find the eight spell books: Hellfire flamethrower, Beam, Repulse, Entomb, Wrath, Maelstrom tornado, Arc chain lightning, Diminish.
+- Guns aim for you. Hold FIRE to shoot. Trash is free, real guns are scarce.
+- Drive cars, vans, a truck and a tank. Refuel at the gas station, hotwire the tank, run the dead down. Your survivors ride along.
+- Lead survivors to the green zone and a chopper lifts them out. Finish the night's mission before dawn for a bonus; skip it and the next night is worse.
+- Weather tries to kill you: sandstorms and fog cut your sight, lightning storms strike where the blue marks warn and supercharge the dead, tornadoes tear up houses, cars and anyone in the way.
+- Ride the ferris wheel, coaster and carousel to fling the horde. Clown zombies included.
+- Spend cash at dawn: hearts, flak jacket, guns, running shoes, spell focus.
+
+**EXTRACT** — Pac-Man meets Snake. Lead a line of survivors through the maze to the extraction point. You never stop walking: tap left or right to turn at the next corner, hold WALK or RUN while your stamina lasts. You are immune, but you carry it. Cross your own line and whoever you touch turns, except the one right behind you. The longer your line, the more you plan.
+
+- Ten districts, power-box gate puzzles, fairground rides, fires and explosions, a chopper fly-by, and a helicopter rescue at the end.
+- Weapons aim themselves. Crowds panic and chain-infect, so lead the horde away from them.
+- Store between districts: ammo, medkit, vest, shoes, flare, car.
+
+**Both games**
+
+- Seasons: Halloween, Christmas and the 4th of July dress every house, shop and park (random by default, or pick one).
+- Beat either game to earn a coin and spend it in the skin shop: 32 outfits for you, survivor sets you can mix, 23 rides from an A-Team van to a dragon, and fire colours.
+- Save at any time, continue later. Pause with ❚❚.
+- Built for phones in portrait. Works with mouse and keyboard too.
+
+## How to play (paste below the description or into a "Controls" section)
+
+**Dead City (Survival):** Left thumb is the joystick. Drag the right side to turn the camera. Hold **FIRE** to shoot (space on PC). Tap the spell buttons once a book is found. Double-tap next to a vehicle to drive it, double-tap again to get out. Double-tap next to a ride to play its operator game. **SCAN** sends a pulse toward your objective, three times a day. **ISO/3RD** switches the camera. Pinch or scroll to zoom. ❚❚ pauses; Esc or P on PC.
+
+**Extract:** You walk on your own. Tap the **left** side of the screen (or ◀) to turn left at the next corner, the **right** side (or ▶) to turn right. Hold **WALK** to slow down or **RUN** to speed up; both burn stamina, purple gems refill it. Walk up to people and they follow. Reach the green beam. Double-tap a ride to use it. Hold a finger down to preview the way. Arrow keys on PC.
+
+## Bio (for the devs66 profile)
+
+Small browser games built fast, tested on a phone, and tuned by playing. Survive Dead City grew out of Extraction: Dead City, a Godot prototype, rebuilt as a lean Three.js city with two ways to play: a six-night survival run and a snake-style extraction maze.
+
+## Credits line
+
+Design: Sean Duvall. Built with Three.js and Vite. Original Extraction: Dead City logo art reused with permission of the author.
+
+## Checklist
+
+1. Create project → Title, URL, Kind **HTML**, upload the zip, tick "played in the browser", set viewport and Mobile friendly.
+2. Paste the description and controls into the body.
+3. Upload `cover-630x500.png` as the cover, the six screenshots in order, and (optionally) `banner-960x400.png` under Theme → Banner.
+4. Tags, genre, status, pricing as above. Save, then **Public** when you are happy.
+5. Test the embed on your phone: the page is portrait first; use the fullscreen button.
