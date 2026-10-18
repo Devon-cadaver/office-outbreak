@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { pickLandmarks, buildLandmark, resetLandmarks, updateLandmarks } from './landmarks.js';
 import { createSeason } from './season.js';
+import { createDetail } from './detail.js';
 import { equippedSkin, ghostify } from './skins.js';
 
 export const CELL = 3; // world units per grid cell
@@ -189,7 +190,7 @@ export function buildCity(scene, wall, level) {
   ground.rotation.x = -Math.PI / 2; ground.position.y = -0.02; group.add(ground);
 
   // ---------- roads ----------
-  const streetCells = [];
+  const streetCells = [], treeLots = [];
   for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) if (!wall[y][x]) streetCells.push([x, y]);
   const open = (x, y) => wall[y]?.[x] === false;
   {
@@ -392,7 +393,7 @@ export function buildCity(scene, wall, level) {
     const edge = x === 0 || y === 0 || x === cols - 1 || y === rows - 1;
     const vi = wall.custom && wall.custom.vars ? (wall.custom.vars.get(y * cols + x) || 0) : 0;
     const R = edge ? mulberry32(x * 131 + y * 17 + borderSeed * 7) : wall.custom ? mulberry32(x * 131 + y * 17 + vi * 977 + 3) : rng; // border buildings stay the same whatever happens inside; builder cells get a look per variant
-    if (wall.custom && wall.custom.trees.has(y * cols + x)) {
+    if (wall.custom && wall.custom.trees.has(y * cols + x)) { treeLots.push(toWorld(x, y, cols, rows));
       // a tree cell: grass lot with trees, blocks the way like a building would. Ten looks, picked in the builder.
       add(box, M({ color: 0x2f5a38 }), CELL - 0.3, 0.06, CELL - 0.3, w.x, 0.03, w.z);
       const vi = (wall.custom.vars && wall.custom.vars.get(y * cols + x)) || 0;
@@ -591,5 +592,7 @@ const sp = prop(px, pz, 'street', false);
     rainGeo.attributes.position.needsUpdate = true;
   };
 
-  return { group, obstacles, cols, rows, updateRain: (dt) => { updateRain(dt); updateLandmarks(dt); updateProps(dt); season.update(dt); }, season, buildings, cars, hazards, props, knock };
+  const parkFn = wall.park || (() => false);
+  const detail = createDetail(group, { grassCells: [...streetCells.filter(([x, y]) => parkFn(x, y)).map(([x, y]) => ({ ...toWorld(x, y, cols, rows), roads: wall.custom ? [] : [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([dx, dy]) => open(x + dx, y + dy)) })), ...treeLots.map((w) => ({ ...w, roads: [] }))], streetCells: streetCells.filter(([x, y]) => !parkFn(x, y)).map(([x, y]) => toWorld(x, y, cols, rows)), cell: CELL, W, D, rng });
+  return { group, obstacles, cols, rows, updateRain: (dt) => { updateRain(dt); updateLandmarks(dt); updateProps(dt); season.update(dt); detail.update(dt); }, season, detail, buildings, cars, hazards, props, knock };
 }

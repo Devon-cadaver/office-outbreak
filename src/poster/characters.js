@@ -50,6 +50,14 @@ export function makeCharacter(outfitName, { zombie = false, clown = null, skin =
   const eyeC = zombie ? 0x6cff2a : 0x1a1a1a; const eyeMat = zombie ? new THREE.MeshBasicMaterial({ color: eyeC }) : mat(eyeC);
   for (const ex of [-0.13, 0.13]) { const e = new THREE.Mesh(sphere, eyeMat); e.scale.setScalar(zombie ? 0.14 : 0.08); e.position.set(ex, 0.34, 0.3); head.add(e);
     if (zombie) { const halo = new THREE.Mesh(sphere, new THREE.MeshBasicMaterial({ color: 0x6cff2a, transparent: true, opacity: 0.35, depthWrite: false })); halo.scale.setScalar(0.24); halo.position.set(ex, 0.34, 0.3); head.add(halo); } }
+  // face and clothing detail
+  const dark = (cc, f) => new THREE.Color(cc).multiplyScalar(f).getHex();
+  head.add(part(sphere, dark(o.skin, 0.88), 0.11, 0.1, 0.12, 0, 0.27, 0.33));
+  head.add(part(box, zombie ? 0x3a0a0a : 0x5a2a2a, zombie ? 0.18 : 0.12, zombie ? 0.07 : 0.025, 0.04, 0, 0.17, 0.3));
+  if (!zombie) for (const ex of [-0.13, 0.13]) head.add(part(box, o.hair || 0x3a2a1a, 0.12, 0.025, 0.04, ex, 0.43, 0.3));
+  body.add(part(sphere, dark(o.pants, 0.7), 0.8, 0.09, 0.62, 0, 1.07, 0));
+  if (zombie) { const wound = mat(0x5a0f14); for (let i = 0; i < 2; i++) { const w = new THREE.Mesh(sphere, wound); w.scale.set(0.16, 0.12, 0.06); w.position.set((Math.random() - 0.5) * 0.5, 1.15 + Math.random() * 0.35, 0.29); body.add(w); }
+    const rag = part(box, o.shirt, 0.14, 0.22, 0.04, (Math.random() - 0.5) * 0.4, 0.98, 0.28); rag.rotation.z = (Math.random() - 0.5) * 0.6; body.add(rag); }
   if (zombie) { armL.rotation.x = -1.3; armR.rotation.x = -1.3; body.rotation.x = 0.12; head.rotation.z = 0.15;
     const glow = new THREE.Mesh(sphere, new THREE.MeshBasicMaterial({ color: 0x46ff46, transparent: true, opacity: 0.14, depthWrite: false, blending: THREE.AdditiveBlending })); glow.scale.set(1.5, 2.9, 1.5); glow.position.y = 1.3; body.add(glow); }
   if (clown === 'hammer') {
@@ -62,16 +70,33 @@ export function makeCharacter(outfitName, { zombie = false, clown = null, skin =
     bal.userData.sway = true;
   }
   if (skin && !zombie && skin.dress) skin.dress({ g, body, head, armL, armR, legL, legR, part });
-  g.userData = { body, legL, legR, armL, armR, head, zombie, clown, phase: Math.random() * 6 };
+  g.userData = { body, legL, legR, armL, armR, head, zombie, clown, phase: Math.random() * 6, idle: Math.random() * 6, lean: zombie ? 0.12 : 0, limp: 0.5 + Math.random() * 0.5 };
   return g;
 }
 
 export function animateWalk(g, dt, speed) {
-  const u = g.userData;
-  u.phase += dt * (u.zombie ? 6 : 11) * Math.max(speed, 0.001);
-  const s = Math.sin(u.phase) * 0.7 * speed;
-  u.legL.rotation.x = s; u.legR.rotation.x = -s;
-  if (u.zombie) { u.armL.rotation.x = -1.3 + s * 0.2; u.armR.rotation.x = -1.3 - s * 0.2; u.body.position.y = Math.abs(Math.sin(u.phase)) * 0.05 * speed;
-    if (u.clown === 'hammer') u.armR.rotation.x = -2.6 + Math.sin(u.phase * 0.5) * 0.5; if (u.clown === 'balloons') u.armL.rotation.x = -2.9; }
-  else { u.armL.rotation.x = -s; u.armR.rotation.x = s; u.body.position.y = Math.abs(Math.sin(u.phase)) * 0.08 * speed; }
+  const u = g.userData; u.idle = (u.idle || 0) + dt; const sp = Math.max(speed, 0);
+  if (u.zombie) {
+    const runner = (u.lean || 0) > 0.3; u.phase += dt * (runner ? 9 : 5.5) * Math.max(sp, 0.001); const ph = u.phase, s = Math.sin(ph), lim = u.limp || 0.7;
+    // shamble: one leg strides, the other drags; the body rolls side to side and the head lolls
+    u.legL.rotation.x = s * (runner ? 0.85 : 0.6) * sp; u.legR.rotation.x = -Math.sin(ph + 0.7) * (runner ? 0.85 : 0.6 * lim) * sp;
+    u.body.position.y = Math.abs(Math.sin(ph)) * (runner ? 0.09 : 0.05) * sp;
+    u.body.rotation.z = Math.sin(ph) * (runner ? 0.06 : 0.13) * Math.max(sp, 0.3) + Math.sin(u.idle * 0.7) * 0.03;
+    u.body.rotation.x = (u.lean || 0.12) + Math.abs(Math.sin(ph)) * 0.06 * sp;
+    u.head.rotation.z = 0.15 + Math.sin(ph * 0.5 + u.idle * 0.3) * 0.18; u.head.rotation.x = Math.sin(ph * 0.7) * 0.14 + 0.08;
+    const reach = runner ? -1.55 : -1.3; u.armL.rotation.x = reach + Math.sin(ph + 1.2) * (runner ? 0.45 : 0.22); u.armR.rotation.x = reach - Math.sin(ph) * (runner ? 0.45 : 0.22);
+    u.armL.rotation.z = 0.12 + Math.sin(u.idle * 1.3) * 0.08; u.armR.rotation.z = -0.12 - Math.sin(u.idle * 1.1) * 0.08;
+    if (u.clown === 'hammer') u.armR.rotation.x = -2.6 + Math.sin(u.phase * 0.5) * 0.5; if (u.clown === 'balloons') u.armL.rotation.x = -2.9;
+    return; }
+  if (sp < 0.05) { // idle: breathe, shift weight, glance around
+    u.legL.rotation.x *= 0.8; u.legR.rotation.x *= 0.8; u.body.position.y = Math.sin(u.idle * 2.2) * 0.012; u.body.rotation.x *= 0.85; u.body.rotation.y = Math.sin(u.idle * 0.5) * 0.05;
+    u.armL.rotation.x = Math.sin(u.idle * 2.2) * 0.04; u.armR.rotation.x = -Math.sin(u.idle * 2.2) * 0.04; u.armL.rotation.z = 0.06; u.armR.rotation.z = -0.06;
+    u.head.rotation.y = Math.sin(u.idle * 0.6) * 0.35 * (Math.sin(u.idle * 0.17) > 0 ? 1 : 0.2); u.head.rotation.x = Math.sin(u.idle * 1.1) * 0.03; return; }
+  const run = sp > 1.05; u.phase += dt * (run ? 13 : 10) * Math.min(sp, 1.5); const s = Math.sin(u.phase);
+  const stride = (run ? 0.95 : 0.7) * Math.min(sp, 1.2);
+  u.legL.rotation.x = s * stride; u.legR.rotation.x = -s * stride;
+  u.armL.rotation.x = -s * stride * (run ? 1.1 : 0.8); u.armR.rotation.x = s * stride * (run ? 1.1 : 0.8); u.armL.rotation.z = run ? 0.15 : 0.05; u.armR.rotation.z = run ? -0.15 : -0.05;
+  u.body.position.y = Math.abs(s) * (run ? 0.13 : 0.07) * Math.min(sp, 1.2);
+  u.body.rotation.x = (run ? 0.22 : 0.06) * Math.min(sp, 1.2); u.body.rotation.y = s * (run ? 0.12 : 0.07); u.body.rotation.z = 0;
+  u.head.rotation.y = -s * 0.06; u.head.rotation.x = -u.body.rotation.x * 0.6 + Math.abs(s) * 0.03;
 }

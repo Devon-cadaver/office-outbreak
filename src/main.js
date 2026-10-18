@@ -1090,6 +1090,7 @@ function render(dt = 0.016) {
     } else arrowEl.classList.add('hidden');
     void lim;
   }
+  if (city && city.detail) city.detail.sky(!thirdPerson);
   if (thirdPerson) { const back = new THREE.Vector3(-Math.sin(player.rotation.y), 0, -Math.cos(player.rotation.y)); const want = player.position.clone().addScaledVector(back, 5.5).add(new THREE.Vector3(0, 3.2, 0)); tpPos.lerp(want, 1 - Math.pow(0.001, dt)); tpCam.position.copy(tpPos); tpCam.lookAt(player.position.x, 0.9, player.position.z); renderer.render(scene, tpCam); } else renderer.render(scene, camera);
 }
 resize();

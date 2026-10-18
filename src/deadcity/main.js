@@ -109,7 +109,7 @@ function updateStill(dt) {
 function spawnSite() { const r = Math.random(); if (r < 0.4 && houseDoors.length) { const dr = houseDoors[(Math.random() * houseDoors.length) | 0]; if (Math.hypot(dr.x - player.position.x, dr.z - player.position.z) > 5) return { pos: dr, mode: 'house' }; }
   if (isNight && r > 0.8) { const cem = poi('cemetery'); return { pos: { x: cem.x + (Math.random() - 0.5) * 3, z: cem.z + 2.2 }, mode: 'ground' }; } return { pos: randomOpen(10), mode: 'ground' }; }
 function spawnFrom(fast) { const s = spawnSite(); return spawnZombie(s.pos, fast, s.mode); }
-function spawnZombie(pos, strong, mode) { const z = pool.pop() || makeCharacter(['worker', 'vest', 'suit', 'punk'][(Math.random() * 4) | 0], { zombie: true }); z.position.set(pos.x, 0, pos.z); z.scale.setScalar(SCALE); z.rotation.set(0, 0, 0); Object.assign(z.userData, { hp: 3, fast: !!strong, speed: strong ? 1.9 + Math.random() * 0.3 : 0.8 + Math.random() * 0.3, charged: 0, burn: 0, rag: null, stun: 0, slow: 0, poison: 0, alert: 0 }); z.userData.body.rotation.x = strong ? 0.5 : 0.12; z.userData.rise = null;
+function spawnZombie(pos, strong, mode) { const z = pool.pop() || makeCharacter(['worker', 'vest', 'suit', 'punk'][(Math.random() * 4) | 0], { zombie: true }); z.position.set(pos.x, 0, pos.z); z.scale.setScalar(SCALE); z.rotation.set(0, 0, 0); Object.assign(z.userData, { hp: 3, fast: !!strong, speed: strong ? 1.9 + Math.random() * 0.3 : 0.8 + Math.random() * 0.3, charged: 0, burn: 0, rag: null, stun: 0, slow: 0, poison: 0, alert: 0 }); z.userData.lean = strong ? 0.5 : 0.12; z.userData.rise = null;
   if (mode === 'ground') { z.userData.rise = 0; z.position.y = -1.3; for (let i = 0; i < 5; i++) fx.puff('debris', new THREE.Vector3(pos.x, 0.05, pos.z), 0.5); } else if (mode === 'house') { z.userData.rise = 0.6; z.position.y = 0; }
   scene.add(z); zombies.push(z); return z; }
 // death: fall over, bleach to bones, sink away, then back to the pool
@@ -554,6 +554,7 @@ function frame(now) {
   if (city) { const cd = cam.position.clone().sub(target); const ch = Math.hypot(cd.x, cd.z) || 1, ux = cd.x / ch, uz = cd.z / ch, slope = cd.y / ch;
     for (const b of city.buildings) { const wp = b.getWorldPosition(fadeTmp); const rx = wp.x - target.x, rz = wp.z - target.z; const d = rx * ux + rz * uz; const perp = Math.abs(-rx * uz + rz * ux); const h = b.userData.h || 2;
       const fade = d > 0.3 && d < ch + 1 && perp < 2.2 && h > target.y + d * slope - 0.6; const op = fade ? 0.15 : 1; for (const m of b.userData.fade) if (m.opacity !== op) m.opacity = op; if (b.userData.extras) for (const e of b.userData.extras) e.visible = !fade; if (b.userData.edges) b.userData.edges.visible = fade; } }
+  if (city && city.detail) city.detail.sky(iso);
   renderer.render(scene, cam);
 }
 function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); const a = innerWidth / innerHeight, half = (a < 1 ? 8 / a * 0.8 : 8) * zoom; isoCam.left = -half * a; isoCam.right = half * a; isoCam.top = half; isoCam.bottom = -half; isoCam.updateProjectionMatrix(); }
