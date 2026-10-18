@@ -1,6 +1,6 @@
 # Survive Dead City — itch.io page kit
 
-Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.5.5**. Upload `release/survive-dead-city-web-v1.5.5.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
+Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.6.0**. Upload `release/survive-dead-city-web-v1.6.0.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
 
 ## Upload settings (Edit game page)
 
@@ -11,7 +11,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 | Short description / tagline | Three games in your browser: survive six nights in Dead City, extract the crowds in a snake-style maze, or BE the tornado in Tornado Alley. |
 | Classification | Game |
 | Kind of project | **HTML** |
-| Uploads | `survive-dead-city-web-v1.5.5.zip` (0.4 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
+| Uploads | `survive-dead-city-web-v1.6.0.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
 | Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
 | Frame options | Leave SharedArrayBuffer off. No special headers needed. |
 | Pricing | Free (or "No payments"). |
@@ -64,10 +64,10 @@ Ever wanted to be the disaster? In Tornado Alley you *are* the tornado. Drag to 
 - **Wreck everything.** Houses, shops, towers, parked cars, benches and lamp posts. The bigger the building, the bigger the score.
 - **Sweep up the town.** Hundreds of residents run for their lives, traffic tries to escape, and your suction drags in anyone who gets too close.
 - **Grow.** Everything you destroy feeds the storm, from F0 up to a monster F5 three times your starting size. Tall towers only give way once you're big enough.
-- **Three big targets.** The water station turns you into a waterspout, the power plant blacks out the whole city, and the fairground's ferris wheel, roller coaster and carousel go spinning into the sky.
+- **Big targets everywhere.** Ten of them: the power plant (blackout), water station (waterspout), fairground, graveyard (the dead rise), weather station (no more seeding planes), fire station (lightning fires spread), police station (jailbreak), sewage plant (stink storm), radio tower (no more storm chasers) and, in the biggest cities, a nuclear plant that melts down. Edge arrows and a minimap show where they are.
 - **They fight back.** Army squads and tanks open fire (you shrug it off). Cloud-seeding planes hunt you and their spray shrinks you: dodge them, or grow big enough to swallow them. Storm chasers race in to photograph you; run them down before they get away, or another seeding plane joins the hunt.
-- **Five towns.** Small Town, Suburbs, Downtown, Metro and the huge Megacity. Flatten enough of each to unlock the next.
-- **Make it yours.** Six tornado skins in the shop (Hallowstorm, Blizzard, Firenado, Sharknado, Bunnynado and Liberty Twister), plus seasons that change every round, an ISO or chase camera, and zoom. Every million points pays a coin.
+- **Five towns.** Small Town, Suburbs, Downtown, Metro and the huge Megacity. Flatten enough of each and take out enough of its big targets to unlock the next; Megacity needs every last one.
+- **Make it yours.** Six tornado skins in the shop (Hallowstorm, Blizzard, Firenado, Sharknado, Bunnynado and Liberty Twister) and a bonus one for beating Megacity: the Acid Storm, with acid rain, green lightning and baby tornadoes, plus seasons that change every round, an ISO or chase camera, and zoom. Every million points pays a coin.
 
 **All three**
 
@@ -82,7 +82,7 @@ Ever wanted to be the disaster? In Tornado Alley you *are* the tornado. Drag to 
 
 **Extract:** You walk on your own. Tap the **left** side of the screen (or ◀) to turn left at the next corner, the **right** side (or ▶) to turn right. Hold **WALK** to slow down or **RUN** to speed up; both burn stamina, purple gems refill it. Tap a spot up to five cells ahead to walk there. Walk up to people and they join your line. Gather the number shown (10 in district 1, up to 70 by district 10), then reach the green beam for the heli. Never turn back into your line, and avoid dead ends. Double-tap a ride to use it. Hold a finger down to preview the way. Arrow keys on PC.
 
-**Tornado Alley:** Drag anywhere to steer the storm (WASD or arrow keys on PC). Pinch, scroll or tap **+ / −** to zoom. **ISO/3RD** switches between the top-down and chase cameras. Watch for the ✈ and 📷 arrows at the screen edge: seeding planes to dodge, storm chasers to catch.
+**Tornado Alley:** Drag anywhere to steer the storm (WASD or arrow keys on PC), or tap a spot to send it there with a lightning strike. Tap the minimap to head across town. Pinch, scroll or tap **+ / −** to zoom. **ISO/3RD** switches between the top-down and chase cameras. Watch for the ✈ and 📷 arrows at the screen edge: seeding planes to dodge, storm chasers to catch.
 
 ## Bio (for the devs66 profile)
 
@@ -90,6 +90,7 @@ Small browser games built fast, tested on a phone, and tuned by playing. Survive
 
 ## Version history
 
+- **1.6.0** (2026-10-18): Tornado Alley gets seven new big targets (graveyard, weather station, fire station, police station, sewage plant, radio tower, nuclear plant), each with its own effect when it falls; more of them in bigger towns, and clearing a level now also needs some of them (2 in Small Town up to all 10 in Megacity). Target chips under the size bar light up when you are big enough and turn green with a check when they fall; arrows at the screen edge point to each one; a minimap shows the whole town (tap it to head there). Beat Megacity to unlock the bonus Acid Storm skin: acid rain, bright green lightning and baby tornadoes that roam the town. Smoother on tablets and big screens: zoom-out is capped, buildings draw in far fewer pieces, and large screens draw fewer pixels. The Survival water-station pond shows again.
 - **1.5.5** (2026-10-18): Smoother frames in every mode: characters draw in a third of the pieces, fireworks are one particle cloud, and the draw resolution steps down a notch when frames run long. Tornado Alley: tap anywhere to send the storm there with a lightning strike that sets buildings on fire (they burn down for half points); F1-F5 markers on the size bar and a 3-second speed boost at each new rank; clearing a level earns an extra chest; every million points pays a coin. Unused chests show a lock and the chest screen says how you earned them. The skin shop has category tabs and a back button, and every chest screen has a button to the shop (Extract keeps your run at the next district).
 - **1.5.4** (2026-10-18): Extract district 1 is much smaller (11x15 instead of 15x23) with bigger crowds (about 27 people for the 10 you need). The pale cloud wisps no longer wash over the Extract view.
 - **1.5.3** (2026-10-18): Christmas now costs about the same as no season (wreath berries and gift bows merge with the rest of each house).

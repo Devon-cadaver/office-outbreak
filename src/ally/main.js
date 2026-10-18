@@ -1,5 +1,5 @@
 // Tornado Alley: you are the storm. Steer a tornado through town, rip up houses and towers, suck up the people,
-// and take out the three big targets (power plant, water station, fairground). The more you wreck, the bigger you
+// and take out the big targets (power plant, water station, fairground and more on bigger maps). The more you wreck, the bigger you
 // grow, up to three times your starting size; tall towers only give way once you're big enough.
 import * as THREE from 'three';
 import { generateMaze, buildCity, toWorld, toCell, findPath, CELL, mulberry32 } from '../city.js';
@@ -8,11 +8,11 @@ import { makeCar } from '../car.js';
 import { createTwisters } from '../tornado.js';
 import { createFires } from '../fire.js';
 import { unlockAudio, sfx, startMusic, stopMusic, setMusicChase } from '../audio.js';
-import { equippedSkin, equippedTornado, skinnedCarArgs, addCoins, CHAR_SKINS } from '../skins.js';
+import { equippedSkin, equippedTornado, skinnedCarArgs, addCoins, grantSkin, equip, CHAR_SKINS } from '../skins.js';
 import { forceSeason } from '../season.js';
 import { showChests } from '../chests.js';
 import { stampVersion } from '../version.js';
-import { autoResolution } from '../perf.js';
+import { autoResolution, mergeStatic } from '../perf.js';
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('game');
@@ -34,13 +34,14 @@ stampVersion($('taStart'));
 
 // ---------- tuning ----------
 const S0 = 0.42, MAX_S = 3; // tornado scale at size 1, and the final size (3x)
-// five levels, each a bigger town; clear one by flattening the goal share of its buildings
+// five levels, each a bigger town; clear one by flattening the goal share of its buildings and taking out `need` of its
+// big targets (a few in Small Town, every last one in Megacity)
 const LEVELS = [
-  { name: 'Small Town', size: 21, time: 120, goal: 35 },
-  { name: 'Suburbs', size: 27, time: 140, goal: 35 },
-  { name: 'Downtown', size: 33, time: 165, goal: 35 },
-  { name: 'Metro', size: 39, time: 190, goal: 30 },
-  { name: 'Megacity', size: 47, time: 240, goal: 30 },
+  { name: 'Small Town', size: 21, time: 120, goal: 35, pois: 5, need: 2 },
+  { name: 'Suburbs', size: 27, time: 140, goal: 35, pois: 6, need: 3 },
+  { name: 'Downtown', size: 33, time: 165, goal: 35, pois: 7, need: 4 },
+  { name: 'Metro', size: 39, time: 190, goal: 30, pois: 8, need: 6 },
+  { name: 'Megacity', size: 47, time: 240, goal: 30, pois: 10, need: 10 },
 ];
 let level = 1; const L = () => LEVELS[level - 1];
 const SEASON_CYCLE = ['none', 'halloween', 'christmas', 'july4'], SEASON_NAME = { none: 'Clear skies', halloween: 'Halloween', christmas: 'Christmas', july4: '4th of July' };
@@ -48,9 +49,14 @@ let seasonI = 0; { let last = -1; try { last = +(localStorage.getItem('ta_season
 let roundN = 0; const seasonNow = () => SEASON_CYCLE[(seasonI + roundN) % SEASON_CYCLE.length];
 const unlocked = () => { try { return Math.max(1, Math.min(LEVELS.length, +localStorage.getItem('ta_level') || 1)); } catch { return 1; } };
 let ROUND = LEVELS[0].time;
-const F_NEED = { water: 2, power: 3, fair: 4 }; // Fujita rank needed for each target
-const POI_PTS = { power: 3000, water: 2500, fair: 4000 }, POI_NAME = { power: 'POWER PLANT', water: 'WATER STATION', fair: 'FAIRGROUND' };
-const rankOf = (s) => Math.min(5, Math.floor(((s - 1) / (MAX_S - 1)) * 5 + 0.0001));
+// big targets: HUD icon, banner name, the Fujita rank that can take it, points. Each round has the classic three plus
+// a random pick of the others, more on bigger maps; the nuclear plant only turns up in Metro and Megacity.
+const POI = { fair: { icon: '🎡', name: 'FAIRGROUND', f: 4, pts: 4000 }, power: { icon: '⚡', name: 'POWER PLANT', f: 3, pts: 3000 }, water: { icon: '💧', name: 'WATER STATION', f: 2, pts: 2500 },
+  cemetery: { icon: '🪦', name: 'GRAVEYARD', f: 1, pts: 1500 }, weather: { icon: '📡', name: 'WEATHER STATION', f: 1, pts: 2000 }, firestation: { icon: '🚒', name: 'FIRE STATION', f: 2, pts: 2200 },
+  police: { icon: '🚓', name: 'POLICE STATION', f: 2, pts: 2200 }, sewage: { icon: '💩', name: 'SEWAGE PLANT', f: 2, pts: 2200 }, radio: { icon: '📻', name: 'RADIO TOWER', f: 3, pts: 3500 },
+  nuclear: { icon: '☢️', name: 'NUCLEAR PLANT', f: 5, pts: 8000 } };
+const EXTRA_POIS = ['cemetery', 'weather', 'firestation', 'police', 'sewage', 'radio'];
+const rankOf = (s) => Math.min(5, Math.floor(((s - 1) / (MAX_S - 1)) * 5 + 0.02));
 
 // ---------- world ----------
 let cols, rows, maze, city, buildings = [], people = [], cars = [], pois = {}, hMax = 3, massTarget = 1, totalB = 1;
@@ -90,18 +96,25 @@ function buildWorld() {
   let fy = rows - 4, fx0 = mid - 1; for (let k = 0; k < 60; k++) { const y = 3 + ((rng() * (rows - 7)) | 0), x = 2 + ((rng() * (cols - 7)) | 0); if (farFromMid(x + 1, y)) { fy = y; fx0 = x; break; } }
   for (let x = fx0; x <= fx0 + 2; x++) maze[fy][x] = true; for (let x = fx0 - 1; x <= fx0 + 3; x++) maze[fy + 1][x] = false;
   const near = (tx, ty) => { let best = null, bd = 1e9; for (let y = 2; y < rows - 2; y++) for (let x = 2; x < cols - 2; x++) { if (!maze[y][x] || (y === fy && x >= fx0 && x <= fx0 + 2)) continue; if (!(maze[y - 1][x] === false || maze[y + 1][x] === false || maze[y][x - 1] === false || maze[y][x + 1] === false)) continue; const d = Math.abs(x - tx) + Math.abs(y - ty); if (d < bd) { bd = d; best = [x, y]; } } return best; };
-  const spot = (avoid) => { for (let k = 0; k < 80; k++) { const x = 2 + ((rng() * (cols - 4)) | 0), y = 2 + ((rng() * (rows - 4)) | 0); if (farFromMid(x, y) && avoid.every(([ax, ay]) => Math.abs(ax - x) + Math.abs(ay - y) > cols * 0.35)) return near(x, y); } return near(2 + ((rng() * (cols - 4)) | 0), 2); };
-  const pw = spot([[fx0 + 1, fy]]), wt = spot([[fx0 + 1, fy], pw]);
-  const forced = new Map([[fy * cols + fx0, 'ferris'], [fy * cols + fx0 + 1, 'coaster'], [fy * cols + fx0 + 2, 'carousel'], [pw[1] * cols + pw[0], 'power'], [wt[1] * cols + wt[0], 'water']]);
+  const extra = EXTRA_POIS.slice(); for (let i = extra.length - 1; i > 0; i--) { const j = (rng() * (i + 1)) | 0; [extra[i], extra[j]] = [extra[j], extra[i]]; }
+  const want = ['power', 'water', ...(level >= 4 ? ['nuclear'] : []), ...extra].slice(0, L().pois - 1);
+  const taken = [[fx0 + 1, fy]], cells = new Set([fy * cols + fx0, fy * cols + fx0 + 1, fy * cols + fx0 + 2]);
+  const forced = new Map([[fy * cols + fx0, 'ferris'], [fy * cols + fx0 + 1, 'coaster'], [fy * cols + fx0 + 2, 'carousel']]);
+  for (const k of want) { let at = null; // as far from the others as the map allows, never right on top of the storm's start
+    for (let sep = cols * 0.35; !at && sep >= 2; sep *= 0.8) for (let t = 0; t < 60 && !at; t++) { const x = 2 + ((rng() * (cols - 4)) | 0), y = 2 + ((rng() * (rows - 4)) | 0); if (Math.abs(x - mid) + Math.abs(y - mid) <= cols * 0.2) continue; const n = near(x, y); if (n && !cells.has(n[1] * cols + n[0]) && taken.every(([ax, ay]) => Math.abs(ax - n[0]) + Math.abs(ay - n[1]) > sep)) at = n; }
+    if (!at) continue; taken.push(at); cells.add(at[1] * cols + at[0]); forced.set(at[1] * cols + at[0], k); }
   maze.forcedLandmarks = forced;
+  twisters.setBounds(toWorld(cols - 1, rows - 1, cols, rows));
   hemi.intensity = 1.7; sun.intensity = 0.9; city = buildCity(scene, maze, 3 + (seed % 9973)); city.season.light(hemi, sun, scene); city.detail.clouds.visible = false; city.detail.clouds.material.opacity = 0;
   // targets
-  pois = { power: { hz: [], done: false }, water: { hz: [], done: false }, fair: { hz: [], done: false } };
-  for (const hz of city.hazards) { const k = hz.type === 'power' ? 'power' : hz.type === 'water' ? 'water' : ['ferris', 'coaster', 'carousel'].includes(hz.type) ? 'fair' : null; if (k) pois[k].hz.push(hz); }
+  pois = {}; for (const hz of city.hazards) { const k = ['ferris', 'coaster', 'carousel'].includes(hz.type) ? 'fair' : POI[hz.type] ? hz.type : null; if (k) (pois[k] = pois[k] || { hz: [], done: false }).hz.push(hz); }
   for (const k in pois) { const c = new THREE.Vector3(); for (const hz of pois[k].hz) c.add(hz.pos); pois[k].center = c.divideScalar(Math.max(1, pois[k].hz.length)); pois[k].reach = k === 'fair' ? 4.2 : 1.6; }
   // buildings
   buildings = city.buildings.map((b) => { const obj = b.parent !== city.group ? b.parent : b; const wp = b.getWorldPosition(new THREE.Vector3()); const h = b.userData.h || 2; return { b, obj, pos: wp, h, pts: Math.round((obj === b ? 70 : 55) * h), done: false, shake: 0 }; });
   hMax = Math.max(3.2, ...buildings.map((x) => x.h)); totalB = buildings.length;
+  // fewer draw calls: each house's pieces and each shop's trim merge into a few meshes (this mode never fades buildings)
+  { const anim = new Set(city.season.anim.map((a) => a.m)); for (const x of buildings) { if (x.obj !== x.b) mergeStatic(x.obj, x.obj.children.filter((m) => !anim.has(m)));
+    else { const ex = x.b.userData.extras || []; const map = mergeStatic(city.group, ex.filter((m) => !anim.has(m))); if (map.size) { const o = []; for (const e of ex) { const m = map.get(e) || e; if (!o.includes(m)) o.push(m); } x.b.userData.extras = o; } } } }
   // people: small crowds out on the streets
   people = []; const roads = []; for (let y = 1; y < rows - 1; y++) for (let x = 1; x < cols - 1; x++) if (!maze[y][x]) roads.push([x, y]);
   const groups = Math.min(80, Math.round(44 * Math.pow(big, 1.3)));
@@ -165,7 +178,7 @@ function spawnPlane() {
   planes.push({ g, zone, arrow, heading: Math.atan2(-g.position.x, -g.position.z), life: 26, spraying: false }); banner('✈ CLOUD SEEDER!'); sfx.whoosh();
 }
 function updatePlanes(dt, px, pz, R) {
-  const S = SEED(); seedT -= dt; const maxUp = 1 + Math.floor((level - 1) / 2) + extraSeeders; if (seedT <= 0 && rankOf(sizeShown) >= S.minRank) { seedT = S.every + Math.random() * 6; if (planes.length < maxUp) spawnPlane(); }
+  const S = SEED(); seedT -= dt; const maxUp = 1 + Math.floor((level - 1) / 2) + extraSeeders; if (!radarDown && seedT <= 0 && rankOf(sizeShown) >= S.minRank) { seedT = S.every + Math.random() * 6; if (planes.length < maxUp) spawnPlane(); }
   const topR = R * 1.4, stormH = 11 * S0 * sizeShown; let sprayed = false;
   for (let i = planes.length - 1; i >= 0; i--) { const pl = planes[i], g = pl.g; pl.life -= dt;
     // hunt: turn toward the storm (with a limited turn rate, so they swing past and come round again); leave when time's up
@@ -222,9 +235,39 @@ function spawnChaser() {
 }
 function removeChaser() { if (!chaser) return; scene.remove(chaser.g); chaser.arrow.remove(); chaser.bar.remove(); chaser = null; }
 function edgeArrow(el, pos, show) { const v = pos.clone().project(viewCam()); const off = Math.abs(v.x) > 0.95 || Math.abs(v.y) > 0.95 || v.z > 1; el.style.display = show && off ? 'block' : 'none'; if (!off) return v;
-  const a = Math.atan2(v.y, v.x), k = 0.9 / Math.max(Math.abs(Math.cos(a)), Math.abs(Math.sin(a))); el.style.transform = 'translate(' + ((Math.cos(a) * k * 0.5 + 0.5) * innerWidth) + 'px,' + ((-Math.sin(a) * k * 0.5 + 0.5) * innerHeight) + 'px) translate(-50%,-50%)'; return v; }
+  const a = Math.atan2(v.y, v.x), k = 0.9 / Math.max(Math.abs(Math.cos(a)), Math.abs(Math.sin(a))); el.style.transform = 'translate(' + ((Math.cos(a) * k * 0.5 + 0.5) * innerWidth) + 'px,' + ((-Math.sin(a) * k * 0.5 + 0.5) * innerHeight) + 'px) translate(-50%,-50%)';
+  const dir = el.firstElementChild; if (dir && dir.tagName === 'I') dir.style.transform = 'rotate(' + (-a) + 'rad)'; return v; }
+// ---------- finding the targets: a chip per target under the size bar, an arrow at the screen edge for each one still
+// standing (bright once you're big enough to take it), and a minimap of the whole town you can tap to head somewhere ----------
+let poiOrder = [], mapBase = null, mapT = 0; const mapEl = $('taMap'), mapCtx = mapEl.getContext('2d');
+function setupPoiHud() {
+  poiOrder = Object.keys(pois).sort((a, b) => POI[a].f - POI[b].f || POI[a].pts - POI[b].pts);
+  $('taPois').innerHTML = poiOrder.map((k) => '<span class="poiChip" id="poi_' + k + '"><em>' + POI[k].icon + '</em><b>F' + POI[k].f + '</b><i></i></span>').join('');
+  for (const el of document.querySelectorAll('.poiArrow')) el.remove();
+  for (const k of poiOrder) { const a = document.createElement('div'); a.className = 'poiArrow'; a.innerHTML = '<i>➤</i><em>' + POI[k].icon + '</em>'; document.body.appendChild(a); pois[k].arrow = a; pois[k].chip = $('poi_' + k); }
+  const c = document.createElement('canvas'); c.width = cols * 4; c.height = rows * 4; const g = c.getContext('2d'); g.fillStyle = '#24403c'; g.fillRect(0, 0, c.width, c.height); g.fillStyle = '#8fb0aa';
+  for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) if (!maze[y][x]) g.fillRect(x * 4, y * 4, 4, 4); mapBase = c; mapT = 0;
+}
+const mapScale = (px) => (px / 2) / (Math.hypot(cols, rows) * CELL / 2); // the whole town fits inside the circle
+function drawMini() {
+  const dpr = Math.min(2, devicePixelRatio || 1), S = Math.round(mapEl.clientWidth * dpr) || 1; if (mapEl.width !== S) mapEl.width = mapEl.height = S;
+  const g = mapCtx, k = mapScale(S), P2 = (x, z) => [S / 2 + k * (right.x * x + right.z * z), S / 2 - k * (upv.x * x + upv.z * z)];
+  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, S, S); g.save(); g.beginPath(); g.arc(S / 2, S / 2, S / 2 - 1, 0, 6.2832); g.clip();
+  g.setTransform(k * right.x, -k * upv.x, k * right.z, -k * upv.z, S / 2, S / 2); if (mapBase) g.drawImage(mapBase, -cols * CELL / 2, -rows * CELL / 2, cols * CELL, rows * CELL);
+  g.setTransform(1, 0, 0, 1, 0, 0); g.textAlign = 'center'; g.textBaseline = 'middle'; const rk = rankOf(sizeShown);
+  for (const kk of poiOrder) { const P = pois[kk], [x, y] = P2(P.center.x, P.center.z);
+    if (P.done) { g.font = 'bold ' + (13 * dpr) + 'px sans-serif'; g.fillStyle = '#7dff3a'; g.fillText('✓', x, y); }
+    else { const ready = rk >= POI[kk].f; if (ready) { g.fillStyle = '#ffd24a66'; g.beginPath(); g.arc(x, y, 9 * dpr, 0, 6.2832); g.fill(); } g.globalAlpha = ready ? 1 : 0.6; g.font = (13 * dpr) + 'px sans-serif'; g.fillText(POI[kk].icon, x, y); g.globalAlpha = 1; } }
+  for (const pl of planes) { if (pl.life <= 0) continue; const [x, y] = P2(pl.g.position.x, pl.g.position.z); g.fillStyle = '#9fd6ff'; g.font = 'bold ' + (12 * dpr) + 'px sans-serif'; g.fillText('✈', x, y); }
+  if (chaser) { const [x, y] = P2(chaser.g.position.x, chaser.g.position.z); g.fillStyle = '#ffffff'; g.beginPath(); g.arc(x, y, 2.5 * dpr, 0, 6.2832); g.fill(); }
+  if (moveTo) { const [x, y] = P2(moveTo.x, moveTo.z); g.strokeStyle = '#ffd24a'; g.lineWidth = 2 * dpr; g.beginPath(); g.moveTo(x - 4 * dpr, y - 4 * dpr); g.lineTo(x + 4 * dpr, y + 4 * dpr); g.moveTo(x + 4 * dpr, y - 4 * dpr); g.lineTo(x - 4 * dpr, y + 4 * dpr); g.stroke(); }
+  if (twObj) { const [x, y] = P2(twObj.position.x, twObj.position.z); g.fillStyle = '#ffffff'; g.strokeStyle = '#ff7a3a'; g.lineWidth = 2 * dpr; g.beginPath(); g.arc(x, y, Math.max(3, reach() * k), 0, 6.2832); g.fill(); g.stroke(); }
+  g.restore();
+}
+mapEl.addEventListener('pointerdown', (e) => { e.stopPropagation(); e.preventDefault(); if (state !== 'play') return; const r = mapEl.getBoundingClientRect(), k = mapScale(r.width); const a = (e.clientX - r.left - r.width / 2) / k, b = -(e.clientY - r.top - r.height / 2) / k;
+  const lim = toWorld(cols - 1, rows - 1, cols, rows); moveTo = new THREE.Vector3(Math.max(-lim.x, Math.min(lim.x, right.x * a + upv.x * b)), 0, Math.max(-lim.z, Math.min(lim.z, right.z * a + upv.z * b))); mapT = 0; });
 function updateChaser(dt, px, pz, R) {
-  if (!chaser) { chaserT -= dt; if (chaserT <= 0) { chaserT = 32 + Math.random() * 14; spawnChaser(); } return; }
+  if (!chaser) { if (radioDown) return; chaserT -= dt; if (chaserT <= 0) { chaserT = 32 + Math.random() * 14; spawnChaser(); } return; }
   const c = chaser, g = c.g, p = g.position, d = Math.hypot(p.x - px, p.z - pz), stormSpeed = 3.2 + sizeShown * 0.7;
   if (d < R + 1.1) { chasersCaught++; twisters.suck(g, tw); g.userData.flash.visible = false; c.g = null; chaser.arrow.remove(); chaser.bar.remove(); chaser = null; award(800, p, 'CHASER CAUGHT'); grow(1.5); banner('📷 CHASER CAUGHT!'); sfx.boom(); return; }
   c.repath -= dt;
@@ -247,19 +290,35 @@ function updateChaser(dt, px, pz, R) {
   if (v && c.mode === 'shoot') { c.bar.style.display = 'block'; c.bar.style.transform = 'translate(' + ((v.x * 0.5 + 0.5) * innerWidth) + 'px,' + ((-v.y * 0.5 + 0.5) * innerHeight - 38) + 'px) translate(-50%,-50%)'; c.bar.firstChild.style.width = Math.min(100, c.shots / 3 * 100) + '%'; } else c.bar.style.display = 'none';
 }
 function clearPlanes() { removeChaser(); chaserT = 25; extraSeeders = 0; chasersCaught = 0; chasersLost = 0; for (const pl of planes) { scene.remove(pl.g); scene.remove(pl.zone); pl.arrow.remove(); } planes = []; for (const s of sprayDrops) scene.remove(s.m); sprayDrops.length = 0; seedT = SEED().first; seededT = 0; }
-function wreckBuilding(x) {
+function wreckBuilding(x, quiet = false, into = tw) {
   x.done = true; bDone++; { const i = city.obstacles.findIndex((o) => Math.abs(o.x - x.pos.x) < 0.3 && Math.abs(o.z - x.pos.z) < 0.3); if (i >= 0) city.obstacles.splice(i, 1); } const size3 = new THREE.Box3().setFromObject(x.obj).getSize(new THREE.Vector3()); const loose = x.obj === x.b ? (x.b.userData.extras || []).filter((m) => m.parent) : [];
-  if (x.b.userData.edges) x.b.userData.edges.visible = false; twisters.tear(x.obj, x.pos, size3, tw, loose); award(x.pts, x.pos); grow(x.h); sfx.boom();
-  if (x.h > 5) { fx.explode(new THREE.Vector3(x.pos.x, 1, x.pos.z), 1.4); flashT = 0.12; }
+  if (x.b.userData.edges) x.b.userData.edges.visible = false; twisters.tear(x.obj, x.pos, size3, into, loose); award(x.pts, x.pos); grow(x.h); if (!quiet) sfx.boom();
+  if (x.h > 5 && !quiet) { fx.explode(new THREE.Vector3(x.pos.x, 1, x.pos.z), 1.4); flashT = 0.12; }
 }
 function wreckPoi(k) {
   const P = pois[k]; P.done = true; const g = new THREE.Group(); g.position.copy(P.center); scene.add(g);
-  for (const hz of P.hz) for (const part of hz.parts || []) if (part.parent) g.attach(part);
+  for (const hz of P.hz) { for (const part of hz.parts || []) if (part.parent) g.attach(part); const i = city.obstacles.findIndex((o) => Math.abs(o.x - hz.pos.x) < 0.3 && Math.abs(o.z - hz.pos.z) < 0.3); if (i >= 0) city.obstacles.splice(i, 1); }
   twisters.tear(g, P.center, new THREE.Box3().setFromObject(g).getSize(new THREE.Vector3()), tw, []); grow(6);
-  award(POI_PTS[k], P.center, POI_NAME[k]); $('poi' + k[0].toUpperCase() + k.slice(1)).classList.add('done'); sfx.wave(); sfx.boom(); fx.explode(new THREE.Vector3(P.center.x, 1, P.center.z), 2.2); flashT = 0.3;
+  award(POI[k].pts, P.center, POI[k].name); sfx.wave(); sfx.boom(); fx.explode(new THREE.Vector3(P.center.x, 1, P.center.z), 2.2); flashT = 0.3;
+  { const chip = $('poi_' + k); if (chip) { chip.classList.remove('ready'); chip.classList.add('done', 'boom'); } if (P.arrow) P.arrow.style.display = 'none'; }
+  const c = P.center, tint = (hex) => { for (const L of tw.layers) L.material.color.setHex(hex); };
   if (k === 'power') { banner('BLACKOUT!'); blackout(); }
-  else if (k === 'water') { banner('WATERSPOUT!'); for (const L of tw.layers) L.material.color.setHex(0x4f9fe0); }
-  else banner("THE FAIR'S OVER!");
+  else if (k === 'water') { banner('WATERSPOUT!'); tint(0x4f9fe0); }
+  else if (k === 'fair') banner("THE FAIR'S OVER!");
+  else if (k === 'cemetery') { banner('THE DEAD RISE!'); for (let i = 0; i < 10; i++) spawnWalker(c, true); } // zombies shamble straight at the storm
+  else if (k === 'weather') { banner('RADAR DOWN! NO SEEDERS'); radarDown = true; for (const pl of planes) pl.life = 0; } // the planes can't find you any more
+  else if (k === 'radio') { banner('OFF THE AIR! NO CHASERS'); radioDown = true; if (chaser) { chaser.shots = 0; chaser.mode = 'flee'; chaser.fleeT = 4; chaser.path = []; } }
+  else if (k === 'firestation') { banner('NO FIRE CREWS! FIRES SPREAD'); fireBoost = true; } // lightning fires get bigger, burn faster and jump between buildings
+  else if (k === 'police') { banner('JAILBREAK!'); for (let i = 0; i < 12; i++) spawnWalker(c, false); }
+  else if (k === 'sewage') { banner('STINK STORM!'); tint(0x8a6a32); stink = true; } // people gag on the smell and can barely run
+  else if (k === 'nuclear') { banner('MELTDOWN!'); tint(0x7dff3a); flashT = 0.7; grow(massTarget * 0.25); fx.explode(new THREE.Vector3(c.x, 2, c.z), 3.5);
+    for (const x of buildings) if (!x.done && x.h <= maxH(sizeShown) && Math.hypot(x.pos.x - c.x, x.pos.z - c.z) < 8) wreckBuilding(x, true); } // the blast flattens the blocks around it
+}
+let radarDown = false, radioDown = false, fireBoost = false, stink = false;
+function spawnWalker(c, zombie) {
+  const ch = zombie ? makeCharacter(['worker', 'suit', 'hoodie', 'plaid'][(Math.random() * 4) | 0], { zombie: true }) : makeCharacter('worker', { skin: { outfit: { shirt: 0xff7a1a, pants: 0xff7a1a, tie: null } } });
+  const a = Math.random() * 6.28, r = reach() + 1.5 + Math.random() * 2.5; ch.scale.setScalar(0.25); ch.position.set(c.x + Math.cos(a) * r, 0, c.z + Math.sin(a) * r); collidePerson(ch);
+  Object.assign(ch.userData, { home: ch.position.clone(), goal: null, wait: Math.random(), zombie, convict: !zombie }); scene.add(ch); people.push(ch);
 }
 function blackout() {
   hemi.intensity *= 0.55; sun.intensity *= 0.6;
@@ -285,21 +344,24 @@ function strike(p) {
   const g = new THREE.Group(); g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), boltMatA)); for (const o of [0.12, -0.12]) g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts.map((q) => q.clone().add(new THREE.Vector3(o, 0, -o)))), boltMatB));
   scene.add(g); bolts.push({ g, t: 0.22 }); flashT = Math.max(flashT, 0.16); sfx.boom(); fx.explode(p.clone().setY(0.3), 0.5);
   // whatever it hits catches fire: buildings burn down on their own, people scatter
-  let lit = 0; for (const x2 of buildings) { if (x2.done || x2.burnT != null) continue; if (Math.hypot(x2.pos.x - p.x, x2.pos.z - p.z) < 2.4) { x2.burnT = 7 + Math.random() * 3; fx.ignite(new THREE.Vector3(x2.pos.x, Math.min(x2.h, 2.5), x2.pos.z), 0.9 + Math.min(1.2, x2.h * 0.15), x2.burnT + 2); lit++; } }
+  let lit = 0; for (const x2 of buildings) { if (x2.done || x2.burnT != null) continue; if (Math.hypot(x2.pos.x - p.x, x2.pos.z - p.z) < (fireBoost ? 3.6 : 2.4)) { ignite(x2); lit++; } }
   if (lit) popup(p, lit > 1 ? 'FIRE x' + lit : 'FIRE!', '#ff9a3a'); else fx.ignite(p.clone().setY(0.1), 0.6, 4);
 }
+function ignite(x) { x.burnT = fireBoost ? 4 + Math.random() * 2 : 7 + Math.random() * 3; fx.ignite(new THREE.Vector3(x.pos.x, Math.min(x.h, 2.5), x.pos.z), 0.9 + Math.min(1.2, x.h * 0.15), x.burnT + 2); }
 const sinking = [];
 function updateZaps(dt) {
   zapCd -= dt;
   for (let i = bolts.length - 1; i >= 0; i--) { const b = bolts[i]; b.t -= dt; b.g.visible = Math.random() < 0.85; if (b.t <= 0) { scene.remove(b.g); b.g.traverse((m) => m.geometry && m.geometry.dispose()); bolts.splice(i, 1); } }
   // burning buildings collapse when the fire's done with them (half points, half growth)
   for (const x of buildings) { if (x.done || x.burnT == null) continue; x.burnT -= dt; if (x.burnT > 0) continue; x.done = true; bDone++; { const i = city.obstacles.findIndex((o) => Math.abs(o.x - x.pos.x) < 0.3 && Math.abs(o.z - x.pos.z) < 0.3); if (i >= 0) city.obstacles.splice(i, 1); }
-    if (x.b.userData.edges) x.b.userData.edges.visible = false; const loose = x.obj === x.b ? (x.b.userData.extras || []).filter((m) => m.parent) : []; twisters.scatter(loose, x.pos, 2); sinking.push({ obj: x.obj, t: 0, h: x.h, y0: x.obj.position.y }); award(Math.round(x.pts * 0.5), x.pos, 'BURNED'); grow(x.h * 0.5); fx.puff('smoke', new THREE.Vector3(x.pos.x, 1, x.pos.z), 1.6); }
+    if (x.b.userData.edges) x.b.userData.edges.visible = false; const loose = x.obj === x.b ? (x.b.userData.extras || []).filter((m) => m.parent) : []; twisters.scatter(loose, x.pos, 2); sinking.push({ obj: x.obj, t: 0, h: x.h, y0: x.obj.position.y }); award(Math.round(x.pts * 0.5), x.pos, 'BURNED'); grow(x.h * 0.5); fx.puff('smoke', new THREE.Vector3(x.pos.x, 1, x.pos.z), 1.6);
+    if (fireBoost && Math.random() < 0.7) { let nb = null, nd = 3.4; for (const y of buildings) { if (y.done || y.burnT != null) continue; const d = Math.hypot(y.pos.x - x.pos.x, y.pos.z - x.pos.z); if (d < nd) { nd = d; nb = y; } } if (nb) { ignite(nb); popup(nb.pos, 'FIRE SPREADS!', '#ff9a3a'); } } }
   for (let i = sinking.length - 1; i >= 0; i--) { const s = sinking[i]; s.t = Math.min(1, s.t + dt * 0.6); s.obj.rotation.z = s.t * 0.5; s.obj.position.y = s.y0 - s.t * s.h * 0.85; if (s.t >= 1) { s.obj.visible = false; sinking.splice(i, 1); } }
 }
 // zoom: pinch with two fingers, the mouse wheel, or the +/- buttons; remembered
-let zoom = 1; try { zoom = Math.max(0.55, Math.min(1.9, +localStorage.getItem('ta_zoom') || 1)); } catch { /* ignore */ }
-function setZoom(z) { zoom = Math.max(0.55, Math.min(1.9, z)); try { localStorage.setItem('ta_zoom', String(zoom)); } catch { /* ignore */ } }
+const ZOOM_MIN = 0.55, ZOOM_MAX = 1.3;
+let zoom = 1; try { zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, +localStorage.getItem('ta_zoom') || 1)); } catch { /* ignore */ }
+function setZoom(z) { zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z)); try { localStorage.setItem('ta_zoom', String(zoom)); } catch { /* ignore */ } }
 let pinch = 0; const pinchD = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
 canvas.addEventListener('touchstart', (e) => { if (e.touches.length >= 2) { sUp(stick.id); pinch = pinchD(e.touches); return; } for (const t of e.changedTouches) sDown('t' + t.identifier, t.clientX, t.clientY); }, { passive: true });
 canvas.addEventListener('touchmove', (e) => { if (e.touches.length >= 2 && pinch > 0) { const d = pinchD(e.touches); if (d > 0) setZoom(zoom * pinch / d); pinch = d; e.preventDefault(); return; } for (const t of e.changedTouches) sMove('t' + t.identifier, t.clientX, t.clientY); if (state === 'play') e.preventDefault(); }, { passive: false });
@@ -317,24 +379,26 @@ addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
 let state = 'start';
 function start() {
   if (state !== 'start' || roundN > 0) roundN++; ROUND = L().time; unlockAudio(); buildWorld(); makeStorm(); score = 0; chain = 0; lastHit = -9; tLeft = ROUND; played = 0; boostT = 0; lastRank = 0; moveTo = null; for (const b of bolts) scene.remove(b.g); bolts.length = 0; sinking.length = 0; peopleN = carsN = propsN = bDone = 0; clearPlanes();
-  for (const k of ['Power', 'Water', 'Fair']) $('poi' + k).classList.remove('done');
+  radarDown = radioDown = fireBoost = stink = false; setupPoiHud();
   for (const s of ['taStart', 'taEnd', 'taPaused']) $(s).classList.add('hidden'); $('ta').classList.remove('hidden');
   state = 'play'; startMusic(); setMusicChase(true); sfx.whoosh(); banner('LEVEL ' + level + ': ' + L().name.toUpperCase()); setTimeout(() => { if (state === 'play') banner(SEASON_NAME[seasonNow()].toUpperCase()); }, 2300);
-  $('taLevel').textContent = 'L' + level + ' · goal ' + L().goal + '%';
+  $('taLevel').textContent = 'L' + level + ' · goal ' + L().goal + '%'; $('taTargets').textContent = '🎯 0/' + Math.min(L().need, poiOrder.length); $('taTargets').style.color = '';
+  setTimeout(() => { if (state === 'play') banner('TAKE OUT ' + (L().need >= poiOrder.length ? 'ALL ' + poiOrder.length : L().need) + ' TARGETS'); }, 4600);
 }
 function togglePause() { if (state === 'play') { state = 'paused'; $('taPaused').classList.remove('hidden'); } else if (state === 'paused') { state = 'play'; $('taPaused').classList.add('hidden'); } }
 function finish() {
-  state = 'over'; stopMusic(); sUp(stick.id); const done = ['power', 'water', 'fair'].filter((k) => pois[k].done);
+  state = 'over'; stopMusic(); sUp(stick.id); const done = poiOrder.filter((k) => pois[k].done); for (const k of poiOrder) if (pois[k].arrow) pois[k].arrow.style.display = 'none';
   let best = 0; const bk = 'ta_best_' + level; try { best = +localStorage.getItem(bk) || 0; if (score > best) { best = score; localStorage.setItem(bk, String(score)); } } catch { /* ignore */ }
-  const pct = Math.round((bDone / totalB) * 100); const cleared = pct >= L().goal;
+  const pct = Math.round((bDone / totalB) * 100); const need = Math.min(L().need, poiOrder.length); const cleared = pct >= L().goal && done.length >= need;
   const scoreCoins = Math.floor(score / 10000) / 100; if (scoreCoins > 0) addCoins(scoreCoins); // one coin per million points
   if (cleared && level < LEVELS.length && unlocked() <= level) { try { localStorage.setItem('ta_level', String(level + 1)); } catch { /* ignore */ } }
   $('taEndTitle').innerHTML = cleared ? (level === LEVELS.length ? 'MEGACITY<br>FLATTENED' : 'LEVEL ' + level + '<br>CLEARED') : "STORM'S<br>OVER";
   $('taAgain').textContent = cleared && level < LEVELS.length ? 'NEXT LEVEL' : cleared ? 'PLAY AGAIN' : 'TRY AGAIN';
   $('taAgain').dataset.next = cleared && level < LEVELS.length ? '1' : '';
-  $('taGoalLine').textContent = cleared ? (level < LEVELS.length ? 'Level ' + (level + 1) + ' unlocked: ' + LEVELS[level].name + '.' : 'You flattened every town. Legend.') : 'Flatten ' + L().goal + '% of ' + L().name + ' to clear it (you got ' + pct + '%).';
-  $('taStats').innerHTML = [['Buildings', bDone + ' / ' + totalB + ' (' + pct + '%)'], ['People swept up', peopleN], ['Cars thrown', carsN], ['Storm chasers', chasersCaught + ' caught, ' + chasersLost + ' got away'], ['Power plant', pois.power.done ? '⚡ down' : 'standing'], ['Water station', pois.water.done ? '💧 down' : 'standing'], ['Fairground', pois.fair.done ? '🎡 down' : 'standing'], ['Peak size', 'F' + rankOf(size) + ' (' + size.toFixed(1) + 'x)'], ['Score', score], ['Score coins', '+' + scoreCoins + ' 🪙'], ['Best', best]].map(([a, b]) => '<tr><td>' + a + '</td><td>' + b + '</td></tr>').join('');
-  showChests($('taChests'), Math.min(3, 1 + done.length + (cleared ? 1 : 0)), '1 chest, +1 for clearing the level, +1 for each big target destroyed (max 3)', () => { location.href = 'store.html?from=alley'; });
+  $('taGoalLine').textContent = cleared ? (level < LEVELS.length ? 'Level ' + (level + 1) + ' unlocked: ' + LEVELS[level].name + '.' : 'You flattened every town. Legend.') : 'Flatten ' + L().goal + '% of ' + L().name + ' and take out ' + (need >= poiOrder.length ? 'every big target' : need + ' big targets') + ' to clear it (you got ' + pct + '% and ' + done.length + ').';
+  if (cleared && level === LEVELS.length && grantSkin('tornado:acid')) { equip('tornado', 'tornado:acid'); const u = document.createElement('div'); u.className = 'bonusSkin'; u.innerHTML = '🏆 BONUS SKIN UNLOCKED: <b>ACID STORM</b><br><small>Acid rain, green lightning and baby tornadoes. It\'s on now; change it in the skin shop.</small>'; $('taGoalLine').appendChild(u); }
+  $('taStats').innerHTML = [['Buildings', bDone + ' / ' + totalB + ' (' + pct + '%)'], ['People swept up', peopleN], ['Cars thrown', carsN], ['Storm chasers', chasersCaught + ' caught, ' + chasersLost + ' got away'], ['Big targets', done.length + ' / ' + poiOrder.length + ' ' + done.map((k) => POI[k].icon).join('')], ['Peak size', 'F' + rankOf(size) + ' (' + size.toFixed(1) + 'x)'], ['Score', score], ['Score coins', '+' + scoreCoins + ' 🪙'], ['Best', best]].map(([a, b]) => '<tr><td>' + a + '</td><td>' + b + '</td></tr>').join('');
+  showChests($('taChests'), Math.min(3, 1 + (cleared ? 1 : 0) + Math.floor(done.length / 2)), '1 chest, +1 for clearing the level, +1 for every 2 big targets destroyed (max 3)', () => { location.href = 'store.html?from=alley'; });
   $('ta').classList.add('hidden'); $('taEnd').classList.remove('hidden');
 }
 $('taPlay').addEventListener('click', start); $('taAgain').addEventListener('click', () => { if ($('taAgain').dataset.next) level++; start(); });
@@ -368,13 +432,13 @@ function update(dt) {
     if (x.h <= maxH(sizeShown)) wreckBuilding(x);
     else { x.obj.rotation.z = Math.sin(played * 40) * 0.02; if (tooBigT <= 0) { tooBigT = 2; popup(x.pos, 'TOO BIG - GROW!', '#ff7a5a'); } } }
   // targets
-  for (const k of ['power', 'water', 'fair']) { const P = pois[k]; if (P.done || !P.hz.length) continue; if (Math.hypot(P.center.x - px, P.center.z - pz) > R + P.reach) continue;
-    if (rankOf(sizeShown) >= F_NEED[k]) wreckPoi(k); else if (tooBigT <= 0) { tooBigT = 2; popup(P.center, 'NEED F' + F_NEED[k] + '!', '#ff7a5a'); } }
+  for (const k of poiOrder) { const P = pois[k]; if (P.done || !P.hz.length) continue; if (Math.hypot(P.center.x - px, P.center.z - pz) > R + P.reach) continue;
+    if (rankOf(sizeShown) >= POI[k].f) wreckPoi(k); else if (tooBigT <= 0) { tooBigT = 2; popup(P.center, 'NEED F' + POI[k].f + '!', '#ff7a5a'); } }
   // people flee, then get swept up
   for (let i = people.length - 1; i >= 0; i--) { const c = people[i], u = c.userData; const dx = c.position.x - px, dz = c.position.z - pz, d = Math.hypot(dx, dz) || 0.01;
-    if (d < R + 0.35) { people.splice(i, 1); twisters.suck(c, tw); peopleN++; award(25, c.position); grow(0.12); continue; }
+    if (d < R + 0.35) { people.splice(i, 1); twisters.suck(c, tw); peopleN++; award(u.zombie ? 40 : u.convict ? 50 : 25, c.position, u.zombie ? 'ZOMBIE' : u.convict ? 'CONVICT' : ''); grow(0.12); continue; }
     const pull = R * 2.6; if (d < pull) { const k = 1 - d / pull; const sp = (2.8 * k - 1.2 * (1 - k)) * dt; c.position.x -= dx / d * sp; c.position.z -= dz / d * sp; c.position.y = k * k * 0.6; c.rotation.y += dt * 8 * k; animateWalk(c, dt, 1.5); collidePerson(c); u.goal = null; }
-    else if (d < 9 + sizeShown * 2) { const sp = 1.7 * dt; c.position.y = 0; c.position.x += dx / d * sp; c.position.z += dz / d * sp; c.rotation.y = Math.atan2(dx, dz); animateWalk(c, dt, 1.3); collidePerson(c); u.goal = null; }
+    else if (d < 9 + sizeShown * 2) { const sp = (u.zombie ? -0.9 : stink ? 0.55 : 1.7) * dt; c.position.y = 0; c.position.x += dx / d * sp; c.position.z += dz / d * sp; c.rotation.y = Math.atan2(dx, dz) + (u.zombie ? Math.PI : 0); animateWalk(c, dt, 1.3); collidePerson(c); u.goal = null; }
     else if (d > 34) { /* out of sight: hold still */ }
     else { u.wait -= dt; if (!u.goal && u.wait <= 0) { u.goal = new THREE.Vector3(u.home.x + (Math.random() - 0.5) * 2, 0, u.home.z + (Math.random() - 0.5) * 2); }
       if (u.goal) { const gx = u.goal.x - c.position.x, gz = u.goal.z - c.position.z, gl = Math.hypot(gx, gz); if (gl < 0.1) { u.goal = null; u.wait = 1 + Math.random() * 3; animateWalk(c, dt, 0); } else { c.position.x += gx / gl * 0.6 * dt; c.position.z += gz / gl * 0.6 * dt; c.rotation.y = Math.atan2(gx, gz); animateWalk(c, dt, 0.5); } } else animateWalk(c, dt, 0); } }
@@ -397,6 +461,12 @@ function update(dt) {
     const tur = t.g.userData.turret; const want = Math.atan2(px - p.x, pz - p.z) - t.g.rotation.y; tur.rotation.y += (Math.atan2(Math.sin(want - tur.rotation.y), Math.cos(want - tur.rotation.y))) * Math.min(1, dt * 4);
     t.cd -= dt; if (d < 20 && t.cd <= 0) { t.cd = 2 + Math.random() * 1.5; const muzzle = new THREE.Vector3(0, 0.64, 1.25).applyMatrix4(tur.matrixWorld); fireAt(muzzle, true); } }
   for (let i = shots.length - 1; i >= 0; i--) { const s = shots[i]; s.life -= dt; if (s.big) s.vel.y -= 2 * dt; s.m.position.addScaledVector(s.vel, dt); if (s.life <= 0) { if (s.big) fx.explode(s.m.position.clone(), 0.5); else fx.puff('smoke', s.m.position.clone(), 0.25); scene.remove(s.m); shots.splice(i, 1); } }
+  for (const bb of twisters.babies) { if (bb.reach < 0.25) continue; const bp = bb.g.position, br = bb.reach;
+    for (let i = people.length - 1; i >= 0; i--) { const c = people[i]; if (Math.hypot(c.position.x - bp.x, c.position.z - bp.z) < br + 0.3) { people.splice(i, 1); twisters.suck(c, bb.tw); peopleN++; award(25, c.position); grow(0.12); } }
+    for (let i = drivers.length - 1; i >= 0; i--) { const p = drivers[i].g.position; if (Math.hypot(p.x - bp.x, p.z - bp.z) < br + 0.6) { twisters.suck(drivers[i].g, bb.tw); drivers.splice(i, 1); carsN++; award(60, p); grow(0.4); } }
+    for (let i = cars.length - 1; i >= 0; i--) { const wp = cars[i].getWorldPosition(tmp); if (Math.hypot(wp.x - bp.x, wp.z - bp.z) < br + 0.6) { twisters.suck(cars[i], bb.tw); cars.splice(i, 1); carsN++; award(60, wp); grow(0.4); } }
+    if (city.knock(bp.x, bp.z, br, 0, 0)) propsN++;
+    for (const x of buildings) if (!x.done && x.h <= 2.2 && Math.hypot(x.pos.x - bp.x, x.pos.z - bp.z) < br + 0.9) wreckBuilding(x, true, bb.tw); }
   updatePlanes(dt, px, pz, R); updateChaser(dt, px, pz, R); updateZaps(dt);
   // HUD
   const m = Math.floor(tLeft / 60), s = Math.floor(tLeft % 60);
@@ -404,7 +474,11 @@ function update(dt) {
   $('taScore').textContent = score; $('taCombo').textContent = mult() > 1 && played - lastHit < 2.5 ? 'x' + mult() + ' COMBO' : '';
   $('taRank').textContent = 'F' + rankOf(sizeShown); $('taPct').textContent = Math.round((bDone / totalB) * 100) + '% destroyed'; $('taPeople').textContent = peopleN + ' people';
   $('taGrowFill').style.width = ((sizeShown - 1) / (MAX_S - 1) * 100) + '%'; { const r = rankOf(sizeShown); document.querySelectorAll('#taGrow .tick').forEach((t, i) => t.classList.toggle('got', i < r)); }
-  if (bDone >= totalB && ['power', 'water', 'fair'].every((k) => pois[k].done)) { tLeft = Math.min(tLeft, 1.5); }
+  if (bDone >= totalB && poiOrder.every((k) => pois[k].done)) { tLeft = Math.min(tLeft, 1.5); }
+  // target tray, edge arrows and the minimap
+  { const rk = rankOf(sizeShown); let n = 0; for (const k of poiOrder) { const P = pois[k]; if (P.done) { n++; continue; } const ready = rk >= POI[k].f; if (P.chip) P.chip.classList.toggle('ready', ready); P.arrow.classList.toggle('ready', ready); edgeArrow(P.arrow, P.center, true); }
+    const need = Math.min(L().need, poiOrder.length); $('taTargets').textContent = '🎯 ' + n + '/' + need; $('taTargets').style.color = n >= need ? '#7dff3a' : ''; }
+  mapT -= dt; if (mapT <= 0) { mapT = 0.08; drawMini(); }
 }
 
 function resize() { renderer.setSize(innerWidth, innerHeight, false); cam3.aspect = innerWidth / innerHeight; cam3.updateProjectionMatrix(); }
@@ -430,4 +504,4 @@ function frame(now) {
 // a calm town behind the title screen
 buildWorld(); makeStorm(); twObj.position.set(-12, 0, -12); camTarget.set(0, 1, 0);
 requestAnimationFrame(frame);
-window.__ta = { tapAt, get moveTo() { return moveTo; }, get boostT() { return boostT; }, bench(n = 20) { const vc = viewCam(); renderer.render(scene, vc); const t0 = performance.now(); for (let i = 0; i < n; i++) renderer.render(scene, vc); renderer.getContext().finish(); return (performance.now() - t0) / n; }, get animN() { return city.season.anim.length; }, setSeason(s) { seasonI = SEASON_CYCLE.indexOf(s); roundN = 0; }, get season() { return seasonNow(); }, get calls() { return renderer.info.render.calls; }, get tris() { return renderer.info.render.triangles; }, spawnChaser, get chaser() { return chaser; }, get zoom() { return zoom; }, setZoom, get extraSeeders() { return extraSeeders; }, setView, get third() { return third; }, spawnPlane, get planes() { return planes; }, get mass() { return mass; }, get level() { return level; }, set level(v) { level = v; }, get bDone() { return bDone; }, get totalB() { return totalB; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, get drivers() { return drivers; }, get state() { return state; }, get score() { return score; }, get size() { return sizeShown; }, get storm() { return twObj; }, get pois() { return pois; }, get buildings() { return buildings; }, get people() { return people; }, set tLeft(v) { tLeft = v; }, grow, start };
+window.__ta = { THREE, get cam() { return viewCam(); }, get px() { return perfTick.ratio; }, get poiOrder() { return poiOrder; }, get flags() { return { radarDown, radioDown, fireBoost, stink }; }, get moveToV() { return moveTo; }, get city() { return city; }, tapAt, get moveTo() { return moveTo; }, get boostT() { return boostT; }, bench(n = 20) { const vc = viewCam(); renderer.render(scene, vc); const t0 = performance.now(); for (let i = 0; i < n; i++) renderer.render(scene, vc); renderer.getContext().finish(); return (performance.now() - t0) / n; }, get animN() { return city.season.anim.length; }, setSeason(s) { seasonI = SEASON_CYCLE.indexOf(s); roundN = 0; }, get season() { return seasonNow(); }, get calls() { return renderer.info.render.calls; }, get tris() { return renderer.info.render.triangles; }, spawnChaser, get chaser() { return chaser; }, get zoom() { return zoom; }, setZoom, get extraSeeders() { return extraSeeders; }, setView, get third() { return third; }, spawnPlane, get planes() { return planes; }, get mass() { return mass; }, get level() { return level; }, set level(v) { level = v; }, get bDone() { return bDone; }, set bDone(n) { bDone = n; }, get babies() { return twisters.babies; }, get totalB() { return totalB; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, get drivers() { return drivers; }, get state() { return state; }, get score() { return score; }, get size() { return sizeShown; }, get storm() { return twObj; }, get pois() { return pois; }, get buildings() { return buildings; }, get people() { return people; }, set tLeft(v) { tLeft = v; }, grow, start };

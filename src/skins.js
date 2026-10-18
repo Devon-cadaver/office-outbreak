@@ -18,7 +18,7 @@ export function getEquipped() { const e = { player: null, npc: [], car: null, fx
 export const NPC_MAX = 10;
 export function equip(cat, id) { const e = getEquipped(); if (cat === 'npc') { if (id == null) e.npc = []; else if (e.npc.includes(id)) e.npc = e.npc.filter((x) => x !== id); else if (e.npc.length < NPC_MAX) e.npc.push(id); } else e[cat] = id; set(K.equip, e); }
 export function isEquipped(cat, id) { const e = getEquipped(); return cat === 'npc' ? e.npc.includes(id) : e[cat] === id; }
-export function buy(id) { const s = SKINS.find((x) => x.id === id); if (!s) return false; const owned = getOwned(); if (owned.includes(id)) return true; if (getCoins() < s.price) return false; addCoins(-s.price); owned.push(id); set(K.owned, owned); return true; }
+export function buy(id) { const s = SKINS.find((x) => x.id === id); if (!s) return false; const owned = getOwned(); if (owned.includes(id)) return true; if (s.bonus) return false; if (getCoins() < s.price) return false; addCoins(-s.price); owned.push(id); set(K.owned, owned); return true; }
 
 const box = new THREE.BoxGeometry(1, 1, 1), cone = new THREE.ConeGeometry(0.5, 1, 10), cyl = new THREE.CylinderGeometry(0.5, 0.5, 1, 10), sphere = new THREE.SphereGeometry(0.5, 12, 8), ring = new THREE.TorusGeometry(0.5, 0.08, 6, 14);
 
@@ -66,7 +66,7 @@ export const SKINS = [
   ...Object.entries(CHAR_SKINS).flatMap(([id, s]) => s.cats.map((cat) => ({ id: cat + ':' + id, key: id, cat, name: s.name + (cat === 'npc' ? ' survivors' : ''), price: cat === 'npc' ? 1 : 2, desc: cat === 'npc' ? 'Pick up to ten; survivors and crowds wear a random mix.' : 'Your character wears it in both games.' }))),
   ...Object.entries(FX_SKINS).map(([id, s]) => ({ id: 'fx:' + id, key: id, cat: 'fx', name: s.name, price: s.price, desc: s.flames ? 'Hellfire, burning zombies and fires change colour.' : 'What you throw turns to gold.' })),
   ...Object.entries(CAR_SKINS).map(([id, s]) => ({ id: 'car:' + id, key: id, cat: 'car', name: s.name, price: s.price, desc: 'Your car and the parked cars and vans.' })),
-  ...Object.entries(TWISTER_SKINS).map(([id, s]) => ({ id: 'tornado:' + id, key: id, cat: 'tornado', name: s.name, price: s.price, desc: s.desc })),
+  ...Object.entries(TWISTER_SKINS).map(([id, s]) => ({ id: 'tornado:' + id, key: id, cat: 'tornado', name: s.name, price: s.price, desc: s.desc, bonus: s.bonus || null })),
 ];
 export function equippedTornado() { const e = getEquipped().tornado; return e ? e.split(':')[1] : null; }
 // a car in the player's equipped car skin (or plain, in the given colour)

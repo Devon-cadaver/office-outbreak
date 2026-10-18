@@ -12,7 +12,21 @@
     #ta .top { position: absolute; top: env(safe-area-inset-top, 0); left: 0; right: 0; padding: 6px 10px 0; text-shadow: 0 1px 3px #000; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-weight: 800; }
     #taScore { font-size: 22px; } #taCombo { color: #ffd24a; font-size: 16px; } #taTime { margin-left: auto; font-size: 18px; } #taRank { color: #7dff3a; font-size: 16px; }
     #taSub { width: 100%; display: flex; gap: 10px; font-size: 12px; font-weight: 700; opacity: .92; white-space: nowrap; } #taSub > span { white-space: nowrap; }
-    #taPois span { margin-right: 6px; opacity: .45; } #taPois span.done { opacity: 1; color: #7dff3a; text-decoration: line-through; }
+    #taPois { position: absolute; left: 10px; right: 52px; top: calc(86px + env(safe-area-inset-top, 0)); display: flex; flex-wrap: wrap; gap: 5px; }
+    .poiChip { position: relative; width: 28px; height: 28px; border-radius: 8px; background: #0b1416c0; border: 2px solid #ffffff33; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+    .poiChip em { font-style: normal; opacity: .6; } .poiChip.ready em { opacity: 1; }
+    .poiChip b { position: absolute; bottom: -6px; right: -6px; font-size: 8px; font-weight: 900; line-height: 11px; padding: 0 3px; border-radius: 5px; background: #5a2f80; color: #fff; }
+    .poiChip.ready { border-color: #ffd24a; box-shadow: 0 0 8px #ffd24aaa; } .poiChip.ready b { background: #ffd24a; color: #1a0f2e; }
+    .poiChip.done { background: #1d5a18; border-color: #7dff3a; box-shadow: 0 0 8px #7dff3a88; } .poiChip.done em { opacity: .6; filter: grayscale(1); } .poiChip.done b { display: none; }
+    .poiChip.done::before { content: ''; position: absolute; left: 1px; right: 1px; top: 50%; height: 3px; background: #ff4a3a; transform: rotate(-35deg); box-shadow: 0 0 2px #000; }
+    .poiChip.done::after { content: ''; position: absolute; right: -6px; bottom: -6px; width: 15px; height: 15px; border-radius: 50%; background: #7dff3a radial-gradient(circle, transparent 0, transparent 0); box-shadow: 0 0 0 2px #0b1416; }
+    .poiChip.done i { position: absolute; right: -1px; bottom: -2px; width: 4px; height: 8px; border: solid #0b1416; border-width: 0 2px 2px 0; transform: rotate(40deg); z-index: 1; }
+    .poiChip.boom { animation: poiBoom .8s ease-out; } @keyframes poiBoom { 0% { transform: scale(1); } 25% { transform: scale(1.9); box-shadow: 0 0 24px #7dff3a; } 100% { transform: scale(1); } }
+    .poiArrow { position: fixed; left: 0; top: 0; width: 34px; height: 34px; pointer-events: none; display: none; z-index: 4; opacity: .55; }
+    .poiArrow em { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-style: normal; font-size: 17px; border-radius: 50%; background: #0b1416c0; border: 2px solid #ffffff55; }
+    .poiArrow i { position: absolute; inset: -13px; display: flex; align-items: center; justify-content: flex-end; font-style: normal; font-size: 13px; color: #fff; text-shadow: 0 0 3px #000; }
+    .poiArrow.ready { opacity: 1; } .poiArrow.ready em { border-color: #ffd24a; box-shadow: 0 0 10px #ffd24a; } .poiArrow.ready i { color: #ffd24a; }
+    #taMap { position: absolute; left: 10px; bottom: calc(10px + env(safe-area-inset-bottom, 0)); width: 104px; height: 104px; border-radius: 50%; background: #0b1416c0; border: 2px solid #ffffff55; pointer-events: auto; touch-action: none; }
     #taGrow { position: absolute; left: 10px; right: 104px; top: calc(62px + env(safe-area-inset-top, 0)); height: 7px; background: #ffffff22; border-radius: 3px; }
     #taGrowFill { height: 100%; width: 0; border-radius: 3px; background: linear-gradient(90deg, #7dff3a, #ffd24a, #ff5a3a); }
     #taGrow .tick { position: absolute; top: -2px; width: 2px; height: 11px; background: #ffffffcc; transform: translateX(-1px); }
@@ -36,6 +50,7 @@
     #taView { position: absolute; right: 52px; top: calc(54px + env(safe-area-inset-top, 0)); pointer-events: auto; font-size: 11px; padding: 4px 8px; height: 26px; }
     .planeArrow { position: fixed; left: 0; top: 0; font-size: 26px; color: #9fd6ff; text-shadow: 0 0 8px #000, 0 0 3px #2a6aa0; pointer-events: none; display: none; z-index: 4; }
     #taSeeded { position: absolute; left: 50%; bottom: calc(110px + env(safe-area-inset-bottom, 0)); transform: translateX(-50%); padding: 6px 12px; border-radius: 8px; background: #0a2a44cc; border: 2px solid #9fd6ff; color: #cfeaff; font-weight: 900; font-size: 15px; opacity: 0; transition: opacity .15s; }
+    .bonusSkin { margin-top: 8px; padding: 8px 10px; border-radius: 10px; border: 2px solid #7dff3a; background: #0e2a0acc; color: #7dff3a; font-weight: 900; font-size: 15px; box-shadow: 0 0 14px #7dff3a66; } .bonusSkin small { color: #cfe8c8; font-weight: 700; font-size: 11px; }
     #taEnd table { margin: 0 auto; font-size: 15px; border-collapse: collapse; } #taEnd td { padding: 2px 8px; text-align: left; } #taEnd td:last-child { text-align: right; font-weight: 800; }
   </style>
 </head>
@@ -43,7 +58,8 @@
   <canvas id="game"></canvas>
   <div id="ta" class="hidden">
     <div class="top"><span id="taScore">0</span><span id="taCombo"></span><span id="taRank">F0</span><span id="taTime">2:00</span>
-      <div id="taSub"><span id="taLevel"></span><span id="taPct">0% destroyed</span><span id="taPeople">0 people</span><span id="taPois"><span id="poiPower">⚡</span><span id="poiWater">💧</span><span id="poiFair">🎡</span></span></div></div>
+      <div id="taSub"><span id="taLevel"></span><span id="taPct">0% destroyed</span><span id="taPeople">0 people</span><span id="taTargets"></span></div></div>
+    <div id="taPois"></div><canvas id="taMap"></canvas>
     <div id="taGrow"><div id="taGrowFill"></div><i class="tick" style="left:20%"><b>F1</b></i><i class="tick" style="left:40%"><b>F2</b></i><i class="tick" style="left:60%"><b>F3</b></i><i class="tick" style="left:80%"><b>F4</b></i><i class="tick" style="left:100%"><b>F5</b></i></div>
     <button id="taView" class="ghost">ISO</button>
     <button id="taZoomIn" class="ghost zoomBtn">+</button><button id="taZoomOut" class="ghost zoomBtn">−</button>
@@ -55,9 +71,9 @@
 
   <div id="taStart" class="screen">
     <h1>TORNADO<br>ALLEY</h1>
-    <p>You are the storm. Five towns, each bigger than the last. Flatten enough of each to unlock the next.</p>
-    <p class="small">Drag anywhere to steer (or WASD / arrows). Bigger buildings are worth more, and every person you suck up scores. The more you wreck, the bigger you grow, up to three times your size. Tall towers only give way once you've grown.</p>
-    <p class="poi">Three big targets: ⚡ the <b>power plant</b> (F3), 💧 the <b>water station</b> (F2) and 🎡 the <b>fairground</b> (F4). Chain wreckage quickly for a combo.</p>
+    <p>You are the storm. Five towns, each bigger than the last. Flatten enough of each, and take out enough of its big targets, to unlock the next.</p>
+    <p class="small">Drag anywhere to steer (or WASD / arrows), or tap a spot to send the storm there with a lightning strike. Bigger buildings are worth more, and every person you suck up scores. The more you wreck, the bigger you grow, up to three times your size. Tall towers only give way once you've grown.</p>
+    <p class="poi">🎯 <b>Big targets</b>, more in every bigger town: ⚡ power plant, 💧 water station, 🎡 fairground, 🪦 graveyard, 📡 weather station, 🚒 fire station, 🚓 police station, 💩 sewage plant, 📻 radio tower and, in the biggest cities, a ☢️ nuclear plant. Each needs a storm size (F1-F5) and does something when it falls. The arrows at the screen edge and the minimap show where they are; tap the minimap to head there.</p>
     <p class="poi">✈ Watch the sky: <b>cloud-seeding planes</b> hunt you and their spray shrinks you. They fly faster than you but turn slowly: cut sideways or double back as one lines up and it overshoots. Stay out of the blue zone under it, or grow to F3 and swallow them.</p>
     <p class="poi">📷 <b>Storm chasers</b> drive in to photograph you, then race off on the roads. Catch one for a big bonus; if it gets away with its pictures, another seeding plane joins the hunt.</p>
     <div id="taLevels"></div>

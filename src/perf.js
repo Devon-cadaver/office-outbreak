@@ -18,15 +18,39 @@ export function mergeParts(root) {
   return root;
 }
 
+// Merge a set of static meshes that share a parent into a few meshes: solid Lambert colours go into vertex colours (one
+// mesh per shading/side), glowing Basic pieces merge per material so the material can still be recoloured (blackouts).
+// Only for modes that never fade buildings: half-transparent "fade" materials are treated as solid. Returns old -> new.
+export function mergeStatic(parent, list) {
+  const out = new Map(), by = new Map();
+  for (const m of list) { if (!m.isMesh || m.parent !== parent || m.children.length || m.isInstancedMesh) continue; const mt = m.material; if (!mt || Array.isArray(mt) || mt.map || mt.vertexColors || (mt.opacity ?? 1) < 1) continue;
+    let k = null; if (mt.type === 'MeshBasicMaterial') k = 'B' + mt.uuid; else if (mt.type === 'MeshLambertMaterial' && (!mt.emissive || mt.emissive.getHex() === 0)) k = 'L' + (mt.flatShading ? 'F' : '') + mt.side;
+    if (!k) continue; let b = by.get(k); if (!b) by.set(k, (b = [])); b.push(m); }
+  for (const [k, list2] of by) { if (list2.length < 2) continue;
+    const geos = list2.map((m) => { m.updateMatrix(); const g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone(); for (const a of Object.keys(g.attributes)) if (a !== 'position' && a !== 'normal') g.deleteAttribute(a); g.applyMatrix4(m.matrix); if (!g.attributes.normal) g.computeVertexNormals();
+      if (k[0] === 'L') { const c = m.material.color, n = g.attributes.position.count, arr = new Float32Array(n * 3); for (let i = 0; i < n; i++) { arr[i * 3] = c.r; arr[i * 3 + 1] = c.g; arr[i * 3 + 2] = c.b; } g.setAttribute('color', new THREE.BufferAttribute(arr, 3)); } return g; });
+    if (geos.some((g) => [...Object.values(g.attributes)].some((a) => a.array.some((x) => !Number.isFinite(x))))) continue;
+    const merged = mergeGeometries(geos); if (!merged) continue;
+    const mat = k[0] === 'B' ? list2[0].material : vcLam(k[1] === 'F', list2[0].material.side);
+    const mm = new THREE.Mesh(merged, mat); parent.add(mm); for (const m of list2) { parent.remove(m); out.set(m, mm); } }
+  return out;
+}
+const vcl = new Map(); const vcLam = (flat, side) => { const key = flat + '|' + side; if (!vcl.has(key)) vcl.set(key, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: flat, side })); return vcl.get(key); };
+
 // Keep the frame rate up by drawing at a lower resolution when frames run long, and creeping back up when there's room.
-export function autoResolution(renderer, maxRatio = Math.min(devicePixelRatio, 1.5)) {
-  const minRatio = Math.min(maxRatio, 0.8); let ratio = maxRatio, acc = 0, n = 0, last = performance.now(), good = 0;
+// Big screens (tablets, laptops) get a pixel budget, so they don't draw several times a phone's pixels.
+const BUDGET = 1.5e6;
+export function autoResolution(renderer, cap = 1.5) {
+  const top = () => Math.max(0.6, Math.min(devicePixelRatio, cap, Math.sqrt(BUDGET / Math.max(1, innerWidth * innerHeight))));
+  let maxRatio = top(), minRatio = Math.min(maxRatio, 0.8), ratio = maxRatio, acc = 0, n = 0, last = performance.now(), good = 0;
   renderer.setPixelRatio(ratio);
-  return function tick() {
+  addEventListener('resize', () => { maxRatio = top(); minRatio = Math.min(maxRatio, 0.8); if (ratio > maxRatio) { ratio = maxRatio; renderer.setPixelRatio(ratio); } });
+  const fn = function tick() {
     const now = performance.now(), ms = now - last; last = now; if (ms > 250) return; // tab was hidden or paused
     acc += ms; n++; if (acc < 1500) return; const fps = 1000 * n / acc; acc = 0; n = 0;
     if (fps < 48 && ratio > minRatio) { ratio = Math.max(minRatio, ratio - 0.15); good = 0; renderer.setPixelRatio(ratio); }
     else if (fps > 57 && ratio < maxRatio) { if (++good >= 3) { good = 0; ratio = Math.min(maxRatio, ratio + 0.1); renderer.setPixelRatio(ratio); } }
     else good = 0;
   };
+  Object.defineProperty(fn, 'ratio', { get: () => ratio }); return fn;
 }
