@@ -1,6 +1,6 @@
 # Survive Dead City — itch.io page kit
 
-Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.1.0**. Upload `release/survive-dead-city-web-v1.1.0.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
+Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.1.1**. Upload `release/survive-dead-city-web-v1.1.1.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
 
 ## Upload settings (Edit game page)
 
@@ -11,7 +11,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 | Short description / tagline | Two zombie games in your browser: survive six nights in Dead City, or extract the crowds in a snake-style maze run. |
 | Classification | Game |
 | Kind of project | **HTML** |
-| Uploads | `survive-dead-city-web-v1.1.0.zip` (0.4 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
+| Uploads | `survive-dead-city-web-v1.1.1.zip` (0.4 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
 | Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
 | Frame options | Leave SharedArrayBuffer off. No special headers needed. |
 | Pricing | Free (or "No payments"). |
@@ -30,7 +30,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 | Cover image | `cover-630x500.png` | 630 × 500 | Minimum 315 × 250, recommended 630 × 500. |
 | Page background (Theme → Background image) | `background-1920x1080.png` | 1920 × 1080 | No fixed size. Set "Don't repeat", position Top centre, and background colour #0e0818 so it fades into the edge. The dark middle band sits behind the 960 px page column. |
 | Banner (page theme → Banner) | `banner-960x400.png` | 960 × 400 | Any width up to 960 px, replaces the title. Optional. |
-| Screenshots | `shot-1-dead-city-title.png` … `shot-6-skin-shop.png` | 1280 × 720 | At least 3, up to 8. |
+| Screenshots | `shot-1-dead-city-title.png` … `shot-7-tornado.png` | 1280 × 720 | At least 3, up to 8. |
 | Logo (optional, for the page header or devlog) | `logo-extraction-dead-city.png` | 768 × 512 | Original Extraction: Dead City logo. |
 
 ## Description (paste into the page body; Markdown works)
@@ -76,6 +76,7 @@ Small browser games built fast, tested on a phone, and tuned by playing. Survive
 
 ## Version history
 
+- **1.1.1** (2026-10-18): Epic tornadoes in Survival: streaked three-layer funnel, dark cloud cap, dust skirt, junk and a car tumbling up the vortex, lightning forking out of it; buildings it hits are lifted, torn into chunks that orbit the funnel and get flung across town as rubble. Shop doors, frames, awnings and roof trim now go with their building instead of floating in place.
 - **1.1.0** (2026-10-18): Survival joystick listens on the game canvas (like Extract) and no longer resets when the frame loses focus; hidden input readout (tap the version badge on the Survival menu 3 times). Extract balance: fewer and slower early zombies that turn people slower, more people (never in dead ends), gates from district 3, rivals ramp 1/2/3/4 with crews capped at 8, a rival hit steals your last follower instead of a life, new recruits safe for 3 s, a new layout every run for districts 2-10.
 - **1.0.3** (2026-10-18): iPhone: Survival joystick runs on touch events and Safari can no longer turn a drag into a scroll; the Extract logo no longer shows as a grey box; menus scroll when taller than the screen; game starts even without Web Audio. Version label in the top corner of every menu. Fixes from testing: tap routes now update your facing (no walking back through your line after a tap), saving or retrying a district keeps the ammo crate and vest you bought, final-district chests capped at 3, the stuck-guard never turns you around, a charged bite at 1 heart no longer makes you unkillable, and nobody can get knocked out of the map through a wall seam.
 - **1.0.2** (2026-10-18): Map builder keeps the same border, sky and clouds while you place things (no more reshuffling on every edit); clouds hidden in the builder.
