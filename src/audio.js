@@ -75,7 +75,7 @@ export function startMusic() {
   if (!ctx || musicOn) return; musicOn = true; nextBeat = ctx.currentTime + 0.1; beatIndex = 0;
   timer = setInterval(() => { if (ctx.state === 'running') scheduleBeat(); }, 100);
 }
-export function stopMusic() { musicOn = false; if (timer) clearInterval(timer); timer = null; }
+export function stopMusic() { musicOn = false; if (timer) clearInterval(timer); timer = null; if (typeof storm !== 'undefined') { storm.on = false; if (storm.timer) clearInterval(storm.timer); storm.timer = null; } }
 export function setMusicTension(level) { if (musicGain) musicGain.gain.setTargetAtTime(0.3 + Math.min(0.25, level * 0.05), ctx.currentTime, 0.5); }
 
 // ---------- seeding planes: an air-raid siren when one is on its way, and a propeller drone that swells as it closes ----------
@@ -100,3 +100,60 @@ export function setPlaneEngine(level, pitch = 1) {
   eng.lfo.frequency.setTargetAtTime(24 * pitch, t, 0.15); eng.f.frequency.setTargetAtTime(380 + lv * 500, t, 0.15);
 }
 export function planeEngineLevel() { return eng ? eng.level : 0; }
+
+// ---------- Tornado Alley's storm track: D minor, 136 bpm, built up in layers by the storm's F rank ----------
+// F0: half-time drums, a low pulsing bass. F1+: a string pad. F2+: a full backbeat, eighth-note hats. F3+: the lead
+// theme. F4+: four-on-the-floor, sixteenth hats, tom fills, the bass opens up. A boost (a new F rank) adds a riser and a
+// crash, double-time hats and a fast arpeggio for its length, then lands back on the beat.
+const SBPM = 136, STEP = 60 / SBPM / 4;
+const PROG = [ // per bar: bass root, pad triad, arpeggio notes
+  { root: 73.42, pad: [146.8, 174.6, 220.0], arp: [587.3, 698.5, 880.0, 1174.7] }, // Dm
+  { root: 58.27, pad: [116.5, 146.8, 174.6], arp: [466.2, 587.3, 698.5, 932.3] }, // Bb
+  { root: 65.41, pad: [130.8, 164.8, 196.0], arp: [523.3, 659.3, 784.0, 1046.5] }, // C
+  { root: 55.00, pad: [110.0, 138.6, 164.8], arp: [440.0, 554.4, 659.3, 880.0] }, // A
+];
+const LEAD = [ // two bars of eighths, repeated: the theme
+  [587.3, 0, 440.0, 0, 698.5, 659.3, 587.3, 0], [523.3, 0, 587.3, 659.3, 698.5, 0, 659.3, 523.3],
+  [587.3, 0, 440.0, 0, 698.5, 659.3, 587.3, 0], [554.4, 0, 659.3, 0, 880.0, 0, 830.6, 0],
+];
+let storm = { on: false, timer: null, next: 0, step: 0, level: 0, boostUntil: 0, bus: null };
+function sBus() { if (!storm.bus) { const c = ctx.createDynamicsCompressor(); c.threshold.value = -16; c.ratio.value = 4; c.attack.value = 0.005; c.release.value = 0.2; const g = ctx.createGain(); g.gain.value = 1.15; c.connect(g).connect(musicGain); storm.bus = c; } return storm.bus; }
+function env(t, node, peak, a, d) { node.gain.setValueAtTime(0.0001, t); node.gain.exponentialRampToValueAtTime(peak, t + a); node.gain.exponentialRampToValueAtTime(0.0001, t + a + d); }
+function sNoise(t, type, freq, q, peak, d) { const s = ctx.createBufferSource(); s.buffer = noiseBuf; const f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q; const g = ctx.createGain(); env(t, g, peak, 0.002, d); s.connect(f).connect(g).connect(sBus()); s.start(t); s.stop(t + d + 0.05); }
+function sOsc(t, type, f0, f1, peak, a, d, cutoff = 0) { const o = ctx.createOscillator(); o.type = type; o.frequency.setValueAtTime(f0, t); if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, t + a + d * 0.6); const g = ctx.createGain(); env(t, g, peak, a, d); let n = o; if (cutoff) { const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = cutoff; f.Q.value = 3; o.connect(f); n = f; } n.connect(g).connect(sBus()); o.start(t); o.stop(t + a + d + 0.05); }
+const kick = (t, v = 1) => sOsc(t, 'sine', 140, 42, 0.95 * v, 0.003, 0.28);
+const snare = (t, v = 1) => { sNoise(t, 'bandpass', 1900, 0.7, 0.42 * v, 0.17); sOsc(t, 'triangle', 200, 150, 0.22 * v, 0.002, 0.09); };
+const hat = (t, open, v = 1) => sNoise(t, 'highpass', 7500, 0.8, (open ? 0.1 : 0.07) * v, open ? 0.16 : 0.035);
+const crash = (t) => sNoise(t, 'highpass', 4500, 0.5, 0.22, 1.6);
+const tom = (t, f) => sOsc(t, 'sine', f, f * 0.6, 0.5, 0.003, 0.22);
+function pad(t, notes, dur, level) { for (const f of notes) for (const det of [-6, 7]) { const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; o.detune.value = det; const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 700 + level * 260; const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.022 + level * 0.004, t + 0.35); g.gain.setValueAtTime(0.022 + level * 0.004, t + dur - 0.3); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.connect(lp).connect(g).connect(sBus()); o.start(t); o.stop(t + dur + 0.05); } }
+function riser(t, dur) { const s = ctx.createBufferSource(); s.buffer = noiseBuf; s.loop = true; const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 2; f.frequency.setValueAtTime(300, t); f.frequency.exponentialRampToValueAtTime(7000, t + dur); const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.16, t + dur * 0.9); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); s.connect(f).connect(g).connect(sBus()); s.start(t); s.stop(t + dur + 0.05);
+  sOsc(t, 'sawtooth', 160, 640, 0.05, dur * 0.8, dur * 0.25, 2200); }
+function stormStep() {
+  while (storm.next < ctx.currentTime + 0.25) {
+    const t = storm.next, s = storm.step % 16, bar = Math.floor(storm.step / 16), ch = PROG[bar % 4], boost = t < storm.boostUntil, L = Math.min(5, storm.level + (boost ? 1 : 0));
+    // drums
+    const four = L >= 4, kickOn = four ? s % 4 === 0 : L >= 2 ? (s === 0 || s === 8 || (L >= 3 && (s === 6 || s === 14))) : (s === 0 || s === 10);
+    if (kickOn) kick(t); if (L >= 2 ? (s === 4 || s === 12) : s === 8) snare(t);
+    if (boost && s >= 12) snare(t, 0.45 + (s - 12) * 0.12); // a little roll into the next bar
+    if (boost || L >= 4) hat(t, s % 4 === 2); else if (L >= 1 && s % 2 === 0) hat(t, s % 8 === 6); else if (s % 4 === 2) hat(t, false, 0.7);
+    if (L >= 4 && bar % 4 === 3 && s >= 12) tom(t, [196, 165, 131, 98][s - 12]);
+    // bass: eighths (sixteenths when it's flat out), the filter opening up with the storm
+    if (L >= 4 ? true : s % 2 === 0) sOsc(t, 'sawtooth', ch.root * (s % 8 === 6 && L >= 3 ? 2 : 1), ch.root * (s % 8 === 6 && L >= 3 ? 2 : 1), 0.2, 0.004, STEP * (L >= 4 ? 0.9 : 1.7), 260 + L * 240 + (boost ? 600 : 0));
+    // pad on the bar
+    if (s === 0 && L >= 1) pad(t, ch.pad, STEP * 16, L);
+    // the theme, an octave up when it's huge
+    if (L >= 3 && s % 2 === 0) { const n = LEAD[bar % 4][s / 2]; if (n) { const f = n * (L >= 5 ? 2 : 1); sOsc(t, 'square', f, f, 0.05, 0.01, STEP * 1.6, 2600); sOsc(t, 'sawtooth', f / 2, f / 2, 0.035, 0.01, STEP * 1.6, 1800); } }
+    // boost: a fast arpeggio over everything
+    if (boost) { const f = ch.arp[s % 4] * (s >= 8 ? 2 : 1); sOsc(t, 'square', f, f, 0.04, 0.004, STEP * 0.8, 4000); }
+    storm.next += STEP; storm.step++;
+  }
+}
+export function startStormMusic() {
+  if (!ctx) return; stopMusic(); storm.on = true; storm.next = ctx.currentTime + 0.1; storm.step = 0; storm.boostUntil = 0;
+  storm.timer = setInterval(() => { if (ctx.state === 'running' && storm.on) stormStep(); }, 60);
+}
+export function setStormLevel(l) { storm.level = Math.max(0, Math.min(5, l | 0)); }
+// a boost: riser into a crash, and the busier layers for `secs`
+export function stormBoost(secs = 3) { if (!ctx || !storm.on) return; const t = ctx.currentTime; storm.boostUntil = t + secs; riser(t, 0.6); crash(t + 0.6); kick(t + 0.6, 1.2); crash(t + secs); }
+export function stormMusicState() { return { on: storm.on, level: storm.level, boost: ctx ? storm.boostUntil > ctx.currentTime : false }; }
