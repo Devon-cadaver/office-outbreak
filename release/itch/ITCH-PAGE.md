@@ -1,6 +1,6 @@
 # Dead City: Tornado Alley — itch.io page kit
 
-Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.10.5**. Upload `release/survive-dead-city-web-v1.10.5.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
+Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.10.6**. Upload `release/survive-dead-city-web-v1.10.6.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
 
 ## Upload settings (Edit game page)
 
@@ -11,7 +11,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 | Short description / tagline | You are the storm. Tear through five towns, take out big targets, dodge seeding planes and outrun storm chasers. |
 | Classification | Game |
 | Kind of project | **HTML** |
-| Uploads | `survive-dead-city-web-v1.10.5.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
+| Uploads | `survive-dead-city-web-v1.10.6.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
 | Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
 | Frame options | Leave SharedArrayBuffer off. No special headers needed. |
 | Pricing | Free (or "No payments"). |
@@ -68,6 +68,7 @@ Small browser games built fast, tested on a phone, and tuned by playing. Dead Ci
 
 ## Version history
 
+- **1.10.6** (2026-10-18): Every monster rebuilt with detailed models (smooth bodies, teeth, claws, plates, wings, panels), skins included. Brawls play smooth big moves as you mash: machine guns, lasers and rocket volleys for the machines, spinning haymakers and spell bolts for the monsters. I Am Groove is now a walking tree.
 - **1.10.5** (2026-10-18): Eleven new monsters to fight with (parody giants and living plants), 51 in all. A first look at detailed monster models: Godzilly, Geezora and Optimus Grime are smooth and detailed instead of blocky.
 - **1.10.4** (2026-10-18): Rounds end in the world: the storm dies away, or your monster burrows into the ground or flies off. Music on the title screen, no more flash of an old menu while a game loads, and a skin shop you swipe sideways with locked monsters' skins in their own row.
 - **1.10.3** (2026-10-18): Kaiju fights look like fights: monsters collide instead of passing through, robots rock back firing bullets and rockets, monsters spin and fling spells. A slimmer Tornado Alley tutorial. And save codes: copy your progress from the main menu and load it on any device.
