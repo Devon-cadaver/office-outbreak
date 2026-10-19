@@ -34,6 +34,26 @@ export const KAIJU = {
   kumbunga: { name: 'KUMBUNGA', kind: 'spider', pal: [0x1e1a14, 0x0e0c0a, 0xe8b82a, 0xe8b82a, 0xff2a2a], spells: ['Web Shot', 'Web Net', 'Spiderling Swarm'], speed: 1.25 },
   jirassic: { name: 'JIRASSIC', kind: 'biped', pal: [0x4a6a9a, 0x2a3a5a, 0x9ab0c8, 0x6a8ac8, 0xffd24a], opt: { frill: true, horn: 0xe8e0c8 }, spells: ['Frill Flare', 'Spit Geyser', 'Stampede'], speed: 1.12 },
   geezora: { name: 'GEEZORA', kind: 'squid', pal: [0x7a5aa8, 0x4a3a6a, 0xa88ac8, 0xd86a8a, 0xff4a2a], spells: ['Ink Squirt', 'Tentacle Grab-o-rama', 'Deep Freeze'], speed: 0.95 },
+  grime: {name: "OPTIMUS GRIME", kind: "robot", pal: [0xd8282a,0x2a4ac8,0xc0c8d0,0x2a4ac8,0x6ac8ff], opt: {windows: true, stacks: true, fins: true}, spells: ["Ion Blaster","Truck Toss","Matrix Barrage"], borrow: [["mecha",0],["konk",0],["mecha",1]], speed: 1.05},
+  gundumb: {name: "GUNDUMB RX-78", kind: "robot", pal: [0xf0f0f0,0xf0f0f0,0x2a4ac8,0xd82a2a,0x6aff6a], opt: {v: true, shield: 0xd82a2a, sword: true}, spells: ["Beam Rifle","Beam Saber","Mega Bazooka"], borrow: [["mecha",0],["destroyah",0],["godzilly",1]], speed: 1.05},
+  mazinger: {name: "MAZINGER ZZZ", kind: "robot", pal: [0x2a3a8a,0x2a3a8a,0xd0d4dc,0xd82a2a,0xffe24a], opt: {chestV: true, fins: true}, spells: ["Rocket Punch","Breast Fire","Thunder Break"], borrow: [["mecha",0],["godzilly",1],["giggle",1]], speed: 1.05},
+  evaoops: {name: "EVA UNIT-OOPS", kind: "robot", pal: [0x6a3aa8,0x6a3aa8,0x7ad83a,0x7ad83a,0x9dff3a], opt: {horn: true, slim: true}, spells: ["Prog Knife","Berserk Stomp","AT Field"], borrow: [["destroyah",0],["angryrus",2],["spaceyzilla",2]], speed: 1.05},
+  voltrawn: {name: "VOLTRAWN", kind: "robot", pal: [0x1a1a1e,0x2a4ac8,0xd0d4dc,0xffd24a,0xffe24a], opt: {multi: true, sword: true, v: true}, spells: ["Lion Fists","Blazing Sword","Form Blazing"], borrow: [["mecha",0],["destroyah",0],["spaceyzilla",1]], speed: 1.05},
+  granddizer: {name: "GRANDDIZER", kind: "robot", pal: [0x2a3a8a,0x2a3a8a,0xd82a2a,0xffd24a,0xffe24a], opt: {horns: true, sword: true, chestV: true}, spells: ["Double Harken","Space Thunder","Saucer Spin"], borrow: [["mecha",0],["rodanny",1],["godzilly",2]], speed: 1.05},
+  gipsy: {name: "GIPSY DANGLER", kind: "robot", pal: [0x4a5a6e,0x3a4658,0x6a7a8e,0x2a3440,0xff8a2a], opt: {core: 0xff8a2a, fins: true}, spells: ["Elbow Rocket","Chain Sword","Plasma Cannon"], borrow: [["mecha",0],["megalawn",0],["godzilly",2]], speed: 1.05},
+  jetfizz: {name: "JETFIZZ", kind: "robot", pal: [0xb8bcc4,0x8a8e96,0xd0d4dc,0xd82a2a,0xff2a2a], opt: {jet: true, horns: true}, spells: ["Dive Bomb","Sonic Boom","Missile Party"], borrow: [["rodanny",0],["rodanny",1],["mecha",1]], speed: 1.05},
+  tetsujin: {name: "TETSUJIN 28-ISH", kind: "robot", pal: [0x2a3a9a,0x2a3a9a,0xd82a2a,0xd0d4dc,0xffe24a], opt: {horns: true, chunky: true}, spells: ["Iron Fist","Rocket Slam","Chest Clang"], borrow: [["konk",0],["varoom",1],["konk",1]], speed: 1.05},
+  ironic: {name: "THE IRONIC GIANT", kind: "robot", pal: [0x6a5e50,0x5a4e42,0x7a6e60,0x4a4036,0xfff2a0], opt: {round: true, antenna: true, slim: true}, spells: ["Car Snack","Eye Zap","Superman Mode"], borrow: [["konk",0],["godzilly",0],["godzilly",2]], speed: 1.05},
+  dvah: {name: "D.VAH MEKA", kind: "robot", pal: [0xf0e0f0,0x8a5aa8,0xff7ad8,0x7ad83a,0xffffff], opt: {pod: true}, spells: ["Fusion Cannons","Micro Missiles","Self-Destruct"], borrow: [["gabbera",0],["mecha",1],["godzilly",2]], speed: 1.05},
+  sentimental: {name: "SENTIMENTAL", kind: "robot", pal: [0xc02a5a,0x2a3a9a,0xd0b0b8,0x7a3aa8,0xffe24a], opt: {chunky: true, fins: true}, spells: ["Eye Beam","Grab-o-tron","Mutant Freeze"], borrow: [["godzilly",1],["geezora",1],["mecha",2]], speed: 1.05},
+  soundwavy: {name: "SOUNDWAVY", kind: "robot", pal: [0x2a4ac8,0xd0d4dc,0xe8e8e8,0xffd24a,0xff2a2a], opt: {deck: true, fins: true}, spells: ["Bass Drop","Laserbeak","Sound Wave"], borrow: [["gabbera",0],["rodanny",0],["gabbera",2]], speed: 1.05},
+  cherno: {name: "CHERNO ALPACA", kind: "robot", pal: [0xd8b82a,0x3a3a3a,0xb89a2a,0x6a6a6a,0xffe24a], opt: {tower: true, chunky: true}, spells: ["Tesla Fist","Smoke Stack","Crush Stomp"], borrow: [["konk",0],["smogorah",1],["angryrus",2]], speed: 1.05},
+  megatroll: {name: "MEGATROLL", kind: "robot", pal: [0xb8bcc4,0x5a5e66,0xd0d4dc,0x6a3aa8,0xff2a2a], opt: {cannon: true, fins: true}, spells: ["Fusion Cannon","Decepti-Barrage","Melt Beam"], borrow: [["godzilly",1],["mecha",1],["destroyah",1]], speed: 1.05},
+  bumblebeep: {name: "BUMBLEBEEP", kind: "robot", pal: [0xe8e8e8,0x8a8e96,0xd82a2a,0xd0d4dc,0x6ac8ff], opt: {fins: true, slim: true}, spells: ["Stinger","Car Toss","Radio Zap"], borrow: [["mecha",0],["konk",0],["giggle",0]], speed: 1.05},
+  t800ish: {name: "THE T-800-ISH", kind: "robot", pal: [0x9aa2ac,0x6a727c,0xc8cdd2,0x4a525c,0xff2a2a], opt: {slim: true, core: 0x6ac8ff}, spells: ["Plasma Rifle","Hunter Killers","I'll Be Back"], borrow: [["mecha",0],["mecha",1],["varoom",1]], speed: 1.05},
+  getter: {name: "GETTER ROBOT-O", kind: "robot", pal: [0xd82a2a,0xd82a2a,0xffd24a,0xd82a2a,0xffe24a], opt: {getter: true, horns: true}, spells: ["Getter Tomahawk","Getter Beam","Getter Tornado"], borrow: [["destroyah",0],["godzilly",1],["rodanny",2]], speed: 1.05},
+  ed2o9: {name: "ED-2O9-OOPS", kind: "robot", pal: [0x5a5e66,0x3a3e46,0x7a7e86,0x2a2e36,0xff2a2a], opt: {ed: true}, spells: ["Auto Cannon","Rocket Pods","Drop It!"], borrow: [["mecha",0],["mecha",1],["angryrus",0]], speed: 1.05},
+  mechax: {name: "MECHA-GODZILLY X", kind: "biped", pal: [0xb8bcc4,0x6a6e76,0xd0d4dc,0xb8bcc4,0xff2a2a], opt: {plates: true, mech: true}, spells: ["Finger Missiles","Eye Beam","Absolute Zero"], borrow: [["mecha",0],["godzilly",1],["mecha",2]], speed: 1},
   battra: { name: 'BATTRA-TAT', kind: 'moth', fly: true, pal: [0x24243a, 0x2a2a6a, 0x0e0e18, 0xe8b82a, 0xff2a2a], opt: { horn: true }, spells: ['Horn Ram', 'Prism Eyes', 'Dark Eclipse'], speed: 1.25 },
 };
 export const KAIJU_IDS = Object.keys(KAIJU);
@@ -65,7 +85,7 @@ function batSwarm(g, fx) {
 
 export function buildKaiju(id, skin = false) {
   const sk = skin ? KAIJU_SKINS[id] : null; const K = sk ? { ...KAIJU[id], pal: sk.pal } : KAIJU[id]; const g = new THREE.Group(); const body = grp(g, 0, 0, 0); const fx = [];
-  const rig = ({ biped, ape, moth, ptero, quad, crab, spider, blob, plant, squid })[K.kind](body, K);
+  const rig = ({ biped, ape, moth, ptero, quad, crab, spider, blob, plant, squid, robot })[K.kind](body, K);
   if (sk && sk.pumpkin && rig.mouth && rig.mouth.parent) pumpkinHead(rig.mouth.parent, fx); if (sk && sk.bats) batSwarm(g, fx);
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.9, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false })); shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.03; g.add(shadow);
   let t = Math.random() * 10, actK = null, actT = 0;
@@ -306,6 +326,56 @@ function plant(body, K) {
 }
 
 // ---------- the squid: a tall mantle and eight writhing tentacles ----------
+// ---------- giant robots: upright and blocky, built from a kit (crests, shoulder pads, swords, shields, cannons, wings);
+// opt.ed is a headless two-gun walker, opt.pod a round pilot pod on legs ----------
+function robot(body, K) {
+  const [main, legC, trim, acc, eyeC] = K.pal, o = K.opt || {}, ed = o.ed, pod = o.pod, wide = o.chunky ? 1.15 : o.slim ? 0.8 : 1;
+  const hip = grp(body, 0, 1.0, 0); const torso = grp(hip, 0, 0.1, 0);
+  part(torso, box, legC, 0.55 * wide, 0.3, 0.4, 0, 0.1, 0);
+  const chest = grp(torso, 0, 0.62, 0);
+  if (ed) { part(chest, box, main, 1.3, 0.6, 1.0, 0, 0.05, 0); part(chest, box, trim, 0.6, 0.2, 0.2, 0, 0, 0.52); part(chest, box, eyeC, 0.44, 0.06, 0.04, 0, 0.16, 0.6, 0, 0, 0, true); }
+  else if (pod) { part(chest, ball, main, 1.4, 1.0, 1.3, 0, 0.15, 0); part(chest, box, trim, 0.6, 0.35, 0.1, 0, 0.2, 0.62); for (const s of [-1, 1]) part(chest, box, acc, 0.1, 0.4, 0.5, s * 0.66, 0.4, -0.1); }
+  else { part(chest, box, main, 0.95 * wide, 0.62, 0.55, 0, 0, 0); part(chest, box, trim, 0.62 * wide, 0.26, 0.06, 0, 0.05, 0.29);
+    if (o.chestV) for (const s of [-1, 1]) part(chest, box, acc, 0.42, 0.12, 0.08, s * 0.18, 0.2, 0.3, 0, 0, s * 0.5);
+    if (o.windows) for (const s of [-1, 1]) part(chest, box, 0x9ad8ff, 0.32, 0.24, 0.04, s * 0.22, 0.12, 0.31);
+    if (o.deck) { part(chest, box, 0x2a2a3a, 0.5, 0.3, 0.04, 0, 0.08, 0.32); part(chest, box, acc, 0.12, 0.08, 0.05, 0, 0.08, 0.34, 0, 0, 0, true); }
+    if (o.core) part(chest, cyl, o.core, 0.26, 0.06, 0.26, 0, 0.1, 0.3, Math.PI / 2, 0, 0, true); }
+  const neck = grp(torso, 0, 1.0, 0.02), head = grp(neck, 0, 0.12, 0);
+  if (!ed && !pod) {
+    if (o.tower) part(head, cyl, main, 0.38, 0.42, 0.38, 0, 0.1, 0); else if (o.round) part(head, ball, main, 0.4, 0.36, 0.4, 0, 0.08, 0); else part(head, box, main, 0.32, 0.3, 0.32, 0, 0.06, 0);
+    part(head, box, trim, 0.22, 0.12, 0.06, 0, 0, 0.18); for (const x of [-0.07, 0.07]) part(head, box, eyeC, 0.08, 0.04, 0.04, x, 0.1, 0.18, 0, 0, 0, true);
+    if (o.v) for (const s of [-1, 1]) part(head, cone, 0xffd24a, 0.05, 0.32, 0.05, s * 0.1, 0.28, 0.12, 0, 0, -s * 0.7);
+    if (o.horns) for (const s of [-1, 1]) part(head, cone8, acc, 0.07, 0.32, 0.07, s * 0.17, 0.25, 0, 0, 0, -s * 0.5);
+    if (o.horn) part(head, cone8, acc, 0.07, 0.42, 0.07, 0, 0.3, 0.1, -0.5);
+    if (o.fins) for (const s of [-1, 1]) part(head, box, acc, 0.04, 0.22, 0.18, s * 0.18, 0.12, 0);
+    if (o.antenna) part(head, cyl, legC, 0.03, 0.3, 0.03, 0, 0.36, 0); }
+  const mouth = ed || pod ? grp(chest, 0, 0.1, 0.65) : grp(head, 0, 0, 0.25);
+  if (!ed && !pod) for (const s of [-1, 1]) part(torso, box, acc, 0.36 * wide, 0.28, 0.44, s * 0.62 * wide, 0.92, 0);
+  if (o.stacks) for (const s of [-1, 1]) part(torso, cyl, 0xc0c8d0, 0.08, 0.5, 0.08, s * 0.42, 1.2, -0.18);
+  if (o.jet) for (const s of [-1, 1]) part(torso, box, main, 0.95, 0.05, 0.5, s * 0.8, 1.0, -0.35, 0, 0, s * 0.45);
+  if (o.getter) for (const s of [-1, 1]) part(torso, cone, acc, 0.22, 1.2, 0.5, s * 0.6, 1.45, -0.3, 0, 0, -s * 0.6);
+  const ax = ed || pod ? 0.78 : 0.62 * wide;
+  const arms = [-1, 1].map((s) => { const a = grp(torso, s * ax, ed || pod ? 0.62 : 0.82, 0);
+    if (ed || pod) { part(a, box, main, 0.3, 0.32, 0.5, 0, 0, 0.1); part(a, cyl, legC, 0.13, 0.7, 0.13, 0, 0, 0.6, Math.PI / 2); return { a, f: a }; }
+    part(a, box, main, 0.24 * wide, 0.42, 0.26, 0, -0.2, 0); const f = grp(a, 0, -0.42, 0); part(f, box, o.multi ? (s < 0 ? 0x2a9a3a : 0xd82a2a) : main, 0.3 * wide, 0.42, 0.32, 0, -0.2, 0); part(f, box, legC, 0.22, 0.2, 0.24, 0, -0.48, 0); return { a, f }; });
+  const hand = grp(arms[1].f, 0, -0.5, 0.1);
+  if (o.sword) part(arms[1].f, box, 0xd8dce4, 0.08, 0.18, 1.5, 0, -0.5, 0.75);
+  if (o.shield) part(arms[0].f, box, o.shield, 0.08, 0.8, 0.5, -0.2, -0.2, 0.05);
+  if (o.cannon) part(arms[1].f, cyl, legC, 0.2, 0.6, 0.2, 0.12, -0.3, 0.1);
+  const legs = [-1, 1].map((s) => { const l = grp(hip, s * (ed ? 0.48 : 0.26 * wide), 0, 0), lc = o.multi ? (s < 0 ? 0x2a4ac8 : 0xffd24a) : legC;
+    part(l, box, lc, 0.32 * wide, 0.5, 0.36, 0, -0.25, 0); const k = grp(l, 0, -0.5, 0); part(k, box, lc, 0.36 * wide, 0.42, 0.4, 0, -0.2, 0); part(k, box, 0x2a2a30, 0.4 * wide, 0.12, 0.56, 0, -0.44, 0.06); return { l, k }; });
+  return { mouth, hand, chest,
+    anim(t, dt, move, act, k) {
+      const w = t * (5 + move * 2), sw = Math.sin(w) * 0.5 * move;
+      legs[0].l.rotation.x = sw; legs[1].l.rotation.x = -sw; legs[0].k.rotation.x = Math.max(0, -Math.sin(w)) * 0.6 * move; legs[1].k.rotation.x = Math.max(0, Math.sin(w)) * 0.6 * move;
+      hip.position.y = 1.0 + Math.abs(Math.sin(w)) * 0.05 * move; torso.rotation.y = Math.sin(w) * 0.08 * move; neck.rotation.x = 0;
+      arms[0].a.rotation.x = -sw * 0.5; arms[1].a.rotation.x = sw * 0.5;
+      if (act === 'hit') { const s = S(k, 1); arms[1].a.rotation.x = -1.6 * s; torso.rotation.y = -0.4 * s; }
+      else if (act === 'cast') { const s = S(k, 1); arms[0].a.rotation.x = arms[1].a.rotation.x = -1.4 * s; neck.rotation.x = -0.3 * s; }
+      else if (act === 'ko') koTip(body, k);
+    } };
+}
+
 function squid(body, K) {
   const [skin, dark, light, acc, eyeC] = K.pal;
   const hip = grp(body, 0, 0.6, 0); const mantle = grp(hip, 0, 0.5, 0);

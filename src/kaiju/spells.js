@@ -3,6 +3,7 @@
 // leap(caster, to, secs, onLand) }. opts.hostile marks a rival's spell (it only hurts the player). Effects run in
 // update(dt) until they're done.
 import * as THREE from 'three';
+import { KAIJU } from './rigs.js';
 
 const sphere = new THREE.SphereGeometry(0.5, 10, 8), cylG = new THREE.CylinderGeometry(1, 1, 1, 12, 1, true), boxG = new THREE.BoxGeometry(1, 1, 1), coneG = new THREE.ConeGeometry(0.5, 1, 8);
 const glowCache = new Map(); const glow = (c, o = 1) => { const k = c + '|' + o; if (!glowCache.has(k)) glowCache.set(k, new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, blending: THREE.AdditiveBlending, depthWrite: false })); return glowCache.get(k); };
@@ -172,6 +173,8 @@ export function createSpells(env) {
       (c, at, o) => { if (env.dark) env.dark(2.6); rain(at, 7, 10, 2.2, (p) => { bolt(p, 0xb85aff); blast(p, 1.9, 11, 0x8a3aff, o); }); },
     ],
   };
+  // robots borrow other monsters' effects under their own names
+  for (const id in KAIJU) if (KAIJU[id].borrow) SP[id] = KAIJU[id].borrow.map(([src, i]) => SP[src][i]);
   return {
     cast(caster, stage, at, opts = {}) { const fn = SP[caster.id] && SP[caster.id][Math.max(0, Math.min(2, stage - 1))]; if (!fn) return; caster.rig.act('cast'); fn(caster, at.clone(), opts); },
     update(dt) { for (let i = live.length - 1; i >= 0; i--) if (!live[i].update(dt)) live.splice(i, 1); },
