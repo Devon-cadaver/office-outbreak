@@ -10,7 +10,7 @@ import { createFires } from '../fire.js';
 import { unlockAudio, sfx, stopMusic, setPlaneEngine, planeEngineLevel, startStormMusic, setStormLevel, stormBoost, stormMusicState } from '../audio.js';
 import { equippedSkin, equippedTornado, skinnedCarArgs, addCoins, grantSkin, equip, CHAR_SKINS } from '../skins.js';
 import { forceSeason } from '../season.js';
-import { showChests } from '../chests.js';
+import { showPrizes } from '../prizes.js';
 import { stampVersion } from '../version.js';
 import { initFullscreen } from '../fullscreen.js';
 import { showHowTo, tip, tipsSeen, markSeen, clearTips } from '../howto.js';
@@ -498,7 +498,7 @@ function finish() {
   $('taGoalLine').textContent = cleared ? (level < LEVELS.length ? 'Level ' + (level + 1) + ' unlocked: ' + LEVELS[level].name + '.' : 'You flattened every town. Legend.') : 'Flatten ' + L().goal + '% of ' + L().name + ' and take out ' + (need >= poiOrder.length ? 'every big target' : need + ' big targets') + ' to clear it (you got ' + pct + '% and ' + done.length + ').';
   if (cleared && level === LEVELS.length && grantSkin('tornado:acid')) { equip('tornado', 'tornado:acid'); const u = document.createElement('div'); u.className = 'bonusSkin'; u.innerHTML = '🏆 BONUS SKIN UNLOCKED: <b>ACID STORM</b><br><small>Acid rain, green lightning and baby tornadoes. It\'s on now; change it in the skin shop.</small>'; $('taGoalLine').appendChild(u); }
   $('taStats').innerHTML = [['Buildings', bDone + ' / ' + totalB + ' (' + pct + '%)'], ['People swept up', peopleN], ['Cars thrown', carsN], ['Storm chasers', chasersCaught + ' caught, ' + chasersLost + ' got away'], ['Big targets', done.length + ' / ' + poiOrder.length + ' ' + done.map((k) => POI[k].icon).join('')], ['Peak size', 'F' + rankOf(size) + ' (' + size.toFixed(1) + 'x)'], ['Score', score], ['Score coins', '+' + scoreCoins + ' 🪙'], ['Best', best]].map(([a, b]) => '<tr><td>' + a + '</td><td>' + b + '</td></tr>').join('');
-  showChests($('taChests'), Math.min(3, 1 + (cleared ? 1 : 0) + Math.floor(done.length / 2)), '1 chest, +1 for clearing the level, +1 for every 2 big targets destroyed (max 3)', () => { location.href = 'store.html?from=alley'; });
+  showPrizes($('taChests'), Math.min(3, 1 + (cleared ? 1 : 0) + Math.floor(done.length / 2)), '1 go, +1 for clearing the level, +1 for every 2 big targets destroyed (max 3)', () => { location.href = 'store.html?from=alley'; });
   $('ta').classList.add('hidden'); $('taEnd').classList.remove('hidden');
 }
 const HOWTO = [

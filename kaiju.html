@@ -81,13 +81,23 @@
     #kjMini { position: fixed; inset: 0; z-index: 7; touch-action: none; }
     #kjMini.hidden { display: none; }
     #kjMini .panel { position: absolute; left: 50%; bottom: calc(70px + env(safe-area-inset-bottom, 0)); transform: translateX(-50%); width: min(340px, 90vw); padding: 10px 12px 14px; border-radius: 16px; background: #1a0f2ef0; border: 3px solid #ff7a3a; box-shadow: 0 0 20px #ff7a3a88; text-align: center; pointer-events: none; }
-    #kjMini.lock .panel { border-color: #7dff3a; box-shadow: 0 0 20px #7dff3a88; }
-    #kjMiniTitle { display: block; font-size: 17px; font-weight: 900; color: #ffd24a; margin-bottom: 8px; text-shadow: 0 2px 0 #3a1a5a; }
-    #kjMini .bar { position: relative; height: 26px; border-radius: 13px; overflow: hidden; background: linear-gradient(90deg, #ff3a3a, #3a1a2a 50%, #2a5a1a); border: 2px solid #ffffff55; }
-    #kjMini.lock .bar { background: #2a1a3a; }
-    #kjMiniZone { position: absolute; top: 0; bottom: 0; background: #7dff3a; display: none; } #kjMini.lock #kjMiniZone { display: block; }
+    #kjMini.m-roar .panel, #kjMini.m-spin .panel { border-color: #7dff3a; box-shadow: 0 0 20px #7dff3a88; }
+    #kjMiniTitle { display: block; font-size: 16px; font-weight: 900; color: #ffd24a; margin-bottom: 8px; text-shadow: 0 2px 0 #3a1a5a; }
+    #kjMiniSeq { display: flex; justify-content: center; gap: 8px; min-height: 0; margin-bottom: 6px; } #kjMiniSeq:empty { display: none; }
+    #kjMiniSeq span { min-width: 40px; padding: 2px 6px; font-size: 26px; font-weight: 900; border-radius: 10px; background: #0b1416; border: 2px solid #ffffff33; color: #fff; opacity: .55; }
+    #kjMiniSeq span.on { opacity: 1; border-color: #ffd24a; box-shadow: 0 0 10px #ffd24a; transform: scale(1.12); } #kjMiniSeq span.ok { opacity: 1; background: #1d5a18; border-color: #7dff3a; } #kjMiniSeq span.bad { opacity: 1; background: #5a1818; border-color: #ff3a3a; }
+    #kjMini.m-dodge #kjMiniSeq span, #kjMini.m-dodge #kjMiniSeq span.on { font-size: 20px; min-width: 120px; }
+    #kjMini .bar { position: relative; height: 22px; border-radius: 11px; overflow: hidden; background: #2a1a3a; border: 2px solid #ffffff55; }
+    #kjMini.m-brawl .bar { background: linear-gradient(90deg, #ff3a3a, #3a1a2a 50%, #2a5a1a); }
+    #kjMiniZone { position: absolute; top: 0; bottom: 0; background: #7dff3a; display: none; } #kjMini.m-roar #kjMiniZone { display: block; }
     #kjMiniMark { position: absolute; top: -3px; bottom: -3px; width: 8px; margin-left: -4px; left: 50%; background: #fff; border-radius: 4px; box-shadow: 0 0 8px #fff; }
-    #kjMini .bar span { position: absolute; top: 4px; font-size: 10px; font-weight: 900; color: #fff; text-shadow: 0 1px 2px #000; } #kjMini .bar .me { right: 8px; } #kjMini .bar .them { left: 8px; } /* red rival end on the left, green you end on the right */ #kjMini.lock .bar span { display: none; }
+    #kjMini .bar span { position: absolute; top: 2px; font-size: 10px; font-weight: 900; color: #fff; text-shadow: 0 1px 2px #000; display: none; } #kjMini.m-brawl .bar span { display: block; } #kjMini .bar .me { right: 8px; } #kjMini .bar .them { left: 8px; }
+    #kjMini::before, #kjMini::after { content: ''; position: absolute; top: 0; bottom: 0; width: 34%; pointer-events: none; opacity: 0; transition: opacity .1s; }
+    #kjMini::before { left: 0; background: linear-gradient(90deg, #ff2a2acc, transparent); } #kjMini::after { right: 0; background: linear-gradient(270deg, #ff2a2acc, transparent); }
+    #kjMini[data-side="L"]::before, #kjMini[data-side="R"]::after { opacity: 1; }
+    .kjSpot { position: absolute; width: 58px; height: 58px; margin: -29px 0 0 -29px; border-radius: 50%; background: radial-gradient(circle, #fff 0 18%, #ffd24a 22% 48%, #ff5a1a 52% 70%, transparent 72%); box-shadow: 0 0 18px #ffd24a; animation: spotIn .18s ease-out; }
+    .kjSpot.pop { transform: scale(1.8); opacity: 0; transition: all .2s; } .kjSpot.miss { filter: grayscale(1); opacity: 0; transition: opacity .25s; }
+    @keyframes spotIn { from { transform: scale(0.2); } to { transform: scale(1); } }
     #kjPick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; width: min(94vw, 440px); }
     #kjPickInfo { font-size: 12px; color: #c9e8b8; max-width: 420px; margin: 2px 0 0; } #kjPickInfo b { color: #7dff3a; } #kjPickInfo small { color: #c9a6ff; }
     .kjCard { display: grid; gap: 2px; padding: 6px 3px; margin: 0; text-align: center; min-height: 38px; align-items: center; border-radius: 12px; background: #1a0f2e; border: 2px solid #5a2f80; color: #fff; box-shadow: none; }
@@ -110,7 +120,7 @@
     <div id="kjPower"><div id="kjPowerFill"></div><div id="kjPowerTxt">⚡ POWER</div></div>
     <div id="taBanner"></div>
   </div>
-  <div id="kjMini" class="hidden"><div class="panel"><b id="kjMiniTitle"></b><div class="bar"><div id="kjMiniZone"></div><div id="kjMiniMark"></div><span class="me">YOU</span><span class="them">RIVAL</span></div></div></div>
+  <div id="kjMini" class="hidden"><div id="kjMiniSpots"></div><div class="panel"><b id="kjMiniTitle"></b><div id="kjMiniSeq"></div><div class="bar"><div id="kjMiniZone"></div><div id="kjMiniMark"></div><span class="me">YOU</span><span class="them">RIVAL</span></div></div></div>
   <div id="kjRival" class="hidden"><span id="kjRivalName"></span><div id="kjRivalBar"><div id="kjRivalFill"></div></div></div>
 
   <div id="taStart" class="screen">

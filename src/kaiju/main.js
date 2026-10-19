@@ -12,7 +12,7 @@ import { createFires } from '../fire.js';
 import { unlockAudio, sfx, stopMusic, setPlaneEngine, startStormMusic, setStormLevel, stormBoost } from '../audio.js';
 import { equippedSkin, skinnedCarArgs, addCoins, CHAR_SKINS } from '../skins.js';
 import { forceSeason } from '../season.js';
-import { showChests } from '../chests.js';
+import { showPrizes } from '../prizes.js';
 import { stampVersion } from '../version.js';
 import { initFullscreen } from '../fullscreen.js';
 import { showHowTo, tip, tipsSeen, markSeen, clearTips } from '../howto.js';
@@ -278,7 +278,7 @@ function spawnRival() {
 }
 function hitRival(pow, freeze) { if (!rival || rival.hp <= 0) return; rival.hp -= pow; rival.rig.act('hit'); if (freeze) rival.stun = 2.5; popup(rival.g.position.clone().setY(rival.scale * 1.8), '-' + Math.round(pow), '#ffb02a'); if (rival.hp <= 0) rivalKO(); }
 function rivalKO() {
-  const r = rival; r.hp = 0; r.koT = 2.2; r.rig.act('ko'); ko++; award(2500 * r.stage, r.g.position, 'K.O.!'); sfx.boom(); flashT = 0.3; mini = null; miniEl.classList.add('hidden');
+  const r = rival; r.hp = 0; r.koT = 2.2; r.rig.act('ko'); ko++; award(2500 * r.stage, r.g.position, 'K.O.!'); sfx.boom(); flashT = 0.3; mini = null; miniEl.className = 'hidden';
   // ...and then you eat it: a monster meal is a big boost (size, full Power, a burst of speed)
   setTimeout(() => { if (state !== 'play') return; grow(massTarget * (0.16 + 0.06 * r.stage)); power = 1; boostT = 5; me.act('cast'); banner('MONSTER MEAL!'); popup(me.g.position.clone().setY(meScale * 2), '+SIZE +POWER', '#7dff3a'); sfx.pickup(); }, 1300);
   const fresh = unlockKaiju(r.id); banner(fresh ? 'K.O.! ' + KAIJU[r.id].name + ' UNLOCKED!' : 'K.O.!'); if (fresh) unlockedNow.push(r.id); stormBoost(2);
@@ -295,6 +295,7 @@ function updateRival(dt, px, pz) {
     const want = Math.atan2(dx, dz); let dr = want - g.rotation.y; dr = Math.atan2(Math.sin(dr), Math.cos(dr)); g.rotation.y += dr * Math.min(1, dt * 4);
     if (d > touch * 0.9) { const sp = (3.6 + r.scale * 0.4) * KAIJU[r.id].speed * 0.8; g.position.x += dx / d * sp * dt; g.position.z += dz / d * sp * dt; r.moving = true; }
     r.cd -= dt; if (d < touch + 0.3 && r.cd <= 0 && !mini) startMini(r);
+    r.roarCd = (r.roarCd ?? 6) - dt; if (!mini && d > 7 && d < 15 && r.roarCd <= 0 && Math.random() < dt * 0.35) startMini(r, 'roar');
     r.castT -= dt; if (r.castT <= 0 && d < 18) { r.castT = 8 + Math.random() * 3; spells.cast(caster(r.rig, r.stage), r.stage, me.g.position.clone(), { hostile: true }); popup(g.position.clone().setY(r.scale * 2), KAIJU[r.id].spells[r.stage - 1].toUpperCase() + '!', '#ff5a5a'); }
   }
   // its health bar floats over its head
@@ -303,37 +304,80 @@ function updateRival(dt, px, pz) {
   edgeArrow(rivalArrow, g.position, true);
 }
 
-// ---------- close combat: two mini games ----------
-// BRAWL: a tug of war. Tap as fast as you can to push the bar to the rival's end; it pushes back. Win and you land a
-// big hit and knock it away; lose and it hits you. LOCK-UP (sometimes, instead): you grapple, a needle sweeps a bar, and
-// one tap in the green throws the rival; miss and it throws you.
-let mini = null, brawls = 0; const miniEl = $('kjMini');
-function startMini(r) {
-  brawls++; const lock = brawls % 3 === 0 || Math.random() < 0.2;
+// ---------- close combat: mini games ----------
+// Up close a fight is one of five mini games, picked at random: BRAWL (mash to win a tug of war), SWIPE COMBO (swipe each
+// arrow in time; every miss and the rival hits you), WEAK SPOTS (tap the glowing spots on the rival before they fade),
+// DODGE & COUNTER (swipe away from the side it swings from, then tap to hit back) and SPIN & THROW (circle your finger to
+// swing it by the tail and hurl it into the town). From across the street a rival can start a ROAR-OFF: hold to build
+// your roar and let go in the green.
+let mini = null, lastMini = ''; const miniEl = $('kjMini');
+const CLOSE = ['brawl', 'swipe', 'spots', 'dodge', 'spin'];
+const ARROWS = { L: '⬅', R: '➡', U: '⬆', D: '⬇' };
+function startMini(r, type) {
+  if (!type) { const pool = CLOSE.filter((x) => x !== lastMini); type = pool[(Math.random() * pool.length) | 0]; } lastMini = type;
   const face = Math.atan2(r.g.position.x - me.g.position.x, r.g.position.z - me.g.position.z); me.g.rotation.y = faceY = face; r.g.rotation.y = face + Math.PI;
-  if (lock) { const w = Math.max(0.1, Math.min(0.3, 0.2 + 0.05 * (stage - r.stage))); mini = { type: 'lock', r, t: 0, needle: 0, zone: [0.3 + Math.random() * (0.4 - w), 0], speed: 1.5 + 0.3 * r.stage }; mini.zone[1] = mini.zone[0] + w;
-    $('kjMiniTitle').textContent = '🔒 LOCKED UP! TAP IN THE GREEN'; $('kjMiniZone').style.left = (mini.zone[0] * 100) + '%'; $('kjMiniZone').style.width = (w * 100) + '%'; }
-  else { mini = { type: 'brawl', r, t: 0, v: 0 }; $('kjMiniTitle').textContent = '👊 BRAWL! TAP TAP TAP!'; }
-  miniEl.className = mini.type; miniEl.classList.remove('hidden'); sfx.wave(); banner(mini.type === 'lock' ? 'LOCKED UP!' : 'BRAWL!');
+  mini = { type, r, t: 0, v: 0 }; const m = mini; $('kjMiniSeq').innerHTML = ''; $('kjMiniSpots').innerHTML = ''; miniEl.dataset.side = '';
+  const title = { brawl: '👊 BRAWL! TAP TAP TAP!', swipe: '🌀 SWIPE COMBO! SWIPE THE ARROWS', spots: '🎯 WEAK SPOTS! TAP THEM', dodge: '💨 DODGE! SWIPE AWAY FROM THE HIT', spin: '🌪️ SPIN & THROW! CIRCLE YOUR FINGER', roar: '🦖 ROAR-OFF! HOLD, LET GO IN THE GREEN' }[type];
+  $('kjMiniTitle').textContent = title; banner({ brawl: 'BRAWL!', swipe: 'SWIPE COMBO!', spots: 'WEAK SPOTS!', dodge: 'DODGE!', spin: 'SPIN & THROW!', roar: 'ROAR-OFF!' }[type]);
+  if (type === 'swipe') { const n = 4 + Math.min(2, r.stage - 1); m.seq = Array.from({ length: n }, () => 'LRUD'[(Math.random() * 4) | 0]); m.i = 0; m.tt = 0; m.limit = Math.max(0.8, 1.4 - 0.15 * (r.stage - 1)); m.good = 0;
+    $('kjMiniSeq').innerHTML = m.seq.map((d, i) => '<span id="kjA' + i + '">' + ARROWS[d] + '</span>').join(''); }
+  if (type === 'spots') { m.spawned = 0; m.total = 8; m.next = 0.2; m.live = []; }
+  if (type === 'dodge') { m.round = 0; nextDodge(m); }
+  if (type === 'spin') { m.ang = 0; m.last = null; }
+  if (type === 'roar') { m.zone = [0.7, 0.9]; m.hold = false; $('kjMiniZone').style.left = '70%'; $('kjMiniZone').style.width = '20%'; me.act('cast'); r.rig.act('cast'); }
+  miniEl.className = 'm-' + type; sfx.wave();
 }
-function miniTap(e) { if (e) { e.preventDefault(); e.stopPropagation(); } if (!mini || state !== 'play') return;
-  if (mini.type === 'brawl') { mini.v += 0.12 + 0.025 * (stage - mini.r.stage); me.act('hit'); if (Math.random() < 0.5) sfx.hit(); fx.puff('smoke', mini.r.g.position.clone().setY(mini.r.scale), 0.4); }
-  else { const n = mini.needle; endMini(n >= mini.zone[0] && n <= mini.zone[1] ? 'throw' : 'thrown'); } }
-miniEl.addEventListener('pointerdown', miniTap);
+function nextDodge(m) { m.round++; m.phase = 'warn'; m.pt = 0; m.side = Math.random() < 0.5 ? 'L' : 'R'; miniEl.dataset.side = m.side; m.r.rig.act('cast'); $('kjMiniSeq').innerHTML = '<span class="on">' + (m.side === 'L' ? 'SWIPE ➡' : '⬅ SWIPE') + '</span>'; }
+// gestures on the overlay
+let gest = null;
+miniEl.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); if (!mini || state !== 'play') return; gest = { x: e.clientX, y: e.clientY, t: performance.now() }; const m = mini;
+  if (m.type === 'brawl') { m.v += 0.12 + 0.025 * (stage - m.r.stage); me.act('hit'); if (Math.random() < 0.5) sfx.hit(); fx.puff('smoke', m.r.g.position.clone().setY(m.r.scale), 0.4); }
+  else if (m.type === 'roar') { m.hold = true; }
+  else if (m.type === 'dodge' && m.phase === 'counter') { hitRival(14 + 4 * stage); me.act('hit'); sfx.boom(); popup(m.r.g.position.clone().setY(m.r.scale * 2), 'COUNTER!', '#7dff3a'); m.phase = 'gap'; m.pt = 0; $('kjMiniSeq').innerHTML = ''; }
+  else if (m.type === 'spin') { m.last = Math.atan2(e.clientY - innerHeight / 2, e.clientX - innerWidth / 2); } });
+miniEl.addEventListener('pointermove', (e) => { const m = mini; if (!m || m.type !== 'spin' || m.last == null) return; const a = Math.atan2(e.clientY - innerHeight / 2, e.clientX - innerWidth / 2); let d = a - m.last; d = Math.atan2(Math.sin(d), Math.cos(d)); m.ang += Math.abs(d); m.last = a; m.r.g.rotation.y += d; });
+miniEl.addEventListener('pointerup', (e) => { const m = mini; if (!m || !gest) return; const dx = e.clientX - gest.x, dy = e.clientY - gest.y; gest = null;
+  if (m.type === 'roar' && m.hold) { m.hold = false; if (m.v >= m.zone[0] && m.v <= m.zone[1]) endMini('roarWin'); else endMini('roarWeak'); return; }
+  if (m.type === 'spin') { m.last = null; return; }
+  if (Math.max(Math.abs(dx), Math.abs(dy)) < 30) return; const dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'R' : 'L') : (dy > 0 ? 'D' : 'U');
+  if (m.type === 'swipe') swipeAnswer(m, dir);
+  else if (m.type === 'dodge' && m.phase === 'warn') { if ((m.side === 'L' && dir === 'R') || (m.side === 'R' && dir === 'L')) { m.phase = 'counter'; m.pt = 0; miniEl.dataset.side = ''; knock(me.g, m.r.g.position, 0.6); $('kjMiniSeq').innerHTML = '<span class="on">TAP!</span>'; popup(me.g.position.clone().setY(meScale * 2), 'DODGED!', '#9fd6ff'); } else dodgeHit(m); } });
+function swipeAnswer(m, dir) { const ok = dir === m.seq[m.i]; const el = $('kjA' + m.i); if (el) el.className = ok ? 'ok' : 'bad';
+  if (ok) { m.good++; hitRival(8 + 3 * stage); me.act('hit'); sfx.hit(); } else { m.r.rig.act('hit'); hurt(1.5 + m.r.stage, true); sfx.hurt(); }
+  m.i++; m.tt = 0; if (m.i >= m.seq.length) { if (m.good === m.seq.length) { hitRival(15); popup(m.r.g.position.clone().setY(m.r.scale * 2), 'PERFECT COMBO!', '#7dff3a'); } endMini('done'); } }
+function dodgeHit(m) { m.r.rig.act('hit'); hurt(3 + 1.5 * m.r.stage, true); sfx.hurt(); miniEl.dataset.side = ''; m.phase = 'gap'; m.pt = 0; $('kjMiniSeq').innerHTML = '<span class="bad">HIT!</span>'; }
+function spot(m) { const v = m.r.g.position.clone().setY(m.r.scale * 1.1).project(cam); const x = Math.max(40, Math.min(innerWidth - 40, (v.x * 0.5 + 0.5) * innerWidth + (Math.random() - 0.5) * 140)), y = Math.max(120, Math.min(innerHeight - 220, (-v.y * 0.5 + 0.5) * innerHeight + (Math.random() - 0.5) * 160));
+  const b = document.createElement('div'); b.className = 'kjSpot'; b.style.left = x + 'px'; b.style.top = y + 'px'; $('kjMiniSpots').appendChild(b); const s = { b, life: 1.05, dead: false };
+  b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); if (s.dead || !mini) return; s.dead = true; b.classList.add('pop'); setTimeout(() => b.remove(), 200); hitRival(7 + 3 * stage); me.act('hit'); sfx.hit(); });
+  m.live.push(s); }
 function updateMini(dt) {
   const m = mini, r = m.r; m.t += dt; if (!rival || r.hp <= 0) return endMini(null);
   if (m.type === 'brawl') { m.v -= dt * Math.max(0.3, 0.55 + 0.12 * (r.stage - 1) - 0.08 * (stage - 1)); if (Math.random() < dt * 2.2) { r.rig.act('hit'); sfx.hit(); }
-    $('kjMiniMark').style.left = ((1 - m.v) * 50) + '%'; /* your taps push it left, into the rival's red end */ if (m.v >= 1) return endMini('win'); if (m.v <= -1) return endMini('lose'); if (m.t > 7) return endMini('draw'); }
-  else { m.needle = 0.5 - 0.5 * Math.cos(m.t * m.speed * Math.PI); $('kjMiniMark').style.left = (m.needle * 100) + '%'; if (m.t > 4.5) return endMini('thrown'); }
+    $('kjMiniMark').style.left = ((1 - m.v) * 50) + '%'; if (m.v >= 1) return endMini('win'); if (m.v <= -1) return endMini('lose'); if (m.t > 7) return endMini('draw'); }
+  else if (m.type === 'swipe') { m.tt += dt; $('kjMiniMark').style.left = Math.max(0, 100 - m.tt / m.limit * 100) + '%'; const el = $('kjA' + m.i); if (el && el.className !== 'on') el.className = 'on'; if (m.tt >= m.limit) swipeAnswer(m, '-'); }
+  else if (m.type === 'spots') { m.next -= dt; if (m.next <= 0 && m.spawned < m.total) { m.next = 0.42; m.spawned++; spot(m); }
+    for (const s of m.live) { if (s.dead) continue; s.life -= dt; if (s.life <= 0) { s.dead = true; s.b.classList.add('miss'); setTimeout(() => s.b.remove(), 250); r.rig.act('hit'); hurt(1 + 0.5 * r.stage, true); } }
+    $('kjMiniMark').style.left = (100 - m.spawned / m.total * 100) + '%'; if (m.spawned >= m.total && m.live.every((s) => s.dead)) return endMini('done'); }
+  else if (m.type === 'dodge') { m.pt += dt; $('kjMiniMark').style.left = (100 - m.round / 3 * 100) + '%';
+    if (m.phase === 'warn' && m.pt > Math.max(0.6, 1.0 - 0.1 * (r.stage - 1))) dodgeHit(m);
+    else if (m.phase === 'counter' && m.pt > 0.8) { m.phase = 'gap'; m.pt = 0; $('kjMiniSeq').innerHTML = ''; }
+    else if (m.phase === 'gap' && m.pt > 0.45) { if (m.round >= 3) return endMini('done'); nextDodge(m); } }
+  else if (m.type === 'spin') { const need = Math.PI * 2 * (2.5 + 0.5 * r.stage); $('kjMiniMark').style.left = Math.min(100, m.ang / need * 100) + '%'; if (m.ang >= need) return endMini('throw'); if (m.t > 5) return endMini('freed'); }
+  else if (m.type === 'roar') { if (m.hold) m.v += dt * 0.7; $('kjMiniMark').style.left = Math.min(100, m.v * 100) + '%'; if (m.v > 1) return endMini('choke'); if (m.t > 4.5 && !m.hold) return endMini('roared'); }
 }
 function knock(g, from, dist) { const dx = g.position.x - from.x, dz = g.position.z - from.z, d = Math.hypot(dx, dz) || 1; g.position.x += dx / d * dist; g.position.z += dz / d * dist; }
 function endMini(res) {
-  const r = mini && mini.r; mini = null; miniEl.classList.add('hidden'); if (!r || !rival || r.hp <= 0) return; r.cd = 3;
+  const r = mini && mini.r; mini = null; miniEl.className = 'hidden'; $('kjMiniSpots').innerHTML = ''; if (!r || !rival || r.hp <= 0) return; r.cd = 3;
   if (res === 'win') { banner('SMACKDOWN!'); hitRival(30 + 10 * stage); knock(r.g, me.g.position, 3); flashT = 0.15; sfx.boom(); }
   else if (res === 'lose') { banner('OUCH!'); r.rig.act('hit'); hurt(4 + 2 * r.stage, true); knock(me.g, r.g.position, 2.5); sfx.hurt(); }
-  else if (res === 'throw') { banner('BODY SLAM!'); me.act('cast'); hitRival(40 + 12 * stage); knock(r.g, me.g.position, 5); fx.explode(r.g.position.clone().setY(0.5), 1.6); flashT = 0.25; sfx.boom(); }
-  else if (res === 'thrown') { banner('THROWN!'); r.rig.act('cast'); hurt(6 + 2 * r.stage, true); knock(me.g, r.g.position, 4); fx.explode(me.g.position.clone().setY(0.5), 1.2); sfx.hurt(); }
-  else { banner('STALEMATE'); hitRival(8); hurt(2, true); knock(me.g, r.g.position, 1.5); knock(r.g, me.g.position, 1.5); }
+  else if (res === 'draw') { banner('STALEMATE'); hitRival(8); hurt(2, true); knock(me.g, r.g.position, 1.5); knock(r.g, me.g.position, 1.5); }
+  else if (res === 'done') { knock(r.g, me.g.position, 2.5); }
+  else if (res === 'throw') { banner('GIANT SWING!'); me.act('cast'); hitRival(30 + 10 * stage); knock(r.g, me.g.position, 7); const land = r.g.position.clone().setY(0); hitArea(land, 2.6, 10, {}); fx.explode(land.clone().setY(0.5), 1.8); flashT = 0.25; sfx.boom(); }
+  else if (res === 'freed') { banner('IT BROKE FREE!'); r.rig.act('hit'); hurt(3 + r.stage, true); knock(me.g, r.g.position, 2); }
+  else if (res === 'roarWin') { banner('TERRIFYING ROAR!'); me.act('cast'); hitRival(10 + 4 * stage); r.stun = 2.5; knock(r.g, me.g.position, 3); fx.puff('smoke', me.g.position.clone().setY(1), 2); sfx.boom(); r.roarCd = 14; }
+  else if (res === 'roarWeak') { banner('WEAK ROAR...'); r.stun = 0.8; r.roarCd = 14; }
+  else if (res === 'choke') { banner('YOU CHOKED!'); hurt(2, true); slowT = 1.5; r.roarCd = 14; }
+  else if (res === 'roared') { banner('IT OUT-ROARED YOU!'); slowT = 2; hurt(1.5, true); r.roarCd = 14; }
 }
 
 // ---------- targets, minimap (as in Tornado Alley) ----------
@@ -405,7 +449,7 @@ function start() {
   fsMode.play();
   unlockAudio(); buildWorld(); makeMe(); spells.clear(); score = 0; chain = 0; lastHit = -9; tLeft = L().time; played = 0; peopleN = carsN = bDone = 0; ko = 0; died = false; moveTo = null; slowT = 0; boostT = 0;
   for (const pl of planes) { scene.remove(pl.g); pl.arrow.remove(); } planes = []; planeT = 50 + Math.random() * 10; noPlanes = false; for (const b of bombs) scene.remove(b.m); bombs.length = 0; for (const f of fires) scene.remove(f.ring); fires.length = 0;
-  if (rival) scene.remove(rival.g); rival = null; mini = null; brawls = 0; miniEl.classList.add('hidden'); rivalQueue = []; rivalWait = 0; queueRivals(1); unlockedNow.length = 0; sinking.length = 0; gulps.length = 0;
+  if (rival) scene.remove(rival.g); rival = null; mini = null; lastMini = ''; miniEl.className = 'hidden'; rivalQueue = []; rivalWait = 0; queueRivals(1); unlockedNow.length = 0; sinking.length = 0; gulps.length = 0;
   setupPoiHud(); for (const s of ['taStart', 'taEnd', 'taPaused']) $(s).classList.add('hidden'); $('ta').classList.remove('hidden');
   state = 'play'; startStormMusic(); setStormLevel(1); sfx.whoosh(); banner(KAIJU[me.id].name + ' VS ' + L().name.toUpperCase()); setTimeout(() => { if (state === 'play') banner('TAKE OUT ' + (L().need >= poiOrder.length ? 'ALL ' + poiOrder.length : L().need) + ' TARGETS'); }, 2600);
   renderer.compile(scene, cam); $('taLevel').textContent = 'L' + level + ' · goal ' + L().goal + '%'; for (const k in hudCache) delete hudCache[k];
@@ -413,7 +457,7 @@ function start() {
 function togglePause() { if (state === 'play') { state = 'paused'; setPlaneEngine(0); stopMusic(); $('taPaused').classList.remove('hidden'); } else if (state === 'paused') { state = 'play'; $('taPaused').classList.add('hidden'); startStormMusic(); setStormLevel(stage * 2 - 1); } }
 function die() { if (died) return; died = true; me.act('ko'); banner('KAIJU DOWN!'); sfx.over(); setTimeout(finish, 1800); state = 'dying'; }
 function finish() {
-  state = 'over'; mini = null; miniEl.classList.add('hidden'); stopMusic(); setPlaneEngine(0); sUp(stick.id); clearTips(); const done = poiOrder.filter((k) => pois[k].done); for (const k of poiOrder) if (pois[k].arrow) pois[k].arrow.style.display = 'none'; rivalEl.classList.add('hidden'); rivalArrow.style.display = 'none'; for (const pl of planes) pl.arrow.style.display = 'none';
+  state = 'over'; mini = null; miniEl.className = 'hidden'; stopMusic(); setPlaneEngine(0); sUp(stick.id); clearTips(); const done = poiOrder.filter((k) => pois[k].done); for (const k of poiOrder) if (pois[k].arrow) pois[k].arrow.style.display = 'none'; rivalEl.classList.add('hidden'); rivalArrow.style.display = 'none'; for (const pl of planes) pl.arrow.style.display = 'none';
   let best = 0; const bk = 'kj_best_' + level; try { best = +localStorage.getItem(bk) || 0; if (score > best) { best = score; localStorage.setItem(bk, String(score)); } } catch { /* ignore */ }
   const pct = Math.round((bDone / totalB) * 100); const need = Math.min(L().need, poiOrder.length); const cleared = !died && pct >= L().goal && done.length >= need;
   const scoreCoins = Math.floor(score / 10000) / 100; if (scoreCoins > 0) addCoins(scoreCoins);
@@ -423,7 +467,7 @@ function finish() {
   $('taGoalLine').textContent = died ? 'The army got you. Eat more people to grow back, and walk out of the napalm.' : cleared ? (level < LEVELS.length ? 'Level ' + (level + 1) + ' unlocked: ' + LEVELS[level].name + '.' : 'Every town crushed. Monster.') : 'Flatten ' + L().goal + '% of ' + L().name + ' and take out ' + (need >= poiOrder.length ? 'every big target' : need + ' big targets') + ' (you got ' + pct + '% and ' + done.length + ').';
   for (const id of unlockedNow) { const u = document.createElement('div'); u.className = 'bonusSkin'; u.innerHTML = '🏆 NEW KAIJU UNLOCKED: <b>' + KAIJU[id].name + '</b>'; $('taGoalLine').appendChild(u); }
   $('taStats').innerHTML = [['Buildings', bDone + ' / ' + totalB + ' (' + pct + '%)'], ['People eaten', peopleN], ['Cars wrecked', carsN], ['Rivals KO\'d', ko], ['Big targets', done.length + ' / ' + poiOrder.length + ' ' + done.map((k) => POI[k].icon).join('')], ['Biggest', STAGE[topStage]], ['Score', score], ['Score coins', '+' + scoreCoins + ' 🪙'], ['Best', best]].map(([a, b]) => '<tr><td>' + a + '</td><td>' + b + '</td></tr>').join('');
-  showChests($('taChests'), Math.min(3, 1 + (cleared ? 1 : 0) + Math.floor(done.length / 2)), '1 chest, +1 for clearing the level, +1 for every 2 big targets destroyed (max 3)', () => { location.href = 'store.html?from=kaiju'; });
+  showPrizes($('taChests'), Math.min(3, 1 + (cleared ? 1 : 0) + Math.floor(done.length / 2)), '1 go, +1 for clearing the level, +1 for every 2 big targets destroyed (max 3)', () => { location.href = 'store.html?from=kaiju'; });
   $('ta').classList.add('hidden'); $('taEnd').classList.remove('hidden'); drawPicker();
 }
 const HOWTO = [
@@ -546,4 +590,4 @@ function frame(now) {
 function showcase() { if (state !== 'start') return; makeMe(); me.g.position.set(0, 0, 0); camTarget.set(0, 2, 0); }
 buildWorld(); makeMe(); camTarget.set(0, 2, 0);
 requestAnimationFrame(frame);
-window.__kj = { THREE, get me() { return me; }, get moveTo() { return moveTo; }, get mass() { return mass; }, set mass(v) { mass = v; }, get massTarget() { return massTarget; }, get stage() { return stage; }, get power() { return power; }, set power(v) { power = v; }, get rival() { return rival; }, spawnRival, spawnPlane, get planes() { return planes; }, get state() { return state; }, get score() { return score; }, get people() { return people; }, get buildings() { return buildings; }, get pois() { return pois; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, tapAt, get cam() { return cam; }, set tLeft(v) { tLeft = v; }, set level(v) { level = v; }, start, hurt, get calls() { return renderer.info.render.calls; }, get fires() { return fires; }, get mini() { return mini; }, miniTap, get pool() { return pool.length; }, get unlocked() { return unlockedKaiju(); }, set pick(v) { pick = v; } };
+window.__kj = { THREE, get me() { return me; }, get moveTo() { return moveTo; }, get mass() { return mass; }, set mass(v) { mass = v; }, get massTarget() { return massTarget; }, get stage() { return stage; }, get power() { return power; }, set power(v) { power = v; }, get rival() { return rival; }, spawnRival, spawnPlane, get planes() { return planes; }, get state() { return state; }, get score() { return score; }, get people() { return people; }, get buildings() { return buildings; }, get pois() { return pois; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, tapAt, get cam() { return cam; }, set tLeft(v) { tLeft = v; }, set level(v) { level = v; }, start, hurt, get calls() { return renderer.info.render.calls; }, get fires() { return fires; }, get mini() { return mini && { ...mini, side: mini.side }; }, startMini, get pool() { return pool.length; }, get unlocked() { return unlockedKaiju(); }, set pick(v) { pick = v; } };

@@ -4,7 +4,7 @@ import { SKINS, addCoins, grantSkin, fmtCoins, getEarned } from './skins.js';
 
 const ODDS = { skin: 0.005, coin: 0.35 }; // per chest; the rest are empty
 
-function roll() {
+export function roll() {
   const r = Math.random();
   if (r < ODDS.skin) { const s = SKINS[(Math.random() * SKINS.length) | 0]; return grantSkin(s.id) ? { kind: 'skin', text: 'FREE SKIN: ' + s.name + '!' } : (addCoins(0.5), { kind: 'dupe', text: s.name + ' (owned): +0.5 coin' }); }
   // beginners: the first coins come quickly (very generous for the first two, generous until five), then normal odds
