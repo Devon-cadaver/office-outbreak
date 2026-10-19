@@ -31,7 +31,7 @@
     /* the intro: the clip plays once full screen, freezes on its last frame, then the menu pops up over the lower half */
     #intro { position: fixed; inset: 0; z-index: 0; background: #0b0614 url(./intro-end.jpg) center / cover no-repeat; overflow: hidden; }
     #intro::before { content: ''; position: absolute; inset: 0; background: inherit; filter: blur(18px) brightness(.55); transform: scale(1.1); }
-    #intro video { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: contain; object-position: 50% 0; }
+    #intro video, #introEnd { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: contain; object-position: 50% 0; }
     #intro::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 30%, #0b0614b0 52%, #0b0614f2 75%); opacity: 0; transition: opacity .6s; }
     body.ready #intro::after { opacity: 1; }
     #menu > :first-child { margin-top: auto; }
@@ -46,7 +46,7 @@
   </style>
 </head>
 <body>
-  <div id="intro"><video id="introVid" src="./intro.mp4" muted playsinline preload="auto" poster="./intro-end.jpg"></video></div>
+  <div id="intro"><img id="introEnd" src="./intro-end.jpg" alt=""><video id="introVid" src="./intro.mp4" muted playsinline preload="auto" poster="./intro-end.jpg"></video></div>
   <button id="skipIntro" class="ghost">SKIP ▶</button>
   <div id="menu" class="screen">
     <button class="choice" onclick="location.href='tornado.html'"><b>🌪️ PLAY TORNADO ALLEY</b><span>Five towns, ten big targets, seeding planes and storm chasers. New? Try the tutorial.</span></button>
@@ -61,11 +61,10 @@
     // title music: the storm theme, from the first tap anywhere (browsers won't play sound before one)
     { let on = false; const go = () => { if (on) return; on = true; unlockAudio(); startStormMusic(); setStormLevel(1); }; addEventListener('pointerdown', go, { capture: true }); addEventListener('keydown', go, { capture: true }); }
     soundToggle(document.getElementById('menu')); stampVersion(); initSaveCodes(document.getElementById('menu'));
-    // the intro clip plays once (muted, as browsers require), stays on its last frame, then the menu pops up. Seen it this
-    // session already, or it can't play? Straight to the menu on the final frame.
+    // the intro clip plays once (muted, as browsers require), stays on its last frame, then the menu pops up. It plays every time the
+    // menu opens; if the browser won't play it, the menu shows straight away on the final frame.
     { const v = document.getElementById('introVid'); let done = false; const ready = () => { if (done) return; done = true; document.body.classList.add('ready'); try { sessionStorage.setItem('intro_seen', '1'); } catch (e) {} };
-      let seen = false; try { seen = sessionStorage.getItem('intro_seen') === '1'; } catch (e) {}
-      if (seen) { v.remove(); ready(); } else { v.addEventListener('ended', ready); v.addEventListener('error', ready); const pr = v.play(); if (pr && pr.catch) pr.catch(() => { v.remove(); ready(); }); setTimeout(ready, 4000); }
+      { v.addEventListener('ended', ready); v.addEventListener('error', ready); const pr = v.play(); if (pr && pr.catch) pr.catch(() => { v.remove(); ready(); }); setTimeout(ready, 4000); }
       document.getElementById('skipIntro').addEventListener('click', () => { v.pause(); v.currentTime = v.duration || 99; ready(); }); window.__introReady = () => done; }</script>
   <script>
     try { if (localStorage.getItem('oo_save_dc')) document.getElementById('dcSaved').textContent = 'Saved game: night ' + (JSON.parse(localStorage.getItem('oo_save_dc')).night + 1); } catch (e) {}
