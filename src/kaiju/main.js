@@ -146,7 +146,10 @@ function freezeCity() {
 function free(o) { if (o && o.parent && o.parent.isChunk) city.group.attach(o); }
 function freeKnocked() { for (const pr of city.props) if (pr.knocked && pr.g.parent && pr.g.parent.isChunk) free(pr.g); }
 const frus = new THREE.Frustum(), projM = new THREE.Matrix4();
-function cullChunks() { cam.updateMatrixWorld(); projM.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse); frus.setFromProjectionMatrix(projM); for (const ch of chunks) ch.visible = frus.intersectsBox(ch.box); }
+// ?cine=side: a trailer camera, low and beside the monster, slowly circling, with the HUD hidden
+const CINE = new URLSearchParams(location.search).get('cine'); if (CINE) document.body.classList.add('cine'); const cineCam = new THREE.PerspectiveCamera(46, 1, 0.1, 400), cineTo = new THREE.Vector3(), cineAt = new THREE.Vector3(), cineLook = new THREE.Vector3();
+const viewCam = () => (CINE ? cineCam : cam);
+function cullChunks() { const vc = viewCam(); vc.updateMatrixWorld(); projM.multiplyMatrices(vc.projectionMatrix, vc.matrixWorldInverse); frus.setFromProjectionMatrix(projM); for (const ch of chunks) ch.visible = frus.intersectsBox(ch.box); }
 
 // ---------- you ----------
 let me = null, mass = 0, meF = 0.15, meScale = 1.5, stage = 1, topStage = 1, power = 0, slowT = 0, boostT = 0, meleeCd = 0, leap = null, faceY = 0;
@@ -508,7 +511,7 @@ function start() {
   unlockAudio(); buildWorld(); makeMe(); spells.clear(); score = 0; chain = 0; lastHit = -9; tLeft = L().time; played = 0; peopleN = carsN = bDone = 0; ko = 0; died = false; moveTo = null; slowT = 0; boostT = 0;
   for (const pl of planes) { scene.remove(pl.g); pl.arrow.remove(); } planes = []; planeT = 50 + Math.random() * 10; noPlanes = false; for (const b of bombs) scene.remove(b.m); bombs.length = 0; for (const f of fires) scene.remove(f.ring); fires.length = 0;
   if (rival) scene.remove(rival.g); rival = null; mini = null; lastMini = ''; miniEl.className = 'hidden'; rivalQueue = []; rivalWait = 0; queueRivals(1); unlockedNow.length = 0; sinking.length = 0; gulps.length = 0;
-  setupPoiHud(); for (const s of ['taStart', 'taEnd', 'taPaused']) $(s).classList.add('hidden'); $('ta').classList.remove('hidden');
+  setupPoiHud(); for (const s of ['taStart', 'taEnd', 'taPaused', 'taPrize', 'kjPickScr']) $(s).classList.add('hidden'); $('ta').classList.remove('hidden');
   state = 'play'; startStormMusic(); setStormLevel(1); sfx.whoosh(); banner(KAIJU[me.id].name + ' VS ' + L().name.toUpperCase()); setTimeout(() => { if (state === 'play') banner('TAKE OUT ' + (L().need >= poiOrder.length ? 'ALL ' + poiOrder.length : L().need) + ' TARGETS'); }, 2600);
   renderer.compile(scene, cam); $('taLevel').textContent = 'L' + level + ' · goal ' + L().goal + '%'; for (const k in hudCache) delete hudCache[k];
 }
@@ -525,8 +528,8 @@ function finish() {
   $('taGoalLine').textContent = died ? 'The army got you. Eat more people to grow back, and walk out of the napalm.' : cleared ? (level < LEVELS.length ? 'Level ' + (level + 1) + ' unlocked: ' + LEVELS[level].name + '.' : 'Every town crushed. Monster.') : 'Flatten ' + L().goal + '% of ' + L().name + ' and take out ' + (need >= poiOrder.length ? 'every big target' : need + ' big targets') + ' (you got ' + pct + '% and ' + done.length + ').';
   for (const id of unlockedNow) { const u = document.createElement('div'); u.className = 'bonusSkin'; u.innerHTML = '🏆 NEW KAIJU UNLOCKED: <b>' + KAIJU[id].name + '</b>'; $('taGoalLine').appendChild(u); }
   $('taStats').innerHTML = [['Buildings', bDone + ' / ' + totalB + ' (' + pct + '%)'], ['People eaten', peopleN], ['Cars wrecked', carsN], ['Rivals KO\'d', ko], ['Big targets', done.length + ' / ' + poiOrder.length + ' ' + done.map((k) => POI[k].icon).join('')], ['Biggest', STAGE[topStage]], ['Score', score], ['Score coins', '+' + scoreCoins + ' 🪙'], ['Best', best]].map(([a, b]) => '<tr><td>' + a + '</td><td>' + b + '</td></tr>').join('');
-  const goes = Math.min(3, 1 + (cleared ? 1 : 0) + Math.floor(done.length / 2)); kaijuRound(goes); showPrizes($('taChests'), goes, '1 go, +1 for clearing the level, +1 for every 2 big targets destroyed (max 3)', () => { location.href = 'store.html?from=kaiju'; }, kaijuPrize);
-  $('ta').classList.add('hidden'); $('taEnd').classList.remove('hidden'); drawPicker();
+  const goes = Math.min(3, 1 + (cleared ? 1 : 0) + Math.floor(done.length / 2)); kaijuRound(goes); showPrizes($('taChests'), goes, '1 go, +1 for clearing the level, +1 for every 2 big targets destroyed (max 3)', () => { location.href = 'store.html?from=kaiju'; }, kaijuPrize, () => { $('taPrize').classList.add('hidden'); $('taEnd').classList.remove('hidden'); });
+  $('ta').classList.add('hidden'); $('taPrize').classList.remove('hidden'); drawPicker(); // the prize game first, then the score
 }
 const HOWTO = [
   ['🦖', 'You are the monster', 'Tap a spot to walk there. Your kaiju eats people and smashes whatever is closest all by itself.'],
@@ -541,12 +544,31 @@ const HOWTO = [
 $('taHow').addEventListener('click', () => showHowTo(HOWTO));
 $('taPlay').addEventListener('click', () => { if (tipsSeen('kj_howto')) start(); else { markSeen('kj_howto'); showHowTo(HOWTO, start); } });
 $('taAgain').addEventListener('click', () => { if ($('taAgain').dataset.next) level++; start(); });
-$('taEndPick').addEventListener('click', () => { $('taEnd').classList.add('hidden'); $('taStart').classList.remove('hidden'); state = 'start'; });
+$('taEndPick').addEventListener('click', openPicker);
 function drawLevels() { const box = $('taLevels'); box.innerHTML = ''; const un = unlockedLevel(); LEVELS.forEach((lv, i) => { const b = document.createElement('button'); const n = i + 1; let best = 0; try { best = +localStorage.getItem('kj_best_' + n) || 0; } catch { /* ignore */ }
   b.className = 'lvl' + (n === level ? ' on' : ''); b.disabled = n > un; b.innerHTML = '<b>' + (n > un ? '🔒' : n) + '</b><span>' + lv.name + '</span>' + (best ? '<i>' + best + '</i>' : ''); b.addEventListener('click', () => { level = n; drawLevels(); }); box.appendChild(b); }); }
-function drawPicker() { const box = $('kjPick'); box.innerHTML = ''; const un = unlockedKaiju(); for (const id of KAIJU_IDS) { const K = KAIJU[id], open = un.includes(id); const b = document.createElement('button'); b.className = 'kjCard' + (id === pick ? ' on' : '') + (open ? '' : ' locked'); b.disabled = !open;
-  b.innerHTML = '<b>' + (open ? '' : '🔒') + K.name + '</b>'; b.addEventListener('click', () => { pick = id; try { localStorage.setItem('kj_pick', id); } catch { /* ignore */ } drawPicker(); showcase(); }); box.appendChild(b); }
-  const K = KAIJU[pick]; $('kjPickInfo').innerHTML = '<b>' + K.name + '</b> · ' + K.spells.join(' → ') + '<br><small>' + un.length + ' of ' + KAIJU_IDS.length + ' unlocked. Win more in the prize games after each round.</small>'; }
+// ---------- the monster picker: the start screen shows your monster; CHOOSE MONSTER opens a scrolling screen with a
+// picture of every one (locked ones are dark silhouettes). Pictures are rendered once each, a few per frame ----------
+const thumbR = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true }); thumbR.setSize(150, 150); thumbR.setPixelRatio(1);
+const thumbS = new THREE.Scene(); thumbS.add(new THREE.HemisphereLight(0xe0e8ff, 0x3a2a4a, 1.6)); { const l = new THREE.DirectionalLight(0xffffff, 0.9); l.position.set(3, 6, 5); thumbS.add(l); }
+const thumbC = new THREE.PerspectiveCamera(30, 1, 0.1, 50); thumbC.position.set(2.1, 1.8, 4.3); thumbC.lookAt(0, 1.15, 0);
+const thumbCache = new Map(), thumbQ = [];
+function thumb(id, cv) { const skin = !!getEquipped()['kj_' + id], key = id + (skin ? '+' : ''); const g2 = cv.getContext('2d');
+  if (thumbCache.has(key)) { g2.clearRect(0, 0, cv.width, cv.height); g2.drawImage(thumbCache.get(key), 0, 0, cv.width, cv.height); return; }
+  thumbQ.push(() => { const rig = buildKaiju(id, skin); rig.anim(0.4, 0); const g = rig.g; g.rotation.y = -0.5; const bb = new THREE.Box3().setFromObject(g), sz = bb.getSize(new THREE.Vector3()); const k = 2.5 / Math.max(sz.x, sz.y, sz.z); g.scale.setScalar(k); bb.setFromObject(g); g.position.y -= bb.min.y; g.position.x -= (bb.min.x + bb.max.x) / 2; g.position.z -= (bb.min.z + bb.max.z) / 2;
+    thumbS.add(g); thumbR.render(thumbS, thumbC); thumbS.remove(g); const img = document.createElement('canvas'); img.width = img.height = 150; img.getContext('2d').drawImage(thumbR.domElement, 0, 0); thumbCache.set(key, img); g2.clearRect(0, 0, cv.width, cv.height); g2.drawImage(img, 0, 0, cv.width, cv.height); }); }
+(function thumbPump() { requestAnimationFrame(thumbPump); for (let i = 0; i < 3 && thumbQ.length; i++) thumbQ.shift()(); })();
+function drawPicker() { const un = unlockedKaiju(), K = KAIJU[pick];
+  $('kjChosenName').textContent = K.name; $('kjChosenSpells').textContent = K.spells.join(' → '); thumb(pick, $('kjChosenCv'));
+  $('kjPickInfo').innerHTML = un.length + ' of ' + KAIJU_IDS.length + ' unlocked. Win more in the prize games after each round.';
+  if ($('kjPickScr').classList.contains('hidden')) return;
+  const box = $('kjPick'); box.innerHTML = '';
+  for (const id of KAIJU_IDS) { const KK = KAIJU[id], open = un.includes(id); const b = document.createElement('button'); b.className = 'kjCard' + (id === pick ? ' on' : '') + (open ? '' : ' locked'); b.disabled = !open;
+    b.innerHTML = '<canvas width="150" height="150"></canvas><b>' + (open ? '' : '🔒 ') + KK.name + '</b>'; thumb(id, b.querySelector('canvas'));
+    b.addEventListener('click', () => { pick = id; try { localStorage.setItem('kj_pick', id); } catch { /* ignore */ } for (const o of box.children) o.classList.remove('on'); b.classList.add('on'); drawPicker(); showcase(); }); box.appendChild(b); } }
+function openPicker() { $('taStart').classList.add('hidden'); $('taEnd').classList.add('hidden'); state = 'start'; $('kjPickScr').classList.remove('hidden'); $('kjPickScr').scrollTop = 0; drawPicker(); }
+$('kjChoose').addEventListener('click', openPicker);
+$('kjPickDone').addEventListener('click', () => { $('kjPickScr').classList.add('hidden'); $('taStart').classList.remove('hidden'); drawPicker(); });
 level = unlockedLevel(); drawLevels(); drawPicker();
 $('taPause').addEventListener('click', togglePause); $('taResume').addEventListener('click', togglePause);
 // restart the level from the pause screen; the first tap asks, a second tap within 3 seconds does it
@@ -649,7 +671,12 @@ function frame(now) {
   const a = innerWidth / innerHeight, s = me ? meScale / 1.5 : 1, base = 7.2 + s * 2.8, half = (a < 1 ? base / a * 0.8 : base) * zoom * camK;
   cam.left = -half * a; cam.right = half * a; cam.top = half; cam.bottom = -half; cam.updateProjectionMatrix();
   if (me) camTarget.lerp(tmp.set(me.g.position.x, 1 + meScale * 0.4, me.g.position.z), Math.min(1, dt * 3)); cam.position.copy(camTarget).addScaledVector(isoDir, 80); cam.lookAt(camTarget);
-  updatePops(dt); cullChunks(); perfTick(); renderer.render(scene, cam);
+  if (CINE && me) { cineCam.aspect = a; cineCam.updateProjectionMatrix(); const P = me.g.position, R = rival && rival.hp > 0 && rival.koT <= 0 ? rival.g.position : null, sep = R ? Math.hypot(R.x - P.x, R.z - P.z) : 0;
+    // side-on: with a rival close by, frame both from beside the line between them; otherwise circle the monster slowly
+    let mx = P.x, mz = P.z, px, pz; if (R && sep < 30) { mx = (P.x + R.x) / 2; mz = (P.z + R.z) / 2; px = -(R.z - P.z) / (sep || 1); pz = (R.x - P.x) / (sep || 1); } else { const an = 1.2 + played * 0.04; px = Math.cos(an); pz = Math.sin(an); }
+    const d = 3 + meScale * 1.7 + (R && sep < 30 ? sep * 0.5 : 0); cineTo.set(mx + px * d, 0.8 + meScale * 1.5, mz + pz * d); cineAt.set(mx, meScale * 1.05, mz); if (!cineCam.userData.on) { cineCam.position.copy(cineTo); cineCam.userData.on = 1; cineLook.copy(cineAt); }
+    cineCam.position.lerp(cineTo, Math.min(1, dt * 2)); cineLook.lerp(cineAt, Math.min(1, dt * 2)); cineCam.lookAt(cineLook); }
+  updatePops(dt); cullChunks(); perfTick(); renderer.render(scene, viewCam());
 }
 // the title screen: a calm town with your kaiju in it
 function showcase() { if (state !== 'start') return; makeMe(); me.g.position.set(0, 0, 0); camTarget.set(0, 2, 0); }

@@ -8,7 +8,8 @@ import { fmtCoins } from './skins.js';
 const GAMES = ['claw', 'wheel', 'egg'];
 const ICON = { coin: '🪙', skin: '👕', dupe: '🪙', empty: '💨', kaiju: '👹' };
 
-export function showPrizes(el, goes, why = '', onShop = null, extra = null) {
+// onDone: once every go is used, a SEE YOUR SCORE button calls it (the prize screen comes before the score screen)
+export function showPrizes(el, goes, why = '', onShop = null, extra = null, onDone = null) {
   let n = 0; try { n = +localStorage.getItem('prize_game') || 0; localStorage.setItem('prize_game', String(n + 1)); } catch { /* ignore */ }
   const game = GAMES[n % GAMES.length];
   el.innerHTML = ''; el.classList.remove('hidden'); el.classList.add('prizes');
@@ -19,6 +20,7 @@ export function showPrizes(el, goes, why = '', onShop = null, extra = null) {
   let left = goes; const name = { claw: '🕹️ CLAW MACHINE', wheel: '🎡 PRIZE WHEEL', egg: '🥚 KAIJU EGG' }[game];
   const draw = () => { head.textContent = name + '  ·  ' + (left > 0 ? left + (left === 1 ? ' go left' : ' goes left') : 'all done') + '  ·  🪙 ' + fmtCoins(); };
   const won = (res) => { const d = document.createElement('div'); d.className = 'prizeWin ' + res.kind; d.textContent = ICON[res.kind] + ' ' + res.text; log.appendChild(d); draw();
+    if (left <= 0 && onDone && !el.querySelector('.doneBtn')) { const d = document.createElement('button'); d.className = 'doneBtn'; d.textContent = 'SEE YOUR SCORE ▶'; d.addEventListener('click', (ev) => { ev.stopPropagation(); onDone(); }); el.appendChild(d); }
     if (left <= 0 && onShop && !el.querySelector('.shopBtn')) { const s = document.createElement('button'); s.className = 'ghost shopBtn'; s.textContent = '🪙 SPEND COINS IN THE SKIN SHOP'; s.addEventListener('click', (ev) => { ev.stopPropagation(); onShop(); }); el.appendChild(s); } };
   draw(); ({ claw, wheel, egg })[game](box, () => left > 0, () => { left--; draw(); return (extra && extra()) || roll(); }, won, !!extra);
 }

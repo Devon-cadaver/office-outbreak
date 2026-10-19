@@ -101,10 +101,19 @@
     .kjSpot { position: absolute; width: 58px; height: 58px; margin: -29px 0 0 -29px; border-radius: 50%; background: radial-gradient(circle, #fff 0 18%, #ffd24a 22% 48%, #ff5a1a 52% 70%, transparent 72%); box-shadow: 0 0 18px #ffd24a; animation: spotIn .18s ease-out; }
     .kjSpot.pop { transform: scale(1.8); opacity: 0; transition: all .2s; } .kjSpot.miss { filter: grayscale(1); opacity: 0; transition: opacity .25s; }
     @keyframes spotIn { from { transform: scale(0.2); } to { transform: scale(1); } }
-    #kjPick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; width: min(94vw, 440px); }
+    #kjPick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: min(94vw, 520px); padding-bottom: 110px; }
+    @media (min-width: 640px) { #kjPick { grid-template-columns: repeat(4, 1fr); } }
+    #kjPickScr { gap: 10px; } #kjPickScr h1 { font-size: 28px; margin: 4px 0 0; }
+    #kjPickDone { position: fixed; bottom: calc(52px + env(safe-area-inset-bottom, 0)); left: 50%; transform: translateX(-50%); z-index: 3; min-width: 180px; box-shadow: 0 4px 18px #000c; }
+    .kjCard canvas { width: 100%; aspect-ratio: 1; border-radius: 8px; background: radial-gradient(circle at 50% 40%, #2e2450, #120a1f 75%); }
+    .kjCard.locked canvas { filter: brightness(.18) saturate(0); }
+    #kjChosen { display: flex; align-items: center; gap: 12px; padding: 8px 14px 8px 8px; border-radius: 16px; background: #1a0f2ecc; border: 2px solid #5a2f80; text-align: left; }
+    #kjChosen canvas { width: 110px; height: 110px; border-radius: 12px; background: radial-gradient(circle at 50% 40%, #2e2450, #120a1f 75%); }
+    #kjChosen > div { display: grid; gap: 4px; } #kjChosen small { color: #c9a6ff; font-size: 11px; letter-spacing: 2px; } #kjChosen b { color: #7dff3a; font-size: 18px; } #kjChosen span { color: #c9e8b8; font-size: 11px; max-width: 190px; }
+    #kjChoose { margin: 4px 0 0; font-size: 14px; padding: 6px 12px; }
     #kjPickInfo { font-size: 12px; color: #c9e8b8; max-width: 420px; margin: 2px 0 0; } #kjPickInfo b { color: #7dff3a; } #kjPickInfo small { color: #c9a6ff; }
     .kjCard { display: grid; gap: 2px; padding: 6px 3px; margin: 0; text-align: center; min-height: 38px; align-items: center; border-radius: 12px; background: #1a0f2e; border: 2px solid #5a2f80; color: #fff; box-shadow: none; }
-    .kjCard b { font-size: 9px; line-height: 1.15; color: #7dff3a; } .kjCard span { font-size: 9px; color: #c9e8b8; font-weight: 700; line-height: 1.25; }
+    .kjCard b { font-size: 11px; line-height: 1.15; color: #7dff3a; } .kjCard span { font-size: 9px; color: #c9e8b8; font-weight: 700; line-height: 1.25; }
     .kjCard.on { border-color: #7dff3a; box-shadow: 0 0 10px #7dff3a88; } .kjCard.locked { opacity: .5; } .kjCard.locked b { color: #aaa; }
     #taStart h1 { font-size: clamp(34px, 11vw, 56px); }
     .bonusSkin { margin-top: 8px; padding: 8px 10px; border-radius: 10px; border: 2px solid #7dff3a; background: #0e2a0acc; color: #7dff3a; font-weight: 900; font-size: 15px; box-shadow: 0 0 14px #7dff3a66; }
@@ -130,19 +139,20 @@
     <p class="small" style="letter-spacing:4px;color:#c9a6ff;margin-bottom:-8px">DEAD CITY</p>
     <h1>KAIJU<br>MADNESS</h1>
     <p>You are the monster. Eat the town!</p>
-    <div id="kjPick"></div><p id="kjPickInfo"></p>
+    <div id="kjChosen"><canvas id="kjChosenCv" width="150" height="150"></canvas><div><small>YOUR MONSTER</small><b id="kjChosenName"></b><span id="kjChosenSpells"></span><button id="kjChoose" class="ghost">👹 CHOOSE MONSTER</button></div></div>
     <div id="taLevels"></div>
-    <button id="taPlay">STOMP!</button>
+    <button id="taPlay">PLAY</button>
     <div class="howRow"><button id="taHow" class="ghost">HOW TO PLAY</button><button class="ghost menuBtn" onclick="location.href='index.html'">MAIN MENU</button></div>
   </div>
   <div id="taPaused" class="screen hidden"><h1>PAUSED</h1><button id="taResume">RESUME</button><button id="taRestart" class="ghost">↺ RESTART LEVEL</button><button class="ghost menuBtn" onclick="location.href='index.html'">MAIN MENU</button></div>
+  <div id="kjPickScr" class="screen hidden"><h1>CHOOSE YOUR MONSTER</h1><p id="kjPickInfo"></p><div id="kjPick"></div><button id="kjPickDone">✔ DONE</button></div>
+  <div id="taPrize" class="screen hidden"><h1>PRIZE TIME!</h1><div id="taChests" class="chests"></div></div>
   <div id="taEnd" class="screen hidden">
     <h1 id="taEndTitle">TIME'S UP</h1>
     <p class="small" id="taGoalLine"></p>
     <table id="taStats"></table>
-    <div id="taChests" class="chests"></div>
     <button id="taAgain">GO AGAIN</button>
-    <div class="howRow"><button id="taEndPick" class="ghost">CHANGE KAIJU</button><button class="ghost menuBtn" onclick="location.href='index.html'">MAIN MENU</button></div>
+    <div class="howRow"><button id="taEndPick" class="ghost">CHANGE MONSTER</button><button class="ghost menuBtn" onclick="location.href='index.html'">MAIN MENU</button></div>
   </div>
   <script type="module" src="./src/kaiju/main.js"></script>
 </body>
