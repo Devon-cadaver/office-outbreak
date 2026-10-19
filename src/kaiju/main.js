@@ -629,7 +629,7 @@ function drawPicker() { const un = unlockedKaiju(), K = KAIJU[pick];
   $('kjPickInfo').innerHTML = un.length + ' of ' + KAIJU_IDS.length + ' unlocked. Win more in the prize games after each round.';
   if ($('kjPickScr').classList.contains('hidden')) return;
   const box = $('kjPick'); box.innerHTML = '';
-  for (const id of KAIJU_IDS) { const KK = KAIJU[id], open = un.includes(id); const b = document.createElement('button'); b.className = 'kjCard' + (id === pick ? ' on' : '') + (open ? '' : ' locked'); b.disabled = !open;
+  for (const id of [...KAIJU_IDS.filter((x) => un.includes(x)), ...KAIJU_IDS.filter((x) => !un.includes(x))]) { const KK = KAIJU[id], open = un.includes(id); /* yours first */ const b = document.createElement('button'); b.className = 'kjCard' + (id === pick ? ' on' : '') + (open ? '' : ' locked'); b.disabled = !open;
     b.innerHTML = '<canvas width="150" height="150"></canvas><b>' + (open ? '' : '🔒 ') + KK.name + '</b>'; thumb(id, b.querySelector('canvas'));
     b.addEventListener('click', () => { pick = id; try { localStorage.setItem('kj_pick', id); } catch { /* ignore */ } for (const o of box.children) o.classList.remove('on'); b.classList.add('on'); drawPicker(); showcase(); }); box.appendChild(b); } }
 function openPicker() { $('taStart').classList.add('hidden'); $('taEnd').classList.add('hidden'); state = 'start'; $('kjPickScr').classList.remove('hidden'); $('kjPickScr').scrollTop = 0; drawPicker(); }
