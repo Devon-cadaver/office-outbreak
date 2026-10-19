@@ -61,13 +61,13 @@ export const KAIJU_IDS = Object.keys(KAIJU);
 // Halloween skins, one per kaiju: flyers become bats (little bats circle them); the rest take turns being UNDEAD (pale,
 // robots go HAUNTED (rusted, green eyes, bats), GHOSTLY (pale glowing blue), PUMPKIN or SKELETON; zombie green with purple bones, or a GHOUL in purple with glowing green bones), a SKELETON (bone white on black) or a PUMPKIN (orange, with a flaming jack-o'-lantern for a head)
 const LOOKS = {
-  undead: { name: 'Undead', pal: [0x4f9a3e, 0x8a3ac8, 0xb27ae8, 0xa04ae0, 0x9dff3a] },
-  ghoul: { name: 'Ghoul', pal: [0x5a2a7a, 0x7dff3a, 0x9dff5a, 0x7dff3a, 0x9dff3a] },
-  skeleton: { name: 'Skeleton', pal: [0x1c1a20, 0xece6d2, 0xf2ecd8, 0xece6d2, 0xff2a2a] },
-  pumpkin: { name: 'Pumpkin', pal: [0xff7a1a, 0x3a1a08, 0xffaa3a, 0x2a8a2a, 0xffe24a], pumpkin: true },
-  haunted: { name: 'Haunted', pal: [0x7a4a2a, 0x3a2418, 0x9a6a3a, 0x5a8a3a, 0x7dff3a], bats: true },
-  ghostly: { name: 'Ghostly', pal: [0xe8f0ff, 0xb8c8e8, 0xffffff, 0x8ab8ff, 0x3ad8ff] },
-  bat: { name: 'Bat', pal: [0x4a3448, 0x2a1a2a, 0x7a5a6a, 0x8a2a3a, 0xff2a2a], bats: true },
+  undead: { spell: 0xa04ae0, name: 'Undead', pal: [0x4f9a3e, 0x8a3ac8, 0xb27ae8, 0xa04ae0, 0x9dff3a] },
+  ghoul: { spell: 0x7dff3a, name: 'Ghoul', pal: [0x5a2a7a, 0x7dff3a, 0x9dff5a, 0x7dff3a, 0x9dff3a] },
+  skeleton: { spell: 0xff2a2a, name: 'Skeleton', pal: [0x1c1a20, 0xece6d2, 0xf2ecd8, 0xece6d2, 0xff2a2a] },
+  pumpkin: { spell: 0xff7a1a, name: 'Pumpkin', pal: [0xff7a1a, 0x3a1a08, 0xffaa3a, 0x2a8a2a, 0xffe24a], pumpkin: true },
+  haunted: { spell: 0x7dff3a, name: 'Haunted', pal: [0x7a4a2a, 0x3a2418, 0x9a6a3a, 0x5a8a3a, 0x7dff3a], bats: true },
+  ghostly: { spell: 0x6ad8ff, name: 'Ghostly', pal: [0xe8f0ff, 0xb8c8e8, 0xffffff, 0x8ab8ff, 0x3ad8ff] },
+  bat: { spell: 0xb04aff, name: 'Bat', pal: [0x4a3448, 0x2a1a2a, 0x7a5a6a, 0x8a2a3a, 0xff2a2a], bats: true },
 };
 const CYCLE = ['undead', 'pumpkin', 'skeleton'], ROBO_CYCLE = ['haunted', 'pumpkin', 'ghostly', 'skeleton'];
 export const KAIJU_SKINS = {}; { let i = 0, u = 0, r = 0; for (const id of KAIJU_IDS) { let look = KAIJU[id].fly ? 'bat' : KAIJU[id].borrow ? ROBO_CYCLE[r++ % ROBO_CYCLE.length] : CYCLE[i++ % CYCLE.length]; if (look === 'undead' && (u++ % 2)) look = 'ghoul'; KAIJU_SKINS[id] = { look, ...LOOKS[look], name: LOOKS[look].name + ' ' + KAIJU[id].name.replace('KING ', 'King ').toLowerCase().replace(/(^|[ -])([a-z])/g, (m, s, ch) => s + ch.toUpperCase()) }; } }
@@ -91,7 +91,7 @@ export function buildKaiju(id, skin = false) {
   if (sk && sk.pumpkin && rig.mouth && rig.mouth.parent) pumpkinHead(rig.mouth.parent, fx); if (sk && sk.bats) batSwarm(g, fx);
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.9, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false })); shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.03; g.add(shadow);
   let t = Math.random() * 10, actK = null, actT = 0;
-  return { id, def: K, g, body, shadow, fly: !!K.fly, mouth: rig.mouth, hand: rig.hand, chest: rig.chest,
+  return { id, def: K, g, body, shadow, fly: !!K.fly, tint: sk ? sk.spell : K.borrow ? K.pal[4] : null, mouth: rig.mouth, hand: rig.hand, chest: rig.chest,
     act(k) { actK = k; actT = 0; },
     anim(dt, move) { t += dt; if (actK) { actT += dt * (actK === 'ko' ? 0.8 : 2.4); if (actT >= 1 && actK !== 'ko') actK = null; } rig.anim(t, dt, move, actK, Math.min(1, actT)); for (const f of fx) f(t); shadow.scale.setScalar(rig.shadowK || 1); },
   };

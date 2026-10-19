@@ -6,13 +6,18 @@ import * as THREE from 'three';
 import { KAIJU } from './rigs.js';
 
 const sphere = new THREE.SphereGeometry(0.5, 10, 8), cylG = new THREE.CylinderGeometry(1, 1, 1, 12, 1, true), boxG = new THREE.BoxGeometry(1, 1, 1), coneG = new THREE.ConeGeometry(0.5, 1, 8);
-const glowCache = new Map(); const glow = (c, o = 1) => { const k = c + '|' + o; if (!glowCache.has(k)) glowCache.set(k, new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, blending: THREE.AdditiveBlending, depthWrite: false })); return glowCache.get(k); };
+// spell tint: a skinned kaiju or a robot casts in its own colour. While a spell (or anything it set off later) runs,
+// every glow and bolt takes the tint; beam cores stay white
+let tint = null;
+const glowCache = new Map(); const glow = (c0, o = 1) => { const c = tint != null && c0 !== 0xfffffe ? tint : c0; const k = c + '|' + o; if (!glowCache.has(k)) glowCache.set(k, new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, blending: THREE.AdditiveBlending, depthWrite: false })); return glowCache.get(k); };
 const solid = new Map(); const sol = (c) => { if (!solid.has(c)) solid.set(c, new THREE.MeshLambertMaterial({ color: c })); return solid.get(c); };
 const v1 = new THREE.Vector3(), v2 = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
 
 export function createSpells(env) {
+  const later = (t, f) => () => { const p = tint; tint = t; try { return f(); } finally { tint = p; } };
+  const setTimeout = (f, ms) => window.setTimeout(later(tint, f), ms);
   const { scene, fx, sfx } = env; const live = [];
-  const add = (e) => { live.push(e); return e; };
+  const add = (e) => { if (tint != null) { const u = e.update.bind(e), t = tint; e.update = (dt) => later(t, () => u(dt))(); } live.push(e); return e; };
   const wp = (o) => o.getWorldPosition(new THREE.Vector3());
   // ---------- building blocks ----------
   // a glowing ball that flies (straight or lobbed) and pops on arrival
@@ -25,7 +30,7 @@ export function createSpells(env) {
   }
   // a beam between two points (a glowing tube with a white core) that fades after `life`
   function beam({ from, to, color, width = 0.5, life = 0.6, wobble = 0 }) {
-    const g = new THREE.Group(); const outer = new THREE.Mesh(cylG, glow(color, 0.55)), core = new THREE.Mesh(cylG, glow(0xffffff, 0.9)); g.add(outer, core); scene.add(g);
+    const g = new THREE.Group(); const outer = new THREE.Mesh(cylG, glow(color, 0.55)), core = new THREE.Mesh(cylG, glow(0xfffffe, 0.9)); g.add(outer, core); scene.add(g);
     const place = () => { const d = from.distanceTo(to); g.position.copy(from).add(to).multiplyScalar(0.5); g.quaternion.setFromUnitVectors(up, v1.copy(to).sub(from).normalize()); outer.scale.set(width, d, width); core.scale.set(width * 0.38, d, width * 0.38); };
     let t = 0; place(); return add({ update(dt) { t += dt; const k = 1 - t / life; const w = 1 + Math.sin(t * 40) * 0.12 + wobble * Math.sin(t * 7); outer.scale.x = outer.scale.z = width * w * Math.max(0.2, k); core.scale.x = core.scale.z = width * 0.38 * Math.max(0.2, k);
       if (t >= life) { scene.remove(g); return false; } return true; } });
@@ -46,7 +51,7 @@ export function createSpells(env) {
   }
   // a lightning bolt from the clouds down to a point
   function bolt(to, color = 0xfff2a0) { const pts = []; let x = to.x + (Math.random() - 0.5) * 3, z = to.z + (Math.random() - 0.5) * 3; for (let y = 22; y > 0.3; y -= 2) { pts.push(new THREE.Vector3(x, y, z)); x += (to.x - x) * 0.3 + (Math.random() - 0.5) * 1.2; z += (to.z - z) * 0.3 + (Math.random() - 0.5) * 1.2; } pts.push(to.clone().setY(0.1));
-    const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color })); scene.add(l); let t = 0; add({ update(dt) { t += dt; l.visible = Math.random() < 0.85; if (t > 0.25) { scene.remove(l); l.geometry.dispose(); return false; } return true; } }); }
+    const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: tint ?? color })); scene.add(l); let t = 0; add({ update(dt) { t += dt; l.visible = Math.random() < 0.85; if (t > 0.25) { scene.remove(l); l.geometry.dispose(); return false; } return true; } }); }
   // several things over a few seconds, spread over an area
   function rain(at, r, n, secs, fn) { let i = 0, t = 0; add({ update(dt) { t += dt; while (i < n && t >= (i / n) * secs) { const a = Math.random() * 6.28, rr = Math.sqrt(Math.random()) * r; fn(at.clone().add(new THREE.Vector3(Math.cos(a) * rr, 0, Math.sin(a) * rr)), i); i++; } return i < n; } }); }
   // small minions that scuttle along the ground to the spot and pop
@@ -176,7 +181,7 @@ export function createSpells(env) {
   // robots borrow other monsters' effects under their own names
   for (const id in KAIJU) if (KAIJU[id].borrow) SP[id] = KAIJU[id].borrow.map(([src, i]) => SP[src][i]);
   return {
-    cast(caster, stage, at, opts = {}) { const fn = SP[caster.id] && SP[caster.id][Math.max(0, Math.min(2, stage - 1))]; if (!fn) return; caster.rig.act('cast'); fn(caster, at.clone(), opts); },
+    cast(caster, stage, at, opts = {}) { const fn = SP[caster.id] && SP[caster.id][Math.max(0, Math.min(2, stage - 1))]; if (!fn) return; caster.rig.act('cast'); later(caster.rig.tint ?? null, () => fn(caster, at.clone(), opts))(); },
     update(dt) { for (let i = live.length - 1; i >= 0; i--) if (!live[i].update(dt)) live.splice(i, 1); },
     clear() { live.length = 0; },
   };

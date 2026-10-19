@@ -416,9 +416,11 @@ function tapAt(cx, cy) {
   moveTo = p.clone();
   if (zapCd <= 0) { zapCd = 0.45; strike(p); }
 }
+// tap bolts take the storm skin's lightning colours
+const boltMats = () => { const s = tw && tw.skin; if (!s || !s.bolts) return [boltMatA, boltMatB]; const bc = s.bolts[(Math.random() * s.bolts.length) | 0], k = bc + ':' + s.boltGlow; if (!boltMats.c[k]) boltMats.c[k] = [new THREE.LineBasicMaterial({ color: bc }), s.boltEdge ? new THREE.LineBasicMaterial({ color: s.boltGlow }) : new THREE.LineBasicMaterial({ color: s.boltGlow, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending })]; return boltMats.c[k]; }; boltMats.c = {};
 function boltTo(p) { // a jagged bolt from the clouds down to p (which can be in the air)
   const pts = []; let x = p.x + (Math.random() - 0.5) * 4, z = p.z + (Math.random() - 0.5) * 4; for (let y = 24; y > p.y + 0.5; y -= 2) { pts.push(new THREE.Vector3(x, y, z)); x += (p.x - x) * 0.25 + (Math.random() - 0.5) * 1.2; z += (p.z - z) * 0.25 + (Math.random() - 0.5) * 1.2; } pts.push(p.clone());
-  const g = new THREE.Group(); g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), boltMatA)); for (const o of [0.12, -0.12]) g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts.map((q) => q.clone().add(new THREE.Vector3(o, 0, -o)))), boltMatB));
+  const [bmA, bmB] = boltMats(); const g = new THREE.Group(); g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), bmA)); for (const o of [0.12, -0.12]) g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts.map((q) => q.clone().add(new THREE.Vector3(o, 0, -o)))), bmB));
   scene.add(g); bolts.push({ g, t: 0.22 }); flashT = Math.max(flashT, 0.16); sfx.boom();
 }
 function zapPlane2(pl) { // struck: the plane turns round and flies off the other way, spray off for a while
@@ -431,7 +433,7 @@ function zapChaser() { // struck: the chaser's photos are fried and it turns tai
 }
 function strike(p) {
   const pts = []; let x = p.x + (Math.random() - 0.5) * 4, z = p.z + (Math.random() - 0.5) * 4; for (let y = 24; y > 0; y -= 2) { pts.push(new THREE.Vector3(x, y, z)); x += (p.x - x) * 0.25 + (Math.random() - 0.5) * 1.2; z += (p.z - z) * 0.25 + (Math.random() - 0.5) * 1.2; } pts.push(p.clone().setY(0.05));
-  const g = new THREE.Group(); g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), boltMatA)); for (const o of [0.12, -0.12]) g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts.map((q) => q.clone().add(new THREE.Vector3(o, 0, -o)))), boltMatB));
+  const [bmA, bmB] = boltMats(); const g = new THREE.Group(); g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), bmA)); for (const o of [0.12, -0.12]) g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts.map((q) => q.clone().add(new THREE.Vector3(o, 0, -o)))), bmB));
   scene.add(g); bolts.push({ g, t: 0.22 }); flashT = Math.max(flashT, 0.16); sfx.boom(); fx.explode(p.clone().setY(0.3), 0.5);
   // cars in the blast blow up; people catch fire and run about in a panic
   for (let i = drivers.length - 1; i >= 0; i--) { const o = drivers[i], q = o.g.position; if (Math.hypot(q.x - p.x, q.z - p.z) < 1.8) { drivers.splice(i, 1); blowCar(o.g, q.clone()); } }
