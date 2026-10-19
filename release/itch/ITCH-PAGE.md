@@ -1,6 +1,6 @@
 # Dead City: Tornado Alley — itch.io page kit
 
-Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.7.2**. Upload `release/survive-dead-city-web-v1.7.2.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
+Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.7.3**. Upload `release/survive-dead-city-web-v1.7.3.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
 
 ## Upload settings (Edit game page)
 
@@ -11,7 +11,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 | Short description / tagline | You are the storm. Tear through five towns, take out big targets, dodge seeding planes and outrun storm chasers. |
 | Classification | Game |
 | Kind of project | **HTML** |
-| Uploads | `survive-dead-city-web-v1.7.2.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
+| Uploads | `survive-dead-city-web-v1.7.3.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
 | Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
 | Frame options | Leave SharedArrayBuffer off. No special headers needed. |
 | Pricing | Free (or "No payments"). |
@@ -67,6 +67,7 @@ Small browser games built fast, tested on a phone, and tuned by playing. Dead Ci
 
 ## Version history
 
+- **1.7.3** (2026-10-18): Seeding planes no longer sound a siren (you still hear their engines coming). Tutorial: big targets are marked with blue circles and icon badges, and your storm stays small enough that you have to zap the plane rather than swallow it. HOW TO PLAY has its own storm chaser card. The skin shop text is green. New thin banner for the page.
 - **1.7.2** (2026-10-18): New storm music: a D-minor track with driving drums, bass, strings and a lead theme that builds in layers as your storm grows from F0 to F5, and every new F rank kicks in a riser, a crash, double-time drums and a fast arpeggio for the speed boost. The pause button is now big and bright green. New animated page background and description.
 - **1.7.1** (2026-10-18): The main menu title is now a live scene from the game: a side view down a city street where the Acid Storm rolls in, grows as it tears the buildings apart, shrugs off a seeding plane, then turns on a storm chaser and runs it down. Seeding planes now sound off: an air-raid siren when one appears and again when it closes in, and a propeller drone that swells as it gets near. New itch art (logo, cover, banner), eight Tornado Alley screenshots and a rewritten page.
 - **1.7.0** (2026-10-18): The game is now Dead City: Tornado Alley. The main menu shows Tornado Alley and the skin shop (Survival and Extract are parked for now). New 🎓 tutorial teaches one thing at a time: steering, tap to move, growing, finding a target, zapping a seeding plane and dealing with a storm chaser. Short start screen, five quick HOW TO PLAY cards (shown before your first round) and one-time tips the first time something happens. The chase camera is hidden for now. The shop shows the tornado, townsfolk and car skins.
