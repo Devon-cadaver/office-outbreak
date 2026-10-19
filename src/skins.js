@@ -13,6 +13,9 @@ export function getCoins() { return +get(K.coins, 0) || 0; }
 export function getEarned() { const e = get('oo_coins_earned', null); return e == null ? getCoins() : +e || 0; }
 export function addCoins(n) { if (n > 0) set('oo_coins_earned', Math.round((getEarned() + n) * 100) / 100); set(K.coins, Math.round((getCoins() + n) * 100) / 100); return getCoins(); } // coins can be fractional (chests pay 0.01s)
 export function fmtCoins(c = getCoins()) { const v = Math.round(c * 100) / 100; return v + (v === 1 ? ' coin' : ' coins'); }
+// skins bought before there were two per monster ('kaiju:<id>') become that monster's skeleton skin
+{ try { const own = JSON.parse(localStorage.getItem('oo_skins_owned') || '[]'); const fix = (x) => (typeof x === 'string' && /^kaiju:[a-z0-9]+$/.test(x) ? x + ':skeleton' : x); if (own.some((x) => fix(x) !== x)) localStorage.setItem('oo_skins_owned', JSON.stringify(own.map(fix)));
+  const eq = JSON.parse(localStorage.getItem('oo_skins_equip') || '{}'); let ch = false; for (const k in eq) if (fix(eq[k]) !== eq[k]) { eq[k] = fix(eq[k]); ch = true; } if (ch) localStorage.setItem('oo_skins_equip', JSON.stringify(eq)); } catch { /* ignore */ } }
 export function grantSkin(id) { const owned = getOwned(); if (owned.includes(id)) return false; owned.push(id); set(K.owned, owned); return true; }
 export function getOwned() { return get(K.owned, []); }
 export function getEquipped() { const e = { player: null, npc: [], car: null, fx: null, tornado: null, ...get(K.equip, {}) }; if (typeof e.npc === 'string') e.npc = [e.npc]; if (!Array.isArray(e.npc)) e.npc = []; return e; }
@@ -67,7 +70,7 @@ export const SKINS = [
   ...Object.entries(CHAR_SKINS).flatMap(([id, s]) => s.cats.map((cat) => ({ id: cat + ':' + id, key: id, cat, name: s.name + (cat === 'npc' ? ' survivors' : ''), price: cat === 'npc' ? 1 : 2, desc: cat === 'npc' ? 'Pick up to ten; survivors and crowds wear a random mix.' : 'Your character wears it in both games.' }))),
   ...Object.entries(FX_SKINS).map(([id, s]) => ({ id: 'fx:' + id, key: id, cat: 'fx', name: s.name, price: s.price, desc: s.flames ? 'Hellfire, burning zombies and fires change colour.' : 'What you throw turns to gold.' })),
   ...Object.entries(CAR_SKINS).map(([id, s]) => ({ id: 'car:' + id, key: id, cat: 'car', name: s.name, price: s.price, desc: 'Your car and the parked cars and vans.' })),
-  ...Object.entries(KAIJU_SKINS).map(([id, s]) => ({ id: 'kaiju:' + id, key: id, cat: 'kaiju', name: s.name, price: 1, desc: 'Halloween look for ' + KAIJU[id].name + ' in Kaiju Madness.' })),
+  ...Object.entries(KAIJU_SKINS).flatMap(([id, looks]) => Object.values(looks).map((s) => ({ id: 'kaiju:' + id + ':' + s.look, key: id, look: s.look, cat: 'kaiju', name: s.name, price: 1, desc: (s.look === 'skeleton' ? 'Black with bone-white plates and red eyes.' : "Glowing orange bones and a flaming jack-o'-lantern head (or a witch's hat).") }))),
   ...Object.entries(TWISTER_SKINS).map(([id, s]) => ({ id: 'tornado:' + id, key: id, cat: 'tornado', name: s.name, price: s.price, desc: s.desc, bonus: s.bonus || null })),
 ];
 export function equippedTornado() { const e = getEquipped().tornado; return e ? e.split(':')[1] : null; }

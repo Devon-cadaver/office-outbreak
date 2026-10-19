@@ -70,38 +70,46 @@ export const KAIJU = {
 };
 export const KAIJU_IDS = Object.keys(KAIJU);
 
-// Halloween skins, one per kaiju: flyers become bats (little bats circle them); the rest take turns being UNDEAD (pale,
-// robots go HAUNTED (rusted, green eyes, bats), GHOSTLY (pale glowing blue), PUMPKIN or SKELETON; zombie green with purple bones, or a GHOUL in purple with glowing green bones), a SKELETON (bone white on black) or a PUMPKIN (orange, with a flaming jack-o'-lantern for a head)
+// Two skins for every monster. SKELETON: black, with bone-white plates and bones and red eyes. HALLOWEEN: the same black, but
+// the bone parts glow bright orange, and the head becomes a flaming jack-o'-lantern; a monster with no head of its own
+// (a squid, a blob, a plant, a crab, a spider, a flyer's necks, a gun-walker or a pod) wears a witch's hat instead, with
+// little bats circling it.
 const LOOKS = {
-  undead: { spell: 0xa04ae0, name: 'Undead', pal: [0x4f9a3e, 0x8a3ac8, 0xb27ae8, 0xa04ae0, 0x9dff3a] },
-  ghoul: { spell: 0x7dff3a, name: 'Ghoul', pal: [0x5a2a7a, 0x7dff3a, 0x9dff5a, 0x7dff3a, 0x9dff3a] },
-  skeleton: { spell: 0xff2a2a, name: 'Skeleton', pal: [0x1c1a20, 0xece6d2, 0xf2ecd8, 0xece6d2, 0xff2a2a] },
-  pumpkin: { spell: 0xff7a1a, name: 'Pumpkin', pal: [0xff7a1a, 0x3a1a08, 0xffaa3a, 0x2a8a2a, 0xffe24a], pumpkin: true },
-  haunted: { spell: 0x7dff3a, name: 'Haunted', pal: [0x7a4a2a, 0x3a2418, 0x9a6a3a, 0x5a8a3a, 0x7dff3a], bats: true },
-  ghostly: { spell: 0x6ad8ff, name: 'Ghostly', pal: [0xe8f0ff, 0xb8c8e8, 0xffffff, 0x8ab8ff, 0x3ad8ff] },
-  bat: { spell: 0xb04aff, name: 'Bat', pal: [0x4a3448, 0x2a1a2a, 0x7a5a6a, 0x8a2a3a, 0xff2a2a], bats: true },
+  skeleton: { name: 'Skeleton', spell: 0xff2a2a, pal: [0x1c1a20, 0xece6d2, 0xf2ecd8, 0xece6d2, 0xff2a2a] },
+  halloween: { name: 'Halloween', spell: 0xff7a1a, pal: [0x1c1a20, 0xff7a1a, 0xff9a2a, 0xff7a1a, 0xffe24a], glow: [0xff7a1a, 0xff9a2a], pumpkin: true },
 };
-const CYCLE = ['undead', 'pumpkin', 'skeleton'], ROBO_CYCLE = ['haunted', 'pumpkin', 'ghostly', 'skeleton'];
-export const KAIJU_SKINS = {}; { let i = 0, u = 0, r = 0; for (const id of KAIJU_IDS) { let look = KAIJU[id].fly ? 'bat' : KAIJU[id].borrow ? ROBO_CYCLE[r++ % ROBO_CYCLE.length] : CYCLE[i++ % CYCLE.length]; if (look === 'undead' && (u++ % 2)) look = 'ghoul'; KAIJU_SKINS[id] = { look, ...LOOKS[look], name: LOOKS[look].name + ' ' + KAIJU[id].name.replace('KING ', 'King ').toLowerCase().replace(/(^|[ -])([a-z])/g, (m, s, ch) => s + ch.toUpperCase()) }; } }
-// a jack-o'-lantern over the head, with flames licking up out of it
-function pumpkinHead(head, fx) {
-  const p = grp(head, 0, 0.08, 0.05); part(p, ball, 0xff7a1a, 0.62, 0.52, 0.58, 0, 0, 0); part(p, ball, 0xe8661a, 0.5, 0.56, 0.62, 0, 0, 0); part(p, cyl, 0x2a6a1a, 0.07, 0.16, 0.07, 0, 0.32, 0);
+export const SKIN_LOOKS = ['skeleton', 'halloween'];
+const niceName = (n) => n.toLowerCase().replace(/(^|[ -])([a-z])/g, (m, s, ch) => s + ch.toUpperCase());
+export const KAIJU_SKINS = {}; for (const id of KAIJU_IDS) KAIJU_SKINS[id] = Object.fromEntries(SKIN_LOOKS.map((lk) => [lk, { look: lk, ...LOOKS[lk], name: LOOKS[lk].name + ' ' + niceName(KAIJU[id].name) }]));
+const NO_HEAD = new Set(['squid', 'blob', 'plant', 'crab', 'spider', 'ptero']);
+const glowMats = new Map(); const glowOf = (c) => { if (!glowMats.has(c)) glowMats.set(c, new THREE.MeshBasicMaterial({ color: c })); return glowMats.get(c); };
+// a jack-o'-lantern where the head was (size: the head's size), with flames licking up out of it
+function pumpkinHead(head, fx, size) {
+  const p = grp(head, 0, 0.02, 0.04); p.scale.setScalar(size / 0.6); const pm = (col) => new THREE.MeshLambertMaterial({ color: col, emissive: 0x7a2a00 }); part(p, ball, 0xff7a1a, 0.62, 0.52, 0.58, 0, 0, 0).material = pm(0xff8a1a); part(p, ball, 0xe8661a, 0.5, 0.56, 0.62, 0, 0, 0).material = pm(0xf0701a); part(p, cyl, 0x2a6a1a, 0.07, 0.16, 0.07, 0, 0.32, 0);
   for (const x of [-0.12, 0.12]) part(p, cone, 0xffe24a, 0.1, 0.1, 0.04, x, 0.06, 0.29, 0, 0, Math.PI, true);
   part(p, box, 0xffe24a, 0.24, 0.05, 0.04, 0, -0.1, 0.29, 0, 0, 0, true); for (const x of [-0.06, 0.06]) part(p, box, 0xff7a1a, 0.04, 0.03, 0.05, x, -0.08, 0.3, 0, 0, 0, true);
   const fl = [0xff5a1a, 0xffb02a, 0xffe24a].map((c, i) => part(p, cone8, c, 0.22 - i * 0.05, 0.4, 0.22 - i * 0.05, (i - 1) * 0.1, 0.42, 0, 0, 0, 0, true));
   fx.push((t) => fl.forEach((f, i) => { f.scale.y = 0.3 + 0.12 * Math.sin(t * 13 + i * 2); f.position.y = 0.38 + 0.04 * Math.sin(t * 9 + i); }));
 }
-// little bats circling the monster, flapping
-function batSwarm(g, fx) {
-  const bats = []; for (let i = 0; i < 6; i++) { const b = grp(g, 0, 0, 0); b.scale.setScalar(1.6); part(b, box, 0x141018, 0.08, 0.07, 0.12, 0, 0, 0, 0, 0, 0, true); const w = [-1, 1].map((s) => { const wg = grp(b, s * 0.04, 0, 0); part(wg, box, 0x2a2030, 0.18, 0.02, 0.1, s * 0.09, 0, 0, 0, 0, 0, true); return wg; }); bats.push({ b, w, a: i / 6 * Math.PI * 2, r: 1.1 + (i % 3) * 0.25, h: 1.4 + (i % 2) * 0.5, sp: 1.3 + (i % 3) * 0.3 }); }
-  fx.push((t) => { for (const B of bats) { const a = B.a + t * B.sp; B.b.position.set(Math.cos(a) * B.r, B.h + Math.sin(t * 3 + B.a) * 0.2, Math.sin(a) * B.r); B.b.rotation.y = -a; const f = Math.sin(t * 22 + B.a) * 0.8; B.w[0].rotation.z = f; B.w[1].rotation.z = -f; } });
+// a pointy witch's hat with an orange band, and a few little bats flapping round it
+function witchHat(parent, at, fx, size) {
+  const h = grp(parent, at.x, at.y, at.z); h.scale.setScalar(size); h.rotation.z = 0.15;
+  part(h, cyl, 0x14101a, 0.95, 0.05, 0.95, 0, 0, 0); part(h, cone8, 0x14101a, 0.55, 0.85, 0.55, 0, 0.44, 0); part(h, cyl, 0xff7a1a, 0.58, 0.1, 0.58, 0, 0.08, 0, 0, 0, 0, true);
+  const tip = grp(h, 0, 0.82, 0); part(tip, cone8, 0x14101a, 0.2, 0.3, 0.2, 0.08, 0.08, 0, 0, 0, -0.6);
+  const bats = []; for (let i = 0; i < 4; i++) { const b = grp(h); part(b, box, 0x0c0810, 0.08, 0.06, 0.1, 0, 0, 0, 0, 0, 0, true); const w = [-1, 1].map((s) => { const wg = grp(b, s * 0.04, 0, 0); part(wg, box, 0x2a1a30, 0.16, 0.02, 0.08, s * 0.08, 0, 0, 0, 0, 0, true); return wg; }); bats.push({ b, w, a: i / 4 * Math.PI * 2 }); }
+  fx.push((t) => { for (const B of bats) { const a = B.a + t * 1.8; B.b.position.set(Math.cos(a) * 0.75, 0.55 + Math.sin(t * 3 + B.a) * 0.15, Math.sin(a) * 0.75); B.b.rotation.y = -a; const f = Math.sin(t * 22 + B.a) * 0.8; B.w[0].rotation.z = f; B.w[1].rotation.z = -f; } tip.rotation.z = Math.sin(t * 2) * 0.1; });
 }
 
-// lowDetail: build the old blocky rig even for a monster that has a detailed one (comparisons, very slow devices)
+// skin: false, true (the skeleton), a look ('skeleton' | 'halloween') or a shop id ('kaiju:<id>:<look>').
+// lowDetail: build the old blocky rig (comparisons, very slow devices)
 export function buildKaiju(id, skin = false, lowDetail = false) {
-  const sk = skin ? KAIJU_SKINS[id] : null; const K = sk ? { ...KAIJU[id], pal: sk.pal } : KAIJU[id]; const g = new THREE.Group(); const body = grp(g, 0, 0, 0); const fx = [];
+  const look = skin === true ? 'skeleton' : typeof skin === 'string' ? skin.split(':').pop() : null;
+  const sk = look && KAIJU_SKINS[id] && KAIJU_SKINS[id][look] ? KAIJU_SKINS[id][look] : null; const K = sk ? { ...KAIJU[id], pal: sk.pal } : KAIJU[id]; const g = new THREE.Group(); const body = grp(g, 0, 0, 0); const fx = [];
   const rig = (!lowDetail && HD[K.kind] ? HD[K.kind] : ({ biped, ape, moth, ptero, quad, crab, spider, blob, plant, squid, robot })[K.kind])(body, K);
-  if (sk && sk.pumpkin && rig.mouth && rig.mouth.parent) pumpkinHead(rig.mouth.parent, fx); if (sk && sk.bats) batSwarm(g, fx);
+  if (sk && sk.glow) g.traverse((m) => { if (m.isMesh && m.material && m.material.color && sk.glow.includes(m.material.color.getHex()) && !m.material.isMeshBasicMaterial) m.material = glowOf(m.material.color.getHex()); });
+  if (sk && sk.pumpkin) { g.updateMatrixWorld(true); const head = rig.mouth && rig.mouth.parent, o = K.opt || {};
+    if (head && head !== body && !NO_HEAD.has(K.kind) && !o.ed && !o.pod) { const sz = new THREE.Box3().setFromObject(head).getSize(new THREE.Vector3()); head.traverse((m) => { if (m.isMesh) m.visible = false; }); pumpkinHead(head, fx, Math.min(0.7, Math.max(0.42, Math.max(sz.x, sz.z) * 1.05))); }
+    else { const bb = new THREE.Box3().setFromObject(g), top = new THREE.Vector3((bb.min.x + bb.max.x) / 2, bb.max.y - 0.05, (bb.min.z + bb.max.z) / 2), par = rig.chest ? rig.chest.parent : body; witchHat(par, par.worldToLocal(top), fx, Math.min(0.9, (bb.max.x - bb.min.x) * 0.32)); } }
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.9, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false })); shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.03; g.add(shadow);
   let t = Math.random() * 10, actK = null, actT = 0;
   return { id, def: K, g, body, shadow, fly: !!K.fly, tint: sk ? sk.spell : K.borrow ? K.pal[4] : null, mouth: rig.mouth, hand: rig.hand, chest: rig.chest,

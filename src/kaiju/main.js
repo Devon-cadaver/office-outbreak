@@ -153,7 +153,7 @@ function cullChunks() { const vc = viewCam(); vc.updateMatrixWorld(); projM.mult
 
 // ---------- you ----------
 let me = null, mass = 0, meF = 0.15, meScale = 1.5, stage = 1, topStage = 1, power = 0, slowT = 0, boostT = 0, meleeCd = 0, leap = null, faceY = 0;
-function makeMe() { if (me) scene.remove(me.g); me = buildKaiju(pick, !!getEquipped()['kj_' + pick]); me.g.position.set(0, 0, 0); scene.add(me.g); mass = massTarget * 0.25; meF = 0.25; meScale = scaleOf(meF); me.g.scale.setScalar(meScale); stage = 1; topStage = 1; power = 0.4; leap = null; }
+function makeMe() { if (me) scene.remove(me.g); me = buildKaiju(pick, getEquipped()['kj_' + pick] || false); me.g.position.set(0, 0, 0); scene.add(me.g); mass = massTarget * 0.25; meF = 0.25; meScale = scaleOf(meF); me.g.scale.setScalar(meScale); stage = 1; topStage = 1; power = 0.4; leap = null; }
 const reach = () => 0.55 + meScale * 0.5; // how far your stomps and jaws reach
 function grow(m) { if (m > 0) m *= [1, 1.5, 1.2, 1][stage]; mass = Math.min(massTarget, mass + m); } // a hatchling grows fast
 const ARMY_DMG = [0, 0.4, 0.75, 1]; // army damage by stage: small kaiju get off lightly
@@ -619,7 +619,7 @@ const thumbR = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveD
 const thumbS = new THREE.Scene(); thumbS.add(new THREE.HemisphereLight(0xe0e8ff, 0x3a2a4a, 1.6)); { const l = new THREE.DirectionalLight(0xffffff, 0.9); l.position.set(3, 6, 5); thumbS.add(l); }
 const thumbC = new THREE.PerspectiveCamera(30, 1, 0.1, 50); thumbC.position.set(2.1, 1.8, 4.3); thumbC.lookAt(0, 1.15, 0);
 const thumbCache = new Map(), thumbQ = [];
-function thumb(id, cv) { const skin = !!getEquipped()['kj_' + id], key = id + (skin ? '+' : ''); const g2 = cv.getContext('2d');
+function thumb(id, cv) { const skin = getEquipped()['kj_' + id] || false, key = id + '+' + skin; const g2 = cv.getContext('2d');
   if (thumbCache.has(key)) { g2.clearRect(0, 0, cv.width, cv.height); g2.drawImage(thumbCache.get(key), 0, 0, cv.width, cv.height); return; }
   thumbQ.push(() => { const rig = buildKaiju(id, skin); rig.anim(0.4, 0); const g = rig.g; g.rotation.y = -0.5; const bb = new THREE.Box3().setFromObject(g), sz = bb.getSize(new THREE.Vector3()); const k = 2.5 / Math.max(sz.x, sz.y, sz.z); g.scale.setScalar(k); bb.setFromObject(g); g.position.y -= bb.min.y; g.position.x -= (bb.min.x + bb.max.x) / 2; g.position.z -= (bb.min.z + bb.max.z) / 2;
     thumbS.add(g); thumbR.render(thumbS, thumbC); thumbS.remove(g); const img = document.createElement('canvas'); img.width = img.height = 150; img.getContext('2d').drawImage(thumbR.domElement, 0, 0); thumbCache.set(key, img); g2.clearRect(0, 0, cv.width, cv.height); g2.drawImage(img, 0, 0, cv.width, cv.height); }); }
