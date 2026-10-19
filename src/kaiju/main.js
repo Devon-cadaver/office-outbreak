@@ -10,7 +10,7 @@ import { makeCar } from '../car.js';
 import { createTwisters } from '../tornado.js';
 import { createFires } from '../fire.js';
 import { unlockAudio, soundToggle, sfx, stopMusic, setPlaneEngine, startStormMusic, setStormLevel, stormBoost } from '../audio.js';
-import { equippedSkin, skinnedCarArgs, addCoins, CHAR_SKINS } from '../skins.js';
+import { equippedSkin, skinnedCarArgs, addCoins, CHAR_SKINS, getEquipped } from '../skins.js';
 import { forceSeason } from '../season.js';
 import { showPrizes } from '../prizes.js';
 import { stampVersion } from '../version.js';
@@ -149,7 +149,7 @@ function cullChunks() { cam.updateMatrixWorld(); projM.multiplyMatrices(cam.proj
 
 // ---------- you ----------
 let me = null, mass = 0, meF = 0.15, meScale = 1.5, stage = 1, topStage = 1, power = 0, slowT = 0, boostT = 0, meleeCd = 0, leap = null, faceY = 0;
-function makeMe() { if (me) scene.remove(me.g); me = buildKaiju(pick); me.g.position.set(0, 0, 0); scene.add(me.g); mass = massTarget * 0.25; meF = 0.25; meScale = scaleOf(meF); me.g.scale.setScalar(meScale); stage = 1; topStage = 1; power = 0.4; leap = null; }
+function makeMe() { if (me) scene.remove(me.g); me = buildKaiju(pick, !!getEquipped()['kj_' + pick]); me.g.position.set(0, 0, 0); scene.add(me.g); mass = massTarget * 0.25; meF = 0.25; meScale = scaleOf(meF); me.g.scale.setScalar(meScale); stage = 1; topStage = 1; power = 0.4; leap = null; }
 const reach = () => 0.55 + meScale * 0.5; // how far your stomps and jaws reach
 function grow(m) { if (m > 0) m *= [1, 1.5, 1.2, 1][stage]; mass = Math.min(massTarget, mass + m); } // a hatchling grows fast
 const ARMY_DMG = [0, 0.4, 0.75, 1]; // army damage by stage: small kaiju get off lightly

@@ -38,14 +38,40 @@ export const KAIJU = {
 };
 export const KAIJU_IDS = Object.keys(KAIJU);
 
-export function buildKaiju(id) {
-  const K = KAIJU[id]; const g = new THREE.Group(); const body = grp(g, 0, 0, 0);
+// Halloween skins, one per kaiju: flyers become bats (little bats circle them); the rest take turns being UNDEAD (pale,
+// zombie green with purple bones, or a GHOUL in purple with glowing green bones), a SKELETON (bone white on black) or a PUMPKIN (orange, with a flaming jack-o'-lantern for a head)
+const LOOKS = {
+  undead: { name: 'Undead', pal: [0x4f9a3e, 0x8a3ac8, 0xb27ae8, 0xa04ae0, 0x9dff3a] },
+  ghoul: { name: 'Ghoul', pal: [0x5a2a7a, 0x7dff3a, 0x9dff5a, 0x7dff3a, 0x9dff3a] },
+  skeleton: { name: 'Skeleton', pal: [0x1c1a20, 0xece6d2, 0xf2ecd8, 0xece6d2, 0xff2a2a] },
+  pumpkin: { name: 'Pumpkin', pal: [0xff7a1a, 0x3a1a08, 0xffaa3a, 0x2a8a2a, 0xffe24a], pumpkin: true },
+  bat: { name: 'Bat', pal: [0x4a3448, 0x2a1a2a, 0x7a5a6a, 0x8a2a3a, 0xff2a2a], bats: true },
+};
+const CYCLE = ['undead', 'pumpkin', 'skeleton'];
+export const KAIJU_SKINS = {}; { let i = 0, u = 0; for (const id of KAIJU_IDS) { let look = KAIJU[id].fly ? 'bat' : CYCLE[i++ % CYCLE.length]; if (look === 'undead' && (u++ % 2)) look = 'ghoul'; KAIJU_SKINS[id] = { look, ...LOOKS[look], name: LOOKS[look].name + ' ' + KAIJU[id].name.replace('KING ', 'King ').toLowerCase().replace(/(^|[ -])([a-z])/g, (m, s, ch) => s + ch.toUpperCase()) }; } }
+// a jack-o'-lantern over the head, with flames licking up out of it
+function pumpkinHead(head, fx) {
+  const p = grp(head, 0, 0.08, 0.05); part(p, ball, 0xff7a1a, 0.62, 0.52, 0.58, 0, 0, 0); part(p, ball, 0xe8661a, 0.5, 0.56, 0.62, 0, 0, 0); part(p, cyl, 0x2a6a1a, 0.07, 0.16, 0.07, 0, 0.32, 0);
+  for (const x of [-0.12, 0.12]) part(p, cone, 0xffe24a, 0.1, 0.1, 0.04, x, 0.06, 0.29, 0, 0, Math.PI, true);
+  part(p, box, 0xffe24a, 0.24, 0.05, 0.04, 0, -0.1, 0.29, 0, 0, 0, true); for (const x of [-0.06, 0.06]) part(p, box, 0xff7a1a, 0.04, 0.03, 0.05, x, -0.08, 0.3, 0, 0, 0, true);
+  const fl = [0xff5a1a, 0xffb02a, 0xffe24a].map((c, i) => part(p, cone8, c, 0.22 - i * 0.05, 0.4, 0.22 - i * 0.05, (i - 1) * 0.1, 0.42, 0, 0, 0, 0, true));
+  fx.push((t) => fl.forEach((f, i) => { f.scale.y = 0.3 + 0.12 * Math.sin(t * 13 + i * 2); f.position.y = 0.38 + 0.04 * Math.sin(t * 9 + i); }));
+}
+// little bats circling the monster, flapping
+function batSwarm(g, fx) {
+  const bats = []; for (let i = 0; i < 6; i++) { const b = grp(g, 0, 0, 0); b.scale.setScalar(1.6); part(b, box, 0x141018, 0.08, 0.07, 0.12, 0, 0, 0, 0, 0, 0, true); const w = [-1, 1].map((s) => { const wg = grp(b, s * 0.04, 0, 0); part(wg, box, 0x2a2030, 0.18, 0.02, 0.1, s * 0.09, 0, 0, 0, 0, 0, true); return wg; }); bats.push({ b, w, a: i / 6 * Math.PI * 2, r: 1.1 + (i % 3) * 0.25, h: 1.4 + (i % 2) * 0.5, sp: 1.3 + (i % 3) * 0.3 }); }
+  fx.push((t) => { for (const B of bats) { const a = B.a + t * B.sp; B.b.position.set(Math.cos(a) * B.r, B.h + Math.sin(t * 3 + B.a) * 0.2, Math.sin(a) * B.r); B.b.rotation.y = -a; const f = Math.sin(t * 22 + B.a) * 0.8; B.w[0].rotation.z = f; B.w[1].rotation.z = -f; } });
+}
+
+export function buildKaiju(id, skin = false) {
+  const sk = skin ? KAIJU_SKINS[id] : null; const K = sk ? { ...KAIJU[id], pal: sk.pal } : KAIJU[id]; const g = new THREE.Group(); const body = grp(g, 0, 0, 0); const fx = [];
   const rig = ({ biped, ape, moth, ptero, quad, crab, spider, blob, plant, squid })[K.kind](body, K);
+  if (sk && sk.pumpkin && rig.mouth && rig.mouth.parent) pumpkinHead(rig.mouth.parent, fx); if (sk && sk.bats) batSwarm(g, fx);
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.9, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false })); shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.03; g.add(shadow);
   let t = Math.random() * 10, actK = null, actT = 0;
   return { id, def: K, g, body, shadow, fly: !!K.fly, mouth: rig.mouth, hand: rig.hand, chest: rig.chest,
     act(k) { actK = k; actT = 0; },
-    anim(dt, move) { t += dt; if (actK) { actT += dt * (actK === 'ko' ? 0.8 : 2.4); if (actT >= 1 && actK !== 'ko') actK = null; } rig.anim(t, dt, move, actK, Math.min(1, actT)); shadow.scale.setScalar(rig.shadowK || 1); },
+    anim(dt, move) { t += dt; if (actK) { actT += dt * (actK === 'ko' ? 0.8 : 2.4); if (actT >= 1 && actK !== 'ko') actK = null; } rig.anim(t, dt, move, actK, Math.min(1, actT)); for (const f of fx) f(t); shadow.scale.setScalar(rig.shadowK || 1); },
   };
 }
 const koTip = (body, k, axis = 'z') => { body.rotation[axis] = Math.min(1.5, k * 2) * (axis === 'x' ? -1 : 1); body.position.y = -k * 0.2; };
@@ -93,14 +119,14 @@ function biped(body, K) {
 }
 
 // ---------- the ape: knuckle-walks on long arms ----------
-function ape(body) {
-  const fur = 0x3b2c24, face = 0x6a5040, dark = 0x241a14;
+function ape(body, K) {
+  const [fur, dark, face, , eyeA] = K.pal || [0x3b2c24, 0x241a14, 0x6a5040, 0, 0xffb02a];
   const hip = grp(body, 0, 0.72, 0); const torso = grp(hip, 0, 0.05, 0); torso.rotation.x = 0.45;
   part(torso, box, fur, 1.1, 1.0, 0.78, 0, 0.48, 0); part(torso, box, face, 0.72, 0.6, 0.1, 0, 0.55, 0.4);
   const chest = grp(torso, 0, 0.55, 0.45);
   const neck = grp(torso, 0, 1.0, 0.18); const head = grp(neck, 0, 0.1, 0.1);
   part(head, box, fur, 0.5, 0.46, 0.46, 0, 0.1, 0); part(head, box, dark, 0.52, 0.1, 0.14, 0, 0.26, 0.2); part(head, box, face, 0.36, 0.26, 0.22, 0, 0, 0.24);
-  for (const x of [-0.11, 0.11]) part(head, box, 0xffb02a, 0.07, 0.05, 0.04, x, 0.16, 0.25, 0, 0, 0, true);
+  for (const x of [-0.11, 0.11]) part(head, box, eyeA, 0.07, 0.05, 0.04, x, 0.16, 0.25, 0, 0, 0, true);
   const jaw = grp(head, 0, -0.12, 0.18); part(jaw, box, face, 0.3, 0.1, 0.2, 0, -0.03, 0.04);
   const mouth = grp(head, 0, -0.05, 0.4);
   const arms = [-1, 1].map((s) => { const a = grp(torso, s * 0.66, 0.85, 0.15); part(a, box, fur, 0.28, 0.6, 0.3, 0, -0.26, 0); const el = grp(a, 0, -0.55, 0); part(el, box, fur, 0.26, 0.6, 0.28, 0, -0.26, 0.04); part(el, box, dark, 0.32, 0.22, 0.36, 0, -0.6, 0.06); return { a, el }; });

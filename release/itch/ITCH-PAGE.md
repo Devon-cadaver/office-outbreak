@@ -1,6 +1,6 @@
 # Dead City: Tornado Alley — itch.io page kit
 
-Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.9.5**. Upload `release/survive-dead-city-web-v1.9.5.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
+Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.9.6**. Upload `release/survive-dead-city-web-v1.9.6.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
 
 ## Upload settings (Edit game page)
 
@@ -11,7 +11,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 | Short description / tagline | You are the storm. Tear through five towns, take out big targets, dodge seeding planes and outrun storm chasers. |
 | Classification | Game |
 | Kind of project | **HTML** |
-| Uploads | `survive-dead-city-web-v1.9.5.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
+| Uploads | `survive-dead-city-web-v1.9.6.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
 | Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
 | Frame options | Leave SharedArrayBuffer off. No special headers needed. |
 | Pricing | Free (or "No payments"). |
@@ -67,6 +67,7 @@ Small browser games built fast, tested on a phone, and tuned by playing. Dead Ci
 
 ## Version history
 
+- **1.9.6** (2026-10-18): Halloween skins for all 20 kaiju in a new Kaiju tab of the skin shop (1 coin each): bats with little bats circling them for the flyers; green Undead with purple bones, purple Ghouls with green bones, black Skeletons and flaming jack-o'-lantern Pumpkins for the rest. Each kaiju keeps its own skin.
 - **1.9.5** (2026-10-18): Sound on/off button on the start and pause screens of both games (and on iPad the sound now plays even in silent mode, and comes back if Safari pauses it). Kaiju Madness: Spin & Throw swings the rival round over your head (under you if you fly) and hurls it right across town, where it crashes down. New kaiju are now won in the end-of-round prize games instead of by KO; win one you already have and you get a whole coin.
 - **1.9.4** (2026-10-18): iPad: Safari lets a downward swipe close full screen and a web page cannot stop it, so after the second time it happens the game stays in the normal Safari view instead of jumping in and out, and explains how to get the home-screen app (open the game in Safari, Share, Add to Home Screen), which has no browser bars to swipe away.
 - **1.9.3** (2026-10-18): Tablets stay in full screen while you drag to move: the game claims the touch from the first finger-down so the browser cannot start its own swipe, and if the browser still drops out, one tap puts you back. Played from the home screen there are no browser bars at all. Smaller download (app icons squeezed).

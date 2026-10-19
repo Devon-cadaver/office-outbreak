@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { CHAR_SKINS2, CAR_SKINS2, FX_SKINS } from './skins2.js';
 import { TWISTER_SKINS } from './tornado.js';
+import { KAIJU, KAIJU_SKINS } from './kaiju/rigs.js';
 export { TWISTER_SKINS };
 
 const K = { coins: 'oo_coins', owned: 'oo_skins_owned', equip: 'oo_skins_equip' };
@@ -66,6 +67,7 @@ export const SKINS = [
   ...Object.entries(CHAR_SKINS).flatMap(([id, s]) => s.cats.map((cat) => ({ id: cat + ':' + id, key: id, cat, name: s.name + (cat === 'npc' ? ' survivors' : ''), price: cat === 'npc' ? 1 : 2, desc: cat === 'npc' ? 'Pick up to ten; survivors and crowds wear a random mix.' : 'Your character wears it in both games.' }))),
   ...Object.entries(FX_SKINS).map(([id, s]) => ({ id: 'fx:' + id, key: id, cat: 'fx', name: s.name, price: s.price, desc: s.flames ? 'Hellfire, burning zombies and fires change colour.' : 'What you throw turns to gold.' })),
   ...Object.entries(CAR_SKINS).map(([id, s]) => ({ id: 'car:' + id, key: id, cat: 'car', name: s.name, price: s.price, desc: 'Your car and the parked cars and vans.' })),
+  ...Object.entries(KAIJU_SKINS).map(([id, s]) => ({ id: 'kaiju:' + id, key: id, cat: 'kaiju', name: s.name, price: 1, desc: 'Halloween look for ' + KAIJU[id].name + ' in Kaiju Madness.' })),
   ...Object.entries(TWISTER_SKINS).map(([id, s]) => ({ id: 'tornado:' + id, key: id, cat: 'tornado', name: s.name, price: s.price, desc: s.desc, bonus: s.bonus || null })),
 ];
 export function equippedTornado() { const e = getEquipped().tornado; return e ? e.split(':')[1] : null; }
