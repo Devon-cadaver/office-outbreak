@@ -59,16 +59,18 @@ export const KAIJU = {
 export const KAIJU_IDS = Object.keys(KAIJU);
 
 // Halloween skins, one per kaiju: flyers become bats (little bats circle them); the rest take turns being UNDEAD (pale,
-// zombie green with purple bones, or a GHOUL in purple with glowing green bones), a SKELETON (bone white on black) or a PUMPKIN (orange, with a flaming jack-o'-lantern for a head)
+// robots go HAUNTED (rusted, green eyes, bats), GHOSTLY (pale glowing blue), PUMPKIN or SKELETON; zombie green with purple bones, or a GHOUL in purple with glowing green bones), a SKELETON (bone white on black) or a PUMPKIN (orange, with a flaming jack-o'-lantern for a head)
 const LOOKS = {
   undead: { name: 'Undead', pal: [0x4f9a3e, 0x8a3ac8, 0xb27ae8, 0xa04ae0, 0x9dff3a] },
   ghoul: { name: 'Ghoul', pal: [0x5a2a7a, 0x7dff3a, 0x9dff5a, 0x7dff3a, 0x9dff3a] },
   skeleton: { name: 'Skeleton', pal: [0x1c1a20, 0xece6d2, 0xf2ecd8, 0xece6d2, 0xff2a2a] },
   pumpkin: { name: 'Pumpkin', pal: [0xff7a1a, 0x3a1a08, 0xffaa3a, 0x2a8a2a, 0xffe24a], pumpkin: true },
+  haunted: { name: 'Haunted', pal: [0x7a4a2a, 0x3a2418, 0x9a6a3a, 0x5a8a3a, 0x7dff3a], bats: true },
+  ghostly: { name: 'Ghostly', pal: [0xe8f0ff, 0xb8c8e8, 0xffffff, 0x8ab8ff, 0x3ad8ff] },
   bat: { name: 'Bat', pal: [0x4a3448, 0x2a1a2a, 0x7a5a6a, 0x8a2a3a, 0xff2a2a], bats: true },
 };
-const CYCLE = ['undead', 'pumpkin', 'skeleton'];
-export const KAIJU_SKINS = {}; { let i = 0, u = 0; for (const id of KAIJU_IDS) { let look = KAIJU[id].fly ? 'bat' : CYCLE[i++ % CYCLE.length]; if (look === 'undead' && (u++ % 2)) look = 'ghoul'; KAIJU_SKINS[id] = { look, ...LOOKS[look], name: LOOKS[look].name + ' ' + KAIJU[id].name.replace('KING ', 'King ').toLowerCase().replace(/(^|[ -])([a-z])/g, (m, s, ch) => s + ch.toUpperCase()) }; } }
+const CYCLE = ['undead', 'pumpkin', 'skeleton'], ROBO_CYCLE = ['haunted', 'pumpkin', 'ghostly', 'skeleton'];
+export const KAIJU_SKINS = {}; { let i = 0, u = 0, r = 0; for (const id of KAIJU_IDS) { let look = KAIJU[id].fly ? 'bat' : KAIJU[id].borrow ? ROBO_CYCLE[r++ % ROBO_CYCLE.length] : CYCLE[i++ % CYCLE.length]; if (look === 'undead' && (u++ % 2)) look = 'ghoul'; KAIJU_SKINS[id] = { look, ...LOOKS[look], name: LOOKS[look].name + ' ' + KAIJU[id].name.replace('KING ', 'King ').toLowerCase().replace(/(^|[ -])([a-z])/g, (m, s, ch) => s + ch.toUpperCase()) }; } }
 // a jack-o'-lantern over the head, with flames licking up out of it
 function pumpkinHead(head, fx) {
   const p = grp(head, 0, 0.08, 0.05); part(p, ball, 0xff7a1a, 0.62, 0.52, 0.58, 0, 0, 0); part(p, ball, 0xe8661a, 0.5, 0.56, 0.62, 0, 0, 0); part(p, cyl, 0x2a6a1a, 0.07, 0.16, 0.07, 0, 0.32, 0);
