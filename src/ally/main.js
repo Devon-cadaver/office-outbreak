@@ -507,7 +507,8 @@ const HOWTO = [
   ['🏆', 'Clear the town', 'Flatten the goal % and take out enough targets before time runs out to unlock the next town.'],
 ];
 $('taHow').addEventListener('click', () => showHowTo(HOWTO));
-$('taPlay').addEventListener('click', () => { if (tipsSeen('ta_howto')) start(); else { markSeen('ta_howto'); showHowTo(HOWTO, start); } }); // first time: the cards, then play $('taAgain').addEventListener('click', () => { if ($('taAgain').dataset.next) level++; start(); });
+$('taPlay').addEventListener('click', () => { if (tipsSeen('ta_howto')) start(); else { markSeen('ta_howto'); showHowTo(HOWTO, start); } }); // first time: the cards, then play
+$('taAgain').addEventListener('click', () => { if ($('taAgain').dataset.next) level++; start(); });
 $('taTutBtn').addEventListener('click', () => { unlockAudio(); start(true); });
 $('taTutSkip').addEventListener('click', (e) => { e.stopPropagation(); endTutorial(); });
 $('taTutDone').addEventListener('click', (e) => { e.stopPropagation(); endTutorial(); });
