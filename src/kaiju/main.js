@@ -328,7 +328,7 @@ function startMini(r, type) {
   mini = { type, r, t: 0, v: 0 }; const m = mini; $('kjMiniSeq').innerHTML = ''; $('kjMiniSpots').innerHTML = ''; miniEl.dataset.side = '';
   const title = { brawl: '👊 BRAWL! TAP TAP TAP!', swipe: '🌀 SWIPE COMBO! SWIPE THE ARROWS', spots: '🎯 WEAK SPOTS! TAP THEM', dodge: '💨 DODGE! SWIPE AWAY FROM THE HIT', spin: '🌪️ SPIN & THROW! CIRCLE YOUR FINGER', roar: '🦖 ROAR-OFF! HOLD, LET GO IN THE GREEN' }[type];
   $('kjMiniTitle').textContent = title; banner({ brawl: 'BRAWL!', swipe: 'SWIPE COMBO!', spots: 'WEAK SPOTS!', dodge: 'DODGE!', spin: 'SPIN & THROW!', roar: 'ROAR-OFF!' }[type]);
-  if (type === 'swipe') { const n = 4 + Math.min(2, r.stage - 1); m.seq = Array.from({ length: n }, () => 'LRUD'[(Math.random() * 4) | 0]); m.i = 0; m.tt = 0; m.limit = Math.max(0.8, 1.4 - 0.15 * (r.stage - 1)); m.good = 0;
+  if (type === 'swipe') { const n = 4 + Math.min(2, r.stage - 1); m.seq = Array.from({ length: n }, () => 'LRU'[(Math.random() * 3) | 0]); m.i = 0; m.tt = 0; m.limit = Math.max(0.8, 1.4 - 0.15 * (r.stage - 1)); m.good = 0;
     $('kjMiniSeq').innerHTML = m.seq.map((d, i) => '<span id="kjA' + i + '">' + ARROWS[d] + '</span>').join(''); }
   if (type === 'spots') { m.spawned = 0; m.total = 8; m.next = 0.2; m.live = []; }
   if (type === 'dodge') { m.round = 0; nextDodge(m); }
