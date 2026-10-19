@@ -12,7 +12,20 @@ export function unlockAudio() {
     const len = ctx.sampleRate * 0.5; noiseBuf = ctx.createBuffer(1, len, ctx.sampleRate);
     const d = noiseBuf.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
   }
-  if (ctx.state === 'suspended') ctx.resume();
+  // iPad/iPhone: play as a game ('playback'), not as page sound that the silent setting mutes; the in-game toggle is the mute
+  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch { /* ignore */ }
+  if (ctx.state !== 'running') ctx.resume().catch(() => {});
+}
+// Safari can pause the sound mid-game ('suspended' or 'interrupted', e.g. around full screen changes); any tap wakes it
+for (const ev of ['pointerup', 'touchend', 'click']) addEventListener(ev, () => { if (ctx && ctx.state !== 'running') ctx.resume().catch(() => {}); }, true);
+// 🔊 / 🔇 button on the given screens (placed above their tutorial / menu buttons), all kept in step
+export function soundToggle(...hosts) {
+  const btns = [];
+  const draw = () => { for (const b of btns) b.textContent = muted ? '🔇 SOUND: OFF' : '🔊 SOUND: ON'; };
+  for (const h of hosts) { if (!h) continue; const b = document.createElement('button'); b.className = 'ghost soundBtn';
+    b.addEventListener('click', (e) => { e.stopPropagation(); unlockAudio(); setMuted(!muted); if (!muted) sfx.pickup(); draw(); });
+    h.insertBefore(b, h.querySelector('.howRow, .menuBtn')); btns.push(b); }
+  draw();
 }
 function tone(freq, dur, type = 'square', vol = 0.08, slide = 0, dest = master, when = 0) {
   if (!ctx) return; const t = ctx.currentTime + when;

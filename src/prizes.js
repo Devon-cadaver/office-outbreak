@@ -1,13 +1,14 @@
 // End-of-round prizes: instead of picking chests, play a quick prize game. The game rotates each round: a CLAW MACHINE
 // (the claw slides back and forth; tap to drop it on a capsule), a PRIZE WHEEL (tap to spin) or a KAIJU EGG (tap it till
 // it hatches). Each go pays out exactly like a chest did (same odds, same beginner boost), so only the fun changed.
+// A game can add its own prize on top (extra(): a result or null); Kaiju Madness uses it to hand out kaiju.
 import { roll } from './chests.js';
 import { fmtCoins } from './skins.js';
 
 const GAMES = ['claw', 'wheel', 'egg'];
-const ICON = { coin: '🪙', skin: '👕', dupe: '🪙', empty: '💨' };
+const ICON = { coin: '🪙', skin: '👕', dupe: '🪙', empty: '💨', kaiju: '👹' };
 
-export function showPrizes(el, goes, why = '', onShop = null) {
+export function showPrizes(el, goes, why = '', onShop = null, extra = null) {
   let n = 0; try { n = +localStorage.getItem('prize_game') || 0; localStorage.setItem('prize_game', String(n + 1)); } catch { /* ignore */ }
   const game = GAMES[n % GAMES.length];
   el.innerHTML = ''; el.classList.remove('hidden'); el.classList.add('prizes');
@@ -19,7 +20,7 @@ export function showPrizes(el, goes, why = '', onShop = null) {
   const draw = () => { head.textContent = name + '  ·  ' + (left > 0 ? left + (left === 1 ? ' go left' : ' goes left') : 'all done') + '  ·  🪙 ' + fmtCoins(); };
   const won = (res) => { const d = document.createElement('div'); d.className = 'prizeWin ' + res.kind; d.textContent = ICON[res.kind] + ' ' + res.text; log.appendChild(d); draw();
     if (left <= 0 && onShop && !el.querySelector('.shopBtn')) { const s = document.createElement('button'); s.className = 'ghost shopBtn'; s.textContent = '🪙 SPEND COINS IN THE SKIN SHOP'; s.addEventListener('click', (ev) => { ev.stopPropagation(); onShop(); }); el.appendChild(s); } };
-  draw(); ({ claw, wheel, egg })[game](box, () => left > 0, () => { left--; draw(); return roll(); }, won);
+  draw(); ({ claw, wheel, egg })[game](box, () => left > 0, () => { left--; draw(); return (extra && extra()) || roll(); }, won, !!extra);
 }
 
 // ---------- claw machine: the claw slides; tap to drop it on whatever capsule is below ----------
@@ -37,15 +38,15 @@ function claw(box, canGo, take, won) {
 }
 
 // ---------- prize wheel: tap to spin; it lands on the prize you won ----------
-function wheel(box, canGo, take, won) {
-  const slices = ['coin', 'empty', 'coin', 'skin', 'coin', 'empty', 'coin', 'empty'], cols = ['#3a2a5a', '#24183a', '#3a2a5a', '#5a3a1a', '#3a2a5a', '#24183a', '#3a2a5a', '#24183a'];
+function wheel(box, canGo, take, won, withKaiju) {
+  const slices = ['coin', 'empty', 'coin', 'skin', 'coin', withKaiju ? 'kaiju' : 'empty', 'coin', 'empty'], cols = ['#3a2a5a', '#24183a', '#3a2a5a', '#5a3a1a', '#3a2a5a', withKaiju ? '#1a4a1a' : '#24183a', '#3a2a5a', '#24183a'];
   box.innerHTML = '<div class="wheelWrap"><canvas width="440" height="440"></canvas><div class="wheelPin">▼</div></div><button class="clawBtn">SPIN</button>';
   const cv = box.querySelector('canvas'), g = cv.getContext('2d'), btn = box.querySelector('.clawBtn'); let ang = 0, busy = false;
   const paint = () => { g.clearRect(0, 0, 440, 440); g.save(); g.translate(220, 220); g.rotate(ang); const a = Math.PI * 2 / slices.length;
     slices.forEach((s, i) => { g.beginPath(); g.moveTo(0, 0); g.arc(0, 0, 210, i * a, (i + 1) * a); g.closePath(); g.fillStyle = cols[i]; g.fill(); g.strokeStyle = '#7dff3a'; g.lineWidth = 3; g.stroke(); g.save(); g.rotate(i * a + a / 2); g.font = '46px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(ICON[s], 140, 0); g.restore(); });
     g.beginPath(); g.arc(0, 0, 30, 0, Math.PI * 2); g.fillStyle = '#7dff3a'; g.fill(); g.restore(); };
   paint();
-  const spin = (e) => { e.stopPropagation(); if (busy || !canGo()) return; busy = true; const res = take(); const want = res.kind === 'skin' || res.kind === 'dupe' ? 'skin' : res.kind === 'coin' ? 'coin' : 'empty';
+  const spin = (e) => { e.stopPropagation(); if (busy || !canGo()) return; busy = true; const res = take(); const want = res.slot || (res.kind === 'skin' || res.kind === 'dupe' ? 'skin' : res.kind === 'coin' ? 'coin' : res.kind === 'kaiju' ? 'kaiju' : 'empty');
     const idxs = slices.map((s, i) => (s === want ? i : -1)).filter((i) => i >= 0), i = idxs[(Math.random() * idxs.length) | 0], a = Math.PI * 2 / slices.length;
     // the pin is at the top (-90 deg): end on an angle that puts slice i's middle under it, after five whole turns
     const target = -Math.PI / 2 - (i * a + a / 2), from = ang, end = from - Math.PI * 2 * 5 - (((from - target) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2); let t = 0; const T = 2.6; let last = performance.now();

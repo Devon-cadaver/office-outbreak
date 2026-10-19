@@ -2,14 +2,14 @@
 // town eating people (that's how you grow), your kaiju hits whatever's closest on its own, and a tap walks you somewhere,
 // or, when your Power bar is full, casts your spell at what you tapped. One bar is your size and your health: the army,
 // napalm planes and rival kaiju drain it, and you shrink a stage (Colossus -> Titan -> Hatchling) when it drops below a
-// stage's line. Empty it as a Hatchling and the round's over. Two rival kaiju come for you at each stage; KO one to unlock it.
+// stage's line. Empty it as a Hatchling and the round's over. Two rival kaiju come for you at each stage. New kaiju are won in the end-of-round prize games.
 import * as THREE from 'three';
 import { generateMaze, buildCity, toWorld, toCell, findPath, CELL, mulberry32 } from '../city.js';
 import { makeCharacter, animateWalk } from '../poster/characters.js';
 import { makeCar } from '../car.js';
 import { createTwisters } from '../tornado.js';
 import { createFires } from '../fire.js';
-import { unlockAudio, sfx, stopMusic, setPlaneEngine, startStormMusic, setStormLevel, stormBoost } from '../audio.js';
+import { unlockAudio, soundToggle, sfx, stopMusic, setPlaneEngine, startStormMusic, setStormLevel, stormBoost } from '../audio.js';
 import { equippedSkin, skinnedCarArgs, addCoins, CHAR_SKINS } from '../skins.js';
 import { forceSeason } from '../season.js';
 import { showPrizes } from '../prizes.js';
@@ -274,20 +274,26 @@ function spawnRival() {
   const far = []; for (const c of roadCells) { const w = toWorld(c[0], c[1], cols, rows); const d = Math.hypot(w.x - me.g.position.x, w.z - me.g.position.z); if (d > 20 && d < 34) far.push(w); }
   const w = far.length ? far[(Math.random() * far.length) | 0] : toWorld(1, 1, cols, rows); rig.g.position.set(w.x, 0, w.z); scene.add(rig.g);
   rival = { id, rig, g: rig.g, stage: st, scale: sc, hp: 45 + 55 * st, max: 45 + 55 * st, cd: 1.5, castT: 6 + Math.random() * 3, stun: 0, koT: 0 };
-  $('kjRivalName').textContent = KAIJU[id].name + ' · ' + STAGE[st]; rivalEl.classList.remove('hidden'); banner('👹 RIVAL: ' + KAIJU[id].name + '!'); sfx.wave(); tip('kj_rival', '👹 A rival kaiju! Walk up and your kaiju fights it on its own. Spells hit it hard. KO it to unlock it.');
+  $('kjRivalName').textContent = KAIJU[id].name + ' · ' + STAGE[st]; rivalEl.classList.remove('hidden'); banner('👹 RIVAL: ' + KAIJU[id].name + '!'); sfx.wave(); tip('kj_rival', '👹 A rival kaiju! Walk up and your kaiju fights it on its own. Spells hit it hard. KO it and eat it for a big boost.');
 }
 function hitRival(pow, freeze) { if (!rival || rival.hp <= 0) return; rival.hp -= pow; rival.rig.act('hit'); if (freeze) rival.stun = 2.5; popup(rival.g.position.clone().setY(rival.scale * 1.8), '-' + Math.round(pow), '#ffb02a'); if (rival.hp <= 0) rivalKO(); }
 function rivalKO() {
   const r = rival; r.hp = 0; r.koT = 2.2; r.rig.act('ko'); ko++; award(2500 * r.stage, r.g.position, 'K.O.!'); sfx.boom(); flashT = 0.3; mini = null; miniEl.className = 'hidden';
   // ...and then you eat it: a monster meal is a big boost (size, full Power, a burst of speed)
   setTimeout(() => { if (state !== 'play') return; grow(massTarget * (0.16 + 0.06 * r.stage)); power = 1; boostT = 5; me.act('cast'); banner('MONSTER MEAL!'); popup(me.g.position.clone().setY(meScale * 2), '+SIZE +POWER', '#7dff3a'); sfx.pickup(); }, 1300);
-  const fresh = unlockKaiju(r.id); banner(fresh ? 'K.O.! ' + KAIJU[r.id].name + ' UNLOCKED!' : 'K.O.!'); if (fresh) unlockedNow.push(r.id); stormBoost(2);
+  banner('K.O.!'); stormBoost(2);
 }
 const unlockedNow = [];
+// a prize-game go can win a kaiju (KAIJU_PRIZE a go); one you already have pays a whole coin
+const KAIJU_PRIZE = 0.08;
+function kaijuPrize() { if (Math.random() >= KAIJU_PRIZE) return null; const pool = KAIJU_IDS.filter((x) => x !== 'godzilly'), id = pool[(Math.random() * pool.length) | 0], name = KAIJU[id].name;
+  if (unlockKaiju(id)) { drawPicker(); return { kind: 'kaiju', text: 'NEW KAIJU: ' + name + '!' }; } addCoins(1); return { kind: 'dupe', slot: 'kaiju', text: name + ' (owned): +1 coin' }; }
 function updateRival(dt, px, pz) {
   if (!rival) { rivalWait -= dt; for (let i = 0; i < rivalQueue.length; i++) rivalQueue[i] -= dt; if (rivalQueue.length && rivalQueue[0] <= 0 && rivalWait <= 0) { rivalQueue.shift(); spawnRival(); } rivalEl.classList.add('hidden'); rivalArrow.style.display = 'none'; return; }
   const r = rival, g = r.g; r.rig.anim(dt, r.koT > 0 ? 0 : r.moving ? 1 : 0.15);
   if (r.koT > 0) { r.koT -= dt; if (r.koT <= 1.0 && me) { const k = Math.min(1, dt * 3); const mth = me.mouth.getWorldPosition(tmp); g.position.lerp(mth, k); g.scale.setScalar(Math.max(0.01, r.scale * (r.koT / 1.0))); } if (r.koT <= 0) { scene.remove(g); fx.puff('smoke', g.position.clone().setY(1), 2.5); rival = null; rivalWait = 6; } rivalEl.classList.add('hidden'); rivalArrow.style.display = 'none'; return; }
+  if (r.toss) { const T = r.toss; T.t += dt; const k = Math.min(1, T.t / T.secs); g.position.lerpVectors(T.from, T.to, k); g.position.y = T.from.y * (1 - k) + Math.sin(k * Math.PI) * T.h; g.rotation.x += dt * 8; r.stun = Math.max(r.stun, 0.5); if (Math.random() < dt * 25) fx.puff('smoke', g.position.clone(), 0.5);
+    if (k >= 1) { r.toss = null; g.position.y = 0; g.rotation.x = g.rotation.z = 0; r.stun = 1.5; const land = g.position.clone(); hitArea(land, 3.6, 14, {}); fx.explode(land.clone().setY(0.5), 2.4); flashT = 0.3; sfx.boom(); popup(land.clone().setY(r.scale * 2), 'CRASH!', '#ffb02a'); hitRival(30 + 10 * stage); if (!rival || r.hp <= 0) return; } }
   const dx = px - g.position.x, dz = pz - g.position.z, d = Math.hypot(dx, dz) || 0.01, touch = reach() + r.scale * 0.45;
   r.stun -= dt; r.moving = false;
   if (mini) r.stun = Math.max(r.stun, 0.05);
@@ -323,7 +329,7 @@ function startMini(r, type) {
     $('kjMiniSeq').innerHTML = m.seq.map((d, i) => '<span id="kjA' + i + '">' + ARROWS[d] + '</span>').join(''); }
   if (type === 'spots') { m.spawned = 0; m.total = 8; m.next = 0.2; m.live = []; }
   if (type === 'dodge') { m.round = 0; nextDodge(m); }
-  if (type === 'spin') { m.ang = 0; m.last = null; }
+  if (type === 'spin') { m.ang = 0; m.last = null; m.spinA = Math.atan2(r.g.position.z - me.g.position.z, r.g.position.x - me.g.position.x); m.lift = 0; r.spun = true; r.rig.shadow.visible = false; me.act('cast'); }
   if (type === 'roar') { m.zone = [0.7, 0.9]; m.hold = false; $('kjMiniZone').style.left = '70%'; $('kjMiniZone').style.width = '20%'; me.act('cast'); r.rig.act('cast'); }
   miniEl.className = 'm-' + type; sfx.wave();
 }
@@ -335,7 +341,7 @@ miniEl.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropag
   else if (m.type === 'roar') { m.hold = true; }
   else if (m.type === 'dodge' && m.phase === 'counter') { hitRival(14 + 4 * stage); me.act('hit'); sfx.boom(); popup(m.r.g.position.clone().setY(m.r.scale * 2), 'COUNTER!', '#7dff3a'); m.phase = 'gap'; m.pt = 0; $('kjMiniSeq').innerHTML = ''; }
   else if (m.type === 'spin') { m.last = Math.atan2(e.clientY - innerHeight / 2, e.clientX - innerWidth / 2); } });
-miniEl.addEventListener('pointermove', (e) => { const m = mini; if (!m || m.type !== 'spin' || m.last == null) return; const a = Math.atan2(e.clientY - innerHeight / 2, e.clientX - innerWidth / 2); let d = a - m.last; d = Math.atan2(Math.sin(d), Math.cos(d)); m.ang += Math.abs(d); m.last = a; m.r.g.rotation.y += d; });
+miniEl.addEventListener('pointermove', (e) => { const m = mini; if (!m || m.type !== 'spin' || m.last == null) return; const a = Math.atan2(e.clientY - innerHeight / 2, e.clientX - innerWidth / 2); let d = a - m.last; d = Math.atan2(Math.sin(d), Math.cos(d)); m.ang += Math.abs(d); m.last = a; m.spinA += d; });
 miniEl.addEventListener('pointerup', (e) => { const m = mini; if (!m || !gest) return; const dx = e.clientX - gest.x, dy = e.clientY - gest.y; gest = null;
   if (m.type === 'roar' && m.hold) { m.hold = false; if (m.v >= m.zone[0] && m.v <= m.zone[1]) endMini('roarWin'); else endMini('roarWeak'); return; }
   if (m.type === 'spin') { m.last = null; return; }
@@ -362,17 +368,24 @@ function updateMini(dt) {
     if (m.phase === 'warn' && m.pt > Math.max(0.6, 1.0 - 0.1 * (r.stage - 1))) dodgeHit(m);
     else if (m.phase === 'counter' && m.pt > 0.8) { m.phase = 'gap'; m.pt = 0; $('kjMiniSeq').innerHTML = ''; }
     else if (m.phase === 'gap' && m.pt > 0.45) { if (m.round >= 3) return endMini('done'); nextDodge(m); } }
-  else if (m.type === 'spin') { const need = Math.PI * 2 * (2.5 + 0.5 * r.stage); $('kjMiniMark').style.left = Math.min(100, m.ang / need * 100) + '%'; if (m.ang >= need) return endMini('throw'); if (m.t > 5) return endMini('freed'); }
+  else if (m.type === 'spin') { m.lift = Math.min(1, m.lift + dt * 2.5); const P = me.g.position, R = meScale * 0.55 + r.scale * 0.4, cy = me.fly ? meScale * 0.1 : meScale * 2.3, k = m.lift < 1 ? Math.min(1, dt * 8) : 1;
+    const tx = P.x + Math.cos(m.spinA) * R, tz = P.z + Math.sin(m.spinA) * R; r.g.position.x += (tx - r.g.position.x) * k; r.g.position.z += (tz - r.g.position.z) * k; r.g.position.y += (cy - r.g.position.y) * k;
+    r.g.rotation.set(0, Math.PI / 2 - m.spinA, 1.35 * m.lift); me.g.rotation.y = faceY = Math.atan2(tx - P.x, tz - P.z);
+    const need = Math.PI * 2 * (2.5 + 0.5 * r.stage); $('kjMiniMark').style.left = Math.min(100, m.ang / need * 100) + '%'; if (m.ang >= need) return endMini('throw'); if (m.t > 5) return endMini('freed'); }
   else if (m.type === 'roar') { if (m.hold) m.v += dt * 0.7; $('kjMiniMark').style.left = Math.min(100, m.v * 100) + '%'; if (m.v > 1) return endMini('choke'); if (m.t > 4.5 && !m.hold) return endMini('roared'); }
 }
 function knock(g, from, dist) { const dx = g.position.x - from.x, dz = g.position.z - from.z, d = Math.hypot(dx, dz) || 1; g.position.x += dx / d * dist; g.position.z += dz / d * dist; }
 function endMini(res) {
-  const r = mini && mini.r; mini = null; miniEl.className = 'hidden'; $('kjMiniSpots').innerHTML = ''; if (!r || !rival || r.hp <= 0) return; r.cd = 3;
+  const m0 = mini, r = mini && mini.r; mini = null; miniEl.className = 'hidden'; $('kjMiniSpots').innerHTML = '';
+  if (r && r.spun) { r.spun = false; r.rig.shadow.visible = true; if (res !== 'throw' || r.hp <= 0) { r.g.rotation.x = r.g.rotation.z = 0; r.g.position.y = 0; } }
+  if (!r || !rival || r.hp <= 0) return; r.cd = 3;
   if (res === 'win') { banner('SMACKDOWN!'); hitRival(30 + 10 * stage); knock(r.g, me.g.position, 3); flashT = 0.15; sfx.boom(); }
   else if (res === 'lose') { banner('OUCH!'); r.rig.act('hit'); hurt(4 + 2 * r.stage, true); knock(me.g, r.g.position, 2.5); sfx.hurt(); }
   else if (res === 'draw') { banner('STALEMATE'); hitRival(8); hurt(2, true); knock(me.g, r.g.position, 1.5); knock(r.g, me.g.position, 1.5); }
   else if (res === 'done') { knock(r.g, me.g.position, 2.5); }
-  else if (res === 'throw') { banner('GIANT SWING!'); me.act('cast'); hitRival(30 + 10 * stage); knock(r.g, me.g.position, 7); const land = r.g.position.clone().setY(0); hitArea(land, 2.6, 10, {}); fx.explode(land.clone().setY(0.5), 1.8); flashT = 0.25; sfx.boom(); }
+  else if (res === 'throw') { banner('GIANT SWING!'); me.act('cast'); sfx.throw(); flashT = 0.1; const a = m0 ? m0.spinA : 0, D = 24 + 3 * stage, hx = cols * CELL / 2 - 3, hz = rows * CELL / 2 - 3;
+    const to = new THREE.Vector3(Math.max(-hx, Math.min(hx, r.g.position.x + Math.cos(a) * D)), 0, Math.max(-hz, Math.min(hz, r.g.position.z + Math.sin(a) * D)));
+    r.toss = { from: r.g.position.clone(), to, t: 0, secs: 1.3, h: 5 + meScale * 1.5 }; r.stun = 3; }
   else if (res === 'freed') { banner('IT BROKE FREE!'); r.rig.act('hit'); hurt(3 + r.stage, true); knock(me.g, r.g.position, 2); }
   else if (res === 'roarWin') { banner('TERRIFYING ROAR!'); me.act('cast'); hitRival(10 + 4 * stage); r.stun = 2.5; knock(r.g, me.g.position, 3); fx.puff('smoke', me.g.position.clone().setY(1), 2); sfx.boom(); r.roarCd = 14; }
   else if (res === 'roarWeak') { banner('WEAK ROAR...'); r.stun = 0.8; r.roarCd = 14; }
@@ -444,6 +457,7 @@ addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
 
 // ---------- flow ----------
 let state = 'start', died = false;
+soundToggle($('taStart'), $('taPaused')); // sound on/off on the start and pause screens
 const fsMode = initFullscreen(() => state === 'play'); // full screen on play, back in after a browser drop-out, no page scrolling mid-round
 function start() {
   fsMode.play();
@@ -467,7 +481,7 @@ function finish() {
   $('taGoalLine').textContent = died ? 'The army got you. Eat more people to grow back, and walk out of the napalm.' : cleared ? (level < LEVELS.length ? 'Level ' + (level + 1) + ' unlocked: ' + LEVELS[level].name + '.' : 'Every town crushed. Monster.') : 'Flatten ' + L().goal + '% of ' + L().name + ' and take out ' + (need >= poiOrder.length ? 'every big target' : need + ' big targets') + ' (you got ' + pct + '% and ' + done.length + ').';
   for (const id of unlockedNow) { const u = document.createElement('div'); u.className = 'bonusSkin'; u.innerHTML = '🏆 NEW KAIJU UNLOCKED: <b>' + KAIJU[id].name + '</b>'; $('taGoalLine').appendChild(u); }
   $('taStats').innerHTML = [['Buildings', bDone + ' / ' + totalB + ' (' + pct + '%)'], ['People eaten', peopleN], ['Cars wrecked', carsN], ['Rivals KO\'d', ko], ['Big targets', done.length + ' / ' + poiOrder.length + ' ' + done.map((k) => POI[k].icon).join('')], ['Biggest', STAGE[topStage]], ['Score', score], ['Score coins', '+' + scoreCoins + ' 🪙'], ['Best', best]].map(([a, b]) => '<tr><td>' + a + '</td><td>' + b + '</td></tr>').join('');
-  showPrizes($('taChests'), Math.min(3, 1 + (cleared ? 1 : 0) + Math.floor(done.length / 2)), '1 go, +1 for clearing the level, +1 for every 2 big targets destroyed (max 3)', () => { location.href = 'store.html?from=kaiju'; });
+  showPrizes($('taChests'), Math.min(3, 1 + (cleared ? 1 : 0) + Math.floor(done.length / 2)), '1 go, +1 for clearing the level, +1 for every 2 big targets destroyed (max 3)', () => { location.href = 'store.html?from=kaiju'; }, kaijuPrize);
   $('ta').classList.add('hidden'); $('taEnd').classList.remove('hidden'); drawPicker();
 }
 const HOWTO = [
@@ -476,7 +490,8 @@ const HOWTO = [
   ['⚡', 'Spells', 'Your Power bar fills over time. When it is full, tap an enemy, a tank or a spot to cast your spell. Every size has a different spell.'],
   ['❤️', 'Size is health', 'The army, napalm and rivals shrink you. Drop below a size and you go back down. Shrink away as a Hatchling and it is over.'],
   ['✈️', 'Napalm planes', 'Planes drop fire on you. Walk out of the flames, or blast them with a spell. A Colossus swats them.'],
-  ['👹', 'Rival kaiju', 'Two rivals come for you at each size. Fight them up close or hit them with spells. KO one to unlock it.'],
+  ['👹', 'Rival kaiju', 'Two rivals come for you at each size. Fight them up close or hit them with spells. KO one and eat it for a big boost.'],
+  ['👹', 'Win new kaiju', 'The prize games after each round can hand you a new kaiju. Win one you already have and you get a whole coin.'],
   ['🏆', 'Crush the town', 'Flatten the goal % and take out enough big targets before time runs out to unlock the next town.'],
 ];
 $('taHow').addEventListener('click', () => showHowTo(HOWTO));
@@ -487,7 +502,7 @@ function drawLevels() { const box = $('taLevels'); box.innerHTML = ''; const un 
   b.className = 'lvl' + (n === level ? ' on' : ''); b.disabled = n > un; b.innerHTML = '<b>' + (n > un ? '🔒' : n) + '</b><span>' + lv.name + '</span>' + (best ? '<i>' + best + '</i>' : ''); b.addEventListener('click', () => { level = n; drawLevels(); }); box.appendChild(b); }); }
 function drawPicker() { const box = $('kjPick'); box.innerHTML = ''; const un = unlockedKaiju(); for (const id of KAIJU_IDS) { const K = KAIJU[id], open = un.includes(id); const b = document.createElement('button'); b.className = 'kjCard' + (id === pick ? ' on' : '') + (open ? '' : ' locked'); b.disabled = !open;
   b.innerHTML = '<b>' + (open ? '' : '🔒') + K.name + '</b>'; b.addEventListener('click', () => { pick = id; try { localStorage.setItem('kj_pick', id); } catch { /* ignore */ } drawPicker(); showcase(); }); box.appendChild(b); }
-  const K = KAIJU[pick]; $('kjPickInfo').innerHTML = '<b>' + K.name + '</b> · ' + K.spells.join(' → ') + '<br><small>' + un.length + ' of ' + KAIJU_IDS.length + ' unlocked. KO a rival to unlock it.</small>'; }
+  const K = KAIJU[pick]; $('kjPickInfo').innerHTML = '<b>' + K.name + '</b> · ' + K.spells.join(' → ') + '<br><small>' + un.length + ' of ' + KAIJU_IDS.length + ' unlocked. Win more in the prize games after each round.</small>'; }
 level = unlockedLevel(); drawLevels(); drawPicker();
 $('taPause').addEventListener('click', togglePause); $('taResume').addEventListener('click', togglePause);
 
