@@ -284,10 +284,13 @@ function rivalKO() {
   banner('K.O.!'); stormBoost(2);
 }
 const unlockedNow = [];
-// a prize-game go can win a kaiju (KAIJU_PRIZE a go); one you already have pays a whole coin
-const KAIJU_PRIZE = 0.08;
-function kaijuPrize() { if (Math.random() >= KAIJU_PRIZE) return null; const pool = KAIJU_IDS.filter((x) => x !== 'godzilly'), id = pool[(Math.random() * pool.length) | 0], name = KAIJU[id].name;
-  if (unlockKaiju(id)) { drawPicker(); return { kind: 'kaiju', text: 'NEW KAIJU: ' + name + '!' }; } addCoins(1); return { kind: 'dupe', slot: 'kaiju', text: name + ' (owned): +1 coin' }; }
+// each round's prize games hand out monsters: 90% of rounds give at least one, 20% give two (on the first goes; if the
+// round has fewer goes, the last go gives the rest). One you already have pays a whole coin
+let kjLeft = 0, goesLeft = 0;
+function kaijuRound(goes) { const r = Math.random(); kjLeft = r < 0.2 ? 2 : r < 0.9 ? 1 : 0; goesLeft = goes; }
+function kaijuPrize() { goesLeft--; if (kjLeft <= 0) return null; const n = goesLeft <= 0 ? kjLeft : 1; kjLeft -= n; const pool = KAIJU_IDS.filter((x) => x !== 'godzilly'); let fresh = false; const txt = [];
+  for (let i = 0; i < n; i++) { const id = pool[(Math.random() * pool.length) | 0], name = KAIJU[id].name; if (unlockKaiju(id)) { fresh = true; txt.push('NEW: ' + name + '!'); } else { addCoins(1); txt.push(name + ' (owned): +1 coin'); } }
+  if (fresh) drawPicker(); return fresh ? { kind: 'kaiju', text: txt.join('  ') } : { kind: 'dupe', slot: 'kaiju', text: txt.join('  ') }; }
 function updateRival(dt, px, pz) {
   if (!rival) { rivalWait -= dt; for (let i = 0; i < rivalQueue.length; i++) rivalQueue[i] -= dt; if (rivalQueue.length && rivalQueue[0] <= 0 && rivalWait <= 0) { rivalQueue.shift(); spawnRival(); } rivalEl.classList.add('hidden'); rivalArrow.style.display = 'none'; return; }
   const r = rival, g = r.g; r.rig.anim(dt, r.koT > 0 ? 0 : r.moving ? 1 : 0.15);
@@ -481,7 +484,7 @@ function finish() {
   $('taGoalLine').textContent = died ? 'The army got you. Eat more people to grow back, and walk out of the napalm.' : cleared ? (level < LEVELS.length ? 'Level ' + (level + 1) + ' unlocked: ' + LEVELS[level].name + '.' : 'Every town crushed. Monster.') : 'Flatten ' + L().goal + '% of ' + L().name + ' and take out ' + (need >= poiOrder.length ? 'every big target' : need + ' big targets') + ' (you got ' + pct + '% and ' + done.length + ').';
   for (const id of unlockedNow) { const u = document.createElement('div'); u.className = 'bonusSkin'; u.innerHTML = '🏆 NEW KAIJU UNLOCKED: <b>' + KAIJU[id].name + '</b>'; $('taGoalLine').appendChild(u); }
   $('taStats').innerHTML = [['Buildings', bDone + ' / ' + totalB + ' (' + pct + '%)'], ['People eaten', peopleN], ['Cars wrecked', carsN], ['Rivals KO\'d', ko], ['Big targets', done.length + ' / ' + poiOrder.length + ' ' + done.map((k) => POI[k].icon).join('')], ['Biggest', STAGE[topStage]], ['Score', score], ['Score coins', '+' + scoreCoins + ' 🪙'], ['Best', best]].map(([a, b]) => '<tr><td>' + a + '</td><td>' + b + '</td></tr>').join('');
-  showPrizes($('taChests'), Math.min(3, 1 + (cleared ? 1 : 0) + Math.floor(done.length / 2)), '1 go, +1 for clearing the level, +1 for every 2 big targets destroyed (max 3)', () => { location.href = 'store.html?from=kaiju'; }, kaijuPrize);
+  const goes = Math.min(3, 1 + (cleared ? 1 : 0) + Math.floor(done.length / 2)); kaijuRound(goes); showPrizes($('taChests'), goes, '1 go, +1 for clearing the level, +1 for every 2 big targets destroyed (max 3)', () => { location.href = 'store.html?from=kaiju'; }, kaijuPrize);
   $('ta').classList.add('hidden'); $('taEnd').classList.remove('hidden'); drawPicker();
 }
 const HOWTO = [
@@ -491,7 +494,7 @@ const HOWTO = [
   ['❤️', 'Size is health', 'The army, napalm and rivals shrink you. Drop below a size and you go back down. Shrink away as a Hatchling and it is over.'],
   ['✈️', 'Napalm planes', 'Planes drop fire on you. Walk out of the flames, or blast them with a spell. A Colossus swats them.'],
   ['👹', 'Rival kaiju', 'Two rivals come for you at each size. Fight them up close or hit them with spells. KO one and eat it for a big boost.'],
-  ['👹', 'Win new kaiju', 'The prize games after each round can hand you a new kaiju. Win one you already have and you get a whole coin.'],
+  ['👹', 'Win new kaiju', 'Most rounds the prize games hand you a new kaiju or robot (sometimes two). Win one you already have and you get a whole coin.'],
   ['🏆', 'Crush the town', 'Flatten the goal % and take out enough big targets before time runs out to unlock the next town.'],
 ];
 $('taHow').addEventListener('click', () => showHowTo(HOWTO));

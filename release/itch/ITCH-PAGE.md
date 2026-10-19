@@ -1,6 +1,6 @@
 # Dead City: Tornado Alley — itch.io page kit
 
-Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.9.8**. Upload `release/survive-dead-city-web-v1.9.8.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
+Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.9.9**. Upload `release/survive-dead-city-web-v1.9.9.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
 
 ## Upload settings (Edit game page)
 
@@ -11,7 +11,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 | Short description / tagline | You are the storm. Tear through five towns, take out big targets, dodge seeding planes and outrun storm chasers. |
 | Classification | Game |
 | Kind of project | **HTML** |
-| Uploads | `survive-dead-city-web-v1.9.8.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
+| Uploads | `survive-dead-city-web-v1.9.9.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
 | Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
 | Frame options | Leave SharedArrayBuffer off. No special headers needed. |
 | Pricing | Free (or "No payments"). |
@@ -67,6 +67,7 @@ Small browser games built fast, tested on a phone, and tuned by playing. Dead Ci
 
 ## Version history
 
+- **1.9.9** (2026-10-18): Kaiju Madness: 9 rounds in 10 now win a kaiju or robot in the prize games, and 1 in 5 win two.
 - **1.9.8** (2026-10-18): Halloween skins for the 20 robots: Haunted (rusty, glowing green eyes, bats circling), Ghostly (pale glowing blue), Pumpkin and Skeleton.
 - **1.9.7** (2026-10-18): Kaiju Madness: 20 giant robots join the roster (Optimus Grime, Gundumb RX-78, Mazinger ZZZ, Eva Unit-Oops, Voltrawn, Granddizer, Gipsy Dangler, Jetfizz, Tetsujin 28-ish, The Ironic Giant, D.Vah Meka, Sentimental, Soundwavy, Cherno Alpaca, Megatroll, Bumblebeep, The T-800-ish, Getter Robot-o, ED-2O9-Oops, Mecha-Godzilly X), each with three powers; win them in the prize games.
 - **1.9.6** (2026-10-18): Halloween skins for all 20 kaiju in a new Kaiju tab of the skin shop (1 coin each): bats with little bats circling them for the flyers; green Undead with purple bones, purple Ghouls with green bones, black Skeletons and flaming jack-o'-lantern Pumpkins for the rest. Each kaiju keeps its own skin.
