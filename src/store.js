@@ -43,8 +43,8 @@ function build() {
     const none = document.createElement('button'); const noneOn = cat === 'npc' ? !eq.npc.length : !eq[cat]; none.className = 'skin plain' + (noneOn ? ' on' : ''); none.innerHTML = '<b>Default</b><span>' + (cat === 'npc' ? 'Clears the set (' + eq.npc.length + '/' + NPC_MAX + ' picked).' : 'No skin.') + '</span><em>' + (noneOn ? 'EQUIPPED' : 'Tap to equip') + '</em>'; none.addEventListener('click', () => { const sp = document.getElementById('wrap').scrollTop; equip(cat, null); build(); renderAll(); document.getElementById('wrap').scrollTop = sp; }); grid.appendChild(none);
   }
 }
-{ const from = new URLSearchParams(location.search).get('from'); const ok = { extract: 'zombieville.html', alley: 'tornado.html', survival: 'deadcity.html' }[from];
-  if (ok) { const b = $('backBtn'); b.style.display = 'inline-block'; b.textContent = '◀ ' + { extract: 'EXTRACT', alley: 'TORNADO ALLEY', survival: 'DEAD CITY' }[from]; b.addEventListener('click', () => { location.href = ok; }); } }
+{ const from = new URLSearchParams(location.search).get('from'); const ok = { extract: 'zombieville.html', alley: 'tornado.html', survival: 'deadcity.html', kaiju: 'kaiju.html' }[from];
+  if (ok) { const b = $('backBtn'); b.style.display = 'inline-block'; b.textContent = '◀ ' + { extract: 'EXTRACT', alley: 'TORNADO ALLEY', survival: 'DEAD CITY', kaiju: 'KAIJU MADNESS' }[from]; b.addEventListener('click', () => { location.href = ok; }); } }
 build();
 // one static render per card at a three-quarter angle: no per-frame WebGL work, so the page scrolls freely
 function renderAll() { for (let k = 0; k < 4; k++) twPreview.update(0.05); for (const it of items) { scene.add(it.obj); it.obj.rotation.y = -0.6; renderer.render(scene, cam); scene.remove(it.obj); it.ctx.clearRect(0, 0, 150, 150); it.ctx.drawImage(renderer.domElement, 0, 0); } }

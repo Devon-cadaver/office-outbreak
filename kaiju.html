@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#1e2a2c" />
+  <title>Dead City: Kaiju Madness</title>
+  <link rel="icon" href="data:," />
+  <link rel="stylesheet" href="/src/style.css" />
+  <style>
+    #ta { position: fixed; inset: 0; pointer-events: none; }
+    #ta .top { position: absolute; top: env(safe-area-inset-top, 0); left: 0; right: 0; padding: 6px 10px 0; text-shadow: 0 1px 3px #000; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-weight: 800; }
+    #taScore { font-size: 22px; } #taCombo { color: #ffd24a; font-size: 16px; } #taTime { margin-left: auto; font-size: 18px; } #taRank { color: #7dff3a; font-size: 16px; }
+    #taSub { width: 100%; display: flex; gap: 10px; font-size: 12px; font-weight: 700; opacity: .92; white-space: nowrap; } #taSub > span { white-space: nowrap; }
+    #taPois { position: absolute; left: 10px; right: 66px; top: calc(86px + env(safe-area-inset-top, 0)); display: flex; flex-wrap: wrap; gap: 5px; }
+    .poiChip { position: relative; width: 28px; height: 28px; border-radius: 8px; background: #0b1416c0; border: 2px solid #ffffff33; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+    .poiChip em { font-style: normal; opacity: .6; } .poiChip.ready em { opacity: 1; }
+    .poiChip b { position: absolute; bottom: -6px; right: -6px; font-size: 8px; font-weight: 900; line-height: 11px; padding: 0 3px; border-radius: 5px; background: #5a2f80; color: #fff; }
+    .poiChip.ready { border-color: #ffd24a; box-shadow: 0 0 8px #ffd24aaa; } .poiChip.ready b { background: #ffd24a; color: #1a0f2e; }
+    .poiChip.done { background: #1d5a18; border-color: #7dff3a; box-shadow: 0 0 8px #7dff3a88; } .poiChip.done em { opacity: .6; filter: grayscale(1); } .poiChip.done b { display: none; }
+    .poiChip.done::before { content: ''; position: absolute; left: 1px; right: 1px; top: 50%; height: 3px; background: #ff4a3a; transform: rotate(-35deg); box-shadow: 0 0 2px #000; }
+    .poiChip.done::after { content: ''; position: absolute; right: -6px; bottom: -6px; width: 15px; height: 15px; border-radius: 50%; background: #7dff3a radial-gradient(circle, transparent 0, transparent 0); box-shadow: 0 0 0 2px #0b1416; }
+    .poiChip.done i { position: absolute; right: -1px; bottom: -2px; width: 4px; height: 8px; border: solid #0b1416; border-width: 0 2px 2px 0; transform: rotate(40deg); z-index: 1; }
+    .poiChip.boom { animation: poiBoom .8s ease-out; } @keyframes poiBoom { 0% { transform: scale(1); } 25% { transform: scale(1.9); box-shadow: 0 0 24px #7dff3a; } 100% { transform: scale(1); } }
+    .poiArrow { position: fixed; left: 0; top: 0; width: 34px; height: 34px; pointer-events: none; display: none; z-index: 4; opacity: .55; }
+    .poiArrow em { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-style: normal; font-size: 17px; border-radius: 50%; background: #0b1416c0; border: 2px solid #ffffff55; }
+    .poiArrow i { position: absolute; inset: -13px; display: flex; align-items: center; justify-content: flex-end; font-style: normal; font-size: 13px; color: #fff; text-shadow: 0 0 3px #000; }
+    .poiArrow.ready { opacity: 1; } .poiArrow.ready em { border-color: #ffd24a; box-shadow: 0 0 10px #ffd24a; } .poiArrow.ready i { color: #ffd24a; }
+    #taMap { position: absolute; left: 10px; bottom: calc(10px + env(safe-area-inset-bottom, 0)); width: 104px; height: 104px; border-radius: 50%; background: #0b1416c0; border: 2px solid #ffffff55; pointer-events: auto; touch-action: none; }
+    #taGrow { position: absolute; left: 10px; right: 66px; top: calc(62px + env(safe-area-inset-top, 0)); height: 7px; background: #ffffff22; border-radius: 3px; }
+    #taGrowFill { height: 100%; width: 0; border-radius: 3px; background: linear-gradient(90deg, #7dff3a, #ffd24a, #ff5a3a); }
+    #taGrow .tick { position: absolute; top: -2px; width: 2px; height: 11px; background: #ffffffcc; transform: translateX(-1px); }
+    #taGrow .tick b { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); font-size: 9px; font-weight: 900; color: #fff; text-shadow: 0 1px 2px #000; }
+    #taGrow .tick.got b { color: #7dff3a; }
+    /* pause: big, bright green with purple bars, so nobody has to hunt for it */
+    #taPause { position: absolute; right: 10px; top: calc(48px + env(safe-area-inset-top, 0)); pointer-events: auto; width: 46px; height: 46px; padding: 0; margin: 0; border-radius: 12px; background: #7dff3a; border: 3px solid #5a2f80; color: #5a2f80; font-size: 20px; font-weight: 900; line-height: 1; box-shadow: 0 0 12px #7dff3a99, 0 4px 0 #3a1a5a; }
+    #taPause:active { transform: translateY(2px); box-shadow: 0 0 8px #7dff3a99, 0 2px 0 #3a1a5a; }
+    #taStick { position: absolute; width: 120px; height: 120px; border-radius: 50%; background: #ffffff1a; border: 2px solid #ffffff55; transform: translate(-50%, -50%); display: none; }
+    #taKnob { position: absolute; left: 50%; top: 50%; width: 48px; height: 48px; border-radius: 50%; background: #c9a6ffcc; transform: translate(-50%, -50%); }
+    #taBanner { position: absolute; left: 50%; top: 24%; transform: translateX(-50%); font-size: clamp(22px, 7vw, 40px); font-weight: 900; color: #ffd24a; text-shadow: 0 3px 0 #5a2f80, 0 6px 14px #000; white-space: nowrap; opacity: 0; transition: opacity .2s; }
+    .pop { position: fixed; left: 0; top: 0; font-weight: 900; font-size: 15px; color: #ffe27a; text-shadow: 0 2px 4px #000; pointer-events: none; white-space: nowrap; }
+    #taStart .poi { font-size: 14px; max-width: 360px; }
+    #taLevels { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; width: min(92vw, 420px); }
+    #taLevels .lvl { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 2px; font-size: 10px; min-height: 58px; border-radius: 10px; }
+    #taLevels .lvl b { font-size: 18px; } #taLevels .lvl i { font-style: normal; color: #ffd24a; font-size: 10px; }
+    #taLevels .lvl.on { outline: 3px solid #7dff3a; } #taLevels .lvl:disabled { opacity: .45; }
+    #taLevel { color: #c9a6ff; }
+    .zoomBtn { position: absolute; right: 10px; width: 34px; height: 34px; padding: 0; font-size: 20px; line-height: 1; pointer-events: auto; }
+    #taZoomIn { top: calc(104px + env(safe-area-inset-top, 0)); right: 16px; } #taZoomOut { top: calc(144px + env(safe-area-inset-top, 0)); right: 16px; }
+    .chaserArrow { color: #fff; font-size: 24px; }
+    .photoBar { position: fixed; left: 0; top: 0; width: 64px; height: 8px; border-radius: 4px; background: #000a; border: 1px solid #fff8; overflow: hidden; display: none; pointer-events: none; z-index: 4; } .photoBar i { display: block; height: 100%; width: 0; background: #ffffff; }
+    #taTut { position: absolute; left: 50%; top: calc(126px + env(safe-area-inset-top, 0)); transform: translateX(-50%); width: min(360px, 92vw); padding: 10px 12px; border-radius: 14px; background: #1a0f2ef0; border: 2px solid #ffd24a; text-align: center; pointer-events: auto; box-shadow: 0 4px 16px #000a; transition: border-color .2s; }
+    #taTut.hidden { display: none; } #taTut.ok { border-color: #7dff3a; } #taTut.ok b { color: #7dff3a; }
+    #taTut b { display: block; font-size: 11px; letter-spacing: 1px; color: #ffd24a; } #taTut p { margin: 4px 0 6px; font-size: 15px; font-weight: 700; line-height: 1.3; color: #fff; }
+    #taTut button { font-size: 11px; padding: 5px 10px; margin: 0; } #taTut button.hidden { display: none; }
+    .howRow { display: flex; gap: 8px; justify-content: center; } .howRow button { margin: 0; }
+    #taView { display: none !important; } /* the chase view is hidden for now */
+    #taViewOld { position: absolute; right: 52px; top: calc(54px + env(safe-area-inset-top, 0)); pointer-events: auto; font-size: 11px; padding: 4px 8px; height: 26px; }
+    .planeArrow { position: fixed; left: 0; top: 0; font-size: 26px; color: #9fd6ff; text-shadow: 0 0 8px #000, 0 0 3px #2a6aa0; pointer-events: none; display: none; z-index: 4; }
+    #taSeeded { position: absolute; left: 50%; bottom: calc(110px + env(safe-area-inset-bottom, 0)); transform: translateX(-50%); padding: 6px 12px; border-radius: 8px; background: #0a2a44cc; border: 2px solid #9fd6ff; color: #cfeaff; font-weight: 900; font-size: 15px; opacity: 0; transition: opacity .15s; }
+    .bonusSkin { margin-top: 8px; padding: 8px 10px; border-radius: 10px; border: 2px solid #7dff3a; background: #0e2a0acc; color: #7dff3a; font-weight: 900; font-size: 15px; box-shadow: 0 0 14px #7dff3a66; } .bonusSkin small { color: #cfe8c8; font-weight: 700; font-size: 11px; }
+    #taEnd table { margin: 0 auto; font-size: 15px; border-collapse: collapse; } #taEnd td { padding: 2px 8px; text-align: left; } #taEnd td:last-child { text-align: right; font-weight: 800; }
+  
+    /* ---------- Kaiju Madness extras ---------- */
+    #taGrowFill { background: linear-gradient(90deg, #ff5a3a, #ffd24a 40%, #7dff3a); }
+    #kjPower { position: absolute; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0)); transform: translateX(-50%); width: min(220px, 52vw); height: 22px; border-radius: 11px; background: #0b1416d0; border: 2px solid #ffffff44; overflow: hidden; }
+    #kjPowerFill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: linear-gradient(90deg, #3a8aff, #7af0ff); }
+    #kjPowerTxt { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 900; letter-spacing: .5px; color: #fff; text-shadow: 0 1px 2px #000; white-space: nowrap; }
+    #kjPower.full { border-color: #7dff3a; box-shadow: 0 0 14px #7dff3a; animation: kjPulse .7s ease-in-out infinite alternate; } #kjPower.full #kjPowerFill { background: linear-gradient(90deg, #7dff3a, #d8ff6a); } #kjPower.full #kjPowerTxt { color: #1a0f2e; text-shadow: none; }
+    @keyframes kjPulse { from { transform: translateX(-50%) scale(1); } to { transform: translateX(-50%) scale(1.06); } }
+    #kjRival { position: fixed; left: 0; top: 0; width: 120px; pointer-events: none; z-index: 4; text-align: center; }
+    #kjRivalName { display: block; font-size: 10px; font-weight: 900; color: #ff8a7a; text-shadow: 0 1px 3px #000; white-space: nowrap; margin-bottom: 2px; }
+    #kjRivalBar { height: 8px; border-radius: 4px; background: #000b; border: 1px solid #ff5a5a; overflow: hidden; } #kjRivalFill { height: 100%; width: 100%; background: linear-gradient(90deg, #ff3a3a, #ff9a3a); }
+    .rivalArrow { width: 34px; height: 34px; font-size: 0; } .rivalArrow em { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-style: normal; font-size: 18px; border-radius: 50%; background: #2a0a0ac0; border: 2px solid #ff5a5a; } .rivalArrow i { position: absolute; inset: -13px; display: flex; align-items: center; justify-content: flex-end; font-style: normal; font-size: 13px; color: #ff5a5a; }
+    #kjPick { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; width: min(92vw, 420px); }
+    .kjCard { display: grid; gap: 2px; padding: 8px 8px; margin: 0; text-align: left; border-radius: 12px; background: #1a0f2e; border: 2px solid #5a2f80; color: #fff; box-shadow: none; }
+    .kjCard b { font-size: 13px; color: #7dff3a; } .kjCard span { font-size: 9px; color: #c9e8b8; font-weight: 700; line-height: 1.25; }
+    .kjCard.on { border-color: #7dff3a; box-shadow: 0 0 10px #7dff3a88; } .kjCard.locked { opacity: .5; } .kjCard.locked b { color: #aaa; }
+    #taStart h1 { font-size: clamp(34px, 11vw, 56px); }
+    .bonusSkin { margin-top: 8px; padding: 8px 10px; border-radius: 10px; border: 2px solid #7dff3a; background: #0e2a0acc; color: #7dff3a; font-weight: 900; font-size: 15px; box-shadow: 0 0 14px #7dff3a66; }
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <div id="ta" class="hidden">
+    <div class="top"><span id="taScore">0</span><span id="taCombo"></span><span id="taRank">HATCHLING</span><span id="taTime">2:30</span>
+      <div id="taSub"><span id="taLevel"></span><span id="taPct">0% destroyed</span><span id="taPeople">0 eaten</span><span id="taTargets"></span></div></div>
+    <div id="taGrow"><div id="taGrowFill"></div><i class="tick" style="left:33.3%"><b>TITAN</b></i><i class="tick" style="left:66.6%"><b>COLOSSUS</b></i></div>
+    <div id="taPois"></div><canvas id="taMap"></canvas>
+    <button id="taZoomIn" class="ghost zoomBtn">+</button><button id="taZoomOut" class="ghost zoomBtn">−</button>
+    <button id="taPause" aria-label="Pause">❚❚</button>
+    <div id="taStick"><div id="taKnob"></div></div>
+    <div id="kjPower"><div id="kjPowerFill"></div><div id="kjPowerTxt">⚡ POWER</div></div>
+    <div id="taBanner"></div>
+  </div>
+  <div id="kjRival" class="hidden"><span id="kjRivalName"></span><div id="kjRivalBar"><div id="kjRivalFill"></div></div></div>
+
+  <div id="taStart" class="screen">
+    <p class="small" style="letter-spacing:4px;color:#c9a6ff;margin-bottom:-8px">DEAD CITY</p>
+    <h1>KAIJU<br>MADNESS</h1>
+    <p>You are the monster. Eat the town!</p>
+    <div id="kjPick"></div>
+    <div id="taLevels"></div>
+    <button id="taPlay">STOMP!</button>
+    <div class="howRow"><button id="taHow" class="ghost">HOW TO PLAY</button><button class="ghost menuBtn" onclick="location.href='index.html'">MAIN MENU</button></div>
+  </div>
+  <div id="taPaused" class="screen hidden"><h1>PAUSED</h1><button id="taResume">RESUME</button><button class="ghost menuBtn" onclick="location.href='index.html'">MAIN MENU</button></div>
+  <div id="taEnd" class="screen hidden">
+    <h1 id="taEndTitle">TIME'S UP</h1>
+    <p class="small" id="taGoalLine"></p>
+    <table id="taStats"></table>
+    <div id="taChests" class="chests"></div>
+    <button id="taAgain">GO AGAIN</button>
+    <div class="howRow"><button id="taEndPick" class="ghost">CHANGE KAIJU</button><button class="ghost menuBtn" onclick="location.href='index.html'">MAIN MENU</button></div>
+  </div>
+  <script type="module" src="./src/kaiju/main.js"></script>
+</body>
+</html>
