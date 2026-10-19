@@ -167,13 +167,13 @@ function cullChunks() { const vc = viewCam(); vc.updateMatrixWorld(); projM.mult
 // ---------- the tutorial: one thing at a time, each step waits until the player has done it ----------
 let tutRing = null;
 const TUT = [null,
-  ['Steer', '👆 Drag anywhere on the screen to steer. Bring the storm to the yellow ring.'],
-  ['Tap to move', '⚡ Now TAP the new ring. Lightning strikes there and the storm heads for it.'],
-  ['Grow', '🏚️ Wreck small buildings, cars and people to grow. Grow to F1 (watch the bar up top).'],
-  ['Find a target', '🎯 Big targets are the icons up top. Follow the glowing arrow at the screen edge (or tap the minimap) to the 🪦 graveyard and wreck it.'],
-  ['Seeding planes', '✈ A seeding plane! Its spray (the blue ring) shrinks you. Tap the plane to zap it and turn it back.'],
-  ['Storm chasers', '📷 A storm chaser wants your picture. Tap it to fry its photos, or run it down.'],
-  ['Done!', '🏆 That\'s it! In a real round, flatten the goal % and take out enough big targets before the clock runs out.'],
+  ['Steer', '👆 Drag to steer the storm into the yellow ring.'],
+  ['Tap to move', '⚡ Tap the new ring: lightning strikes and the storm follows.'],
+  ['Grow', '🏚️ Wreck houses, cars and people to grow to F1 (bar up top).'],
+  ['Find a target', '🎯 Follow the glowing edge arrow to the 🪦 graveyard and wreck it.'],
+  ['Seeding planes', '✈ Its blue spray shrinks you. Tap the plane to zap it.'],
+  ['Storm chasers', '📷 Tap the storm chaser to fry its photos, or run it over.'],
+  ['Done!', '🏆 Flatten the goal % and the big targets before time runs out!'],
 ];
 function ringAt(dist) { // a pulsing ring on the ground some way from the storm, inside the town
   if (!tutRing) { // a target you can't miss: drawn over everything, a glowing disc, a thick ring and a bouncing arrow above it
@@ -189,7 +189,7 @@ function ringAt(dist) { // a pulsing ring on the ground some way from the storm,
   if (!best) best = [-Math.sign(twObj.position.x || 1) * dist * 0.7, -Math.sign(twObj.position.z || 1) * dist * 0.7]; tutRing.position.set(best[0], 0.1, best[1]); tutRing.visible = true;
 }
 function tutGo(n) {
-  tut.step = n; tut.t = 0; tut.hit = false; $('taTut').classList.remove('hidden', 'ok'); $('taTutStep').textContent = n < TUT.length - 1 ? 'TUTORIAL · STEP ' + n + ' OF ' + (TUT.length - 2) + ': ' + TUT[n][0].toUpperCase() : TUT[n][0].toUpperCase();
+  tut.step = n; tut.t = 0; tut.hit = false; $('taTut').classList.remove('hidden', 'ok'); $('taTutStep').textContent = n < TUT.length - 1 ? 'TUTORIAL ' + n + '/' + (TUT.length - 2) + ' · ' + TUT[n][0].toUpperCase() : TUT[n][0].toUpperCase();
   $('taTutText').textContent = TUT[n][1]; $('taTutDone').classList.toggle('hidden', n !== TUT.length - 1); $('taTutSkip').classList.toggle('hidden', n === TUT.length - 1);
   if (tutRing) tutRing.visible = false;
   if (n === 1) ringAt(8); else if (n === 2) ringAt(9);

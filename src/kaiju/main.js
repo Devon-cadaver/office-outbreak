@@ -350,6 +350,9 @@ function updateRival(dt, px, pz) {
     r.roarCd = (r.roarCd ?? 6) - dt; if (!mini && d > 7 && d < 15 && r.roarCd <= 0 && Math.random() < dt * 0.35) startMini(r, 'roar');
     r.castT -= dt; if (r.castT <= 0 && d < 18) { r.castT = 8 + Math.random() * 3; spells.cast(caster(r.rig, r.stage), r.stage, me.g.position.clone(), { hostile: true }); popup(g.position.clone().setY(r.scale * 2), KAIJU[r.id].spells[r.stage - 1].toUpperCase() + '!', '#ff5a5a'); }
   }
+  // bodies collide: you can't walk through each other (except while it's being swung or thrown)
+  if (!r.toss && !(mini && mini.type === 'spin') && !leap) { const ex = g.position.x - me.g.position.x, ez = g.position.z - me.g.position.z, ed = Math.hypot(ex, ez) || 0.01, minD = 0.42 * (meScale + r.scale);
+    if (ed < minD) { const push = (minD - ed) / 2, ux = ex / ed, uz = ez / ed; g.position.x += ux * push; g.position.z += uz * push; me.g.position.x -= ux * push; me.g.position.z -= uz * push; } }
   // its health bar floats over its head
   const v = g.position.clone().setY(r.scale * 2.2).project(cam); const on = Math.abs(v.x) < 1 && Math.abs(v.y) < 1;
   rivalEl.classList.toggle('hidden', !on); if (on) { rivalEl.style.transform = 'translate(' + ((v.x * 0.5 + 0.5) * innerWidth) + 'px,' + ((-v.y * 0.5 + 0.5) * innerHeight) + 'px) translate(-50%,-100%)'; $('kjRivalFill').style.width = Math.max(0, r.hp / r.max * 100) + '%'; }
@@ -379,13 +382,45 @@ function startMini(r, type) {
   if (type === 'roar') { m.zone = [0.7, 0.9]; m.hold = false; $('kjMiniZone').style.left = '70%'; $('kjMiniZone').style.width = '20%'; me.act('cast'); r.rig.act('cast'); }
   miniEl.className = 'm-' + type; sfx.wave();
 }
+// ---------- fight moves: every hit in a mini game is shown. Machines (the robots and the Mecha-Godzillys) rock back and
+// unload (a burst of tracer rounds, rockets on the big hits); monsters spin round and fling a bolt in their spell colour.
+// The rival does the same when it hits you ----------
+const anims = []; // { wait, t, dur, go(), f(k), end() }
+const isGunner = (rig) => rig.def.kind === 'robot' || rig.id === 'mecha' || rig.id === 'mechax';
+const spellCol = (rig) => rig.tint ?? (rig.def.pal ? rig.def.pal[3] : 0xffb02a);
+const fxMat = new Map(); const fxM = (col) => { if (!fxMat.has(col)) fxMat.set(col, new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.95, depthWrite: false, blending: THREE.AdditiveBlending })); return fxMat.get(col); };
+const boxG = new THREE.BoxGeometry(1, 1, 1), ballG = new THREE.IcosahedronGeometry(1, 1), rocketG = new THREE.CylinderGeometry(0.5, 0.5, 1, 8); rocketG.rotateX(Math.PI / 2);
+const wpos = (o) => o.getWorldPosition(new THREE.Vector3());
+function shoot(rig, target, kind, wait) { const s = rig.g.scale.x;
+  const A = { wait, t: 0, dur: kind === 'bullet' ? 0.13 : kind === 'rocket' ? 0.34 : 0.26, m: null, a: null, b: null,
+    go() { this.a = wpos(kind === 'spell' ? rig.mouth : rig.hand || rig.chest || rig.mouth); this.b = target.g.position.clone().setY(target.g.scale.x * (0.9 + Math.random() * 0.5)); this.b.x += (Math.random() - 0.5) * target.g.scale.x * 0.5; this.b.z += (Math.random() - 0.5) * target.g.scale.x * 0.5;
+      const m = new THREE.Group();
+      if (kind === 'bullet') { const t = new THREE.Mesh(boxG, fxM(0xffe27a)); t.scale.set(0.06 * s, 0.06 * s, 0.5 * s); m.add(t); if (Math.random() < 0.5) sfx.hit(); }
+      else if (kind === 'rocket') { const body = new THREE.Mesh(rocketG, new THREE.MeshBasicMaterial({ color: 0xc8cdd2 })); body.scale.set(0.12 * s, 0.12 * s, 0.45 * s); const flame = new THREE.Mesh(ballG, fxM(0xff8a2a)); flame.scale.setScalar(0.12 * s); flame.position.z = -0.28 * s; m.add(body, flame); sfx.whoosh(); }
+      else { const col = spellCol(rig), core = new THREE.Mesh(ballG, fxM(0xfffffe)), glow = new THREE.Mesh(ballG, fxM(col)); core.scale.setScalar(0.12 * s); glow.scale.setScalar(0.26 * s); m.add(core, glow); m.userData.col = col; }
+      m.position.copy(this.a); m.lookAt(this.b); scene.add(m); this.m = m; },
+    f(k) { this.m.position.lerpVectors(this.a, this.b, k); if (kind === 'rocket') this.m.position.y += Math.sin(k * Math.PI) * s * 0.4; if (kind !== 'bullet' && Math.random() < 0.6) fx.puff(kind === 'rocket' ? 'smoke' : 'flame', this.m.position.clone(), 0.15 * s); },
+    end() { scene.remove(this.m); if (kind === 'bullet') fx.puff('flame', this.b, 0.12 * s); else { fx.explode(this.b, Math.min(1.6, (kind === 'rocket' ? 0.3 : 0.24) * s)); if (kind === 'rocket') sfx.boom(); } } };
+  anims.push(A); }
+function flourish(rig, target, big = false) {
+  if (!rig || !target || !target.g) return; if (!big && played - (rig.flT ?? -9) < 0.3) return; rig.flT = played;
+  if (isGunner(rig)) { // rock back and unload
+    anims.push({ wait: 0, t: 0, dur: big ? 0.5 : 0.32, go() {}, f(k) { rig.body.position.z = -(big ? 0.45 : 0.3) * Math.sin(k * Math.PI); rig.body.rotation.x = -0.12 * Math.sin(k * Math.PI); }, end() { rig.body.position.z = 0; rig.body.rotation.x = 0; } });
+    if (big) { knock(rig.g, target.g.position, 0.5); for (let i = 0; i < 4; i++) shoot(rig, target, 'rocket', 0.08 + i * 0.1); } else for (let i = 0; i < 4; i++) shoot(rig, target, 'bullet', i * 0.06);
+  } else { // spin round and fling a bolt
+    anims.push({ wait: 0, t: 0, dur: big ? 0.55 : 0.38, go() {}, f(k) { rig.body.rotation.y = Math.PI * 2 * (big ? 2 : 1) * (1 - Math.pow(1 - k, 2)); }, end() { rig.body.rotation.y = 0; } });
+    shoot(rig, target, 'spell', big ? 0.2 : 0.16); if (big) { shoot(rig, target, 'spell', 0.32); shoot(rig, target, 'spell', 0.44); }
+  }
+}
+function updateAnims(dt) { for (let i = anims.length - 1; i >= 0; i--) { const A = anims[i]; if (A.wait > 0) { A.wait -= dt; continue; } if (A.t === 0) A.go(); A.t += dt; const k = Math.min(1, A.t / A.dur); A.f(k); if (k >= 1) { anims.splice(i, 1); A.end(); } } }
+function clearAnims() { for (const A of anims) { if (A.m) scene.remove(A.m); if (A.t > 0) A.end(); } anims.length = 0; }
 function nextDodge(m) { m.round++; m.phase = 'warn'; m.pt = 0; m.side = Math.random() < 0.5 ? 'L' : 'R'; miniEl.dataset.side = m.side; m.r.rig.act('cast'); $('kjMiniSeq').innerHTML = '<span class="on">' + (m.side === 'L' ? 'SWIPE ➡' : '⬅ SWIPE') + '</span>'; }
 // gestures on the overlay
 let gest = null;
 miniEl.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); if (!mini || state !== 'play') return; gest = { x: e.clientX, y: e.clientY, t: performance.now() }; const m = mini;
-  if (m.type === 'brawl') { m.v += 0.12 + 0.025 * (stage - m.r.stage); me.act('hit'); if (Math.random() < 0.5) sfx.hit(); fx.puff('smoke', m.r.g.position.clone().setY(m.r.scale), 0.4); }
+  if (m.type === 'brawl') { m.v += 0.12 + 0.025 * (stage - m.r.stage); me.act('hit'); flourish(me, m.r); if (Math.random() < 0.5) sfx.hit(); fx.puff('smoke', m.r.g.position.clone().setY(m.r.scale), 0.4); }
   else if (m.type === 'roar') { m.hold = true; }
-  else if (m.type === 'dodge' && m.phase === 'counter') { hitRival(14 + 4 * stage); me.act('hit'); sfx.boom(); popup(m.r.g.position.clone().setY(m.r.scale * 2), 'COUNTER!', '#7dff3a'); m.phase = 'gap'; m.pt = 0; $('kjMiniSeq').innerHTML = ''; }
+  else if (m.type === 'dodge' && m.phase === 'counter') { flourish(me, m.r, true); hitRival(14 + 4 * stage); me.act('hit'); sfx.boom(); popup(m.r.g.position.clone().setY(m.r.scale * 2), 'COUNTER!', '#7dff3a'); m.phase = 'gap'; m.pt = 0; $('kjMiniSeq').innerHTML = ''; }
   else if (m.type === 'spin') { m.last = Math.atan2(e.clientY - innerHeight / 2, e.clientX - innerWidth / 2); } });
 miniEl.addEventListener('pointermove', (e) => { const m = mini; if (!m || m.type !== 'spin' || m.last == null) return; const a = Math.atan2(e.clientY - innerHeight / 2, e.clientX - innerWidth / 2); let d = a - m.last; d = Math.atan2(Math.sin(d), Math.cos(d)); m.ang += Math.abs(d); m.last = a; m.spinA += d; });
 miniEl.addEventListener('pointerup', (e) => { const m = mini; if (!m || !gest) return; const dx = e.clientX - gest.x, dy = e.clientY - gest.y; gest = null;
@@ -395,20 +430,20 @@ miniEl.addEventListener('pointerup', (e) => { const m = mini; if (!m || !gest) r
   if (m.type === 'swipe') swipeAnswer(m, dir);
   else if (m.type === 'dodge' && m.phase === 'warn') { if ((m.side === 'L' && dir === 'R') || (m.side === 'R' && dir === 'L')) { m.phase = 'counter'; m.pt = 0; miniEl.dataset.side = ''; knock(me.g, m.r.g.position, 0.6); $('kjMiniSeq').innerHTML = '<span class="on">TAP!</span>'; popup(me.g.position.clone().setY(meScale * 2), 'DODGED!', '#9fd6ff'); } else dodgeHit(m); } });
 function swipeAnswer(m, dir) { const ok = dir === m.seq[m.i]; const el = $('kjA' + m.i); if (el) el.className = ok ? 'ok' : 'bad';
-  if (ok) { m.good++; hitRival(8 + 3 * stage); me.act('hit'); sfx.hit(); } else { m.r.rig.act('hit'); hurt(1.5 + m.r.stage, true); sfx.hurt(); }
+  if (ok) { m.good++; flourish(me, m.r); hitRival(8 + 3 * stage); me.act('hit'); sfx.hit(); } else { m.r.rig.act('hit'); flourish(m.r.rig, me); hurt(1.5 + m.r.stage, true); sfx.hurt(); }
   m.i++; m.tt = 0; if (m.i >= m.seq.length) { if (m.good === m.seq.length) { hitRival(15); popup(m.r.g.position.clone().setY(m.r.scale * 2), 'PERFECT COMBO!', '#7dff3a'); } endMini('done'); } }
-function dodgeHit(m) { m.r.rig.act('hit'); hurt(3 + 1.5 * m.r.stage, true); sfx.hurt(); miniEl.dataset.side = ''; m.phase = 'gap'; m.pt = 0; $('kjMiniSeq').innerHTML = '<span class="bad">HIT!</span>'; }
+function dodgeHit(m) { m.r.rig.act('hit'); flourish(m.r.rig, me, true); hurt(3 + 1.5 * m.r.stage, true); sfx.hurt(); miniEl.dataset.side = ''; m.phase = 'gap'; m.pt = 0; $('kjMiniSeq').innerHTML = '<span class="bad">HIT!</span>'; }
 function spot(m) { const v = m.r.g.position.clone().setY(m.r.scale * 1.1).project(cam); const x = Math.max(40, Math.min(innerWidth - 40, (v.x * 0.5 + 0.5) * innerWidth + (Math.random() - 0.5) * 140)), y = Math.max(120, Math.min(innerHeight - 220, (-v.y * 0.5 + 0.5) * innerHeight + (Math.random() - 0.5) * 160));
   const b = document.createElement('div'); b.className = 'kjSpot'; b.style.left = x + 'px'; b.style.top = y + 'px'; $('kjMiniSpots').appendChild(b); const s = { b, life: 1.05, dead: false };
-  b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); if (s.dead || !mini) return; s.dead = true; b.classList.add('pop'); setTimeout(() => b.remove(), 200); hitRival(7 + 3 * stage); me.act('hit'); sfx.hit(); });
+  b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); if (s.dead || !mini) return; s.dead = true; b.classList.add('pop'); setTimeout(() => b.remove(), 200); flourish(me, mini.r); hitRival(7 + 3 * stage); me.act('hit'); sfx.hit(); });
   m.live.push(s); }
 function updateMini(dt) {
   const m = mini, r = m.r; m.t += dt; if (!rival || r.hp <= 0) return endMini(null);
-  if (m.type === 'brawl') { m.v -= dt * Math.max(0.3, 0.55 + 0.12 * (r.stage - 1) - 0.08 * (stage - 1)); if (Math.random() < dt * 2.2) { r.rig.act('hit'); sfx.hit(); }
+  if (m.type === 'brawl') { m.v -= dt * Math.max(0.3, 0.55 + 0.12 * (r.stage - 1) - 0.08 * (stage - 1)); if (Math.random() < dt * 2.2) { r.rig.act('hit'); sfx.hit(); flourish(r.rig, me); }
     $('kjMiniMark').style.left = ((1 - m.v) * 50) + '%'; if (m.v >= 1) return endMini('win'); if (m.v <= -1) return endMini('lose'); if (m.t > 7) return endMini('draw'); }
   else if (m.type === 'swipe') { m.tt += dt; $('kjMiniMark').style.left = Math.max(0, 100 - m.tt / m.limit * 100) + '%'; const el = $('kjA' + m.i); if (el && el.className !== 'on') el.className = 'on'; if (m.tt >= m.limit) swipeAnswer(m, '-'); }
   else if (m.type === 'spots') { m.next -= dt; if (m.next <= 0 && m.spawned < m.total) { m.next = 0.42; m.spawned++; spot(m); }
-    for (const s of m.live) { if (s.dead) continue; s.life -= dt; if (s.life <= 0) { s.dead = true; s.b.classList.add('miss'); setTimeout(() => s.b.remove(), 250); r.rig.act('hit'); hurt(1 + 0.5 * r.stage, true); } }
+    for (const s of m.live) { if (s.dead) continue; s.life -= dt; if (s.life <= 0) { s.dead = true; s.b.classList.add('miss'); setTimeout(() => s.b.remove(), 250); r.rig.act('hit'); flourish(r.rig, me); hurt(1 + 0.5 * r.stage, true); } }
     $('kjMiniMark').style.left = (100 - m.spawned / m.total * 100) + '%'; if (m.spawned >= m.total && m.live.every((s) => s.dead)) return endMini('done'); }
   else if (m.type === 'dodge') { m.pt += dt; $('kjMiniMark').style.left = (100 - m.round / 3 * 100) + '%';
     if (m.phase === 'warn' && m.pt > Math.max(0.6, 1.0 - 0.1 * (r.stage - 1))) dodgeHit(m);
@@ -425,8 +460,8 @@ function endMini(res) {
   const m0 = mini, r = mini && mini.r; mini = null; miniEl.className = 'hidden'; $('kjMiniSpots').innerHTML = '';
   if (r && r.spun) { r.spun = false; r.rig.shadow.visible = true; if (res !== 'throw' || r.hp <= 0) { r.g.rotation.x = r.g.rotation.z = 0; r.g.position.y = 0; } }
   if (!r || !rival || r.hp <= 0) return; r.cd = 3;
-  if (res === 'win') { banner('SMACKDOWN!'); hitRival(30 + 10 * stage); knock(r.g, me.g.position, 3); flashT = 0.15; sfx.boom(); }
-  else if (res === 'lose') { banner('OUCH!'); r.rig.act('hit'); hurt(4 + 2 * r.stage, true); knock(me.g, r.g.position, 2.5); sfx.hurt(); }
+  if (res === 'win') { flourish(me, r, true); banner('SMACKDOWN!'); hitRival(30 + 10 * stage); knock(r.g, me.g.position, 3); flashT = 0.15; sfx.boom(); }
+  else if (res === 'lose') { flourish(r.rig, me, true); banner('OUCH!'); r.rig.act('hit'); hurt(4 + 2 * r.stage, true); knock(me.g, r.g.position, 2.5); sfx.hurt(); }
   else if (res === 'draw') { banner('STALEMATE'); hitRival(8); hurt(2, true); knock(me.g, r.g.position, 1.5); knock(r.g, me.g.position, 1.5); }
   else if (res === 'done') { knock(r.g, me.g.position, 2.5); }
   else if (res === 'throw') { banner('GIANT SWING!'); me.act('cast'); sfx.throw(); flashT = 0.1; const a = m0 ? m0.spinA : 0, D = 24 + 3 * stage, hx = cols * CELL / 2 - 3, hz = rows * CELL / 2 - 3;
@@ -508,6 +543,7 @@ const fsMode = initFullscreen(() => state === 'play'); // full screen on play, b
 function start() {
   fsMode.play();
   megaT = 0; megaUsed = false; megaDropT = 25 + Math.random() * 15; if (megaDrop) scene.remove(megaDrop.g); megaDrop = null; megaArrow.style.display = 'none'; megaEl.className = 'hidden'; blasts.length = 0; camK = 1;
+  clearAnims();
   unlockAudio(); buildWorld(); makeMe(); spells.clear(); score = 0; chain = 0; lastHit = -9; tLeft = L().time; played = 0; peopleN = carsN = bDone = 0; ko = 0; died = false; moveTo = null; slowT = 0; boostT = 0;
   for (const pl of planes) { scene.remove(pl.g); pl.arrow.remove(); } planes = []; planeT = 50 + Math.random() * 10; noPlanes = false; for (const b of bombs) scene.remove(b.m); bombs.length = 0; for (const f of fires) scene.remove(f.ring); fires.length = 0;
   if (rival) scene.remove(rival.g); rival = null; mini = null; lastMini = ''; miniEl.className = 'hidden'; rivalQueue = []; rivalWait = 0; queueRivals(1); unlockedNow.length = 0; sinking.length = 0; gulps.length = 0;
@@ -594,6 +630,7 @@ function update(dt) {
   cam.updateMatrixWorld(); right.setFromMatrixColumn(cam.matrixWorld, 0).setY(0).normalize(); upv.setFromMatrixColumn(cam.matrixWorld, 1).setY(0).normalize();
   slowT -= dt; boostT -= dt; const speed = (4.0 + meScale * 0.45) * K.speed * (slowT > 0 ? 0.6 : 1) * (boostT > 0 ? 1.4 : 1);
   const mag = Math.min(1, Math.hypot(sx, sy)); let moving = 0;
+  updateAnims(dt);
   if (mini) { updateMini(dt); moveTo = null; }
   else if (leap) { leap.t += dt; const k = Math.min(1, leap.t / leap.secs); g.position.lerpVectors(leap.from, leap.to, k); g.position.y = Math.sin(k * Math.PI) * leap.h; if (leap.step) { leap.stepT -= dt; if (leap.stepT <= 0) { leap.stepT = 0.08; leap.step(g.position.clone().setY(0)); } } if (leap.hide && Math.random() < dt * 30) fx.puff('smoke', g.position.clone().setY(0.3), 0.8); if (k >= 1) { g.position.y = 0; me.body.visible = true; const f = leap.onLand; leap = null; f(); } }
   else if (mag > 0.05) { moveTo = null; tmp.copy(right).multiplyScalar(sx).addScaledVector(upv, -sy).normalize(); g.position.addScaledVector(tmp, speed * mag * dt); faceY = Math.atan2(tmp.x, tmp.z); moving = mag; }
@@ -682,4 +719,4 @@ function frame(now) {
 function showcase() { if (state !== 'start') return; makeMe(); me.g.position.set(0, 0, 0); camTarget.set(0, 2, 0); }
 buildWorld(); makeMe(); camTarget.set(0, 2, 0);
 requestAnimationFrame(frame);
-window.__kj = { dropMega, goMega, megaBlast, get megaT() { return megaT; }, get megaDrop() { return megaDrop; }, THREE, get me() { return me; }, get moveTo() { return moveTo; }, get mass() { return mass; }, set mass(v) { mass = v; }, get massTarget() { return massTarget; }, get stage() { return stage; }, get power() { return power; }, set power(v) { power = v; }, get rival() { return rival; }, spawnRival, spawnPlane, get planes() { return planes; }, get state() { return state; }, get score() { return score; }, get people() { return people; }, get buildings() { return buildings; }, get pois() { return pois; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, tapAt, get cam() { return cam; }, set tLeft(v) { tLeft = v; }, set level(v) { level = v; }, start, hurt, get calls() { return renderer.info.render.calls; }, get fires() { return fires; }, get mini() { return mini && { ...mini, side: mini.side }; }, startMini, get pool() { return pool.length; }, get unlocked() { return unlockedKaiju(); }, set pick(v) { pick = v; } };
+window.__kj = { flourish, get anims() { return anims.length; }, dropMega, goMega, megaBlast, get megaT() { return megaT; }, get megaDrop() { return megaDrop; }, THREE, get me() { return me; }, get moveTo() { return moveTo; }, get mass() { return mass; }, set mass(v) { mass = v; }, get massTarget() { return massTarget; }, get stage() { return stage; }, get power() { return power; }, set power(v) { power = v; }, get rival() { return rival; }, spawnRival, spawnPlane, get planes() { return planes; }, get state() { return state; }, get score() { return score; }, get people() { return people; }, get buildings() { return buildings; }, get pois() { return pois; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, tapAt, get cam() { return cam; }, set tLeft(v) { tLeft = v; }, set level(v) { level = v; }, start, hurt, get calls() { return renderer.info.render.calls; }, get fires() { return fires; }, get mini() { return mini && { ...mini, side: mini.side }; }, startMini, get pool() { return pool.length; }, get unlocked() { return unlockedKaiju(); }, set pick(v) { pick = v; } };
