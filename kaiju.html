@@ -62,6 +62,9 @@
     .howRow { display: flex; gap: 8px; justify-content: center; } .howRow button { margin: 0; }
     #taView { display: none !important; } /* the chase view is hidden for now */
     #taViewOld { position: absolute; right: 52px; top: calc(54px + env(safe-area-inset-top, 0)); pointer-events: auto; font-size: 11px; padding: 4px 8px; height: 26px; }
+    #kjMega { position: fixed; left: 50%; top: calc(64px + env(safe-area-inset-top, 0)); transform: translateX(-50%); z-index: 6; padding: 6px 14px; border-radius: 12px; background: #2a1a04e8; border: 2px solid #ffd21a; color: #ffe27a; font-weight: 900; font-size: 14px; letter-spacing: 1px; text-shadow: 0 0 8px #ff8a1a; box-shadow: 0 0 18px #ffb02a; pointer-events: none; white-space: nowrap; animation: megaPulse .5s ease-in-out infinite alternate; }
+    #kjMega.hidden { display: none; } @keyframes megaPulse { to { box-shadow: 0 0 30px #ffd21a; } }
+    .megaArrow { color: #ffd21a; text-shadow: 0 0 10px #ff8a1a; }
     .planeArrow { position: fixed; left: 0; top: 0; font-size: 26px; color: #9fd6ff; text-shadow: 0 0 8px #000, 0 0 3px #2a6aa0; pointer-events: none; display: none; z-index: 4; }
     #taSeeded { position: absolute; left: 50%; bottom: calc(110px + env(safe-area-inset-bottom, 0)); transform: translateX(-50%); padding: 6px 12px; border-radius: 8px; background: #0a2a44cc; border: 2px solid #9fd6ff; color: #cfeaff; font-weight: 900; font-size: 15px; opacity: 0; transition: opacity .15s; }
     .bonusSkin { margin-top: 8px; padding: 8px 10px; border-radius: 10px; border: 2px solid #7dff3a; background: #0e2a0acc; color: #7dff3a; font-weight: 900; font-size: 15px; box-shadow: 0 0 14px #7dff3a66; } .bonusSkin small { color: #cfe8c8; font-weight: 700; font-size: 11px; }

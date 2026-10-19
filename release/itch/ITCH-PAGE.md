@@ -1,6 +1,6 @@
 # Dead City: Tornado Alley — itch.io page kit
 
-Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.9.11**. Upload `release/survive-dead-city-web-v1.9.11.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
+Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.10.0**. Upload `release/survive-dead-city-web-v1.10.0.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
 
 ## Upload settings (Edit game page)
 
@@ -11,7 +11,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 | Short description / tagline | You are the storm. Tear through five towns, take out big targets, dodge seeding planes and outrun storm chasers. |
 | Classification | Game |
 | Kind of project | **HTML** |
-| Uploads | `survive-dead-city-web-v1.9.11.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
+| Uploads | `survive-dead-city-web-v1.10.0.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
 | Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
 | Frame options | Leave SharedArrayBuffer off. No special headers needed. |
 | Pricing | Free (or "No payments"). |
@@ -30,6 +30,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 | Cover image | `cover-630x500.png` | 630 × 500 | Minimum 315 × 250, recommended 630 × 500. |
 | Page background (Theme → Background image) | `background-1920x1080.gif` (animated, 2.1 MB) or `background-1920x1080.png` (still) | 1920 × 1080 | Set "Don't repeat", position Top centre, tick **Fixed** (so it stays put while the page scrolls), background colour #0e0818. The animation stays on the two edges (the storm on the left, debris flying out to the right); the middle is still, behind the page column. Keep GIFs under about 3 MB: bigger ones can stop animating. Source: `background-scene.html`. |
 | Banner (page theme → Banner) | `banner-960x200.png` | 960 × 200 | The thin banner (use this one). Any width up to 960 px, replaces the title. The taller `banner-960x400.png` is still there if you want it. Source: `logo-scene.html?layout=strip&w=960&h=200`. |
+| Kaiju Madness screenshots | `shot-kj-1-atomic-breath.png`, `shot-kj-2-spin-throw.png`, `shot-kj-3-robot.png` | 1280 × 720 | Godzilly's Atomic Breath, Optimus Grime swinging a rival overhead, Getter Robot-o blasting Geezora. |
 | Screenshots | `shot-ta-1-title.png` … `shot-ta-8-shop.png` | 1280 × 720 | Upload all eight in order and remove the old Survival/Extract shots (`shot-1` … `shot-7`). |
 | Logo (optional, for the page header or devlog) | `logo-dead-city.png` | 768 × 512 | Rendered from `logo-scene.html` with the game's own city and storm. |
 
@@ -67,6 +68,7 @@ Small browser games built fast, tested on a phone, and tuned by playing. Dead Ci
 
 ## Version history
 
+- **1.10.0** (2026-10-18): MEGA KAIJU and nukes. Kaiju Madness: the camera pulls back as you grow (and closes in when you shrink), and MEGA boosters drop now and then: grab one and for 10 seconds you are bigger than a Colossus, take no damage, smash anything, and get one MEGA NUKE or MEGA ROAR that flattens everything around you. Tornado Alley: wreck the nuclear plant and it goes up in a mushroom cloud that flattens the blocks around it, then you are the NUKULAR NADO for 8 seconds, glowing yellow and tearing through anything.
 - **1.9.11** (2026-10-18): Swipe Combo no longer asks for a swipe down (left, right and up only).
 - **1.9.10** (2026-10-18): Spells match the skin: tornado lightning takes the storm skin's colours (red Firenado, green Acid Storm, orange with a black edge for Hallowstorm, and so on, for the tap bolts too), and skinned kaiju and the robots cast in their own colours.
 - **1.9.9** (2026-10-18): Kaiju Madness: 9 rounds in 10 now win a kaiju or robot in the prize games, and 1 in 5 win two.

@@ -2,6 +2,7 @@
 // and take out the big targets (power plant, water station, fairground and more on bigger maps). The more you wreck, the bigger you
 // grow, up to three times your starting size; tall towers only give way once you're big enough.
 import * as THREE from 'three';
+import { nukeBlast } from '../nuke.js';
 import { generateMaze, buildCity, toWorld, toCell, findPath, CELL, mulberry32 } from '../city.js';
 import { makeCharacter, animateWalk } from '../poster/characters.js';
 import { makeCar } from '../car.js';
@@ -225,7 +226,7 @@ function makeStorm() {
   const junk = []; const c = makeCar(...skinnedCarArgs([0xc23b3b, 0x4f8fd6, 0xe8d54a][(Math.random() * 3) | 0])); c.scale.setScalar(0.28); junk.push(c);
   junk.push(new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.45, 10), new THREE.MeshLambertMaterial({ color: 0x3a6a8a })));
   twObj = twisters.make(true, junk, equippedTornado()); twObj.position.set(0, 0, 0); scene.add(twObj); tw = twObj.userData.twister; tw.layers.forEach((L) => { L.userData.op0 = L.material.opacity; });
-  size = sizeShown = 1; mass = 0; twObj.scale.setScalar(S0);
+  size = sizeShown = 1; mass = 0; twObj.scale.setScalar(S0); nukeT = 0; nukeSave = null; nukeHalo = null; blasts.length = 0;
 }
 const reach = () => 1.6 * sizeShown; // ground radius that wrecks things
 let obsGrid = null, obsN = -1; const OG = 6;
@@ -383,10 +384,35 @@ function wreckPoi(k) {
   else if (k === 'firestation') { banner('NO FIRE CREWS! FIRES SPREAD'); fireBoost = true; } // lightning fires get bigger, burn faster and jump between buildings
   else if (k === 'police') { banner('JAILBREAK!'); for (let i = 0; i < 12; i++) spawnWalker(c, false); }
   else if (k === 'sewage') { banner('STINK STORM!'); tint(0x8a6a32); stink = true; } // people gag on the smell and can barely run
-  else if (k === 'nuclear') { banner('MELTDOWN!'); tint(0x7dff3a); flashT = 0.7; grow(massTarget * 0.25); fx.explode(new THREE.Vector3(c.x, 2, c.z), 3.5);
-    for (const x of buildings) if (!x.done && x.h <= maxH(sizeShown) && Math.hypot(x.pos.x - c.x, x.pos.z - c.z) < 8) wreckBuilding(x, true); } // the blast flattens the blocks around it
+  else if (k === 'nuclear') { banner('☢️ MELTDOWN!'); flashT = 1.2; sfx.boom(); setTimeout(() => sfx.boom(), 250); goNuke(c); } // a nuclear blast, then the Nukular Nado
 }
 let radarDown = false, radioDown = false, fireBoost = false, stink = false;
+
+// ---------- the nuclear plant goes up: a mushroom cloud and a shockwave that flattens everything in a wide ring (any
+// height), then the storm turns into the NUKULAR NADO for a few seconds: bigger, glowing bright yellow, and it wrecks
+// anything it touches ----------
+const NUKE_R = 22, NUKULAR_SECS = 8; const blasts = []; let nukeT = 0, nukeSave = null, nukeHalo = null, nukeTold = false;
+function goNuke(c) {
+  const at = new THREE.Vector3(c.x, 0, c.z); let done = 0;
+  blasts.push(nukeBlast(scene, at, NUKE_R, { kind: 'nuke', secs: 1.8, onRadius: (r) => { if (r - done < 1.2) return; done = r;
+    for (const x of buildings) if (!x.done && Math.hypot(x.pos.x - at.x, x.pos.z - at.z) < r) wreckBuilding(x, true);
+    for (let i = people.length - 1; i >= 0; i--) { const q = people[i]; if (Math.hypot(q.position.x - at.x, q.position.z - at.z) < r) { people.splice(i, 1); scene.remove(q); fx.puff('flame', q.position.clone().setY(0.3), 0.4); peopleN++; award(25, q.position); grow(0.12); } }
+    for (let i = drivers.length - 1; i >= 0; i--) { const q = drivers[i].g.position; if (Math.hypot(q.x - at.x, q.z - at.z) < r) { const o = drivers[i]; drivers.splice(i, 1); blowCar(o.g, q.clone()); } }
+    for (let i = cars.length - 1; i >= 0; i--) { const q = cars[i].getWorldPosition(new THREE.Vector3()); if (Math.hypot(q.x - at.x, q.z - at.z) < r) { const o = cars[i]; cars.splice(i, 1); blowCar(o, q); } } } }));
+  setTimeout(() => { if (state === 'play') goNukular(); }, 900);
+}
+function goNukular() {
+  nukeT = NUKULAR_SECS; nukeTold = false; banner('☢️ NUKULAR NADO!'); boostT = Math.max(boostT, NUKULAR_SECS); sfx.whoosh();
+  if (!nukeSave) nukeSave = tw.layers.map((L) => [L.material.color.getHex(), L.material.opacity]); for (const L of tw.layers) { L.material.color.setHex(0xffe600); L.material.opacity = Math.max(0.75, L.material.opacity); }
+  if (!nukeHalo) { nukeHalo = new THREE.Mesh(new THREE.CylinderGeometry(tw.r1 * 1.3, tw.r0 * 2, tw.H, 20, 1, true), new THREE.MeshBasicMaterial({ color: 0xffe21a, transparent: true, opacity: 0.3, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending })); nukeHalo.position.y = tw.H / 2; tw.g.add(nukeHalo); }
+}
+function updateNuke(dt) {
+  for (let i = blasts.length - 1; i >= 0; i--) if (!blasts[i].update(dt)) blasts.splice(i, 1);
+  if (nukeT <= 0) return; nukeT -= dt; const k = Math.sin(played * 14) * 0.5 + 0.5;
+  if (nukeHalo) { nukeHalo.material.opacity = 0.22 + 0.2 * k; nukeHalo.rotation.y += dt * 3; } for (const L of tw.layers) L.material.color.setHex(k > 0.5 ? 0xffe600 : 0xfff27a); if (nukeT < NUKULAR_SECS - 2.5 && !nukeTold) { nukeTold = true; banner('☢️ NUKULAR NADO!'); }
+  if (Math.random() < dt * 20) fx.puff('flame', twObj.position.clone().add(new THREE.Vector3((Math.random() - 0.5) * reach() * 2, 0.4 + Math.random() * 3, (Math.random() - 0.5) * reach() * 2)), 0.6);
+  if (nukeT <= 0) { nukeT = 0; if (nukeSave) tw.layers.forEach((L, i) => { L.material.color.setHex(nukeSave[i][0]); L.material.opacity = nukeSave[i][1]; }); nukeSave = null; if (nukeHalo) { tw.g.remove(nukeHalo); nukeHalo = null; } banner('NUKULAR OVER'); }
+}
 function spawnWalker(c, zombie) {
   const ch = zombie ? makeCharacter(['worker', 'suit', 'hoodie', 'plaid'][(Math.random() * 4) | 0], { zombie: true }) : makeCharacter('worker', { skin: { outfit: { shirt: 0xff7a1a, pants: 0xff7a1a, tie: null } } });
   const a = Math.random() * 6.28, r = reach() + 1.5 + Math.random() * 2.5; ch.scale.setScalar(0.25); ch.position.set(c.x + Math.cos(a) * r, 0, c.z + Math.sin(a) * r); collidePerson(ch);
@@ -541,13 +567,14 @@ function update(dt) {
     if (third) { let dd = Math.atan2(tmp.x, tmp.z) - camYaw; dd = Math.atan2(Math.sin(dd), Math.cos(dd)); camYaw += dd * Math.min(1, dt * 1.6) * mag; } }
   else if (!moveTo) { twObj.position.x += Math.sin(played * 0.9) * dt * 0.6; twObj.position.z += Math.cos(played * 0.7) * dt * 0.6; } // a tornado never sits still
   const lim = toWorld(cols - 1, rows - 1, cols, rows); twObj.position.x = Math.max(-lim.x, Math.min(lim.x, twObj.position.x)); twObj.position.z = Math.max(-lim.z, Math.min(lim.z, twObj.position.z));
-  sizeShown += (size - sizeShown) * Math.min(1, dt * 1.5); twObj.scale.setScalar(S0 * sizeShown);
+  updateNuke(dt);
+  sizeShown += ((nukeT > 0 ? size * 1.35 : size) - sizeShown) * Math.min(1, dt * 1.5); twObj.scale.setScalar(S0 * sizeShown);
   const px = twObj.position.x, pz = twObj.position.z, R = reach();
   if (Math.random() < dt * 8) fx.puff('smoke', new THREE.Vector3(px + (Math.random() - 0.5) * R * 2, 0.3, pz + (Math.random() - 0.5) * R * 2), 0.6 + sizeShown * 0.3);
   // buildings
   tooBigT -= dt;
   for (const x of buildings) { if (x.done) continue; const d = Math.hypot(x.pos.x - px, x.pos.z - pz); if (d > R + 1.15) continue;
-    if (x.h <= maxH(sizeShown)) wreckBuilding(x);
+    if (x.h <= maxH(sizeShown) || nukeT > 0) wreckBuilding(x);
     else { free(x.obj); x.obj.rotation.z = Math.sin(played * 40) * 0.02; if (tooBigT <= 0) { tooBigT = 2; popup(x.pos, 'TOO BIG - GROW!', '#ff7a5a'); tipA('ta_toobig', '🏢 Too tall for now. Wreck smaller stuff first to grow.'); } } }
   // targets
   for (const k of poiOrder) { const P = pois[k]; if (P.done || !P.hz.length) continue; if (Math.hypot(P.center.x - px, P.center.z - pz) > R + P.reach) continue;
@@ -628,4 +655,4 @@ function frame(now) {
 // a calm town behind the title screen
 buildWorld(); makeStorm(); twObj.position.set(-12, 0, -12); camTarget.set(0, 1, 0);
 requestAnimationFrame(frame);
-window.__ta = { THREE, get cam() { return viewCam(); }, get px() { return perfTick.ratio; }, get poiOrder() { return poiOrder; }, get tut() { return tut; }, get zapCd() { return zapCd; }, get engine() { return planeEngineLevel(); }, get music() { return stormMusicState(); }, get chunks() { return chunks; }, get flags() { return { radarDown, radioDown, fireBoost, stink }; }, get moveToV() { return moveTo; }, get city() { return city; }, tapAt, get moveTo() { return moveTo; }, get boostT() { return boostT; }, bench(n = 20) { const vc = viewCam(); renderer.render(scene, vc); const t0 = performance.now(); for (let i = 0; i < n; i++) renderer.render(scene, vc); renderer.getContext().finish(); return (performance.now() - t0) / n; }, get animN() { return city.season.anim.length; }, setSeason(s) { seasonI = SEASON_CYCLE.indexOf(s); roundN = 0; }, get season() { return seasonNow(); }, get calls() { return renderer.info.render.calls; }, get tris() { return renderer.info.render.triangles; }, spawnChaser, get chaser() { return chaser; }, get zoom() { return zoom; }, setZoom, get extraSeeders() { return extraSeeders; }, setView, get third() { return third; }, spawnPlane, get planes() { return planes; }, get mass() { return mass; }, get level() { return level; }, set level(v) { level = v; }, get bDone() { return bDone; }, set bDone(n) { bDone = n; }, get babies() { return twisters.babies; }, get totalB() { return totalB; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, get drivers() { return drivers; }, get state() { return state; }, get score() { return score; }, get size() { return sizeShown; }, get storm() { return twObj; }, get pois() { return pois; }, get buildings() { return buildings; }, get people() { return people; }, set tLeft(v) { tLeft = v; }, grow, start };
+window.__ta = { goNuke, get nukeT() { return nukeT; }, get stormPos() { return twObj.position; }, THREE, get cam() { return viewCam(); }, get px() { return perfTick.ratio; }, get poiOrder() { return poiOrder; }, get tut() { return tut; }, get zapCd() { return zapCd; }, get engine() { return planeEngineLevel(); }, get music() { return stormMusicState(); }, get chunks() { return chunks; }, get flags() { return { radarDown, radioDown, fireBoost, stink }; }, get moveToV() { return moveTo; }, get city() { return city; }, tapAt, get moveTo() { return moveTo; }, get boostT() { return boostT; }, bench(n = 20) { const vc = viewCam(); renderer.render(scene, vc); const t0 = performance.now(); for (let i = 0; i < n; i++) renderer.render(scene, vc); renderer.getContext().finish(); return (performance.now() - t0) / n; }, get animN() { return city.season.anim.length; }, setSeason(s) { seasonI = SEASON_CYCLE.indexOf(s); roundN = 0; }, get season() { return seasonNow(); }, get calls() { return renderer.info.render.calls; }, get tris() { return renderer.info.render.triangles; }, spawnChaser, get chaser() { return chaser; }, get zoom() { return zoom; }, setZoom, get extraSeeders() { return extraSeeders; }, setView, get third() { return third; }, spawnPlane, get planes() { return planes; }, get mass() { return mass; }, get level() { return level; }, set level(v) { level = v; }, get bDone() { return bDone; }, set bDone(n) { bDone = n; }, get babies() { return twisters.babies; }, get totalB() { return totalB; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, get drivers() { return drivers; }, get state() { return state; }, get score() { return score; }, get size() { return sizeShown; }, get storm() { return twObj; }, get pois() { return pois; }, get buildings() { return buildings; }, get people() { return people; }, set tLeft(v) { tLeft = v; }, grow, start };

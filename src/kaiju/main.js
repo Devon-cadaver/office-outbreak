@@ -13,6 +13,7 @@ import { unlockAudio, soundToggle, sfx, stopMusic, setPlaneEngine, startStormMus
 import { equippedSkin, skinnedCarArgs, addCoins, CHAR_SKINS, getEquipped } from '../skins.js';
 import { forceSeason } from '../season.js';
 import { showPrizes } from '../prizes.js';
+import { nukeBlast } from '../nuke.js';
 import { stampVersion } from '../version.js';
 import { initFullscreen } from '../fullscreen.js';
 import { showHowTo, tip, tipsSeen, markSeen, clearTips } from '../howto.js';
@@ -154,7 +155,7 @@ const reach = () => 0.55 + meScale * 0.5; // how far your stomps and jaws reach
 function grow(m) { if (m > 0) m *= [1, 1.5, 1.2, 1][stage]; mass = Math.min(massTarget, mass + m); } // a hatchling grows fast
 const ARMY_DMG = [0, 0.4, 0.75, 1]; // army damage by stage: small kaiju get off lightly
 function hurt(pct, from) {
-  if (state !== 'play' || !me) return; mass -= massTarget * pct / 100; hurtT = 0.35; slowT = Math.max(slowT, 0.6);
+  if (state !== 'play' || !me || megaT > 0) return; mass -= massTarget * pct / 100; hurtT = 0.35; slowT = Math.max(slowT, 0.6);
   if (from && Math.random() < 0.5) popup(me.g.position.clone().setY(meScale * 1.6), '-' + Math.max(1, Math.round(pct)) + '%', '#ff6a5a');
   if (mass <= 0) { mass = 0; die(); }
 }
@@ -172,6 +173,7 @@ function aimAt(cx, cy) {
 let moveTo = null;
 function tapAt(cx, cy) {
   const p = aimAt(cx, cy); if (!p) return;
+  if (megaT > 0 && !megaUsed) { megaBlast(); return; }
   if (power >= 1 && !leap) { power = 0; const face = Math.atan2(p.x - me.g.position.x, p.z - me.g.position.z); me.g.rotation.y = faceY = face; spells.cast(caster(me, stage), stage, p, {}); popup(me.g.position.clone().setY(meScale * 2), KAIJU[me.id].spells[stage - 1].toUpperCase() + '!', '#7dff3a'); markSeen('kj_cast'); return; }
   moveTo = p;
 }
@@ -205,7 +207,7 @@ function spill(at, n) {
 function blowCar(g, q) { free(g); twisters.scatter([g], q, 6); fx.explode(q.clone().setY(0.4), 1); fx.ignite(q.clone().setY(0.2), 0.7, 5); carsN++; award(80, q, 'BOOM'); grow(0.5); }
 function hitArea(c, r, pow, o = {}) {
   if (o.hostile) { if (me && Math.hypot(me.g.position.x - c.x, me.g.position.z - c.z) < r + reach() * 0.6) hurt(pow * 0.13, true); return; }
-  const cap = MAX_H[Math.min(3, stage + 1)];
+  const cap = megaT > 0 || o.mega ? 99 : MAX_H[Math.min(3, stage + 1)];
   for (const x of buildings) { if (x.done) continue; const d = Math.hypot(x.pos.x - c.x, x.pos.z - c.z); if (d > r) continue; if (x.h <= cap) crumble(x, o.freeze ? 'SHATTERED' : '', o.fire); else if (o.fire) fx.ignite(new THREE.Vector3(x.pos.x, 1, x.pos.z), 0.8, 4); }
   for (let i = people.length - 1; i >= 0; i--) { const p = people[i]; if (Math.hypot(p.position.x - c.x, p.position.z - c.z) < r) { people.splice(i, 1); peopleN++; award(20, p.position); grow(0.5); if (o.push) twisters.scatter([p], c, 6); else { scene.remove(p); fx.puff(o.freeze ? 'smoke' : 'flame', p.position.clone().setY(0.3), 0.4); } } }
   for (let i = drivers.length - 1; i >= 0; i--) { const q = drivers[i].g.position; if (Math.hypot(q.x - c.x, q.z - c.z) < r + 0.5) { const g = drivers[i].g; drivers.splice(i, 1); blowCar(g, q.clone()); } }
@@ -284,6 +286,44 @@ function rivalKO() {
   banner('K.O.!'); stormBoost(2);
 }
 const unlockedNow = [];
+
+// ---------- MEGA KAIJU: now and then a glowing booster drops somewhere nearby. Grab it and for 10 seconds you are bigger
+// than a Colossus, smash anything, take no damage, and get one MEGA spell: tap and it goes off around you (a nuke for
+// the atomic monsters and the machines, a huge sonic roar for the rest). Not used by the end? It goes off anyway. ----------
+const MEGA_SECS = 10;
+let megaT = 0, megaUsed = false, megaDrop = null, megaDropT = 30; const blasts = [];
+const megaArrow = document.createElement('div'); megaArrow.className = 'planeArrow megaArrow'; megaArrow.innerHTML = '<i>➤</i><em>⚡</em>'; document.body.appendChild(megaArrow);
+const megaEl = document.createElement('div'); megaEl.id = 'kjMega'; megaEl.className = 'hidden'; document.body.appendChild(megaEl);
+const NUKERS = new Set(['godzilly', 'mecha', 'mechax', 'destroyah', 'spaceyzilla', 'smogorah', 'megalawn']);
+const megaKind = (id) => (id === 'soundwavy' ? 'wave' : KAIJU[id].kind === 'robot' || NUKERS.has(id) ? 'nuke' : 'wave');
+function dropMega() {
+  const spots = []; for (const cc of roadCells) { const w = toWorld(cc[0], cc[1], cols, rows); const d = Math.hypot(w.x - me.g.position.x, w.z - me.g.position.z); if (d > 10 && d < 24) spots.push(w); } if (!spots.length) return;
+  const w = spots[(Math.random() * spots.length) | 0], g = new THREE.Group(); g.position.set(w.x, 0, w.z);
+  const glowM = (col, o) => new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: o, depthWrite: false, blending: THREE.AdditiveBlending });
+  const orb = new THREE.Mesh(new THREE.OctahedronGeometry(0.9, 0), new THREE.MeshBasicMaterial({ color: 0xffd21a })); orb.position.y = 2; g.add(orb);
+  const halo = new THREE.Mesh(new THREE.IcosahedronGeometry(1.5, 1), glowM(0xffb02a, 0.35)); halo.position.y = 2; g.add(halo);
+  const rings = [0, 1].map((i) => { const r = new THREE.Mesh(new THREE.TorusGeometry(1.4 + i * 0.4, 0.08, 6, 32), glowM(0xfff27a, 0.8)); r.position.y = 2; g.add(r); return r; });
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.9, 40, 12, 1, true), glowM(0xffd21a, 0.18)); beam.position.y = 20; g.add(beam);
+  const pad = new THREE.Mesh(new THREE.RingGeometry(1.6, 2.2, 32), glowM(0xffd21a, 0.6)); pad.rotation.x = -Math.PI / 2; pad.position.y = 0.1; g.add(pad);
+  scene.add(g); megaDrop = { g, orb, halo, rings, life: 25 }; banner('⚡ MEGA BOOSTER DROPPED!'); sfx.pickup(); popup(g.position.clone().setY(4), 'MEGA BOOSTER!', '#ffd21a');
+}
+function updateMega(dt) {
+  if (megaDrop) { const D = megaDrop; D.life -= dt; const t = played; D.orb.rotation.y += dt * 2; D.orb.position.y = D.halo.position.y = 2 + Math.sin(t * 3) * 0.3; D.rings[0].rotation.set(t * 1.7, t, 0); D.rings[1].rotation.set(-t, t * 1.3, 0.5); D.halo.scale.setScalar(1 + Math.sin(t * 6) * 0.1);
+    edgeArrow(megaArrow, D.g.position, true);
+    if (Math.hypot(D.g.position.x - me.g.position.x, D.g.position.z - me.g.position.z) < reach() + 1.6) { scene.remove(D.g); megaDrop = null; megaArrow.style.display = 'none'; goMega(); }
+    else if (D.life <= 0) { scene.remove(D.g); megaDrop = null; megaArrow.style.display = 'none'; megaDropT = 40 + Math.random() * 30; } }
+  else if (megaT <= 0 && !mini) { megaDropT -= dt; if (megaDropT <= 0) dropMega(); }
+  if (megaT > 0) { megaT -= dt; if (Math.random() < dt * 14) fx.puff('flame', me.g.position.clone().add(new THREE.Vector3((Math.random() - 0.5) * meScale, 0.3, (Math.random() - 0.5) * meScale)), 0.8);
+    megaEl.textContent = '⚡ MEGA ' + KAIJU[me.id].name + ' · ' + Math.ceil(megaT) + 's' + (megaUsed ? '' : ' · TAP FOR MEGA ' + (megaKind(me.id) === 'nuke' ? 'NUKE' : 'ROAR') + '!');
+    if (megaT <= 0) { if (!megaUsed) megaBlast(); megaT = 0; megaEl.className = 'hidden'; banner('MEGA OVER'); megaDropT = 50 + Math.random() * 30; } }
+  for (let i = blasts.length - 1; i >= 0; i--) if (!blasts[i].update(dt)) blasts.splice(i, 1);
+}
+function goMega() { megaT = MEGA_SECS; megaUsed = false; power = 1; boostT = MEGA_SECS; megaEl.className = ''; banner('⚡ MEGA ' + KAIJU[me.id].name + '!'); me.act('cast'); sfx.boom(); flashT = 0.35; stormBoost(3); }
+function megaBlast() {
+  megaUsed = true; const at = me.g.position.clone().setY(0), kind = megaKind(me.id), R = 18 + meScale * 1.2, o = {};
+  banner(kind === 'nuke' ? '☢️ MEGA NUKE!' : '🔊 MEGA ROAR!'); me.act('cast'); flashT = kind === 'nuke' ? 1.2 : 0.5; sfx.boom(); setTimeout(() => sfx.boom(), 200); setTimeout(() => sfx.boom(), 450);
+  let done = 0; blasts.push(nukeBlast(scene, at, R, { kind, color: me.tint ?? null, secs: kind === 'nuke' ? 1.6 : 1.1, onRadius: (r) => { if (r - done < 1.2) return; done = r; hitArea(at, r, 45, o); } }));
+}
 // each round's prize games hand out monsters: 90% of rounds give at least one, 20% give two (on the first goes; if the
 // round has fewer goes, the last go gives the rest). One you already have pays a whole coin
 let kjLeft = 0, goesLeft = 0;
@@ -443,7 +483,7 @@ const stick = { id: null, cx: 0, cy: 0, x: 0, y: 0 }; const stickEl = $('taStick
 function sDown(id, x, y) { if (stick.id !== null || state !== 'play') return; stick.id = id; stick.cx = x; stick.cy = y; stick.x = stick.y = 0; stick.t0 = performance.now(); stick.moved = 0; stickEl.style.left = x + 'px'; stickEl.style.top = y + 'px'; stickEl.style.display = 'none'; knobEl.style.transform = 'translate(-50%,-50%)'; }
 function sMove(id, x, y) { if (id !== stick.id) return; const dx = x - stick.cx, dy = y - stick.cy, d = Math.hypot(dx, dy) || 1, m = Math.min(d, 55); stick.moved = Math.max(stick.moved, d); if (stick.moved < 10) return; stickEl.style.display = 'block'; moveTo = null; stick.x = dx / d * m / 55; stick.y = dy / d * m / 55; knobEl.style.transform = 'translate(calc(-50% + ' + stick.x * 36 + 'px), calc(-50% + ' + stick.y * 36 + 'px))'; }
 function sUp(id, x, y) { if (id !== stick.id) return; const tap = stick.moved < 10 && performance.now() - stick.t0 < 300; stick.id = null; stick.x = stick.y = 0; stickEl.style.display = 'none'; if (tap && x != null && state === 'play') tapAt(stick.cx, stick.cy); }
-const ZOOM_MIN = 0.6, ZOOM_MAX = 1.3; let zoom = 1; try { zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, +localStorage.getItem('kj_zoom') || 1)); } catch { /* ignore */ }
+const ZOOM_MIN = 0.6, ZOOM_MAX = 1.3; let zoom = 1, camK = 1; // camK: the size step (wider at each stage, widest for mega) try { zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, +localStorage.getItem('kj_zoom') || 1)); } catch { /* ignore */ }
 function setZoom(z) { zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z)); try { localStorage.setItem('kj_zoom', String(zoom)); } catch { /* ignore */ } }
 let pinch = 0; const pinchD = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
 canvas.addEventListener('touchstart', (e) => { if (e.touches.length >= 2) { sUp(stick.id); pinch = pinchD(e.touches); return; } for (const t of e.changedTouches) sDown('t' + t.identifier, t.clientX, t.clientY); }, { passive: true });
@@ -464,6 +504,7 @@ soundToggle($('taStart'), $('taPaused')); // sound on/off on the start and pause
 const fsMode = initFullscreen(() => state === 'play'); // full screen on play, back in after a browser drop-out, no page scrolling mid-round
 function start() {
   fsMode.play();
+  megaT = 0; megaUsed = false; megaDropT = 25 + Math.random() * 15; if (megaDrop) scene.remove(megaDrop.g); megaDrop = null; megaArrow.style.display = 'none'; megaEl.className = 'hidden'; blasts.length = 0; camK = 1;
   unlockAudio(); buildWorld(); makeMe(); spells.clear(); score = 0; chain = 0; lastHit = -9; tLeft = L().time; played = 0; peopleN = carsN = bDone = 0; ko = 0; died = false; moveTo = null; slowT = 0; boostT = 0;
   for (const pl of planes) { scene.remove(pl.g); pl.arrow.remove(); } planes = []; planeT = 50 + Math.random() * 10; noPlanes = false; for (const b of bombs) scene.remove(b.m); bombs.length = 0; for (const f of fires) scene.remove(f.ring); fires.length = 0;
   if (rival) scene.remove(rival.g); rival = null; mini = null; lastMini = ''; miniEl.className = 'hidden'; rivalQueue = []; rivalWait = 0; queueRivals(1); unlockedNow.length = 0; sinking.length = 0; gulps.length = 0;
@@ -519,7 +560,8 @@ function update(dt) {
   // size = health: the bar, the stage, the scale
   meF = mass / massTarget; const st = stageOf(meF);
   if (st !== stage) { if (st > stage) { banner(STAGE[st] + '!'); stormBoost(3); boostT = 3; sfx.whoosh(); if (st > topStage) { topStage = st; queueRivals(st); } } else { banner('SHRANK TO ' + STAGE[st] + '!'); sfx.hurt(); } stage = st; }
-  meScale += (scaleOf(meF) - meScale) * Math.min(1, dt * 2); g.scale.setScalar(meScale);
+  meScale += ((megaT > 0 ? scaleOf(1) * 1.5 : scaleOf(meF)) - meScale) * Math.min(1, dt * 2); g.scale.setScalar(meScale);
+  updateMega(dt);
   power = Math.min(1, power + dt / CHARGE);
   // moving: a tap target, the stick or the keys; slowed when hit, faster after growing
   let sx = stick.x + ((keys.d || keys.arrowright) ? 1 : 0) - ((keys.a || keys.arrowleft) ? 1 : 0), sy = stick.y + ((keys.s || keys.arrowdown) ? 1 : 0) - ((keys.w || keys.arrowup) ? 1 : 0);
@@ -537,9 +579,9 @@ function update(dt) {
   // stomping: buildings it walks into come down (if it's big enough)
   tooBigT -= dt;
   for (const x of buildings) { if (x.done) continue; const d = Math.hypot(x.pos.x - px, x.pos.z - pz); if (d > R + 1.0) continue;
-    if (x.h <= MAX_H[stage]) { crumble(x); if (Math.random() < 0.4) me.act('hit'); } else if (tooBigT <= 0) { tooBigT = 2; popup(x.pos, 'TOO BIG - EAT MORE!', '#ff7a5a'); } }
+    if (x.h <= (megaT > 0 ? 99 : MAX_H[stage])) { crumble(x); if (Math.random() < 0.4) me.act('hit'); } else if (tooBigT <= 0) { tooBigT = 2; popup(x.pos, 'TOO BIG - EAT MORE!', '#ff7a5a'); } }
   for (const k of poiOrder) { const P = pois[k]; if (P.done || !P.hz.length) continue; if (Math.hypot(P.center.x - px, P.center.z - pz) > R + P.reach) continue;
-    if (stage >= POI[k].stage) { me.act('hit'); wreckPoi(k); } else if (tooBigT <= 0) { tooBigT = 2; popup(P.center, 'NEED ' + STAGE[POI[k].stage] + '!', '#ff7a5a'); } }
+    if ((megaT > 0 ? 3 : stage) >= POI[k].stage) { me.act('hit'); wreckPoi(k); } else if (tooBigT <= 0) { tooBigT = 2; popup(P.center, 'NEED ' + STAGE[POI[k].stage] + '!', '#ff7a5a'); } }
   // people: they run, and the ones it reaches get eaten
   frameN++;
   for (let i = people.length - 1; i >= 0; i--) { const c = people[i], u = c.userData; const dx = c.position.x - px, dz = c.position.z - pz, d = Math.hypot(dx, dz) || 0.01;
@@ -599,7 +641,8 @@ function frame(now) {
   if (city) { twisters.update(dt); fx.update(dt); city.updateRain(dt); spells.update(dt); }
   bannerT -= dt; if (bannerT <= 0) $('taBanner').style.opacity = 0;
   flashT = Math.max(0, flashT - dt); flashEl.style.opacity = Math.min(0.75, flashT * 3); hurtT = Math.max(0, hurtT - dt); darkT = Math.max(0, darkT - dt); darkEl.style.opacity = Math.min(0.72, darkT * 1.4); hurtEl.style.opacity = Math.min(0.55, hurtT * 2);
-  const a = innerWidth / innerHeight, s = me ? meScale / 1.5 : 1, half = (a < 1 ? (6 + s * 2.4) / a * 0.8 : 6 + s * 2.4) * zoom;
+  camK += ((megaT > 0 ? 1.15 : [1, 1, 1.15, 1.32][stage]) - camK) * Math.min(1, dt * 1.2);
+  const a = innerWidth / innerHeight, s = me ? meScale / 1.5 : 1, base = 7.2 + s * 2.8, half = (a < 1 ? base / a * 0.8 : base) * zoom * camK;
   cam.left = -half * a; cam.right = half * a; cam.top = half; cam.bottom = -half; cam.updateProjectionMatrix();
   if (me) camTarget.lerp(tmp.set(me.g.position.x, 1 + meScale * 0.4, me.g.position.z), Math.min(1, dt * 3)); cam.position.copy(camTarget).addScaledVector(isoDir, 80); cam.lookAt(camTarget);
   updatePops(dt); cullChunks(); perfTick(); renderer.render(scene, cam);
@@ -608,4 +651,4 @@ function frame(now) {
 function showcase() { if (state !== 'start') return; makeMe(); me.g.position.set(0, 0, 0); camTarget.set(0, 2, 0); }
 buildWorld(); makeMe(); camTarget.set(0, 2, 0);
 requestAnimationFrame(frame);
-window.__kj = { THREE, get me() { return me; }, get moveTo() { return moveTo; }, get mass() { return mass; }, set mass(v) { mass = v; }, get massTarget() { return massTarget; }, get stage() { return stage; }, get power() { return power; }, set power(v) { power = v; }, get rival() { return rival; }, spawnRival, spawnPlane, get planes() { return planes; }, get state() { return state; }, get score() { return score; }, get people() { return people; }, get buildings() { return buildings; }, get pois() { return pois; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, tapAt, get cam() { return cam; }, set tLeft(v) { tLeft = v; }, set level(v) { level = v; }, start, hurt, get calls() { return renderer.info.render.calls; }, get fires() { return fires; }, get mini() { return mini && { ...mini, side: mini.side }; }, startMini, get pool() { return pool.length; }, get unlocked() { return unlockedKaiju(); }, set pick(v) { pick = v; } };
+window.__kj = { dropMega, goMega, megaBlast, get megaT() { return megaT; }, get megaDrop() { return megaDrop; }, THREE, get me() { return me; }, get moveTo() { return moveTo; }, get mass() { return mass; }, set mass(v) { mass = v; }, get massTarget() { return massTarget; }, get stage() { return stage; }, get power() { return power; }, set power(v) { power = v; }, get rival() { return rival; }, spawnRival, spawnPlane, get planes() { return planes; }, get state() { return state; }, get score() { return score; }, get people() { return people; }, get buildings() { return buildings; }, get pois() { return pois; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, tapAt, get cam() { return cam; }, set tLeft(v) { tLeft = v; }, set level(v) { level = v; }, start, hurt, get calls() { return renderer.info.render.calls; }, get fires() { return fires; }, get mini() { return mini && { ...mini, side: mini.side }; }, startMini, get pool() { return pool.length; }, get unlocked() { return unlockedKaiju(); }, set pick(v) { pick = v; } };
