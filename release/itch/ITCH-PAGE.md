@@ -1,6 +1,6 @@
 # Dead City: Tornado Alley — itch.io page kit
 
-Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.10.3**. Upload `release/survive-dead-city-web-v1.10.3.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
+Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.10.4**. Upload `release/survive-dead-city-web-v1.10.4.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
 
 ## Upload settings (Edit game page)
 
@@ -11,7 +11,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 | Short description / tagline | You are the storm. Tear through five towns, take out big targets, dodge seeding planes and outrun storm chasers. |
 | Classification | Game |
 | Kind of project | **HTML** |
-| Uploads | `survive-dead-city-web-v1.10.3.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
+| Uploads | `survive-dead-city-web-v1.10.4.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
 | Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
 | Frame options | Leave SharedArrayBuffer off. No special headers needed. |
 | Pricing | Free (or "No payments"). |
@@ -68,6 +68,7 @@ Small browser games built fast, tested on a phone, and tuned by playing. Dead Ci
 
 ## Version history
 
+- **1.10.4** (2026-10-18): Rounds end in the world: the storm dies away, or your monster burrows into the ground or flies off. Music on the title screen, no more flash of an old menu while a game loads, and a skin shop you swipe sideways with locked monsters' skins in their own row.
 - **1.10.3** (2026-10-18): Kaiju fights look like fights: monsters collide instead of passing through, robots rock back firing bullets and rockets, monsters spin and fling spells. A slimmer Tornado Alley tutorial. And save codes: copy your progress from the main menu and load it on any device.
 - **1.10.2** (2026-10-18): The prize game gets its own screen before your score, Kaiju Madness has a proper monster picker (a scrolling screen with a picture of every monster), and the start buttons just say PLAY.
 - **1.10.1** (2026-10-18): A green tornado icon when you add the game to your home screen, the Nukular Nado lasts 15 seconds, and a Restart Level button (tap twice to confirm) on the pause screen of both games.

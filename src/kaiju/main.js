@@ -552,8 +552,19 @@ function start() {
   renderer.compile(scene, cam); $('taLevel').textContent = 'L' + level + ' · goal ' + L().goal + '%'; for (const k in hudCache) delete hudCache[k];
 }
 function togglePause() { if (state === 'play') { state = 'paused'; setPlaneEngine(0); stopMusic(); $('taPaused').classList.remove('hidden'); } else if (state === 'paused') { state = 'play'; $('taPaused').classList.add('hidden'); startStormMusic(); setStormLevel(stage * 2 - 1); } }
-function die() { if (died) return; died = true; me.act('ko'); banner('KAIJU DOWN!'); sfx.over(); setTimeout(finish, 1800); state = 'dying'; }
-function finish() {
+function die() { if (died) return; died = true; me.act('ko'); banner('KAIJU DOWN!'); sfx.over(); setTimeout(finishNow, 1800); state = 'dying'; }
+// time's up: the monster burrows back into the ground (flyers take off into the sky) and the city goes quiet, then the
+// prizes and the score
+let outroT = 0;
+function finish() { if (state !== 'play') return; state = 'outro'; outroT = 0; mini = null; miniEl.className = 'hidden'; stopMusic(); setPlaneEngine(0); sUp(stick.id); clearTips(); moveTo = null; megaT = 0; megaEl.className = 'hidden';
+  banner('THE MADNESS HAS ENDED!'); me.act('cast'); sfx.boom(); setTimeout(() => sfx.whoosh(), 500); setTimeout(() => sfx.boom(), 1300); }
+function outroTick(dt) { outroT += dt; const g = me.g, k = Math.min(1, outroT / 2.6);
+  if (me.fly) { g.position.y += dt * (2 + outroT * 9); g.rotation.y += dt * 0.6; me.anim(dt, 1); if (Math.random() < dt * 12) fx.puff('smoke', g.position.clone().setY(0.3), 0.5 + meScale * 0.2); }
+  else { g.position.y = -k * k * meScale * 2.4; me.anim(dt, 0.6); if (outroT % 0.45 < dt) me.act('hit');
+    if (Math.random() < dt * 30 * (1 - k * 0.5)) { const a = Math.random() * 6.28, r = meScale * (0.4 + Math.random() * 0.6); fx.puff('smoke', new THREE.Vector3(g.position.x + Math.cos(a) * r, 0.2, g.position.z + Math.sin(a) * r), 0.6 + meScale * 0.25); }
+    if (outroT % 0.6 < dt) { flashT = Math.max(flashT, 0.06); sfx.hit(); } }
+  if (outroT >= 3.1) { g.visible = false; finishNow(); } }
+function finishNow() {
   state = 'over'; mini = null; miniEl.className = 'hidden'; stopMusic(); setPlaneEngine(0); sUp(stick.id); clearTips(); const done = poiOrder.filter((k) => pois[k].done); for (const k of poiOrder) if (pois[k].arrow) pois[k].arrow.style.display = 'none'; rivalEl.classList.add('hidden'); rivalArrow.style.display = 'none'; for (const pl of planes) pl.arrow.style.display = 'none';
   let best = 0; const bk = 'kj_best_' + level; try { best = +localStorage.getItem(bk) || 0; if (score > best) { best = score; localStorage.setItem(bk, String(score)); } } catch { /* ignore */ }
   const pct = Math.round((bDone / totalB) * 100); const need = Math.min(L().need, poiOrder.length); const cleared = !died && pct >= L().goal && done.length >= need;
@@ -700,7 +711,7 @@ addEventListener('resize', () => renderer.setSize(innerWidth, innerHeight, false
 const camTarget = new THREE.Vector3(); let last = performance.now();
 function frame(now) {
   requestAnimationFrame(frame); const dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = now;
-  if (state === 'play') update(dt); else if (state === 'dying' && me) { me.anim(dt, 0); if (rival) rival.rig.anim(dt, 0); } else if (me) me.anim(dt, 0.15);
+  if (state === 'play') update(dt); else if (state === 'outro' && me) outroTick(dt); else if (state === 'dying' && me) { me.anim(dt, 0); if (rival) rival.rig.anim(dt, 0); } else if (me) me.anim(dt, 0.15);
   if (city) { twisters.update(dt); fx.update(dt); city.updateRain(dt); spells.update(dt); }
   bannerT -= dt; if (bannerT <= 0) $('taBanner').style.opacity = 0;
   flashT = Math.max(0, flashT - dt); flashEl.style.opacity = Math.min(0.75, flashT * 3); hurtT = Math.max(0, hurtT - dt); darkT = Math.max(0, darkT - dt); darkEl.style.opacity = Math.min(0.72, darkT * 1.4); hurtEl.style.opacity = Math.min(0.55, hurtT * 2);
@@ -718,5 +729,5 @@ function frame(now) {
 // the title screen: a calm town with your kaiju in it
 function showcase() { if (state !== 'start') return; makeMe(); me.g.position.set(0, 0, 0); camTarget.set(0, 2, 0); }
 buildWorld(); makeMe(); camTarget.set(0, 2, 0);
-requestAnimationFrame(frame);
+requestAnimationFrame(frame); requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove('booting'))); // the start screen is ready now
 window.__kj = { flourish, get anims() { return anims.length; }, dropMega, goMega, megaBlast, get megaT() { return megaT; }, get megaDrop() { return megaDrop; }, THREE, get me() { return me; }, get moveTo() { return moveTo; }, get mass() { return mass; }, set mass(v) { mass = v; }, get massTarget() { return massTarget; }, get stage() { return stage; }, get power() { return power; }, set power(v) { power = v; }, get rival() { return rival; }, spawnRival, spawnPlane, get planes() { return planes; }, get state() { return state; }, get score() { return score; }, get people() { return people; }, get buildings() { return buildings; }, get pois() { return pois; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, tapAt, get cam() { return cam; }, set tLeft(v) { tLeft = v; }, set level(v) { level = v; }, start, hurt, get calls() { return renderer.info.render.calls; }, get fires() { return fires; }, get mini() { return mini && { ...mini, side: mini.side }; }, startMini, get pool() { return pool.length; }, get unlocked() { return unlockedKaiju(); }, set pick(v) { pick = v; } };

@@ -152,3 +152,6 @@ body.look #game { cursor: grab; }
 #taRestart.armed { color: #ff7a5a; border-color: #ff5a3a; box-shadow: 0 0 12px #ff5a3a88; }
 /* trailer camera (?cine=side): no HUD */
 body.cine #ta, body.cine #taBanner, body.cine .fsBtn, body.cine #kjRival, body.cine #kjMega, body.cine .planeArrow, body.cine #kjMini .panel, body.cine .pop, body.cine .fsTip, body.cine .gameTip { visibility: hidden !important; }
+/* while a game page loads, hide its start screen (it isn't filled in yet) and show LOADING instead */
+body.booting .screen { visibility: hidden; }
+body.booting::after { content: 'LOADING…'; position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; font: 900 22px system-ui, sans-serif; letter-spacing: .3em; color: #7dff3a; background: #120a1f; z-index: 100; }

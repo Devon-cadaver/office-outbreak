@@ -42,7 +42,10 @@
     <button class="choice" onclick="location.href='store.html'" style="border-color:#ffd24a;box-shadow:0 6px 0 #5a4a1a"><b style="color:#ffd24a">SKIN SHOP</b><span>Spend your coins on tornado skins, townsfolk outfits and the cars in town.</span><span class="saved" id="coins"></span></button>
 
   </div>
-  <script type="module">import { stampVersion } from './src/version.js'; import { startMenuScene } from './src/menuScene.js'; import { initSaveCodes } from './src/savecode.js'; stampVersion(); initSaveCodes(document.getElementById('menu'));
+  <script type="module">import { stampVersion } from './src/version.js'; import { startMenuScene } from './src/menuScene.js'; import { initSaveCodes } from './src/savecode.js'; import { unlockAudio, startStormMusic, setStormLevel, soundToggle } from './src/audio.js';
+    // title music: the storm theme, from the first tap anywhere (browsers won't play sound before one)
+    { let on = false; const go = () => { if (on) return; on = true; unlockAudio(); startStormMusic(); setStormLevel(1); }; addEventListener('pointerdown', go, { capture: true }); addEventListener('keydown', go, { capture: true }); }
+    soundToggle(document.getElementById('menu')); stampVersion(); initSaveCodes(document.getElementById('menu'));
     // the title is a live scene from the game; without WebGL it falls back to the drawn logo
     const art = document.getElementById('titleArt'); window.__menu = startMenuScene(document.getElementById('titleCanvas'), document.getElementById('titleFlash')); if (!window.__menu) art.innerHTML = '<img src="./title.svg" alt="Dead City: Tornado Alley">';</script>
   <script>
