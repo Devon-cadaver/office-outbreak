@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Dead City app icon</title>
+<style>
+  html, body { margin: 0; background: #0e0818; }
+  #wrap { position: relative; width: 512px; height: 512px; overflow: hidden; background: radial-gradient(circle at 50% 42%, #2e5a1a 0%, #142a12 38%, #0e0818 78%); }
+  canvas { position: absolute; inset: 0; }
+</style>
+</head>
+<body>
+<!-- Home-screen icon: the Acid Storm, a green tornado, on a dark glow. Open via the dev server at
+     /release/itch/icon-scene.html and screenshot the 512x512 #wrap; scale it down for the 192 and 180 icons. -->
+<div id="wrap"></div>
+<script type="module">
+import * as THREE from 'three';
+import { createTwisters } from '/src/tornado.js';
+const wrap = document.getElementById('wrap');
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); renderer.setSize(512, 512); renderer.setPixelRatio(1); wrap.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.add(new THREE.HemisphereLight(0xd0ffd0, 0x1a2a1a, 1.4)); const sun = new THREE.DirectionalLight(0xffffff, 0.8); sun.position.set(3, 8, 5); scene.add(sun);
+const cam = new THREE.PerspectiveCamera(36, 1, 0.1, 200); cam.position.set(0, 7.2, 27.5); cam.lookAt(0, 6.1, 0);
+// a dark disc of ground with a green glow where the funnel touches down
+const ground = new THREE.Mesh(new THREE.CircleGeometry(9, 48), new THREE.MeshBasicMaterial({ color: 0x0c1a0a })); ground.rotation.x = -Math.PI / 2; scene.add(ground);
+const glow = new THREE.Mesh(new THREE.CircleGeometry(4, 40), new THREE.MeshBasicMaterial({ color: 0x7dff3a, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false })); glow.rotation.x = -Math.PI / 2; glow.position.y = 0.02; scene.add(glow);
+const tw = createTwisters(scene); const t = tw.make(true, [], 'acid'); t.position.set(0, 0, 0); scene.add(t);
+for (let i = 0; i < 24; i++) tw.update(1 / 30);
+renderer.render(scene, cam);
+window.iconReady = true;
+</script>
+</body>
+</html>

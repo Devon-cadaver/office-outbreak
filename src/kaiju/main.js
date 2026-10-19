@@ -549,6 +549,10 @@ function drawPicker() { const box = $('kjPick'); box.innerHTML = ''; const un = 
   const K = KAIJU[pick]; $('kjPickInfo').innerHTML = '<b>' + K.name + '</b> · ' + K.spells.join(' → ') + '<br><small>' + un.length + ' of ' + KAIJU_IDS.length + ' unlocked. Win more in the prize games after each round.</small>'; }
 level = unlockedLevel(); drawLevels(); drawPicker();
 $('taPause').addEventListener('click', togglePause); $('taResume').addEventListener('click', togglePause);
+// restart the level from the pause screen; the first tap asks, a second tap within 3 seconds does it
+{ const rb = $('taRestart'); let armT = 0; const reset = () => { armT = 0; rb.textContent = '↺ RESTART LEVEL'; rb.classList.remove('armed'); };
+  rb.addEventListener('click', () => { if (!armT || performance.now() - armT > 3000) { armT = performance.now(); rb.textContent = '↺ SURE? TAP AGAIN TO RESTART'; rb.classList.add('armed'); setTimeout(() => { if (armT && performance.now() - armT >= 2900) reset(); }, 3000); return; }
+    reset(); $('taPaused').classList.add('hidden'); start(); }); }
 
 // ---------- update ----------
 const right = new THREE.Vector3(), upv = new THREE.Vector3(), tmp = new THREE.Vector3(); let frameN = 0;

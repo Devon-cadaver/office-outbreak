@@ -148,3 +148,4 @@ body.look #game { cursor: grab; }
 .fsTip { position: fixed; left: 50%; top: calc(12px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); z-index: 60; width: min(92vw, 460px); padding: 10px 14px; border-radius: 12px; background: #1a0f2ef0; border: 2px solid #7dff3a; color: #fff; font-size: 14px; line-height: 1.35; text-align: center; pointer-events: none; animation: fsTipIn .3s ease-out; }
 @keyframes fsTipIn { from { opacity: 0; transform: translate(-50%, -10px); } }
 .soundBtn { font-size: 13px; padding: 6px 14px; }
+#taRestart.armed { color: #ff7a5a; border-color: #ff5a3a; box-shadow: 0 0 12px #ff5a3a88; }

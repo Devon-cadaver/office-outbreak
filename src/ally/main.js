@@ -391,7 +391,7 @@ let radarDown = false, radioDown = false, fireBoost = false, stink = false;
 // ---------- the nuclear plant goes up: a mushroom cloud and a shockwave that flattens everything in a wide ring (any
 // height), then the storm turns into the NUKULAR NADO for a few seconds: bigger, glowing bright yellow, and it wrecks
 // anything it touches ----------
-const NUKE_R = 22, NUKULAR_SECS = 8; const blasts = []; let nukeT = 0, nukeSave = null, nukeHalo = null, nukeTold = false;
+const NUKE_R = 22, NUKULAR_SECS = 15; const blasts = []; let nukeT = 0, nukeSave = null, nukeHalo = null, nukeTold = false;
 function goNuke(c) {
   const at = new THREE.Vector3(c.x, 0, c.z); let done = 0;
   blasts.push(nukeBlast(scene, at, NUKE_R, { kind: 'nuke', secs: 1.8, onRadius: (r) => { if (r - done < 1.2) return; done = r;
@@ -548,6 +548,10 @@ function drawLevels() { const box = $('taLevels'); box.innerHTML = ''; const un 
   b.className = 'lvl' + (n === level ? ' on' : ''); b.disabled = n > un; b.innerHTML = '<b>' + (n > un ? '🔒' : n) + '</b><span>' + lv.name + '</span>' + (best ? '<i>' + best + '</i>' : ''); b.addEventListener('click', () => { level = n; drawLevels(); }); box.appendChild(b); }); }
 level = unlocked(); if (import.meta.env.DEV) { const q = +new URLSearchParams(location.search).get('level'); if (q >= 1 && q <= LEVELS.length) level = q; } drawLevels();
 $('taPause').addEventListener('click', togglePause); $('taResume').addEventListener('click', togglePause);
+// restart the level from the pause screen; the first tap asks, a second tap within 3 seconds does it
+{ const rb = $('taRestart'); let armT = 0; const reset = () => { armT = 0; rb.textContent = '↺ RESTART LEVEL'; rb.classList.remove('armed'); };
+  rb.addEventListener('click', () => { if (!armT || performance.now() - armT > 3000) { armT = performance.now(); rb.textContent = '↺ SURE? TAP AGAIN TO RESTART'; rb.classList.add('armed'); setTimeout(() => { if (armT && performance.now() - armT >= 2900) reset(); }, 3000); return; }
+    reset(); $('taPaused').classList.add('hidden'); start(!!tut); }); }
 
 
 // ---------- update ----------
