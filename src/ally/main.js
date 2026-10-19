@@ -172,7 +172,13 @@ const TUT = [null,
   ['Done!', '🏆 That\'s it! In a real round, flatten the goal % and take out enough big targets before the clock runs out.'],
 ];
 function ringAt(dist) { // a pulsing ring on the ground some way from the storm, inside the town
-  if (!tutRing) { tutRing = new THREE.Mesh(new THREE.RingGeometry(1.3, 1.8, 36), new THREE.MeshBasicMaterial({ color: 0xffd24a, transparent: true, opacity: 0.9, depthWrite: false, side: THREE.DoubleSide })); tutRing.rotation.x = -Math.PI / 2; scene.add(tutRing); }
+  if (!tutRing) { // a target you can't miss: drawn over everything, a glowing disc, a thick ring and a bouncing arrow above it
+    tutRing = new THREE.Group(); const top = (m) => { m.material.depthTest = false; m.renderOrder = 20; return m; };
+    const disc = top(new THREE.Mesh(new THREE.CircleGeometry(1.9, 40), new THREE.MeshBasicMaterial({ color: 0xffd24a, transparent: true, opacity: 0.25, depthWrite: false, side: THREE.DoubleSide }))); disc.rotation.x = -Math.PI / 2;
+    const edge = top(new THREE.Mesh(new THREE.RingGeometry(1.75, 2.15, 48), new THREE.MeshBasicMaterial({ color: 0x1a0f2e, transparent: true, opacity: 0.8, depthWrite: false, side: THREE.DoubleSide }))); edge.rotation.x = -Math.PI / 2;
+    const ring = top(new THREE.Mesh(new THREE.RingGeometry(1.5, 1.95, 48), new THREE.MeshBasicMaterial({ color: 0xffd24a, transparent: true, opacity: 0.95, depthWrite: false, side: THREE.DoubleSide }))); ring.rotation.x = -Math.PI / 2;
+    const arrow = top(new THREE.Mesh(new THREE.ConeGeometry(0.7, 1.4, 4), new THREE.MeshBasicMaterial({ color: 0xffd24a, transparent: true, opacity: 1, depthWrite: false }))); arrow.rotation.x = Math.PI; arrow.position.y = 3;
+    tutRing.add(disc, edge, ring, arrow); tutRing.userData = { ring, disc, arrow }; scene.add(tutRing); }
   const lim = toWorld(cols - 2, rows - 2, cols, rows); let best = null;
   const vc = viewCam(); vc.updateMatrixWorld(); const off = new THREE.Vector3(camTarget.x - twObj.position.x, 0, camTarget.z - twObj.position.z); // judged as if the camera were already centred on the storm
   for (let k = 0; k < 60; k++) { const a = Math.random() * 6.28, d = dist * (0.6 + Math.random() * 0.4); const x = twObj.position.x + Math.cos(a) * d, z = twObj.position.z + Math.sin(a) * d; if (Math.abs(x) >= lim.x || Math.abs(z) >= lim.z) continue; const v = new THREE.Vector3(x + off.x, 0, z + off.z).project(vc); if (Math.abs(v.x) < 0.7 && v.y > -0.55 && v.y < 0.45) { best = [x, z]; break; } } // on screen, clear of the HUD
@@ -188,7 +194,7 @@ function tutGo(n) {
 }
 function tutUpdate(dt) {
   tut.t += dt; for (const g of tutMarks) { g.userData.badge.position.y = 4.6 + Math.sin(played * 3) * 0.3; g.userData.ring.material.opacity = 0.55 + Math.sin(played * 5) * 0.3; }
-  if (tutRing && tutRing.visible) { tutRing.scale.setScalar(1 + Math.sin(played * 5) * 0.12); tutRing.material.opacity = 0.65 + Math.sin(played * 5) * 0.25; }
+  if (tutRing && tutRing.visible) { const u = tutRing.userData, k = Math.sin(played * 5); u.ring.scale.setScalar(1 + k * 0.1); u.disc.material.opacity = 0.2 + k * 0.1; u.arrow.position.y = 2.6 + Math.abs(Math.sin(played * 4)) * 1.2; u.arrow.rotation.y += 0.05; }
   const s = tut.step, near = tutRing && Math.hypot(twObj.position.x - tutRing.position.x, twObj.position.z - tutRing.position.z) < 1.9; let ok = false;
   if (s === 1) ok = near; else if (s === 2) ok = tut.hit && near; else if (s === 3) ok = rankOf(sizeShown) >= 1; else if (s === 4) ok = pois.cemetery && pois.cemetery.done;
   else if (s === 5) { ok = tut.planeZapped; if (!ok && !planes.some((pl) => pl.life > 0)) { tutGo(5); return; } } else if (s === 6) ok = tut.chaserDone;
