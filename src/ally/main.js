@@ -7,7 +7,7 @@ import { makeCharacter, animateWalk } from '../poster/characters.js';
 import { makeCar } from '../car.js';
 import { createTwisters } from '../tornado.js';
 import { createFires } from '../fire.js';
-import { unlockAudio, sfx, stopMusic, siren, setPlaneEngine, planeEngineLevel, startStormMusic, setStormLevel, stormBoost, stormMusicState } from '../audio.js';
+import { unlockAudio, sfx, stopMusic, setPlaneEngine, planeEngineLevel, startStormMusic, setStormLevel, stormBoost, stormMusicState } from '../audio.js';
 import { equippedSkin, equippedTornado, skinnedCarArgs, addCoins, grantSkin, equip, CHAR_SKINS } from '../skins.js';
 import { forceSeason } from '../season.js';
 import { showChests } from '../chests.js';
@@ -187,14 +187,27 @@ function tutGo(n) {
   else if (n === 6) spawnChaser();
 }
 function tutUpdate(dt) {
-  tut.t += dt; if (tutRing && tutRing.visible) { tutRing.scale.setScalar(1 + Math.sin(played * 5) * 0.12); tutRing.material.opacity = 0.65 + Math.sin(played * 5) * 0.25; }
+  tut.t += dt; for (const g of tutMarks) { g.userData.badge.position.y = 4.6 + Math.sin(played * 3) * 0.3; g.userData.ring.material.opacity = 0.55 + Math.sin(played * 5) * 0.3; }
+  if (tutRing && tutRing.visible) { tutRing.scale.setScalar(1 + Math.sin(played * 5) * 0.12); tutRing.material.opacity = 0.65 + Math.sin(played * 5) * 0.25; }
   const s = tut.step, near = tutRing && Math.hypot(twObj.position.x - tutRing.position.x, twObj.position.z - tutRing.position.z) < 1.9; let ok = false;
   if (s === 1) ok = near; else if (s === 2) ok = tut.hit && near; else if (s === 3) ok = rankOf(sizeShown) >= 1; else if (s === 4) ok = pois.cemetery && pois.cemetery.done;
   else if (s === 5) { ok = tut.planeZapped; if (!ok && !planes.some((pl) => pl.life > 0)) { tutGo(5); return; } } else if (s === 6) ok = tut.chaserDone;
   if (ok && !tut.wait) { tut.wait = true; $('taTut').classList.add('ok'); $('taTutStep').textContent = '✓ NICE!'; sfx.pickup(); setTimeout(() => { if (!tut) return; tut.wait = false; tutGo(s + 1); }, 1400); }
 }
+// tutorial markers: a blue circle on the ground round every big target (a filled disc and a pulsing ring), with a
+// small badge above showing the same icon as the target's chip up top
+const tutMarks = [];
+function addTutMarkers() {
+  for (const k of poiOrder) { const P = pois[k], g = new THREE.Group(); g.position.set(P.center.x, 0, P.center.z); const r = (k === 'fair' ? 4.6 : 2.1);
+    const ring = new THREE.Mesh(new THREE.RingGeometry(r, r + 0.35, 40), new THREE.MeshBasicMaterial({ color: 0x3aa8ff, transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.12; g.add(ring);
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(r, 40), new THREE.MeshBasicMaterial({ color: 0x3aa8ff, transparent: true, opacity: 0.2, depthWrite: false, side: THREE.DoubleSide })); disc.rotation.x = -Math.PI / 2; disc.position.y = 0.1; g.add(disc);
+    const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'); x.fillStyle = '#1a6ad8'; x.beginPath(); x.arc(64, 64, 58, 0, 6.2832); x.fill(); x.lineWidth = 8; x.strokeStyle = '#bfe4ff'; x.stroke(); x.font = '64px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(POI[k].icon, 64, 70);
+    const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; const badge = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false })); badge.scale.setScalar(1.6); badge.position.y = 4.6; badge.renderOrder = 9; g.add(badge);
+    g.userData = { ring, badge }; scene.add(g); P.mark = g; tutMarks.push(g); }
+}
+function clearTutMarks() { for (const g of tutMarks) scene.remove(g); tutMarks.length = 0; for (const k in pois) pois[k].mark = null; }
 function endTutorial() { // back to the title screen with a calm town, tutorial ticked off
-  markSeen('ta_tutorial'); markSeen('ta_howto'); tut = null; state = 'start'; stopMusic(); clearTips(); if (tutRing) { scene.remove(tutRing); tutRing = null; } clearPlanes();
+  markSeen('ta_tutorial'); markSeen('ta_howto'); tut = null; clearTutMarks(); state = 'start'; stopMusic(); clearTips(); if (tutRing) { scene.remove(tutRing); tutRing = null; } clearPlanes();
   for (const k in pois) if (pois[k].arrow) pois[k].arrow.style.display = 'none'; $('taTut').classList.add('hidden'); $('ta').classList.add('hidden'); $('taStart').classList.remove('hidden');
   buildWorld(); makeStorm(); twObj.position.set(-12, 0, -12); drawLevels();
 }
@@ -227,7 +240,7 @@ function updatePops(dt) { for (const o of pops) { if (o.t <= 0) continue; o.t -=
 let bannerT = 0; function banner(text) { $('taBanner').textContent = text; $('taBanner').style.opacity = 1; bannerT = 2.2; }
 
 // ---------- wreckage ----------
-function grow(m) { if (tut && m > 0) m *= 2; mass = Math.max(0, mass + m); size = Math.min(MAX_S, 1 + (MAX_S - 1) * Math.min(1, mass / massTarget)); }
+function grow(m) { if (tut && m > 0) m *= 2; mass = Math.max(0, mass + m); size = Math.min(tut ? 2.15 : MAX_S, 1 + (MAX_S - 1) * Math.min(1, mass / massTarget)); } // the tutorial storm stays under F3, so planes have to be zapped
 
 // ---------- the storm's enemy: cloud-seeding planes. They hunt the storm and spray it, and the spray shrinks it.
 // Grow to F3 and a plane that flies into the funnel gets swallowed instead. ----------
@@ -239,7 +252,7 @@ function spawnPlane() {
   const g = makePlane(); g.position.set(Math.cos(a) * R0, 6.5 + Math.random(), Math.sin(a) * R0); scene.add(g);
   const zone = new THREE.Mesh(new THREE.RingGeometry(3.2, 4, 32), new THREE.MeshBasicMaterial({ color: 0x9fd6ff, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide })); zone.rotation.x = -Math.PI / 2; scene.add(zone);
   const arrow = document.createElement('div'); arrow.className = 'planeArrow'; arrow.textContent = '✈'; document.body.appendChild(arrow);
-  planes.push({ g, zone, arrow, heading: Math.atan2(-g.position.x, -g.position.z), life: 26, spraying: false }); banner('✈ CLOUD SEEDER!'); siren(); tipA('ta_plane', '✈ Seeding plane! Its spray shrinks you. Dodge the blue ring, or tap the plane to zap it.');
+  planes.push({ g, zone, arrow, heading: Math.atan2(-g.position.x, -g.position.z), life: 26, spraying: false }); banner('✈ CLOUD SEEDER!'); sfx.whoosh(); tipA('ta_plane', '✈ Seeding plane! Its spray shrinks you. Dodge the blue ring, or tap the plane to zap it.');
 }
 function updatePlanes(dt, px, pz, R) {
   const S = SEED(); seedT -= dt; const maxUp = 1 + Math.floor((level - 1) / 2) + extraSeeders; if (!tut && !radarDown && seedT <= 0 && rankOf(sizeShown) >= S.minRank) { seedT = S.every + Math.random() * 6; if (planes.length < maxUp) spawnPlane(); }
@@ -255,17 +268,17 @@ function updatePlanes(dt, px, pz, R) {
       const v = g.position.clone().project(viewCam()); const off = Math.abs(v.x) > 0.95 || Math.abs(v.y) > 0.95; pl.arrow.style.display = off && pl.life > 0 ? 'block' : 'none';
       if (off) { const a = Math.atan2(v.y, v.x), k = 0.9 / Math.max(Math.abs(Math.cos(a)), Math.abs(Math.sin(a))); const sx = (Math.cos(a) * k * 0.5 + 0.5) * innerWidth, sy = (-Math.sin(a) * k * 0.5 + 0.5) * innerHeight; pl.arrow.style.transform = 'translate(' + sx + 'px,' + sy + 'px) translate(-50%,-50%) rotate(' + (-a + Math.PI / 4) + 'rad)'; } }
     // swallowed by a big enough storm
-    if (rankOf(sizeShown) >= 3 && d < topR && g.position.y < stormH + 1) { planes.splice(i, 1); scene.remove(pl.zone); pl.arrow.remove(); twisters.suck(g, tw); award(500, g.position, 'PLANE DOWN'); grow(2); banner('PLANE DOWN!'); sfx.boom(); fx.explode(g.position.clone(), 1); continue; }
+    if (!tut && rankOf(sizeShown) >= 3 && d < topR && g.position.y < stormH + 1) { planes.splice(i, 1); scene.remove(pl.zone); pl.arrow.remove(); twisters.suck(g, tw); award(500, g.position, 'PLANE DOWN'); grow(2); banner('PLANE DOWN!'); sfx.boom(); fx.explode(g.position.clone(), 1); continue; }
     // spraying: when it's over the storm, seeding drops rain down and the storm shrinks
     pl.spraying = d < 9 && pl.life > 0 && pl.cool <= 0;
     if (pl.spraying && Math.random() < dt * 40) { for (const sx of [-1.35, 1.35]) { const m = new THREE.Mesh(sprayGeo, sprayMat); m.position.copy(new THREE.Vector3(sx, -0.1, 0).applyMatrix4(g.matrixWorld)); scene.add(m); sprayDrops.push({ m, vel: new THREE.Vector3((Math.random() - 0.5) * 1.5, -3 - Math.random() * 2, (Math.random() - 0.5) * 1.5), life: 2.2 }); } }
     if (pl.spraying && d < S.hit + R * 0.5) sprayed = true;
     if (pl.life <= 0 && Math.hypot(g.position.x, g.position.z) > Math.max(cols, rows) * CELL * 0.75) { scene.remove(g); scene.remove(pl.zone); pl.arrow.remove(); planes.splice(i, 1); }
   }
-  // sound: the propeller drone swells as the nearest plane closes in (higher pitch coming, lower going), and a siren wails
-  // once each time one closes in for a pass
+  // sound: the propeller drone swells as the nearest plane closes in (higher pitch coming, lower going); an INCOMING!
+  // popup once each time one closes in for a pass
   { let nd = Infinity, vr = 0; for (const pl of planes) { const d = Math.hypot(pl.g.position.x - px, pl.g.position.z - pz); const r = pl.lastD != null ? (pl.lastD - d) / Math.max(dt, 1e-3) : 0; pl.lastD = d; if (d < nd) { nd = d; vr = r; }
-      if (pl.life > 0 && pl.cool <= 0 && d < 15 && !pl.warned) { pl.warned = true; siren(0.05); popup(pl.g.position, 'INCOMING!', '#9fd6ff'); } else if (d > 24) pl.warned = false; }
+      if (pl.life > 0 && pl.cool <= 0 && d < 15 && !pl.warned) { pl.warned = true; popup(pl.g.position, 'INCOMING!', '#9fd6ff'); } else if (d > 24) pl.warned = false; }
     setPlaneEngine(nd === Infinity ? 0 : Math.pow(Math.max(0, 1 - (nd - 3) / 34), 1.6), 1 + Math.max(-0.22, Math.min(0.22, vr / 40))); }
   for (let i = sprayDrops.length - 1; i >= 0; i--) { const s = sprayDrops[i]; s.life -= dt; s.m.position.addScaledVector(s.vel, dt); s.m.scale.setScalar(1 + (2.2 - s.life) * 1.5); if (s.life <= 0 || s.m.position.y < 0) { scene.remove(s.m); sprayDrops.splice(i, 1); } }
   // the seeding bites: the storm loses size while it's under the spray
@@ -348,7 +361,7 @@ function wreckBuilding(x, quiet = false, into = tw) {
   if (x.h > 5 && !quiet) { fx.explode(new THREE.Vector3(x.pos.x, 1, x.pos.z), 1.4); flashT = 0.12; }
 }
 function wreckPoi(k) {
-  const P = pois[k]; P.done = true; const g = new THREE.Group(); g.position.copy(P.center); scene.add(g);
+  const P = pois[k]; P.done = true; if (P.mark) { scene.remove(P.mark); P.mark = null; } const g = new THREE.Group(); g.position.copy(P.center); scene.add(g);
   for (const hz of P.hz) { for (const part of hz.parts || []) if (part.parent) g.attach(part); const i = city.obstacles.findIndex((o) => Math.abs(o.x - hz.pos.x) < 0.3 && Math.abs(o.z - hz.pos.z) < 0.3); if (i >= 0) city.obstacles.splice(i, 1); }
   twisters.tear(g, P.center, new THREE.Box3().setFromObject(g).getSize(new THREE.Vector3()), tw, []); grow(6);
   award(POI[k].pts, P.center, POI[k].name); sfx.wave(); sfx.boom(); fx.explode(new THREE.Vector3(P.center.x, 1, P.center.z), 2.2); flashT = 0.3;
@@ -454,14 +467,14 @@ addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
 // ---------- flow ----------
 let state = 'start';
 function start(tutorial = false) {
-  tut = tutorial === true ? { step: 0, t: 0 } : null; if (tut) level = 1; if (tutRing) { scene.remove(tutRing); tutRing = null; } $('taTut').classList.add('hidden');
+  clearTutMarks(); tut = tutorial === true ? { step: 0, t: 0 } : null; if (tut) level = 1; if (tutRing) { scene.remove(tutRing); tutRing = null; } $('taTut').classList.add('hidden');
   if (state !== 'start' || roundN > 0) roundN++; ROUND = L().time; unlockAudio(); buildWorld(); makeStorm(); score = 0; chain = 0; lastHit = -9; tLeft = ROUND; played = 0; boostT = 0; lastRank = 0; moveTo = null; for (const b of bolts) scene.remove(b.g); bolts.length = 0; sinking.length = 0; peopleN = carsN = propsN = bDone = 0; clearPlanes();
   radarDown = radioDown = fireBoost = stink = false; setupPoiHud();
   for (const s of ['taStart', 'taEnd', 'taPaused']) $(s).classList.add('hidden'); $('ta').classList.remove('hidden');
-  state = 'play'; startStormMusic(); setStormLevel(0); sfx.whoosh(); banner(tut ? 'TUTORIAL' : 'LEVEL ' + level + ': ' + L().name.toUpperCase()); if (tut) { tLeft = 99999; tutGo(1); } setTimeout(() => { if (state === 'play' && !tut) banner(SEASON_NAME[seasonFor()].toUpperCase()); }, 2300);
+  state = 'play'; startStormMusic(); setStormLevel(0); sfx.whoosh(); banner(tut ? 'TUTORIAL' : 'LEVEL ' + level + ': ' + L().name.toUpperCase()); if (tut) { tLeft = 99999; addTutMarkers(); tutGo(1); } setTimeout(() => { if (state === 'play' && !tut) banner(SEASON_NAME[seasonFor()].toUpperCase()); }, 2300);
   renderer.compile(scene, viewCam()); // compile every material in the new town now, not mid-play
   $('taLevel').textContent = 'L' + level + ' · goal ' + L().goal + '%'; for (const k in hudCache) delete hudCache[k]; rankShown = -1; $('taTargets').style.color = '';
-  setTimeout(() => { if (state === 'play') banner('TAKE OUT ' + (L().need >= poiOrder.length ? 'ALL ' + poiOrder.length : L().need) + ' TARGETS'); }, 4600);
+  setTimeout(() => { if (state === 'play' && !tut) banner('TAKE OUT ' + (L().need >= poiOrder.length ? 'ALL ' + poiOrder.length : L().need) + ' TARGETS'); }, 4600);
 }
 function togglePause() { if (state === 'play') { state = 'paused'; setPlaneEngine(0); stopMusic(); $('taPaused').classList.remove('hidden'); } else if (state === 'paused') { state = 'play'; $('taPaused').classList.add('hidden'); startStormMusic(); setStormLevel(rankOf(sizeShown)); } }
 function finish() {
@@ -483,7 +496,8 @@ const HOWTO = [
   ['🌪️', 'Steer', 'Drag anywhere to steer. Tap a spot to zap it with lightning and send the storm there.'],
   ['🏚️', 'Grow', 'Wreck buildings, cars and people to grow from F0 to F5. Tall towers need a bigger storm.'],
   ['🎯', 'Big targets', 'Follow the arrows or the minimap to each big target. Its icon lights up when you are big enough.'],
-  ['✈️', 'Watch out', 'Seeding planes shrink you: dodge the blue ring or zap them. Zap storm chasers or run them down.'],
+  ['✈️', 'Seeding planes', 'Planes hunt you and their spray shrinks you. Dodge the blue ring under them, or tap a plane to zap it and turn it back. You will hear their engines coming.'],
+  ['📷', 'Storm chasers', 'Chasers race in to photograph you. Tap one to fry its photos, or run it down. If one gets away with its pictures, another plane joins the hunt.'],
   ['🏆', 'Clear the town', 'Flatten the goal % and take out enough targets before time runs out to unlock the next town.'],
 ];
 $('taHow').addEventListener('click', () => showHowTo(HOWTO));
