@@ -1,6 +1,6 @@
 # Dead City: Tornado Alley — itch.io page kit
 
-Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.9.2**. Upload `release/survive-dead-city-web-v1.9.2.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
+Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.9.3**. Upload `release/survive-dead-city-web-v1.9.3.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
 
 ## Upload settings (Edit game page)
 
@@ -11,7 +11,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 | Short description / tagline | You are the storm. Tear through five towns, take out big targets, dodge seeding planes and outrun storm chasers. |
 | Classification | Game |
 | Kind of project | **HTML** |
-| Uploads | `survive-dead-city-web-v1.9.2.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
+| Uploads | `survive-dead-city-web-v1.9.3.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
 | Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
 | Frame options | Leave SharedArrayBuffer off. No special headers needed. |
 | Pricing | Free (or "No payments"). |
@@ -67,6 +67,7 @@ Small browser games built fast, tested on a phone, and tuned by playing. Dead Ci
 
 ## Version history
 
+- **1.9.3** (2026-10-18): Tablets stay in full screen while you drag to move: the game claims the touch from the first finger-down so the browser cannot start its own swipe, and if the browser still drops out, one tap puts you back. Played from the home screen there are no browser bars at all. Smaller download (app icons squeezed).
 - **1.9.2** (2026-10-18): Full screen that stays put on tablets (and an Add to Home Screen app with no browser bars). Kaiju Madness close combat has five mini games: Brawl, Swipe Combo (every miss and the rival hits you), Weak Spots, Dodge & Counter and Spin & Throw, plus a Roar-Off when a rival squares up from across the street. End-of-round prizes are now games, taking turns: a Claw Machine, a Prize Wheel and a Kaiju Egg. (v1.9.1 went out without its version bump or zip; 1.9.2 is the complete release.)
 - **1.9.0** (2026-10-18): Kaiju Madness has all 20 kaiju: Rodanny, King Giggledorah, Lobstirah, Angryrus, Grammera, Destroyah-yah, Biolettuce, Spaceyzilla, Megalawn, Smogorah, Varoom, Gabbera, Kumbunga, Jirassic, Geezora and Battra-tat join Godzilly, King Konk, Mofra and Mecha-Godzilly. Flyers flap, four-legged beasts stomp, the crab scuttles, the spider skitters, the blob oozes, the plant writhes and the squid wriggles, and every one has three spells of its own. Rivals come from the whole roster; KO one to unlock it.
 - **1.8.1** (2026-10-18): Kaiju Madness: faster monsters and faster early growth, a gentler army while you are small, more people, and buildings spill their people when they fall. Close combat is now a mini game: mash to win a BRAWL, or time your tap in a LOCK-UP for a body slam. Knocked-out rivals get eaten: a monster meal for a big boost.
