@@ -43,7 +43,7 @@
     #taPause:active { transform: translateY(2px); box-shadow: 0 0 8px #7dff3a99, 0 2px 0 #3a1a5a; }
     #taStick { position: absolute; width: 120px; height: 120px; border-radius: 50%; background: #ffffff1a; border: 2px solid #ffffff55; transform: translate(-50%, -50%); display: none; }
     #taKnob { position: absolute; left: 50%; top: 50%; width: 48px; height: 48px; border-radius: 50%; background: #c9a6ffcc; transform: translate(-50%, -50%); }
-    #taBanner { position: absolute; left: 50%; top: 24%; transform: translateX(-50%); font-size: clamp(22px, 7vw, 40px); font-weight: 900; color: #ffd24a; text-shadow: 0 3px 0 #5a2f80, 0 6px 14px #000; white-space: nowrap; opacity: 0; transition: opacity .2s; }
+    #taBanner { position: absolute; left: 50%; top: 24%; transform: translateX(-50%); width: max-content; max-width: calc(100vw - 32px); text-align: center; line-height: 1.05; font-size: clamp(20px, 6vw, 40px); font-weight: 900; color: #ffd24a; text-shadow: 0 3px 0 #5a2f80, 0 6px 14px #000; white-space: normal; text-wrap: balance; opacity: 0; transition: opacity .2s; }
     .pop { position: fixed; left: 0; top: 0; font-weight: 900; font-size: 15px; color: #ffe27a; text-shadow: 0 2px 4px #000; pointer-events: none; white-space: nowrap; }
     #taStart .poi { font-size: 14px; max-width: 360px; }
     #taLevels { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; width: min(92vw, 420px); }
@@ -62,7 +62,7 @@
     .howRow { display: flex; gap: 8px; justify-content: center; } .howRow button { margin: 0; }
     #taView { display: none !important; } /* the chase view is hidden for now */
     #taViewOld { position: absolute; right: 52px; top: calc(54px + env(safe-area-inset-top, 0)); pointer-events: auto; font-size: 11px; padding: 4px 8px; height: 26px; }
-    #kjMega { position: fixed; left: 50%; top: calc(64px + env(safe-area-inset-top, 0)); transform: translateX(-50%); z-index: 6; padding: 6px 14px; border-radius: 12px; background: #2a1a04e8; border: 2px solid #ffd21a; color: #ffe27a; font-weight: 900; font-size: 14px; letter-spacing: 1px; text-shadow: 0 0 8px #ff8a1a; box-shadow: 0 0 18px #ffb02a; pointer-events: none; white-space: nowrap; animation: megaPulse .5s ease-in-out infinite alternate; }
+    #kjMega { position: fixed; left: 50%; top: calc(64px + env(safe-area-inset-top, 0)); transform: translateX(-50%); z-index: 6; padding: 6px 14px; border-radius: 12px; background: #2a1a04e8; border: 2px solid #ffd21a; color: #ffe27a; font-weight: 900; font-size: 14px; letter-spacing: 1px; text-shadow: 0 0 8px #ff8a1a; box-shadow: 0 0 18px #ffb02a; pointer-events: none; width: max-content; max-width: calc(100vw - 32px); text-align: center; white-space: normal; animation: megaPulse .5s ease-in-out infinite alternate; }
     #kjMega.hidden { display: none; } @keyframes megaPulse { to { box-shadow: 0 0 30px #ffd21a; } }
     .megaArrow { color: #ffd21a; text-shadow: 0 0 10px #ff8a1a; }
     .planeArrow { position: fixed; left: 0; top: 0; font-size: 26px; color: #9fd6ff; text-shadow: 0 0 8px #000, 0 0 3px #2a6aa0; pointer-events: none; display: none; z-index: 4; }

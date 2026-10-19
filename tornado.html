@@ -43,7 +43,7 @@
     #taPause:active { transform: translateY(2px); box-shadow: 0 0 8px #7dff3a99, 0 2px 0 #3a1a5a; }
     #taStick { position: absolute; width: 120px; height: 120px; border-radius: 50%; background: #ffffff1a; border: 2px solid #ffffff55; transform: translate(-50%, -50%); display: none; }
     #taKnob { position: absolute; left: 50%; top: 50%; width: 48px; height: 48px; border-radius: 50%; background: #c9a6ffcc; transform: translate(-50%, -50%); }
-    #taBanner { position: absolute; left: 50%; top: 24%; transform: translateX(-50%); font-size: clamp(22px, 7vw, 40px); font-weight: 900; color: #ffd24a; text-shadow: 0 3px 0 #5a2f80, 0 6px 14px #000; white-space: nowrap; opacity: 0; transition: opacity .2s; }
+    #taBanner { position: absolute; left: 50%; top: 24%; transform: translateX(-50%); width: max-content; max-width: calc(100vw - 32px); text-align: center; line-height: 1.05; font-size: clamp(20px, 6vw, 40px); font-weight: 900; color: #ffd24a; text-shadow: 0 3px 0 #5a2f80, 0 6px 14px #000; white-space: normal; text-wrap: balance; opacity: 0; transition: opacity .2s; }
     .pop { position: fixed; left: 0; top: 0; font-weight: 900; font-size: 15px; color: #ffe27a; text-shadow: 0 2px 4px #000; pointer-events: none; white-space: nowrap; }
     #taStart .poi { font-size: 14px; max-width: 360px; }
     #taLevels { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; width: min(92vw, 420px); }

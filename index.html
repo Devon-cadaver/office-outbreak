@@ -65,7 +65,9 @@
     // menu opens; if the browser won't play it, the menu shows straight away on the final frame.
     { const v = document.getElementById('introVid'); let done = false; const ready = () => { if (done) return; done = true; document.body.classList.add('ready'); try { sessionStorage.setItem('intro_seen', '1'); } catch (e) {} };
       { v.addEventListener('ended', ready); v.addEventListener('error', ready); const pr = v.play(); if (pr && pr.catch) pr.catch(() => { v.remove(); ready(); }); setTimeout(ready, 4000); }
-      document.getElementById('skipIntro').addEventListener('click', () => { v.pause(); v.currentTime = v.duration || 99; ready(); }); window.__introReady = () => done; }</script>
+      document.getElementById('skipIntro').addEventListener('click', () => { v.pause(); v.currentTime = v.duration || 99; ready(); }); window.__introReady = () => done;
+      // coming back to the menu (the back button, or the browser keeping the page) plays the intro again too
+      addEventListener('pageshow', (e) => { if (!e.persisted || !v.isConnected) return; done = false; document.body.classList.remove('ready'); v.currentTime = 0; const pr = v.play(); if (pr && pr.catch) pr.catch(() => ready()); setTimeout(ready, 4000); }); }</script>
   <script>
     try { if (localStorage.getItem('oo_save_dc')) document.getElementById('dcSaved').textContent = 'Saved game: night ' + (JSON.parse(localStorage.getItem('oo_save_dc')).night + 1); } catch (e) {}
     try { const c = Math.round(+JSON.parse(localStorage.getItem('oo_coins') || '0') * 100) / 100; document.getElementById('coins').textContent = c ? '🪙 ' + c + (c === 1 ? ' coin' : ' coins') : ''; } catch (e) {}
