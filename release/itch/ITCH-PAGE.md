@@ -29,7 +29,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 |---|---|---|---|
 | Cover image | `cover-630x500.png` | 630 × 500 | Minimum 315 × 250, recommended 630 × 500. |
 | Page background (Theme → Background image) | `background-1920x1080.gif` (animated, 2.1 MB) or `background-1920x1080.png` (still) | 1920 × 1080 | Set "Don't repeat", position Top centre, tick **Fixed** (so it stays put while the page scrolls), background colour #0e0818. The animation stays on the two edges (the storm on the left, debris flying out to the right); the middle is still, behind the page column. Keep GIFs under about 3 MB: bigger ones can stop animating. Source: `background-scene.html`. |
-| Banner (page theme → Banner) | `banner-960x400.png` | 960 × 400 | Any width up to 960 px, replaces the title. |
+| Banner (page theme → Banner) | `banner-960x200.png` | 960 × 200 | The thin banner (use this one). Any width up to 960 px, replaces the title. The taller `banner-960x400.png` is still there if you want it. Source: `logo-scene.html?layout=strip&w=960&h=200`. |
 | Screenshots | `shot-ta-1-title.png` … `shot-ta-8-shop.png` | 1280 × 720 | Upload all eight in order and remove the old Survival/Extract shots (`shot-1` … `shot-7`). |
 | Logo (optional, for the page header or devlog) | `logo-dead-city.png` | 768 × 512 | Rendered from `logo-scene.html` with the game's own city and storm. |
 
@@ -103,7 +103,7 @@ Design: Sean Duvall. Built with Three.js and Vite. Original Extraction: Dead Cit
 
 1. Create (or edit) the project → Title **Dead City: Tornado Alley**, URL, Kind **HTML**, upload the zip, tick "played in the browser", set viewport and Mobile friendly.
 2. Paste the description and controls into the body.
-3. Under Edit theme: background image `background-1920x1080.gif` (or the still `.png`; don't repeat, top centre, tick Fixed), background colour #0e0818, page background #1a0f2e, text #e9e4f5, links and buttons #7dff3a. Upload `cover-630x500.png` as the cover, the eight `shot-ta-*` screenshots in order (remove the older `shot-1` … `shot-7`), and (optionally) `banner-960x400.png` under Theme → Banner.
+3. Under Edit theme: background image `background-1920x1080.gif` (or the still `.png`; don't repeat, top centre, tick Fixed), background colour #0e0818, page background #1a0f2e, text #e9e4f5, links and buttons #7dff3a. Upload `cover-630x500.png` as the cover, the eight `shot-ta-*` screenshots in order (remove the older `shot-1` … `shot-7`), and `banner-960x200.png` under Theme → Banner.
 4. Tags, genre, status, pricing as above. Save, then **Public** when you are happy.
 5. Test the embed on your phone: the page is portrait first; use the fullscreen button.
 
