@@ -8,19 +8,20 @@ coins, the how-to cards, tips and tutorial, and layered music.
 
 - **Goal:** flatten the town's goal % and take out its big targets (the same ten, with their effects) before time
   runs out.
-- **Grow by eating.** People (and zombies) are snacks. Eating fills your growth bar. There are three size stages:
+- **Grow by eating.** People are snacks (no zombies for now). Eating fills your growth bar. There are three size stages:
   **Hatchling → Titan → Colossus**. Each stage is bigger, smashes taller buildings, and has a **different spell**.
 - **Tap to walk, tap to cast.** Tap anywhere and your kaiju walks there, crushing whatever's in the way. A **Power
   bar** fills over time (and faster as you smash things). When Power is full, a tap **casts your current stage's
   spell** at that spot, then Power starts filling again. A drag stick is still there for fine steering.
-- **The army hurts now.** Soldiers and tanks shoot you, and it does damage. Hits also slow you for a moment. Stomp
-  them for a bit of health back.
+- **One bar is your size and your health**, the same as the tornado's size bar. Eating fills it. Every hit from the
+  army, napalm or a rival drains it. Each stage is a third of the bar: drop below a stage's line and you shrink back
+  (Colossus → Titan → Hatchling). Empty it as a Hatchling and you die and the round ends.
+- **The army hurts now.** Soldiers and tanks shoot you, it drains the bar, and hits slow you for a moment.
 - **Napalm planes** (instead of seeding planes) swoop in and drop burning napalm. It's a fire zone on the ground that
   hurts while you stand in it. Their engine sound tells you they're coming. Spells can shoot them down.
 - **Rival kaiju** (instead of storm chasers) arrive to stop you destroying the city. A rival walks or flies in with
   its own health bar and fights you up close, casting its own spell now and then. KO it for a big bonus and a growth
   boost. It's tougher if it's a bigger stage than you.
-- **Health:** you have a health bar. Eating people heals a little. Health hits zero and it's **KAIJU DOWN**.
 - **Movement looks right:** flyers fly with flapping wings and cast shadows on the street. Walkers walk with
   stomping legs and swinging tails. Crawlers (spider, squid, plant) crawl with wriggling legs or tentacles.
 
@@ -63,7 +64,7 @@ Each spell is aimed at the spot you tap.
 ## Unlocking (suggestion)
 
 - **Start:** you begin with 4 kaiju, Godzilly, King Konk, Mofra and Mecha-Godzilly.
-- **Unlock by KO:** KO a rival to unlock it.
+- **Unlock by KO:** KO a rival and that kaiju unlocks (decided).
 - **Shop:** kaiju colour skins later.
 
 ## Build plan (FPS first)
@@ -77,8 +78,8 @@ Each spell is aimed at the spot you tap.
    King Giggledorah as the boss.
 4. **Polish:** skins, itch page.
 
-## Open questions
+## Decided (2026-10-18)
 
-- **Zombies:** do they replace the townsfolk in Kaiju Madness (it's Dead City), or mix in with them?
-- **Losing:** does losing health end the round, or do you shrink a stage instead (and only lose at Hatchling)?
-- **Rivals:** does KO'ing a rival unlock it, or do unlocks come from the shop with coins?
+- **Zombies:** none for now; townsfolk only.
+- **Health = size:** one bar, like the tornado. Damage drains it. Falling below a stage's line shrinks you back (Colossus → Titan → Hatchling). Empty as a Hatchling = dead, and the round ends.
+- **Unlocks:** KO'ing a rival unlocks that kaiju.
