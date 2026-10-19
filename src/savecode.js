@@ -2,6 +2,9 @@
 // you can copy, email to yourself or keep in your notes, then enter on another device or after clearing the browser.
 // There is no server: the code IS the save. Format: DC1-<base64url of deflate-raw JSON>-<4-char check>. New progress keys
 // can be added to KEEP at any time; old codes still load (they just don't carry the new ones).
+import { KAIJU_IDS } from './kaiju/rigs.js';
+// tester code: typed into LOAD A CODE it unlocks every monster and keeps everything else as it is
+const UNLOCK_ALL = 'MONSTERMASH';
 const KEEP = /^(oo_coins|oo_coins_earned|oo_skins_owned|oo_skins_equip|oo_seen|tips_seen|prize_game|ta_level|ta_best_\d+|kj_level|kj_unlocked|kj_pick|kj_best_\d+)$/;
 
 const keys = () => { const out = []; try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (KEEP.test(k)) out.push(k); } } catch { /* ignore */ } return out.sort(); };
@@ -72,6 +75,7 @@ export function initSaveCodes(menu, before = null) {
     try { await navigator.clipboard.writeText(code); say('saveOutMsg', '✓ Copied! Paste it somewhere safe.', 'good'); }
     catch { sel(); let ok = false; try { ok = document.execCommand('copy'); } catch { /* ignore */ } say('saveOutMsg', ok ? '✓ Copied! Paste it somewhere safe.' : 'The code is selected: press and hold it, then Copy.', ok ? 'good' : ''); } });
   $('saveLoad').addEventListener('click', async () => {
+    if ($('saveIn').value.replace(/[^a-z]/gi, '').toUpperCase() === UNLOCK_ALL) { try { localStorage.setItem('kj_unlocked', JSON.stringify(KAIJU_IDS.filter((x) => x !== 'godzilly'))); } catch { /* ignore */ } say('saveInMsg', '✓ All ' + KAIJU_IDS.length + ' monsters unlocked!', 'good'); return; }
     if (pending && performance.now() - armT < 4000) { applyCode(pending.data); say('saveInMsg', '✓ Loaded! Restarting…', 'good'); setTimeout(() => location.reload(), 900); return; }
     try { pending = await readCode($('saveIn').value); armT = performance.now(); $('saveLoad').classList.add('armed'); $('saveLoad').textContent = '⚠️ TAP AGAIN TO REPLACE THIS DEVICE\'S PROGRESS';
       say('saveInMsg', 'This code has: ' + pending.summary, ''); setTimeout(() => { if (performance.now() - armT >= 3900) { $('saveLoad').classList.remove('armed'); $('saveLoad').textContent = '⬇️ LOAD'; } }, 4000); }

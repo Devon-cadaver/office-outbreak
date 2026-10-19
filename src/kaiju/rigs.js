@@ -5,6 +5,7 @@
 // vines and a squid on tentacles. rig.anim(dt, move) runs the idle/walk/fly cycle (move 0..1); rig.act('hit' | 'cast' |
 // 'ko') plays a one-shot over the top. rig.mouth / rig.hand / rig.chest are anchors for spells and throws.
 import * as THREE from 'three';
+import { HD } from './rigsHD.js';
 
 const box = new THREE.BoxGeometry(1, 1, 1), cone = new THREE.ConeGeometry(0.5, 1, 4), cone8 = new THREE.ConeGeometry(0.5, 1, 8), ball = new THREE.IcosahedronGeometry(0.5, 1), cyl = new THREE.CylinderGeometry(0.5, 0.5, 1, 8), oct = new THREE.OctahedronGeometry(0.5, 0);
 const mats = new Map();
@@ -15,7 +16,7 @@ const S = (k, a) => Math.sin(k * Math.PI) * a; // a one-shot's swell
 
 // pal: skin, dark, belly, accent (plates, crystals, sail...), eye
 export const KAIJU = {
-  godzilly: { name: 'GODZILLY', kind: 'biped', pal: [0x45505e, 0x2c3440, 0x66707e, 0x4ab8ff, 0xffd24a], opt: { plates: true, glow: true }, spells: ['Atomic Hiccup', 'Atomic Breath', 'Spine Nova'], speed: 1 },
+  godzilly: { name: 'GODZILLY', kind: 'biped', hd: true, pal: [0x45505e, 0x2c3440, 0x66707e, 0x4ab8ff, 0xffd24a], opt: { plates: true, glow: true }, spells: ['Atomic Hiccup', 'Atomic Breath', 'Spine Nova'], speed: 1 },
   konk: { name: 'KING KONK', kind: 'ape', spells: ['Car Toss', 'Chest Drum', 'Tower Toss'], speed: 1.12 },
   mofra: { name: 'MOFRA', kind: 'moth', fly: true, pal: [0xe8d8b8, 0xf09a20, 0x1a1410, 0xd8301a, 0x3aa8ff], spells: ['Wing Gust', 'Glitter Storm', 'Rainbow Beam'], speed: 1.2 },
   mecha: { name: 'MECHA-GODZILLY', kind: 'biped', pal: [0x9aa2ac, 0x4e545c, 0xc8cdd2, 0x8aa0c8, 0xff2a2a], opt: { plates: true, mech: true }, spells: ['Rocket Fists', 'Missile Party', 'Freeze Cannon'], speed: 0.92 },
@@ -33,8 +34,8 @@ export const KAIJU = {
   gabbera: { name: 'GABBERA', kind: 'biped', pal: [0x6a7a4a, 0x3a4a2a, 0xb8a86a, 0xffe27a, 0xff3a2a], opt: { toad: true }, spells: ['Shock Croak', 'Hop Slam', 'Thunder Belly'], speed: 1.15 },
   kumbunga: { name: 'KUMBUNGA', kind: 'spider', pal: [0x1e1a14, 0x0e0c0a, 0xe8b82a, 0xe8b82a, 0xff2a2a], spells: ['Web Shot', 'Web Net', 'Spiderling Swarm'], speed: 1.25 },
   jirassic: { name: 'JIRASSIC', kind: 'biped', pal: [0x4a6a9a, 0x2a3a5a, 0x9ab0c8, 0x6a8ac8, 0xffd24a], opt: { frill: true, horn: 0xe8e0c8 }, spells: ['Frill Flare', 'Spit Geyser', 'Stampede'], speed: 1.12 },
-  geezora: { name: 'GEEZORA', kind: 'squid', pal: [0x7a5aa8, 0x4a3a6a, 0xa88ac8, 0xd86a8a, 0xff4a2a], spells: ['Ink Squirt', 'Tentacle Grab-o-rama', 'Deep Freeze'], speed: 0.95 },
-  grime: {name: "OPTIMUS GRIME", kind: "robot", pal: [0xd8282a,0x2a4ac8,0xc0c8d0,0x2a4ac8,0x6ac8ff], opt: {windows: true, stacks: true, fins: true}, spells: ["Ion Blaster","Truck Toss","Matrix Barrage"], borrow: [["mecha",0],["konk",0],["mecha",1]], speed: 1.05},
+  geezora: { name: 'GEEZORA', kind: 'squid', hd: true, pal: [0x7a5aa8, 0x4a3a6a, 0xa88ac8, 0xd86a8a, 0xff4a2a], spells: ['Ink Squirt', 'Tentacle Grab-o-rama', 'Deep Freeze'], speed: 0.95 },
+  grime: {name: "OPTIMUS GRIME", kind: "robot", hd: true, pal: [0xd8282a,0x2a4ac8,0xc0c8d0,0x2a4ac8,0x6ac8ff], opt: {windows: true, stacks: true, fins: true}, spells: ["Ion Blaster","Truck Toss","Matrix Barrage"], borrow: [["mecha",0],["konk",0],["mecha",1]], speed: 1.05},
   gundumb: {name: "GUNDUMB RX-78", kind: "robot", pal: [0xf0f0f0,0xf0f0f0,0x2a4ac8,0xd82a2a,0x6aff6a], opt: {v: true, shield: 0xd82a2a, sword: true}, spells: ["Beam Rifle","Beam Saber","Mega Bazooka"], borrow: [["mecha",0],["destroyah",0],["godzilly",1]], speed: 1.05},
   mazinger: {name: "MAZINGER ZZZ", kind: "robot", pal: [0x2a3a8a,0x2a3a8a,0xd0d4dc,0xd82a2a,0xffe24a], opt: {chestV: true, fins: true}, spells: ["Rocket Punch","Breast Fire","Thunder Break"], borrow: [["mecha",0],["godzilly",1],["giggle",1]], speed: 1.05},
   evaoops: {name: "EVA UNIT-OOPS", kind: "robot", pal: [0x6a3aa8,0x6a3aa8,0x7ad83a,0x7ad83a,0x9dff3a], opt: {horn: true, slim: true}, spells: ["Prog Knife","Berserk Stomp","AT Field"], borrow: [["destroyah",0],["angryrus",2],["spaceyzilla",2]], speed: 1.05},
@@ -54,6 +55,17 @@ export const KAIJU = {
   getter: {name: "GETTER ROBOT-O", kind: "robot", pal: [0xd82a2a,0xd82a2a,0xffd24a,0xd82a2a,0xffe24a], opt: {getter: true, horns: true}, spells: ["Getter Tomahawk","Getter Beam","Getter Tornado"], borrow: [["destroyah",0],["godzilly",1],["rodanny",2]], speed: 1.05},
   ed2o9: {name: "ED-2O9-OOPS", kind: "robot", pal: [0x5a5e66,0x3a3e46,0x7a7e86,0x2a2e36,0xff2a2a], opt: {ed: true}, spells: ["Auto Cannon","Rocket Pods","Drop It!"], borrow: [["mecha",0],["mecha",1],["angryrus",0]], speed: 1.05},
   mechax: {name: "MECHA-GODZILLY X", kind: "biped", pal: [0xb8bcc4,0x6a6e76,0xd0d4dc,0xb8bcc4,0xff2a2a], opt: {plates: true, mech: true}, spells: ["Finger Missiles","Eye Beam","Absolute Zero"], borrow: [["mecha",0],["godzilly",1],["mecha",2]], speed: 1},
+  gobblactus: { name: "GOBBLACTUS THE PECKISH", kind: 'robot', pal: [0x6a3aa8, 0x2a3a9a, 0xc0c8d0, 0x8a4ac8, 0xffe24a], opt: {horns: true,chunky: true,chestV: true}, spells: ["Planet Nibble","Cosmic Burp","World Snack"], borrow: [["godzilly",1],["gabbera",2],["spaceyzilla",2]], speed: 0.95 },
+  giantish: { name: "GIANT-ISH MAN", kind: 'robot', pal: [0xc23b3b, 0x2a4ac8, 0x1a1a2a, 0xc23b3b, 0x9fd6ff], opt: {slim: true,antenna: true,fins: true}, spells: ["Growth Spurt Stomp","Ant Swarm","Size Matters"], borrow: [["angryrus",2],["kumbunga",2],["megalawn",2]], speed: 1.15 },
+  bulk: { name: "THE INCREDIBLE BULK", kind: 'ape', pal: [0x5aa03a, 0x5a2a7a, 0x7ac84a, 0x000000, 0x9dff3a], spells: ["Bulk Smash","Thunder Clap","Angry Tower Toss"], borrow: [["konk",0],["gabbera",0],["konk",2]], speed: 1.2 },
+  intern: { name: "CELESTIAL INTERN", kind: 'robot', pal: [0xc8402a, 0x8a2a1a, 0xe8b82a, 0xe8b82a, 0xfff2a0], opt: {tower: true,slim: true,fins: true}, spells: ["Judgy Stare","Cosmic Paperwork","Big Bang (Small)"], borrow: [["godzilly",0],["spaceyzilla",1],["godzilly",2]], speed: 0.9 },
+  doomstay: { name: "DOOMSTAY", kind: 'biped', pal: [0x7a7a80, 0x3a3a40, 0x9a9aa0, 0xe8e2d0, 0xff3a2a], opt: {plates: true,crystals: true,noTail: true}, spells: ["Bone Spike Punch","Unstoppable Charge","Doom Quake"], borrow: [["destroyah",0],["angryrus",1],["angryrus",2]], speed: 1.15 },
+  darkside: { name: "DARKSIDE OF THE MOON", kind: 'robot', pal: [0x5a5a62, 0x2a3a8a, 0x7a7a82, 0x2a3a8a, 0xff2a2a], opt: {chunky: true}, spells: ["Omega Squint","Boom Tube","Apokalips Now-ish"], borrow: [["destroyah",1],["grammera",2],["battra",2]], speed: 0.95 },
+  groove: { name: "I AM GROOVE", kind: 'biped', pal: [0x7a5230, 0x4a2e18, 0x9a7048, 0x4aa83a, 0xffd24a], opt: {plates: true, noTail: true}, spells: ["Branch Punch","Root Grab","Dance Party"], borrow: [["biolettuce",0],["geezora",1],["biolettuce",2]], speed: 1 },
+  slowbeard: { name: "SLOWBEARD THE ENT-ISH", kind: 'ape', pal: [0x6a4a2a, 0x3a2a16, 0x8a7a4a, 0x000000, 0xc8e84a], spells: ["Hasty Thwack (Not Hasty)","Rooted Rumble","Flood the Fortress"], borrow: [["konk",0],["angryrus",2],["lobstirah",2]], speed: 0.8 },
+  decaf: { name: "THE GREAT DECAF TREE", kind: 'plant', pal: [0x6a4a2a, 0x3a5a1a, 0xe8d8a0, 0x7ac83a, 0xffe24a], spells: ["Sleepy Seeds","Sap Nap","Ancient Yawn"], borrow: [["biolettuce",1],["smogorah",1],["biolettuce",2]], speed: 0.75 },
+  munchy: { name: "MUNCHY McFLYTRAP", kind: 'plant', pal: [0x3a8a2a, 0x1f4a14, 0xd82a3a, 0xf0e070, 0xff3a5a], spells: ["Chomp","Drool Spray","FEED ME MORE"], borrow: [["biolettuce",0],["biolettuce",1],["kumbunga",2]], speed: 0.9 },
+  walkwoods: { name: "THE WALKING WOODS", kind: 'quad', pal: [0x4a6a2a, 0x3a2a16, 0x6a8a3a, 0x2f7a2a, 0xffd24a], opt: {spikes: true,sail: true}, spells: ["Pinecone Volley","Timber!","Forest Stampede"], borrow: [["angryrus",0],["varoom",1],["jirassic",2]], speed: 1 },
   battra: { name: 'BATTRA-TAT', kind: 'moth', fly: true, pal: [0x24243a, 0x2a2a6a, 0x0e0e18, 0xe8b82a, 0xff2a2a], opt: { horn: true }, spells: ['Horn Ram', 'Prism Eyes', 'Dark Eclipse'], speed: 1.25 },
 };
 export const KAIJU_IDS = Object.keys(KAIJU);
@@ -85,9 +97,10 @@ function batSwarm(g, fx) {
   fx.push((t) => { for (const B of bats) { const a = B.a + t * B.sp; B.b.position.set(Math.cos(a) * B.r, B.h + Math.sin(t * 3 + B.a) * 0.2, Math.sin(a) * B.r); B.b.rotation.y = -a; const f = Math.sin(t * 22 + B.a) * 0.8; B.w[0].rotation.z = f; B.w[1].rotation.z = -f; } });
 }
 
-export function buildKaiju(id, skin = false) {
+// lowDetail: build the old blocky rig even for a monster that has a detailed one (comparisons, very slow devices)
+export function buildKaiju(id, skin = false, lowDetail = false) {
   const sk = skin ? KAIJU_SKINS[id] : null; const K = sk ? { ...KAIJU[id], pal: sk.pal } : KAIJU[id]; const g = new THREE.Group(); const body = grp(g, 0, 0, 0); const fx = [];
-  const rig = ({ biped, ape, moth, ptero, quad, crab, spider, blob, plant, squid, robot })[K.kind](body, K);
+  const rig = (K.hd && !lowDetail && HD[K.kind] ? HD[K.kind] : ({ biped, ape, moth, ptero, quad, crab, spider, blob, plant, squid, robot })[K.kind])(body, K);
   if (sk && sk.pumpkin && rig.mouth && rig.mouth.parent) pumpkinHead(rig.mouth.parent, fx); if (sk && sk.bats) batSwarm(g, fx);
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.9, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false })); shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.03; g.add(shadow);
   let t = Math.random() * 10, actK = null, actT = 0;
@@ -118,9 +131,9 @@ function biped(body, K) {
     if (o.drills) part(a, cone8, 0xb8c0c8, 0.22, 0.7, 0.22, 0, -0.5, 0.35, 2.4); else part(a, cone, belly, 0.06, 0.12, 0.06, 0, -0.4, 0.22, 2.6); return a; });
   const hand = grp(arms[1], 0, -0.38, 0.2);
   const legs = [-1, 1].map((s) => { const l = grp(hip, s * (toad ? 0.45 : 0.3), 0, 0); part(l, box, skin, toad ? 0.42 : 0.34, toad ? 0.34 : 0.52, 0.42, 0, toad ? -0.12 : -0.2, 0); const k = grp(l, 0, toad ? -0.3 : -0.45, 0.02); part(k, box, skin, 0.25, toad ? 0.24 : 0.42, 0.3, 0, toad ? -0.1 : -0.18, -0.02); part(k, box, dark, toad ? 0.5 : 0.34, 0.1, toad ? 0.6 : 0.5, 0, toad ? -0.24 : -0.42, 0.08); return { l, k }; });
-  const tail = []; if (!toad) { let prev = grp(hip, 0, 0.05, -0.32); for (let i = 0; i < 5; i++) { const s = 1 - i * 0.16; part(prev, box, skin, 0.42 * s, 0.38 * s, 0.46, 0, 0, -0.2, -0.1); tail.push(prev); prev = grp(prev, 0, -0.02, -0.4); } }
+  const tail = []; if (!toad && !o.noTail) { let prev = grp(hip, 0, 0.05, -0.32); for (let i = 0; i < 5; i++) { const s = 1 - i * 0.16; part(prev, box, skin, 0.42 * s, 0.38 * s, 0.46, 0, 0, -0.2, -0.1); tail.push(prev); prev = grp(prev, 0, -0.02, -0.4); } }
   const glowMat = o.glow ? new THREE.MeshBasicMaterial({ color: acc }) : mat(acc); const glow0 = new THREE.Color(acc);
-  if (o.plates) { for (let i = 0; i < 5; i++) { const sp = new THREE.Mesh(cone, glowMat); sp.scale.set(0.22, 0.42 - i * 0.03, 0.32); sp.position.set(0, 0.95 - i * 0.18, -0.36 + i * 0.02); sp.rotation.x = -0.6; torso.add(sp); } for (let i = 0; i < 4; i++) { const sp = new THREE.Mesh(cone, glowMat); sp.scale.set(0.16, 0.3 - i * 0.05, 0.22); sp.position.set(0, 0.2 * (1 - i * 0.16), -0.2); sp.rotation.x = -0.9; tail[i].add(sp); } }
+  if (o.plates) { for (let i = 0; i < 5; i++) { const sp = new THREE.Mesh(cone, glowMat); sp.scale.set(0.22, 0.42 - i * 0.03, 0.32); sp.position.set(0, 0.95 - i * 0.18, -0.36 + i * 0.02); sp.rotation.x = -0.6; torso.add(sp); } for (let i = 0; i < 4; i++) { const sp = new THREE.Mesh(cone, glowMat); sp.scale.set(0.16, 0.3 - i * 0.05, 0.22); sp.position.set(0, 0.2 * (1 - i * 0.16), -0.2); sp.rotation.x = -0.9; if (tail[i]) tail[i].add(sp); } }
   if (o.crystals) for (const [x, y, z, s, r] of [[-0.5, 1.0, -0.1, 0.9, -0.4], [0.5, 1.0, -0.1, 0.9, 0.4], [-0.2, 1.05, -0.35, 0.6, -0.2], [0.2, 1.05, -0.35, 0.6, 0.2], [0, 0.9, -0.4, 0.5, 0]]) { const c = new THREE.Mesh(oct, glowMat); c.scale.set(0.3 * s, 0.9 * s, 0.3 * s); c.position.set(x, y, z); c.rotation.z = r; torso.add(c); }
   if (o.mech) for (const lg of legs) part(lg.k, cyl, 0x7af0ff, 0.12, 0.05, 0.12, 0, -0.48, -0.1, 0, 0, 0, true);
   let wings = []; if (o.wings) wings = [-1, 1].map((s) => { const p = grp(torso, s * 0.35, 0.85, -0.3); const shp = new THREE.Shape(); shp.moveTo(0, 0); shp.lineTo(1.3 * s, 0.7); shp.lineTo(1.6 * s, 0.1); shp.lineTo(1.1 * s, -0.3); shp.lineTo(0.7 * s, -0.1); shp.lineTo(0.3 * s, -0.4); shp.closePath(); const w = new THREE.Mesh(new THREE.ShapeGeometry(shp), new THREE.MeshLambertMaterial({ color: o.wings, side: THREE.DoubleSide, flatShading: true })); w.rotation.y = s * 0.5; p.add(w); return { p, s }; });
