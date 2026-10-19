@@ -82,9 +82,10 @@
     #kjMiniZone { position: absolute; top: 0; bottom: 0; background: #7dff3a; display: none; } #kjMini.lock #kjMiniZone { display: block; }
     #kjMiniMark { position: absolute; top: -3px; bottom: -3px; width: 8px; margin-left: -4px; left: 50%; background: #fff; border-radius: 4px; box-shadow: 0 0 8px #fff; }
     #kjMini .bar span { position: absolute; top: 4px; font-size: 10px; font-weight: 900; color: #fff; text-shadow: 0 1px 2px #000; } #kjMini .bar .me { right: 8px; } #kjMini .bar .them { left: 8px; } /* red rival end on the left, green you end on the right */ #kjMini.lock .bar span { display: none; }
-    #kjPick { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; width: min(92vw, 420px); }
-    .kjCard { display: grid; gap: 2px; padding: 8px 8px; margin: 0; text-align: left; border-radius: 12px; background: #1a0f2e; border: 2px solid #5a2f80; color: #fff; box-shadow: none; }
-    .kjCard b { font-size: 13px; color: #7dff3a; } .kjCard span { font-size: 9px; color: #c9e8b8; font-weight: 700; line-height: 1.25; }
+    #kjPick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; width: min(94vw, 440px); }
+    #kjPickInfo { font-size: 12px; color: #c9e8b8; max-width: 420px; margin: 2px 0 0; } #kjPickInfo b { color: #7dff3a; } #kjPickInfo small { color: #c9a6ff; }
+    .kjCard { display: grid; gap: 2px; padding: 6px 3px; margin: 0; text-align: center; min-height: 38px; align-items: center; border-radius: 12px; background: #1a0f2e; border: 2px solid #5a2f80; color: #fff; box-shadow: none; }
+    .kjCard b { font-size: 9px; line-height: 1.15; color: #7dff3a; } .kjCard span { font-size: 9px; color: #c9e8b8; font-weight: 700; line-height: 1.25; }
     .kjCard.on { border-color: #7dff3a; box-shadow: 0 0 10px #7dff3a88; } .kjCard.locked { opacity: .5; } .kjCard.locked b { color: #aaa; }
     #taStart h1 { font-size: clamp(34px, 11vw, 56px); }
     .bonusSkin { margin-top: 8px; padding: 8px 10px; border-radius: 10px; border: 2px solid #7dff3a; background: #0e2a0acc; color: #7dff3a; font-weight: 900; font-size: 15px; box-shadow: 0 0 14px #7dff3a66; }
@@ -110,7 +111,7 @@
     <p class="small" style="letter-spacing:4px;color:#c9a6ff;margin-bottom:-8px">DEAD CITY</p>
     <h1>KAIJU<br>MADNESS</h1>
     <p>You are the monster. Eat the town!</p>
-    <div id="kjPick"></div>
+    <div id="kjPick"></div><p id="kjPickInfo"></p>
     <div id="taLevels"></div>
     <button id="taPlay">STOMP!</button>
     <div class="howRow"><button id="taHow" class="ghost">HOW TO PLAY</button><button class="ghost menuBtn" onclick="location.href='index.html'">MAIN MENU</button></div>

@@ -34,6 +34,7 @@ const ISO_YAW = Math.PI / 4, ISO_ELEV = 0.72;
 const isoDir = new THREE.Vector3(Math.sin(ISO_YAW) * Math.cos(ISO_ELEV), Math.sin(ISO_ELEV), Math.cos(ISO_YAW) * Math.cos(ISO_ELEV)).normalize();
 const fx = createFires(scene);
 let flashT = 0, hurtT = 0; const flashEl = document.createElement('div'); flashEl.style.cssText = 'position:fixed;inset:0;background:#dfeaff;opacity:0;pointer-events:none;z-index:5'; document.body.appendChild(flashEl);
+let darkT = 0; const darkEl = document.createElement('div'); darkEl.style.cssText = 'position:fixed;inset:0;background:#05020c;opacity:0;pointer-events:none;z-index:5'; document.body.appendChild(darkEl);
 const hurtEl = document.createElement('div'); hurtEl.style.cssText = 'position:fixed;inset:0;box-shadow:inset 0 0 40px 6px #ff2a2a;opacity:0;pointer-events:none;z-index:5;transition:opacity .1s'; document.body.appendChild(hurtEl);
 const twisters = createTwisters(scene); // only its debris (chunks flying and landing as rubble) is used here
 stampVersion($('taStart'));
@@ -176,8 +177,8 @@ function tapAt(cx, cy) {
 const caster = (k, st) => ({ id: k.id, rig: k, g: k.g, stage: st });
 
 // ---------- what spells and hits do to the world ----------
-const spells = createSpells({ scene, fx, sfx, flash: (k) => { flashT = Math.max(flashT, k); },
-  hitArea, grabCar, grabBuilding, leap: (c, to, secs, onLand) => { if (c.rig === me) leap = { from: me.g.position.clone(), to: to.clone(), t: 0, secs, onLand }; else onLand(); } });
+const spells = createSpells({ scene, fx, sfx, flash: (k) => { flashT = Math.max(flashT, k); }, dark: (s) => { darkT = Math.max(darkT, s); },
+  hitArea, grabCar, grabBuilding, leap: (c, to, secs, onLand, h = 4, step = null, hide = false) => { if (c.rig === me) { leap = { from: me.g.position.clone(), to: to.clone(), t: 0, secs, onLand, h, step, hide, stepT: 0 }; if (hide) me.body.visible = false; } else onLand(); } });
 const sinking = [];
 function crumble(x, label, fire) {
   // a building comes down: its pieces fly, the shell sinks into a cloud of dust
@@ -438,7 +439,8 @@ $('taEndPick').addEventListener('click', () => { $('taEnd').classList.add('hidde
 function drawLevels() { const box = $('taLevels'); box.innerHTML = ''; const un = unlockedLevel(); LEVELS.forEach((lv, i) => { const b = document.createElement('button'); const n = i + 1; let best = 0; try { best = +localStorage.getItem('kj_best_' + n) || 0; } catch { /* ignore */ }
   b.className = 'lvl' + (n === level ? ' on' : ''); b.disabled = n > un; b.innerHTML = '<b>' + (n > un ? '🔒' : n) + '</b><span>' + lv.name + '</span>' + (best ? '<i>' + best + '</i>' : ''); b.addEventListener('click', () => { level = n; drawLevels(); }); box.appendChild(b); }); }
 function drawPicker() { const box = $('kjPick'); box.innerHTML = ''; const un = unlockedKaiju(); for (const id of KAIJU_IDS) { const K = KAIJU[id], open = un.includes(id); const b = document.createElement('button'); b.className = 'kjCard' + (id === pick ? ' on' : '') + (open ? '' : ' locked'); b.disabled = !open;
-  b.innerHTML = '<b>' + (open ? K.name : '🔒 ' + K.name) + '</b><span>' + (open ? K.spells.join(' · ') : 'KO it as a rival to unlock') + '</span>'; b.addEventListener('click', () => { pick = id; try { localStorage.setItem('kj_pick', id); } catch { /* ignore */ } drawPicker(); showcase(); }); box.appendChild(b); } }
+  b.innerHTML = '<b>' + (open ? '' : '🔒') + K.name + '</b>'; b.addEventListener('click', () => { pick = id; try { localStorage.setItem('kj_pick', id); } catch { /* ignore */ } drawPicker(); showcase(); }); box.appendChild(b); }
+  const K = KAIJU[pick]; $('kjPickInfo').innerHTML = '<b>' + K.name + '</b> · ' + K.spells.join(' → ') + '<br><small>' + un.length + ' of ' + KAIJU_IDS.length + ' unlocked. KO a rival to unlock it.</small>'; }
 level = unlockedLevel(); drawLevels(); drawPicker();
 $('taPause').addEventListener('click', togglePause); $('taResume').addEventListener('click', togglePause);
 
@@ -460,7 +462,7 @@ function update(dt) {
   slowT -= dt; boostT -= dt; const speed = (4.0 + meScale * 0.45) * K.speed * (slowT > 0 ? 0.6 : 1) * (boostT > 0 ? 1.4 : 1);
   const mag = Math.min(1, Math.hypot(sx, sy)); let moving = 0;
   if (mini) { updateMini(dt); moveTo = null; }
-  else if (leap) { leap.t += dt; const k = Math.min(1, leap.t / leap.secs); g.position.lerpVectors(leap.from, leap.to, k); g.position.y = Math.sin(k * Math.PI) * 4; if (k >= 1) { g.position.y = 0; const f = leap.onLand; leap = null; f(); } }
+  else if (leap) { leap.t += dt; const k = Math.min(1, leap.t / leap.secs); g.position.lerpVectors(leap.from, leap.to, k); g.position.y = Math.sin(k * Math.PI) * leap.h; if (leap.step) { leap.stepT -= dt; if (leap.stepT <= 0) { leap.stepT = 0.08; leap.step(g.position.clone().setY(0)); } } if (leap.hide && Math.random() < dt * 30) fx.puff('smoke', g.position.clone().setY(0.3), 0.8); if (k >= 1) { g.position.y = 0; me.body.visible = true; const f = leap.onLand; leap = null; f(); } }
   else if (mag > 0.05) { moveTo = null; tmp.copy(right).multiplyScalar(sx).addScaledVector(upv, -sy).normalize(); g.position.addScaledVector(tmp, speed * mag * dt); faceY = Math.atan2(tmp.x, tmp.z); moving = mag; }
   else if (moveTo) { const dx = moveTo.x - g.position.x, dz = moveTo.z - g.position.z, dl = Math.hypot(dx, dz); if (dl < 0.4) moveTo = null; else { g.position.x += dx / dl * Math.min(dl, speed * dt); g.position.z += dz / dl * Math.min(dl, speed * dt); faceY = Math.atan2(dx, dz); moving = 1; } }
   const lim = toWorld(cols - 1, rows - 1, cols, rows); g.position.x = Math.max(-lim.x, Math.min(lim.x, g.position.x)); g.position.z = Math.max(-lim.z, Math.min(lim.z, g.position.z));
@@ -531,7 +533,7 @@ function frame(now) {
   if (state === 'play') update(dt); else if (state === 'dying' && me) { me.anim(dt, 0); if (rival) rival.rig.anim(dt, 0); } else if (me) me.anim(dt, 0.15);
   if (city) { twisters.update(dt); fx.update(dt); city.updateRain(dt); spells.update(dt); }
   bannerT -= dt; if (bannerT <= 0) $('taBanner').style.opacity = 0;
-  flashT = Math.max(0, flashT - dt); flashEl.style.opacity = Math.min(0.75, flashT * 3); hurtT = Math.max(0, hurtT - dt); hurtEl.style.opacity = Math.min(0.55, hurtT * 2);
+  flashT = Math.max(0, flashT - dt); flashEl.style.opacity = Math.min(0.75, flashT * 3); hurtT = Math.max(0, hurtT - dt); darkT = Math.max(0, darkT - dt); darkEl.style.opacity = Math.min(0.72, darkT * 1.4); hurtEl.style.opacity = Math.min(0.55, hurtT * 2);
   const a = innerWidth / innerHeight, s = me ? meScale / 1.5 : 1, half = (a < 1 ? (6 + s * 2.4) / a * 0.8 : 6 + s * 2.4) * zoom;
   cam.left = -half * a; cam.right = half * a; cam.top = half; cam.bottom = -half; cam.updateProjectionMatrix();
   if (me) camTarget.lerp(tmp.set(me.g.position.x, 1 + meScale * 0.4, me.g.position.z), Math.min(1, dt * 3)); cam.position.copy(camTarget).addScaledVector(isoDir, 80); cam.lookAt(camTarget);
