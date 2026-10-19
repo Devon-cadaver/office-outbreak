@@ -1,6 +1,6 @@
 # Dead City: Tornado Alley — itch.io page kit
 
-Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.8.1**. Upload `release/survive-dead-city-web-v1.8.1.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
+Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.9.0**. Upload `release/survive-dead-city-web-v1.9.0.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
 
 ## Upload settings (Edit game page)
 
@@ -11,7 +11,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 | Short description / tagline | You are the storm. Tear through five towns, take out big targets, dodge seeding planes and outrun storm chasers. |
 | Classification | Game |
 | Kind of project | **HTML** |
-| Uploads | `survive-dead-city-web-v1.8.1.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
+| Uploads | `survive-dead-city-web-v1.9.0.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
 | Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
 | Frame options | Leave SharedArrayBuffer off. No special headers needed. |
 | Pricing | Free (or "No payments"). |
@@ -67,6 +67,7 @@ Small browser games built fast, tested on a phone, and tuned by playing. Dead Ci
 
 ## Version history
 
+- **1.9.0** (2026-10-18): Kaiju Madness has all 20 kaiju: Rodanny, King Giggledorah, Lobstirah, Angryrus, Grammera, Destroyah-yah, Biolettuce, Spaceyzilla, Megalawn, Smogorah, Varoom, Gabbera, Kumbunga, Jirassic, Geezora and Battra-tat join Godzilly, King Konk, Mofra and Mecha-Godzilly. Flyers flap, four-legged beasts stomp, the crab scuttles, the spider skitters, the blob oozes, the plant writhes and the squid wriggles, and every one has three spells of its own. Rivals come from the whole roster; KO one to unlock it.
 - **1.8.1** (2026-10-18): Kaiju Madness: faster monsters and faster early growth, a gentler army while you are small, more people, and buildings spill their people when they fall. Close combat is now a mini game: mash to win a BRAWL, or time your tap in a LOCK-UP for a body slam. Knocked-out rivals get eaten: a monster meal for a big boost.
 - **1.8.0** (2026-10-18): New game: KAIJU MADNESS (early version). Be the monster: eat people to grow from Hatchling to Titan to Colossus, smash the town, take out big targets. Your size is your health: the army, napalm planes and rival kaiju shrink you. Tap to walk; when your Power bar is full, tap a target to cast your spell (each size has its own). Four kaiju so far (Godzilly, King Konk, Mofra, Mecha-Godzilly); KO a rival to unlock it. Also fixed: the TRY AGAIN / NEXT LEVEL button in Tornado Alley.
 - **1.7.4** (2026-10-18): The tutorial's target ring is easier to spot: it draws over buildings, is thicker with a dark edge and has a bouncing arrow above it.
