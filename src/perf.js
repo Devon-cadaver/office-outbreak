@@ -32,7 +32,10 @@ export function mergeStatic(parent, list) {
     if (geos.some((g) => [...Object.values(g.attributes)].some((a) => a.array.some((x) => !Number.isFinite(x))))) continue;
     const merged = mergeGeometries(geos); if (!merged) continue;
     const mat = k[0] === 'B' ? list2[0].material : vcLam(k[1] === 'F', list2[0].material.side);
-    const mm = new THREE.Mesh(merged, mat); parent.add(mm); for (const m of list2) { parent.remove(m); out.set(m, mm); } }
+    // centre the merged shape on its own position (its parts were baked in place), and mark it: it can't fly apart like
+    // a loose piece, so whoever destroys it should hide it instead
+    merged.computeBoundingBox(); const ctr = merged.boundingBox.getCenter(new THREE.Vector3()); merged.translate(-ctr.x, -ctr.y, -ctr.z);
+    const mm = new THREE.Mesh(merged, mat); mm.position.copy(ctr); mm.userData.merged = true; parent.add(mm); for (const m of list2) { parent.remove(m); out.set(m, mm); } }
   return out;
 }
 const vcl = new Map(); const vcLam = (flat, side) => { const key = flat + '|' + side; if (!vcl.has(key)) vcl.set(key, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: flat, side })); return vcl.get(key); };
