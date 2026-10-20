@@ -16,7 +16,7 @@ const S = (k, a) => Math.sin(k * Math.PI) * a; // a one-shot's swell
 
 // pal: skin, dark, belly, accent (plates, crystals, sail...), eye
 export const KAIJU = {
-  godzilly: { name: "SCORCHBACK", kind: 'biped', hd: true, pal: [0x3a6a5a, 0x1f3a32, 0x7aa08a, 0xff8a2a, 0xffe24a], opt: { plates: true, glow: true }, spells: ["Ember Belch","Furnace Breath","Spine Eruption"], speed: 1 },
+  godzilly: { name: "SCORCHBACK", kind: 'biped', pal: [0x3a6a5a, 0x1f3a32, 0x7aa08a, 0xff8a2a, 0xffe24a], opt: { plates: true, glow: true }, spells: ["Ember Belch","Furnace Breath","Spine Eruption"], speed: 1 },
   konk: { name: "GRUMBLEGORILLA", kind: 'ape', pal: [0x6a5a6a, 0x3a2e3a, 0xa08a90, 0x000000, 0x7af0ff], spells: ["Car Chuck","Belly Drum","Building Bowl"], speed: 1.12 },
   mofra: { name: "LANTERNWING", kind: 'moth', fly: true, pal: [0x5a8a7a, 0x2a6a8a, 0xd0f0e8, 0xff5a8a, 0xb8ff6a], spells: ["Gust Flap","Glitter Squall","Prism Ray"], speed: 1.2 },
   mecha: { name: "CLANKOSAUR", kind: 'biped', pal: [0xa87a3a, 0x5a3e1e, 0xd0a868, 0x7ac8a0, 0x6aff9a], opt: { plates: true, mech: true }, spells: ["Wrench Fists","Bolt Barrage","Frost Engine"], speed: 0.92 },
@@ -34,8 +34,8 @@ export const KAIJU = {
   gabbera: { name: "TOADSTORM", kind: 'biped', pal: [0x6a4a8a, 0x3a2650, 0xc8b0e0, 0x7aff3a, 0xffe24a], opt: { toad: true }, spells: ["Zap Croak","Hop Drop","Static Belly"], speed: 1.15 },
   kumbunga: { name: "NANA WEB", kind: 'spider', pal: [0x1e1a14, 0x0e0c0a, 0xe8b82a, 0xe8b82a, 0xff2a2a], spells: ["Web Glob","Web Blanket","Spiderling Party"], speed: 1.25 },
   jirassic: { name: "FRILLY", kind: 'biped', pal: [0x8a3a6a, 0x4a1e3a, 0xd890b8, 0x3ad8a8, 0xffe24a], opt: {frill: true,horn: 15786184}, spells: ["Frill Flash","Geyser Spit","Stampede"], speed: 1.12 },
-  geezora: { name: "SQUIDNEY", kind: 'squid', hd: true, pal: [0x3a8a6a, 0x1e4a38, 0x8ad8b0, 0xff8a3a, 0xff4a8a], spells: ["Ink Blot","Tentacle Tangle","Brain Freeze"], speed: 0.95 },
-  grime: {name: "RIGBUSTER", kind: "robot", hd: true, pal: [0x2a8a5a, 0x3a3a46, 0xd8b84a, 0xd8b84a, 0xff8a2a], opt: {stacks: true,fins: true,core: 16747050}, spells: ["Bolt Blaster","Bus Toss","Big Rig Barrage"], borrow: [["mecha",0],["konk",0],["mecha",1]], speed: 1.05},
+  geezora: { name: "SQUIDNEY", kind: 'squid', pal: [0x3a8a6a, 0x1e4a38, 0x8ad8b0, 0xff8a3a, 0xff4a8a], spells: ["Ink Blot","Tentacle Tangle","Brain Freeze"], speed: 0.95 },
+  grime: {name: "RIGBUSTER", kind: "robot", pal: [0x2a8a5a, 0x3a3a46, 0xd8b84a, 0xd8b84a, 0xff8a2a], opt: {stacks: true,fins: true,core: 16747050}, spells: ["Bolt Blaster","Bus Toss","Big Rig Barrage"], borrow: [["mecha",0],["konk",0],["mecha",1]], speed: 1.05},
   gundumb: {name: "PALADIN-7", kind: "robot", pal: [0x3a4a5a, 0x2a2a34, 0xd88a2a, 0x7af0ff, 0x7af0ff], opt: {horn: true,shield: 14191146,sword: true}, spells: ["Rail Rifle","Light Blade","Heavy Cannon"], borrow: [["mecha",0],["destroyah",0],["godzilly",1]], speed: 1.05},
   mazinger: {name: "HEAVY METAL HANK", kind: "robot", pal: [0x6a6a72, 0x3a3a42, 0xd84a2a, 0xffd24a, 0xffe24a], opt: {chunky: true,fins: true}, spells: ["Flying Fist","Chest Furnace","Lightning Rod"], borrow: [["mecha",0],["godzilly",1],["giggle",1]], speed: 1.05},
   evaoops: {name: "BEANPOLE BOT", kind: "robot", pal: [0xd8d0b8, 0x8a8070, 0xd84a6a, 0xd84a6a, 0xff3a8a], opt: {antenna: true,slim: true}, spells: ["Pocket Knife","Tantrum Stomp","Force Bubble"], borrow: [["destroyah",0],["angryrus",2],["spaceyzilla",2]], speed: 1.05},

@@ -1,7 +1,7 @@
 // A big blast for both games: 'nuke' (a white flash, a fireball, a shockwave racing out along the ground and a mushroom
 // cloud that climbs and fades) or 'wave' (a sonic boom: rings of sound pulsing out and a shimmering dome). onRadius(r)
 // is called every frame with how far the shockwave has reached, so the caller wrecks things as it passes.
-// Returns { update(dt) } that reports false once it has fully faded.
+// Returns { update(dt), remove() }: update reports false once it has fully faded; remove() takes it away at once.
 import * as THREE from 'three';
 
 const ball = new THREE.IcosahedronGeometry(1, 2), ringG = new THREE.RingGeometry(0.9, 1, 64), cyl = new THREE.CylinderGeometry(1, 1, 1, 16, 1, true);
@@ -16,7 +16,7 @@ export function nukeBlast(scene, at, R, { kind = 'nuke', color = null, secs = 1.
     for (let i = 0; i < 5; i++) { const r = add(new THREE.Mesh(ringG, mat(c, 0.9))); r.rotation.x = -Math.PI / 2; r.position.y = 0.3 + i * 0.4; rings.push({ r, d: i * 0.18 }); }
     const dome = add(new THREE.Mesh(ball, mat(c, 0.25))); dome.scale.setScalar(0.1);
     const core = add(new THREE.Mesh(ball, mat(0xffffff, 0.8))); core.position.y = 2; core.scale.setScalar(1.5);
-    return { update(dt) { t += dt; const k = Math.min(1, t / secs);
+    return { remove: () => scene.remove(g), update(dt) { t += dt; const k = Math.min(1, t / secs);
       for (const o of rings) { const kk = Math.max(0, Math.min(1, (t - o.d) / secs)); o.r.scale.setScalar(0.5 + R * kk); o.r.material.opacity = 0.9 * (1 - kk); }
       dome.scale.set(R * k, R * 0.45 * k, R * k); dome.material.opacity = 0.3 * (1 - k); core.scale.setScalar(1.5 + k * 4); core.material.opacity = 0.8 * (1 - k * 1.5);
       if (onRadius && k < 1) onRadius(R * k); if (t > secs + 0.3) { scene.remove(g); return false; } return true; } };
@@ -27,7 +27,7 @@ export function nukeBlast(scene, at, R, { kind = 'nuke', color = null, secs = 1.
   const stem = add(new THREE.Mesh(cyl, mat(0xffa040, 0.85))), cap = add(new THREE.Mesh(ball, mat(0xff8a2a, 0.9))), capRing = add(new THREE.Mesh(new THREE.TorusGeometry(1, 0.35, 8, 24), mat(0xffc060, 0.7)));
   const smoke = add(new THREE.Mesh(ball, mat(0x5a4a40, 0.55, false))); capRing.rotation.x = Math.PI / 2;
   const H = R * 1.1;
-  return { update(dt) { t += dt; const k = Math.min(1, t / secs), life = 4.5, f = Math.min(1, t / life);
+  return { remove: () => scene.remove(g), update(dt) { t += dt; const k = Math.min(1, t / secs), life = 4.5, f = Math.min(1, t / life);
     const fb = Math.min(1, t / 0.5); fire.scale.setScalar(R * 0.32 * fb); fire.position.y = R * 0.12 * fb; fire.material.opacity = Math.max(0, 1 - t / 1.4);
     fire2.scale.setScalar(R * 0.4 * fb); fire2.position.y = R * 0.1 * fb; fire2.material.opacity = Math.max(0, 0.8 - t / 1.8);
     wave.scale.setScalar(0.5 + R * k); wave.material.opacity = 0.95 * (1 - k); scorch.scale.setScalar(R * 0.75 * Math.min(1, t / 0.6)); scorch.material.opacity = 0.7 * (1 - Math.max(0, (t - 3.5) / 1));

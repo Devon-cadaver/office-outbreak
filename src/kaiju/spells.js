@@ -15,8 +15,9 @@ const v1 = new THREE.Vector3(), v2 = new THREE.Vector3(), up = new THREE.Vector3
 
 export function createSpells(env) {
   const later = (t, f) => () => { const p = tint; tint = t; try { return f(); } finally { tint = p; } };
-  const setTimeout = (f, ms) => window.setTimeout(later(tint, f), ms);
-  const { scene, fx, sfx } = env; const live = [];
+  let epoch = 0; const setTimeout = (f, ms) => { const ep = epoch, run = later(tint, f); return window.setTimeout(() => { if (ep === epoch) run(); }, ms); };
+  const owned = new Set(); const scene = { add: (...o) => { for (const x of o) owned.add(x); env.scene.add(...o); }, remove: (...o) => { for (const x of o) owned.delete(x); env.scene.remove(...o); } };
+  const { fx, sfx } = env; const live = [];
   const add = (e) => { if (tint != null) { const u = e.update.bind(e), t = tint; e.update = (dt) => later(t, () => u(dt))(); } live.push(e); return e; };
   const wp = (o) => o.getWorldPosition(new THREE.Vector3());
   // ---------- building blocks ----------
@@ -183,6 +184,6 @@ export function createSpells(env) {
   return {
     cast(caster, stage, at, opts = {}) { const fn = SP[caster.id] && SP[caster.id][Math.max(0, Math.min(2, stage - 1))]; if (!fn) return; caster.rig.act('cast'); later(caster.rig.tint ?? null, () => fn(caster, at.clone(), opts))(); },
     update(dt) { for (let i = live.length - 1; i >= 0; i--) if (!live[i].update(dt)) live.splice(i, 1); },
-    clear() { live.length = 0; },
+    clear() { live.length = 0; epoch++; for (const o of owned) env.scene.remove(o); owned.clear(); },
   };
 }
