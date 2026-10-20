@@ -174,10 +174,27 @@ function aimAt(cx, cy) {
   return p;
 }
 let moveTo = null;
+function castAt(p) { power = 0; const face = Math.atan2(p.x - me.g.position.x, p.z - me.g.position.z); me.g.rotation.y = faceY = face; spells.cast(caster(me, stage), stage, p, {}); popup(me.g.position.clone().setY(meScale * 2), KAIJU[me.id].spells[stage - 1].toUpperCase() + '!', '#7dff3a'); markSeen('kj_cast'); }
+// SPACE (computers): cast without aiming. It goes for the nearest rival, plane or tank in range; with none about, it lands
+// a good stride ahead of the monster (further as it grows), so jumps, charges, beams and blasts all have room
+function castKey() {
+  if (state !== 'play' || !me || leap) return; if (megaT > 0 && !megaUsed) { megaBlast(); return; }
+  if (power < 1) { popup(me.g.position.clone().setY(meScale * 2), 'POWER NOT READY', '#9fd6ff'); return; }
+  const P = me.g.position, range = 12 + meScale * 1.5; let best = null, bd = range;
+  const consider = (pos) => { const d = Math.hypot(pos.x - P.x, pos.z - P.z); if (d < bd) { bd = d; best = pos; } };
+  if (rival && rival.hp > 0 && rival.koT <= 0) consider(rival.g.position); for (const t of tanks) consider(t.g.position); for (const pl of planes) if (pl.life > 0) consider(pl.g.position);
+  let at; if (best) at = new THREE.Vector3(best.x, 0, best.z);
+  else { const d = 5 + meScale * 1.4, lim = toWorld(cols - 1, rows - 1, cols, rows); at = new THREE.Vector3(Math.max(-lim.x, Math.min(lim.x, P.x + Math.sin(faceY) * d)), 0, Math.max(-lim.z, Math.min(lim.z, P.z + Math.cos(faceY) * d))); }
+  castAt(at);
+}
+// keys in the mini games: SPACE taps (hold it for the Roar-Off), the arrow keys swipe
+function miniKey(e, down) { const cx = innerWidth / 2, cy = innerHeight / 2, fire = (type, x, y) => miniEl.dispatchEvent(new PointerEvent(type, { clientX: x, clientY: y, bubbles: true, pointerType: 'mouse' }));
+  if (e.key === ' ') { if (down && !e.repeat) fire('pointerdown', cx, cy); else if (!down) fire('pointerup', cx, cy); return true; }
+  const dir = { arrowleft: [-1, 0], arrowright: [1, 0], arrowup: [0, -1], arrowdown: [0, 1] }[e.key.toLowerCase()]; if (dir && down && !e.repeat) { fire('pointerdown', cx, cy); fire('pointerup', cx + dir[0] * 90, cy + dir[1] * 90); return true; } return !!dir; }
 function tapAt(cx, cy) {
   const p = aimAt(cx, cy); if (!p) return;
   if (megaT > 0 && !megaUsed) { megaBlast(); return; }
-  if (power >= 1 && !leap) { power = 0; const face = Math.atan2(p.x - me.g.position.x, p.z - me.g.position.z); me.g.rotation.y = faceY = face; spells.cast(caster(me, stage), stage, p, {}); popup(me.g.position.clone().setY(meScale * 2), KAIJU[me.id].spells[stage - 1].toUpperCase() + '!', '#7dff3a'); markSeen('kj_cast'); return; }
+  if (power >= 1 && !leap) { castAt(p); return; }
   moveTo = p;
 }
 const caster = (k, st) => ({ id: k.id, rig: k, g: k.g, stage: st });
@@ -379,7 +396,7 @@ function startMini(r, type) {
   if (type === 'dodge') { m.round = 0; nextDodge(m); }
   if (type === 'spin') { m.ang = 0; m.last = null; m.spinA = Math.atan2(r.g.position.z - me.g.position.z, r.g.position.x - me.g.position.x); m.lift = 0; r.spun = true; r.rig.shadow.visible = false; me.act('cast'); }
   if (type === 'roar') { m.zone = [0.7, 0.9]; m.hold = false; $('kjMiniZone').style.left = '70%'; $('kjMiniZone').style.width = '20%'; me.act('cast'); r.rig.act('cast'); }
-  miniEl.className = 'm-' + type; sfx.wave();
+  miniEl.className = 'm-' + type; sfx.wave(); placeMiniPanel(true);
 }
 // ---------- fight moves: every hit in a mini game is shown. Machines (the robots and the Mecha-Godzillys) rock back and
 // unload (a burst of tracer rounds, rockets on the big hits); monsters spin round and fling a bolt in their spell colour.
@@ -453,8 +470,16 @@ function spot(m) { const v = m.r.g.position.clone().setY(m.r.scale * 1.1).projec
   const b = document.createElement('div'); b.className = 'kjSpot'; b.style.left = x + 'px'; b.style.top = y + 'px'; $('kjMiniSpots').appendChild(b); const s = { b, life: 1.05, dead: false };
   b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); if (s.dead || !mini) return; s.dead = true; b.classList.add('pop'); setTimeout(() => b.remove(), 200); flourish(me, mini.r); hitRival(7 + 3 * stage); me.act('hit'); sfx.hit(); });
   m.live.push(s); }
+// the mini game's panel follows the fight: it sits just under the two monsters' feet, kept inside the screen, so the
+// player's eyes don't have to jump to the bottom of the screen and back
+const miniPanel = miniEl.querySelector('.panel'), miniAt = { x: -1, y: -1 };
+function placeMiniPanel(snap) { if (!mini || !me) return; const r = mini.r, P = me.g.position, R = r.g.position, near = mini.type !== 'roar' && Math.hypot(R.x - P.x, R.z - P.z) < 30;
+  const v = tmp.set(near ? (P.x + R.x) / 2 : P.x, 0, near ? (P.z + R.z) / 2 : P.z).project(cam); const w = miniPanel.offsetWidth || 300, h = miniPanel.offsetHeight || 90, pad = 10;
+  const x = Math.max(w / 2 + pad, Math.min(innerWidth - w / 2 - pad, (v.x * 0.5 + 0.5) * innerWidth)), y = Math.max(90, Math.min(innerHeight - h - 60, (-v.y * 0.5 + 0.5) * innerHeight + 24));
+  if (snap || miniAt.x < 0) { miniAt.x = x; miniAt.y = y; } else { miniAt.x += (x - miniAt.x) * 0.2; miniAt.y += (y - miniAt.y) * 0.2; }
+  miniPanel.style.left = miniAt.x + 'px'; miniPanel.style.top = miniAt.y + 'px'; miniPanel.style.bottom = 'auto'; }
 function updateMini(dt) {
-  const m = mini, r = m.r; m.t += dt; if (!rival || r.hp <= 0) return endMini(null);
+  const m = mini, r = m.r; m.t += dt; if (!rival || r.hp <= 0) return endMini(null); placeMiniPanel(false);
   if (m.type === 'brawl') { m.v -= dt * Math.max(0.3, 0.55 + 0.12 * (r.stage - 1) - 0.08 * (stage - 1));
     m.myT = (m.myT ?? 0.1) - dt; if (played - (m.lastTap ?? -9) < 0.45 && m.myT <= 0) { m.myT = 0.8; bigMove(me, r, m.myN = (m.myN ?? -1) + 1); }
     m.rvT = (m.rvT ?? 0.6) - dt; if (m.rvT <= 0) { m.rvT = 1.3 + Math.random() * 0.5; bigMove(r.rig, me, m.rvN = (m.rvN ?? -1) + 1); }
@@ -551,8 +576,8 @@ const tUp = (e) => { for (const t of e.changedTouches) sUp('t' + t.identifier, t
 canvas.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'touch') sDown(e.pointerId, e.clientX, e.clientY); });
 addEventListener('pointermove', (e) => { if (e.pointerType !== 'touch') sMove(e.pointerId, e.clientX, e.clientY); });
 addEventListener('pointerup', (e) => { if (e.pointerType !== 'touch') sUp(e.pointerId, e.clientX, e.clientY); });
-addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] = true; if (e.key === 'Escape' || e.key === 'p') togglePause(); });
-addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+addEventListener('keydown', (e) => { if (e.key === ' ' || e.key.startsWith('Arrow')) e.preventDefault(); if (mini && state === 'play' && miniKey(e, true)) return; keys[e.key.toLowerCase()] = true; if (e.key === 'Escape' || e.key === 'p') togglePause(); else if (e.key === ' ' && !e.repeat) castKey(); });
+addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; if (mini && state === 'play') miniKey(e, false); });
 
 // ---------- flow ----------
 let state = 'start', died = false, roundId = 0; // roundId: delayed effects from an earlier round check it and stand down
@@ -598,7 +623,7 @@ function finishNow() {
 const HOWTO = [
   ['🦖', 'You are the monster', 'Tap a spot to walk there. Your kaiju eats people and smashes whatever is closest all by itself.'],
   ['🍖', 'Eat to grow', 'Every person you eat makes you bigger: Hatchling, then Titan, then Colossus. Bigger kaiju flatten taller buildings.'],
-  ['⚡', 'Spells', 'Your Power bar fills over time. When it is full, tap an enemy, a tank or a spot to cast your spell. Every size has a different spell.'],
+  ['⚡', 'Spells', 'Your Power bar fills over time. When it is full, tap an enemy, a tank or a spot to cast your spell (on a computer, press SPACE). Every size has a different spell.'],
   ['❤️', 'Size is health', 'The army, napalm and rivals shrink you. Drop below a size and you go back down. Shrink away as a Hatchling and it is over.'],
   ['✈️', 'Napalm planes', 'Planes drop fire on you. Walk out of the flames, or blast them with a spell. A Colossus swats them.'],
   ['👹', 'Rival kaiju', 'Two rivals come for you at each size. Fight them up close or hit them with spells. KO one and eat it for a big boost.'],
