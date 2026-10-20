@@ -6,3 +6,6 @@ tools/poster/
 .playwright-mcp
 # the commercial and its prompts stay on this PC only
 release/itch/commercial/
+# design notes stay on this PC only
+KAIJU-DESIGN.md
+PROJECT-NOTES.md
