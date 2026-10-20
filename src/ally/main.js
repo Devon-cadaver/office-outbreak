@@ -444,6 +444,20 @@ function tapAt(cx, cy) {
   moveTo = p.clone();
   if (zapCd <= 0) { zapCd = 0.45; strike(p); }
 }
+// SPACE (computers): a bolt at the nearest thing in reach, in order of priority: a seeding plane, the storm chaser, a
+// tank, a soldier, a townsperson, then a building. The storm doesn't move.
+function zapKey() {
+  if (state !== 'play' || !twObj || zapCd > 0) return; const P = twObj.position, reachZ = 18 + sizeShown * 3;
+  const nearest = (list, posOf) => { let best = null, bd = reachZ; for (const o of list) { const q = posOf(o); if (!q) continue; const d = Math.hypot(q.x - P.x, q.z - P.z); if (d < bd) { bd = d; best = o; } } return best; };
+  zapCd = 0.45;
+  const pl = nearest(planes, (o) => (o.life > 0 && !(o.cool > 0) ? o.g.position : null)); // planes already turned back are left alone if (pl) { zapPlane2(pl); return; }
+  if (chaser && chaser.mode !== 'flee' && Math.hypot(chaser.g.position.x - P.x, chaser.g.position.z - P.z) < reachZ) { zapChaser(); return; }
+  const tk = nearest(tanks, (o) => o.g.position); if (tk) { strike(tk.g.position.clone().setY(0)); return; }
+  const so = nearest(soldiers, (o) => o.position); if (so) { strike(so.position.clone().setY(0)); return; }
+  const pe = nearest(people, (o) => (o.userData.burnT > 0 ? null : o.position)); if (pe) { strike(pe.position.clone().setY(0)); return; }
+  const bu = nearest(buildings, (o) => (o.done || o.burnT != null ? null : o.pos)); if (bu) { strike(new THREE.Vector3(bu.pos.x, 0, bu.pos.z)); return; }
+  zapCd = 0; popup(P.clone().setY(3), 'NOTHING IN REACH', '#9fd6ff');
+}
 // tap bolts take the storm skin's lightning colours
 const boltMats = () => { const s = tw && tw.skin; if (!s || !s.bolts) return [boltMatA, boltMatB]; const bc = s.bolts[(Math.random() * s.bolts.length) | 0], k = bc + ':' + s.boltGlow; if (!boltMats.c[k]) boltMats.c[k] = [new THREE.LineBasicMaterial({ color: bc }), s.boltEdge ? new THREE.LineBasicMaterial({ color: s.boltGlow }) : new THREE.LineBasicMaterial({ color: s.boltGlow, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending })]; return boltMats.c[k]; }; boltMats.c = {};
 function boltTo(p) { // a jagged bolt from the clouds down to p (which can be in the air)
@@ -463,6 +477,9 @@ function strike(p) {
   const pts = []; let x = p.x + (Math.random() - 0.5) * 4, z = p.z + (Math.random() - 0.5) * 4; for (let y = 24; y > 0; y -= 2) { pts.push(new THREE.Vector3(x, y, z)); x += (p.x - x) * 0.25 + (Math.random() - 0.5) * 1.2; z += (p.z - z) * 0.25 + (Math.random() - 0.5) * 1.2; } pts.push(p.clone().setY(0.05));
   const [bmA, bmB] = boltMats(); const g = new THREE.Group(); g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), bmA)); for (const o of [0.12, -0.12]) g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts.map((q) => q.clone().add(new THREE.Vector3(o, 0, -o)))), bmB));
   scene.add(g); bolts.push({ g, t: 0.22 }); flashT = Math.max(flashT, 0.16); sfx.boom(); fx.explode(p.clone().setY(0.3), 0.5);
+  // tanks it lands on blow up, soldiers are flung
+  for (let i = tanks.length - 1; i >= 0; i--) { const t = tanks[i], q = t.g.position; if (Math.hypot(q.x - p.x, q.z - p.z) < 2) { tanks.splice(i, 1); free(t.g); twisters.scatter([t.g], q.clone(), 4); fx.explode(q.clone().setY(0.6), 1); award(200, q, 'TANK'); grow(1); } }
+  for (let i = soldiers.length - 1; i >= 0; i--) { const s = soldiers[i]; if (Math.hypot(s.position.x - p.x, s.position.z - p.z) < 1.8) { soldiers.splice(i, 1); delete s.updateMatrixWorld; twisters.scatter([s], p, 5); award(40, s.position, 'SOLDIER'); grow(0.15); } }
   // cars in the blast blow up; people catch fire and run about in a panic
   for (let i = drivers.length - 1; i >= 0; i--) { const o = drivers[i], q = o.g.position; if (Math.hypot(q.x - p.x, q.z - p.z) < 1.8) { drivers.splice(i, 1); blowCar(o.g, q.clone()); } }
   for (let i = cars.length - 1; i >= 0; i--) { const q = cars[i].getWorldPosition(new THREE.Vector3()); if (Math.hypot(q.x - p.x, q.z - p.z) < 1.8) { const c = cars[i]; cars.splice(i, 1); blowCar(c, q); } }
@@ -498,7 +515,7 @@ const tUp = (e) => { for (const t of e.changedTouches) sUp('t' + t.identifier, t
 canvas.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'touch') sDown(e.pointerId, e.clientX, e.clientY); });
 addEventListener('pointermove', (e) => { if (e.pointerType !== 'touch') sMove(e.pointerId, e.clientX, e.clientY); });
 addEventListener('pointerup', (e) => { if (e.pointerType !== 'touch') sUp(e.pointerId, e.clientX, e.clientY); });
-addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] = true; if (e.key === 'Escape' || e.key === 'p') togglePause(); });
+addEventListener('keydown', (e) => { if (e.key === ' ') e.preventDefault(); keys[e.key.toLowerCase()] = true; if (e.key === 'Escape' || e.key === 'p') togglePause(); else if (e.key === ' ' && !e.repeat) zapKey(); });
 addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
 
 // ---------- flow ----------
@@ -542,7 +559,7 @@ function finishNow() {
   $('ta').classList.add('hidden'); $('taPrize').classList.remove('hidden'); // the prize game first, then the score
 }
 const HOWTO = [
-  ['🌪️', 'Steer', 'Drag anywhere to steer. Tap a spot to zap it with lightning and send the storm there.'],
+  ['🌪️', 'Steer', 'Drag anywhere to steer. Tap a spot to zap it with lightning and send the storm there. On a computer, SPACE zaps the nearest plane, chaser, tank, soldier, person or building.'],
   ['🏚️', 'Grow', 'Wreck buildings, cars and people to grow from F0 to F5. Tall towers need a bigger storm.'],
   ['🎯', 'Big targets', 'Follow the arrows or the minimap to each big target. Its icon lights up when you are big enough.'],
   ['✈️', 'Seeding planes', 'Planes hunt you and their spray shrinks you. Dodge the blue ring under them, or tap a plane to zap it and turn it back. You will hear their engines coming.'],
@@ -671,4 +688,4 @@ function frame(now) {
 // a calm town behind the title screen
 buildWorld(); makeStorm(); twObj.position.set(-12, 0, -12); camTarget.set(0, 1, 0);
 requestAnimationFrame(frame); requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove('booting'))); // the start screen is ready now
-window.__ta = { get sceneN() { return scene.children.length; }, start, finish, goNuke, grow, get massTarget() { return massTarget; }, get nukeT() { return nukeT; }, get stormPos() { return twObj.position; }, THREE, get cam() { return viewCam(); }, get px() { return perfTick.ratio; }, get poiOrder() { return poiOrder; }, get tut() { return tut; }, get zapCd() { return zapCd; }, get engine() { return planeEngineLevel(); }, get music() { return stormMusicState(); }, get chunks() { return chunks; }, get flags() { return { radarDown, radioDown, fireBoost, stink }; }, get moveToV() { return moveTo; }, get city() { return city; }, tapAt, get moveTo() { return moveTo; }, get boostT() { return boostT; }, bench(n = 20) { const vc = viewCam(); renderer.render(scene, vc); const t0 = performance.now(); for (let i = 0; i < n; i++) renderer.render(scene, vc); renderer.getContext().finish(); return (performance.now() - t0) / n; }, get animN() { return city.season.anim.length; }, setSeason(s) { seasonI = SEASON_CYCLE.indexOf(s); roundN = 0; }, get season() { return seasonNow(); }, get calls() { return renderer.info.render.calls; }, get tris() { return renderer.info.render.triangles; }, spawnChaser, get chaser() { return chaser; }, get zoom() { return zoom; }, setZoom, get extraSeeders() { return extraSeeders; }, setView, get third() { return third; }, spawnPlane, get planes() { return planes; }, get mass() { return mass; }, get level() { return level; }, set level(v) { level = v; }, get bDone() { return bDone; }, set bDone(n) { bDone = n; }, get babies() { return twisters.babies; }, get totalB() { return totalB; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, get drivers() { return drivers; }, get state() { return state; }, get score() { return score; }, get size() { return sizeShown; }, get storm() { return twObj; }, get pois() { return pois; }, get buildings() { return buildings; }, get people() { return people; }, set tLeft(v) { tLeft = v; }, grow, start };
+window.__ta = { get sceneN() { return scene.children.length; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, get people() { return people; }, start, finish, goNuke, grow, get massTarget() { return massTarget; }, get nukeT() { return nukeT; }, get stormPos() { return twObj.position; }, THREE, get cam() { return viewCam(); }, get px() { return perfTick.ratio; }, get poiOrder() { return poiOrder; }, get tut() { return tut; }, get zapCd() { return zapCd; }, get engine() { return planeEngineLevel(); }, get music() { return stormMusicState(); }, get chunks() { return chunks; }, get flags() { return { radarDown, radioDown, fireBoost, stink }; }, get moveToV() { return moveTo; }, get city() { return city; }, tapAt, get moveTo() { return moveTo; }, get boostT() { return boostT; }, bench(n = 20) { const vc = viewCam(); renderer.render(scene, vc); const t0 = performance.now(); for (let i = 0; i < n; i++) renderer.render(scene, vc); renderer.getContext().finish(); return (performance.now() - t0) / n; }, get animN() { return city.season.anim.length; }, setSeason(s) { seasonI = SEASON_CYCLE.indexOf(s); roundN = 0; }, get season() { return seasonNow(); }, get calls() { return renderer.info.render.calls; }, get tris() { return renderer.info.render.triangles; }, spawnChaser, get chaser() { return chaser; }, get zoom() { return zoom; }, setZoom, get extraSeeders() { return extraSeeders; }, setView, get third() { return third; }, spawnPlane, get planes() { return planes; }, get mass() { return mass; }, get level() { return level; }, set level(v) { level = v; }, get bDone() { return bDone; }, set bDone(n) { bDone = n; }, get babies() { return twisters.babies; }, get totalB() { return totalB; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, get drivers() { return drivers; }, get state() { return state; }, get score() { return score; }, get size() { return sizeShown; }, get storm() { return twObj; }, get pois() { return pois; }, get buildings() { return buildings; }, get people() { return people; }, set tLeft(v) { tLeft = v; }, grow, start };

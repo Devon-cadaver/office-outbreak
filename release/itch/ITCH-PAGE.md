@@ -1,6 +1,6 @@
 # Dead City: Tornado Alley — itch.io page kit
 
-Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.11.4**. Upload `release/survive-dead-city-web-v1.11.4.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
+Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.11.5**. Upload `release/survive-dead-city-web-v1.11.5.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
 
 > All monsters, robots and characters in Dead City are original creations. Any resemblance to other characters is coincidental.
 
@@ -13,7 +13,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 | Short description / tagline | You are the storm. Tear through five towns, take out big targets, dodge seeding planes and outrun storm chasers. |
 | Classification | Game |
 | Kind of project | **HTML** |
-| Uploads | `survive-dead-city-web-v1.11.4.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
+| Uploads | `survive-dead-city-web-v1.11.5.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
 | Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
 | Frame options | Leave SharedArrayBuffer off. No special headers needed. |
 | Pricing | Free (or "No payments"). |
@@ -70,6 +70,7 @@ Small browser games built fast, tested on a phone, and tuned by playing. Dead Ci
 
 ## Version history
 
+- **1.11.5** (2026-10-18): Tornado Alley: on a computer, SPACE fires a lightning bolt at the nearest target (planes first, then the chaser, tanks, soldiers, people and buildings), and lightning now takes out tanks and soldiers.
 - **1.11.4** (2026-10-18): Fixed roof slabs and rooftop bits floating in the air after their building was destroyed, in both games.
 - **1.11.3** (2026-10-18): Kaiju Madness: the combat bar now sits right under the fight, and on a computer SPACE casts your spell (it aims itself) and plays the mini games, with the arrow keys for swipes.
 - **1.11.2** (2026-10-18): Bug fixes: restarting during a nuke, MEGA blast or spell no longer leaves effects hanging in the next round, and delayed effects can't spill into a new round.
