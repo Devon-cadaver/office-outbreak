@@ -42,8 +42,8 @@ import { makeCharacter, animateWalk } from '/src/poster/characters.js';
 import { buildKaiju } from '/src/kaiju/rigs.js';
 import { nukeBlast } from '/src/nuke.js';
 const q = new URLSearchParams(location.search); const layout = q.get('layout') || 'poster';
-const [W, H] = { poster: [1000, 1500], wide: [1280, 720], banner: [960, 400] }[layout] || [1000, 1500];
-const wide = layout !== 'poster';
+const [W, H] = { poster: [1000, 1500], tall: [900, 1950], wide: [1280, 720], banner: [960, 400] }[layout] || [1000, 1500];
+const wide = layout !== 'poster' && layout !== 'tall';
 const canvas = document.getElementById('c'); const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true }); renderer.setPixelRatio(1); renderer.setSize(W, H);
 const scene = new THREE.Scene();
 // sky: deep purple overhead, bruised violet, a toxic green band, then orange fire-glow at the horizon
@@ -59,7 +59,7 @@ const city = buildCity(scene, maze, 6); city.detail.clouds.visible = false;
 // clear the foreground: nothing tall right in front of the camera
 { const wp = new THREE.Vector3(), bb = new THREE.Box3(); scene.updateMatrixWorld(true); const hideL = []; scene.traverse((o) => { if (!o.isMesh && !o.isLine && !o.isLineSegments) return; o.getWorldPosition(wp); if (wp.z < 9 || Math.abs(wp.x) > 7.5) return; bb.setFromObject(o); if (bb.max.y > 1.4) hideL.push(o); }); hideL.forEach((o) => { o.visible = false; }); }
 // the storm
-const tw = createTwisters(scene); const g = tw.make(true, [], 'halloween'); const TS = wide ? 1.25 : 1.45; g.scale.setScalar(TS); const TX = layout === 'poster' ? -5 : layout === 'wide' ? -6 : -7, TZ = layout === 'poster' ? -15 : -6; g.position.set(TX, 0, TZ); scene.add(g);
+const tw = createTwisters(scene); const g = tw.make(true, [], 'halloween'); const TS = wide ? 1.25 : 1.45; g.scale.setScalar(TS); const TX = (layout === 'poster' || layout === 'tall') ? -5 : layout === 'wide' ? -6 : -7, TZ = (layout === 'poster' || layout === 'tall') ? -15 : -6; g.position.set(TX, 0, TZ); scene.add(g);
 greenL.position.set(TX, 6, TZ);
 // a wrecked swath where it has been: buildings near its path gone, rubble and fires left behind
 const glowM = (c, o) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });
@@ -81,13 +81,13 @@ for (let i = 0; i < 9; i++) { const p = new THREE.Group(); const shell = new THR
   const face = glowM(0xffe24a, 1); for (const s of [-1, 1]) { const e = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.12, 3), face); e.position.set(s * 0.18, 0.08, 0.5); e.rotation.x = Math.PI / 2; p.add(e); } const mth = new THREE.Mesh(box, face); mth.scale.set(0.32, 0.07, 0.06); mth.position.set(0, -0.12, 0.5); p.add(mth);
   const a = i / 9 * 6.28 + 0.4, r = 2.2 + (i % 3) * 1.6; p.position.set(TX + Math.cos(a) * r * TS * 0.7, 2.5 + i * 1.3, TZ + Math.sin(a) * r * 0.5); p.rotation.set(Math.random() * 0.8, -0.3 + Math.random() * 0.6, Math.random() * 0.8); p.scale.setScalar(0.9 + Math.random() * 0.7); scene.add(p); lanterns.push(p); }
 // far behind: two titans fighting downtown, and a nuke going off beyond them
-const fightX = layout === 'poster' ? 10.5 : 10, fightZ = layout === 'poster' ? -44 : -48;
-const gz = buildKaiju('godzilly'), rb = buildKaiju('grime'); const KS = layout === 'poster' ? 8 : 9; gz.g.scale.setScalar(KS); rb.g.scale.setScalar(KS); { const rim = new THREE.PointLight(0xff8a3a, 140, 90, 1.2); rim.position.set(fightX, KS, fightZ + 14); const rim2 = new THREE.PointLight(0x9a6aff, 160, 80, 1.2); rim2.position.set(fightX, KS * 2.2, fightZ - 8); scene.add(rim, rim2); } gz.g.position.set(fightX - KS * 0.68, 0, fightZ); rb.g.position.set(fightX + KS * 0.68, 0, fightZ + 1);
+const fightX = (layout === 'poster' || layout === 'tall') ? 10.5 : 10, fightZ = (layout === 'poster' || layout === 'tall') ? -44 : -48;
+const gz = buildKaiju('godzilly'), rb = buildKaiju('grime'); const KS = (layout === 'poster' || layout === 'tall') ? 8 : 9; gz.g.scale.setScalar(KS); rb.g.scale.setScalar(KS); { const rim = new THREE.PointLight(0xff8a3a, 140, 90, 1.2); rim.position.set(fightX, KS, fightZ + 14); const rim2 = new THREE.PointLight(0x9a6aff, 160, 80, 1.2); rim2.position.set(fightX, KS * 2.2, fightZ - 8); scene.add(rim, rim2); } gz.g.position.set(fightX - KS * 0.68, 0, fightZ); rb.g.position.set(fightX + KS * 0.68, 0, fightZ + 1);
 gz.g.rotation.y = Math.PI / 2 - 0.25; rb.g.rotation.y = -Math.PI / 2 + 0.25; scene.add(gz.g, rb.g);
 gz.act('cast'); rb.act('hit'); for (let i = 0; i < 8; i++) { gz.anim(0.05, 0.6); rb.anim(0.05, 0.6); }
 const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.9, 7, 12, 1, true), glowM(0x6ac8ff, 0.7)); beam.rotation.z = Math.PI / 2; beam.scale.setScalar(KS / 6.2); beam.position.set(fightX + 0.2, KS * 1.5, fightZ + 0.5); scene.add(beam);
 const hit = new THREE.Mesh(ball, glowM(0xfff2c0, 0.9)); hit.scale.setScalar(1.2 * KS / 6.2); hit.position.set(fightX + KS * 0.5, KS * 1.5, fightZ + 0.8); scene.add(hit);
-const blast = nukeBlast(scene, new THREE.Vector3(layout === 'poster' ? -16 : fightX - 18, 0, -90), 26, { kind: 'nuke' }); const bt0 = +q.get('t') || 2.3; for (let t = 0; t < bt0; t += 0.05) blast.update(0.05);
+const blast = nukeBlast(scene, new THREE.Vector3((layout === 'poster' || layout === 'tall') ? -16 : fightX - 18, 0, -90), 26, { kind: 'nuke' }); const bt0 = +q.get('t') || 2.3; for (let t = 0; t < bt0; t += 0.05) blast.update(0.05);
 // orange lightning: one huge bolt cracking right across the front of the frame, more forking through the clouds
 function boltTube(a, b, n, jag, r, col) { const pts = []; for (let i = 0; i <= n; i++) { const p = a.clone().lerp(b, i / n); if (i > 0 && i < n) { p.x += (Math.random() - 0.5) * jag; p.y += (Math.random() - 0.5) * jag * 0.4; p.z += (Math.random() - 0.5) * jag * 0.3; } pts.push(p); }
   const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.05); const grp = new THREE.Group();
@@ -98,7 +98,7 @@ function boltTube(a, b, n, jag, r, col) { const pts = []; for (let i = 0; i <= n
     const c2 = new THREE.CatmullRomCurve3(fp); for (const [rad, col2, ord] of [[r * 1.1, 0x0a0408, 50], [r * 0.55, col, 51]]) { const m = new THREE.Mesh(new THREE.TubeGeometry(c2, 20, rad, 5), new THREE.MeshBasicMaterial({ color: col2, fog: false, depthWrite: false })); m.renderOrder = ord; grp.add(m); } }
   return grp; }
 // two bolts right in front of the lens, one each side, and more cracking down beside the storm
-const P = layout === 'poster';
+const P = (layout === 'poster' || layout === 'tall');
 boltTube(P ? new THREE.Vector3(-3.6, 14, 9) : new THREE.Vector3(-7, 12, 8), P ? new THREE.Vector3(-1.4, 0, 10) : new THREE.Vector3(-4.5, 0, 9), 12, 1.7, 0.045, 0xff7a1a);
 boltTube(P ? new THREE.Vector3(4.4, 13, 9.5) : new THREE.Vector3(9.5, 12, 8), P ? new THREE.Vector3(2.6, 0, 10.5) : new THREE.Vector3(7.5, 0, 9), 12, 1.5, 0.04, 0xff8a1a); boltL.position.set(0, 4, 9);
 boltTube(new THREE.Vector3(TX + 7, 17, TZ - 2), new THREE.Vector3(TX + 4.5, 0, TZ + 2), 10, 2.6, 0.08, 0xff8a2a);
@@ -108,8 +108,8 @@ if (wide) boltTube(new THREE.Vector3(fightX + 10, 30, -60), new THREE.Vector3(fi
 { const pts = []; for (let i = 0; i < 2200; i++) { const x = (Math.random() - 0.5) * 60, y = Math.random() * 22, z = -24 + Math.random() * 38; pts.push(x, y, z, x + 0.18, y - 1, z); } const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3)); scene.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0x9a8ab8, transparent: true, opacity: 0.2 }))); }
 for (let i = 0; i < 7; i++) { const z = makeCharacter(['worker', 'pink', 'suit', 'hoodie', 'plaid', 'hivis', 'worker'][i], {}); z.scale.setScalar(0.55); z.position.set(-2.4 + (i % 4) * 1.3 + Math.random() * 0.4, 0, 9.4 + Math.floor(i / 4) * 1.6 + Math.random() * 0.6); z.rotation.y = (Math.random() - 0.5) * 0.7; for (let k = 0; k < 3 + i; k++) animateWalk(z, 0.07, 1.8); scene.add(z); }
 // camera: low on the street, looking up at the storm, the fight framed behind it
-const cam = new THREE.PerspectiveCamera(layout === 'poster' ? 52 : layout === 'wide' ? 42 : 34, W / H, 0.1, 400);
-if (layout === 'poster') { cam.position.set(0.6, 2.2, 21); cam.lookAt(0.6, 9.5, -14); } else { cam.position.set(1.5, 2.6, 22); cam.lookAt(1.5, 7.2, -14); }
+const cam = new THREE.PerspectiveCamera(layout === 'tall' ? 66 : (layout === 'poster') ? 52 : layout === 'wide' ? 42 : 34, W / H, 0.1, 400);
+if ((layout === 'poster' || layout === 'tall')) { cam.position.set(0.6, 2.2, 21); cam.lookAt(0.6, 9.5, -14); } else { cam.position.set(1.5, 2.6, 22); cam.lookAt(1.5, 7.2, -14); }
 // open up the view: tall buildings standing between the camera and the storm or the fight are knocked flat (rubble and fires)
 cam.updateMatrixWorld(); for (const b of city.buildings || []) { const p = b.pos || (b.obj && b.obj.position); if (!p || !b.obj || !b.obj.visible || p.z > 8 || p.z < -60) continue; const v = new THREE.Vector3(p.x, 2, p.z).project(cam); if (v.x > (P ? -0.75 : -0.55) && v.x < 0.95 && (b.h || 4) > 2.5) { b.obj.visible = false; if (Math.random() < 0.35) fireAt(p.x, p.z, 0.8 + Math.random() * 0.8); } }
 { const ray = new THREE.Raycaster(), aims = []; for (let y = 1; y <= 15; y += 2) aims.push(new THREE.Vector3(TX, y * TS * 0.9, TZ)); for (const dx of [-KS * 0.7, 0, KS * 0.7]) for (let y = 1; y <= 12; y += 1.5) aims.push(new THREE.Vector3(fightX + dx, y * KS / 6, fightZ));
@@ -122,7 +122,8 @@ renderer.render(scene, cam); window.__P = { scene, cam, gz, rb, THREE };
 // the titles
 const S = W / 1000, $ = (id) => document.getElementById(id), place = (id, top, size) => { const e = $(id); e.style.top = top + 'px'; e.style.fontSize = size + 'px'; };
 const hide = (...ids) => ids.forEach((id) => { $(id).style.display = 'none'; });
-if (layout === 'poster') { place('survive', H * 0.035, 30 * S); place('logo', H * 0.055, 230 * S); place('modes', H * 0.215, 30 * S); place('tag', H * 0.862, 46 * S); place('bill', H * 0.935, 13.5 * S); hide('cta', 'url'); }
+if (layout === 'tall') { place('survive', H * 0.03, 30 * S); place('logo', H * 0.045, 230 * S); place('modes', H * 0.165, 30 * S); hide('tag', 'bill', 'cta', 'url'); }
+ else if ((layout === 'poster' || layout === 'tall')) { place('survive', H * 0.035, 30 * S); place('logo', H * 0.055, 230 * S); place('modes', H * 0.215, 30 * S); place('tag', H * 0.862, 46 * S); place('bill', H * 0.935, 13.5 * S); hide('cta', 'url'); }
 else if (layout === 'wide') { place('survive', H * 0.06, 22); place('logo', H * 0.1, 150); place('modes', H * 0.36, 22); place('cta', H * 0.7, 64); place('url', H * 0.86, 26); hide('tag', 'bill'); }
 else { place('survive', H * 0.06, 16); place('logo', H * 0.1, 120); place('modes', H * 0.5, 18); place('tag', H * 0.82, 26); hide('cta', 'url', 'bill'); }
 document.fonts.ready.then(() => { document.body.dataset.ready = '1'; });
