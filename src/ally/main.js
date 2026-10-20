@@ -228,7 +228,7 @@ function makeStorm() {
   const junk = []; const c = makeCar(...skinnedCarArgs([0xc23b3b, 0x4f8fd6, 0xe8d54a][(Math.random() * 3) | 0])); c.scale.setScalar(0.28); junk.push(c);
   junk.push(new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.45, 10), new THREE.MeshLambertMaterial({ color: 0x3a6a8a })));
   twObj = twisters.make(true, junk, equippedTornado()); twObj.position.set(0, 0, 0); twObj.visible = true; scene.add(twObj); tw = twObj.userData.twister; tw.layers.forEach((L) => { L.userData.op0 = L.material.opacity; });
-  size = sizeShown = 1; mass = 0; twObj.scale.setScalar(S0); nukeT = 0; nukeSave = null; nukeHalo = null; for (const b of blasts) b.remove(); blasts.length = 0; roundId++;
+  size = sizeShown = 1; mass = 0; twObj.scale.setScalar(S0); nukeT = 0; nukeSave = null; nukeHalo = null; for (const b of blasts) b.remove(); blasts.length = 0; roundId++; stormPrev = null;
 }
 const reach = () => 1.6 * sizeShown; // ground radius that wrecks things
 let obsGrid = null, obsN = -1; const OG = 6;
@@ -444,19 +444,23 @@ function tapAt(cx, cy) {
   moveTo = p.clone();
   if (zapCd <= 0) { zapCd = 0.45; strike(p); }
 }
-// SPACE (computers): a bolt at the nearest thing in reach, in order of priority: a seeding plane, the storm chaser, a
-// tank, a soldier, a townsperson, then a building. The storm doesn't move.
+// SPACE (computers): a bolt aimed ahead of the storm. Only targets inside a cone in front of it (the way it's heading,
+// up to 60 degrees either side) and in range count, by priority: a seeding plane, the storm chaser, a tank, a soldier,
+// a townsperson, then a building. Nothing there? The bolt hits the ground just ahead. The storm doesn't move.
+let stormHead = 0, stormPrev = null; // which way the storm is heading (radians, like rotation.y), from how it has been moving
+function trackHeading() { if (!twObj) return; const P = twObj.position; if (stormPrev) { const dx = P.x - stormPrev.x, dz = P.z - stormPrev.z; if (Math.hypot(dx, dz) > 0.004) { const want = Math.atan2(dx, dz); let d = want - stormHead; d = Math.atan2(Math.sin(d), Math.cos(d)); stormHead += d * 0.25; } } stormPrev = P.clone(); }
 function zapKey() {
-  if (state !== 'play' || !twObj || zapCd > 0) return; const P = twObj.position, reachZ = 18 + sizeShown * 3;
-  const nearest = (list, posOf) => { let best = null, bd = reachZ; for (const o of list) { const q = posOf(o); if (!q) continue; const d = Math.hypot(q.x - P.x, q.z - P.z); if (d < bd) { bd = d; best = o; } } return best; };
+  if (state !== 'play' || !twObj || zapCd > 0) return; const P = twObj.position, range = 13 + sizeShown * 2.5, half = Math.PI / 3, fx0 = Math.sin(stormHead), fz0 = Math.cos(stormHead);
+  const inCone = (q) => { const dx = q.x - P.x, dz = q.z - P.z, d = Math.hypot(dx, dz); if (d > range) return Infinity; if (d < 1.2) return d; return Math.acos(Math.max(-1, Math.min(1, (dx * fx0 + dz * fz0) / d))) <= half ? d : Infinity; };
+  const nearest = (list, posOf) => { let best = null, bd = Infinity; for (const o of list) { const q = posOf(o); if (!q) continue; const d = inCone(q); if (d < bd) { bd = d; best = o; } } return best; };
   zapCd = 0.45;
-  const pl = nearest(planes, (o) => (o.life > 0 && !(o.cool > 0) ? o.g.position : null)); // planes already turned back are left alone if (pl) { zapPlane2(pl); return; }
-  if (chaser && chaser.mode !== 'flee' && Math.hypot(chaser.g.position.x - P.x, chaser.g.position.z - P.z) < reachZ) { zapChaser(); return; }
+  const pl = nearest(planes, (o) => (o.life > 0 && !(o.cool > 0) ? o.g.position : null)); if (pl) { zapPlane2(pl); return; } /* planes already turned back are left alone */
+  if (chaser && chaser.mode !== 'flee' && inCone(chaser.g.position) < Infinity) { zapChaser(); return; }
   const tk = nearest(tanks, (o) => o.g.position); if (tk) { strike(tk.g.position.clone().setY(0)); return; }
   const so = nearest(soldiers, (o) => o.position); if (so) { strike(so.position.clone().setY(0)); return; }
   const pe = nearest(people, (o) => (o.userData.burnT > 0 ? null : o.position)); if (pe) { strike(pe.position.clone().setY(0)); return; }
   const bu = nearest(buildings, (o) => (o.done || o.burnT != null ? null : o.pos)); if (bu) { strike(new THREE.Vector3(bu.pos.x, 0, bu.pos.z)); return; }
-  zapCd = 0; popup(P.clone().setY(3), 'NOTHING IN REACH', '#9fd6ff');
+  const d = 3 + sizeShown * 1.6, lim = toWorld(cols - 1, rows - 1, cols, rows); strike(new THREE.Vector3(Math.max(-lim.x, Math.min(lim.x, P.x + fx0 * d)), 0, Math.max(-lim.z, Math.min(lim.z, P.z + fz0 * d))));
 }
 // tap bolts take the storm skin's lightning colours
 const boltMats = () => { const s = tw && tw.skin; if (!s || !s.bolts) return [boltMatA, boltMatB]; const bc = s.bolts[(Math.random() * s.bolts.length) | 0], k = bc + ':' + s.boltGlow; if (!boltMats.c[k]) boltMats.c[k] = [new THREE.LineBasicMaterial({ color: bc }), s.boltEdge ? new THREE.LineBasicMaterial({ color: s.boltGlow }) : new THREE.LineBasicMaterial({ color: s.boltGlow, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending })]; return boltMats.c[k]; }; boltMats.c = {};
@@ -599,7 +603,7 @@ function update(dt) {
     if (third) { let dd = Math.atan2(tmp.x, tmp.z) - camYaw; dd = Math.atan2(Math.sin(dd), Math.cos(dd)); camYaw += dd * Math.min(1, dt * 1.6) * mag; } }
   else if (!moveTo) { twObj.position.x += Math.sin(played * 0.9) * dt * 0.6; twObj.position.z += Math.cos(played * 0.7) * dt * 0.6; } // a tornado never sits still
   const lim = toWorld(cols - 1, rows - 1, cols, rows); twObj.position.x = Math.max(-lim.x, Math.min(lim.x, twObj.position.x)); twObj.position.z = Math.max(-lim.z, Math.min(lim.z, twObj.position.z));
-  updateNuke(dt);
+  updateNuke(dt); trackHeading();
   sizeShown += ((nukeT > 0 ? size * 1.35 : size) - sizeShown) * Math.min(1, dt * 1.5); twObj.scale.setScalar(S0 * sizeShown);
   const px = twObj.position.x, pz = twObj.position.z, R = reach();
   if (Math.random() < dt * 8) fx.puff('smoke', new THREE.Vector3(px + (Math.random() - 0.5) * R * 2, 0.3, pz + (Math.random() - 0.5) * R * 2), 0.6 + sizeShown * 0.3);
@@ -688,4 +692,4 @@ function frame(now) {
 // a calm town behind the title screen
 buildWorld(); makeStorm(); twObj.position.set(-12, 0, -12); camTarget.set(0, 1, 0);
 requestAnimationFrame(frame); requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove('booting'))); // the start screen is ready now
-window.__ta = { get sceneN() { return scene.children.length; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, get people() { return people; }, start, finish, goNuke, grow, get massTarget() { return massTarget; }, get nukeT() { return nukeT; }, get stormPos() { return twObj.position; }, THREE, get cam() { return viewCam(); }, get px() { return perfTick.ratio; }, get poiOrder() { return poiOrder; }, get tut() { return tut; }, get zapCd() { return zapCd; }, get engine() { return planeEngineLevel(); }, get music() { return stormMusicState(); }, get chunks() { return chunks; }, get flags() { return { radarDown, radioDown, fireBoost, stink }; }, get moveToV() { return moveTo; }, get city() { return city; }, tapAt, get moveTo() { return moveTo; }, get boostT() { return boostT; }, bench(n = 20) { const vc = viewCam(); renderer.render(scene, vc); const t0 = performance.now(); for (let i = 0; i < n; i++) renderer.render(scene, vc); renderer.getContext().finish(); return (performance.now() - t0) / n; }, get animN() { return city.season.anim.length; }, setSeason(s) { seasonI = SEASON_CYCLE.indexOf(s); roundN = 0; }, get season() { return seasonNow(); }, get calls() { return renderer.info.render.calls; }, get tris() { return renderer.info.render.triangles; }, spawnChaser, get chaser() { return chaser; }, get zoom() { return zoom; }, setZoom, get extraSeeders() { return extraSeeders; }, setView, get third() { return third; }, spawnPlane, get planes() { return planes; }, get mass() { return mass; }, get level() { return level; }, set level(v) { level = v; }, get bDone() { return bDone; }, set bDone(n) { bDone = n; }, get babies() { return twisters.babies; }, get totalB() { return totalB; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, get drivers() { return drivers; }, get state() { return state; }, get score() { return score; }, get size() { return sizeShown; }, get storm() { return twObj; }, get pois() { return pois; }, get buildings() { return buildings; }, get people() { return people; }, set tLeft(v) { tLeft = v; }, grow, start };
+window.__ta = { get sceneN() { return scene.children.length; }, get stormHead() { return stormHead; }, set moveToSet(v) { moveTo = v; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, get people() { return people; }, start, finish, goNuke, grow, get massTarget() { return massTarget; }, get nukeT() { return nukeT; }, get stormPos() { return twObj.position; }, THREE, get cam() { return viewCam(); }, get px() { return perfTick.ratio; }, get poiOrder() { return poiOrder; }, get tut() { return tut; }, get zapCd() { return zapCd; }, get engine() { return planeEngineLevel(); }, get music() { return stormMusicState(); }, get chunks() { return chunks; }, get flags() { return { radarDown, radioDown, fireBoost, stink }; }, get moveToV() { return moveTo; }, get city() { return city; }, tapAt, get moveTo() { return moveTo; }, get boostT() { return boostT; }, bench(n = 20) { const vc = viewCam(); renderer.render(scene, vc); const t0 = performance.now(); for (let i = 0; i < n; i++) renderer.render(scene, vc); renderer.getContext().finish(); return (performance.now() - t0) / n; }, get animN() { return city.season.anim.length; }, setSeason(s) { seasonI = SEASON_CYCLE.indexOf(s); roundN = 0; }, get season() { return seasonNow(); }, get calls() { return renderer.info.render.calls; }, get tris() { return renderer.info.render.triangles; }, spawnChaser, get chaser() { return chaser; }, get zoom() { return zoom; }, setZoom, get extraSeeders() { return extraSeeders; }, setView, get third() { return third; }, spawnPlane, get planes() { return planes; }, get mass() { return mass; }, get level() { return level; }, set level(v) { level = v; }, get bDone() { return bDone; }, set bDone(n) { bDone = n; }, get babies() { return twisters.babies; }, get totalB() { return totalB; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, get drivers() { return drivers; }, get state() { return state; }, get score() { return score; }, get size() { return sizeShown; }, get storm() { return twObj; }, get pois() { return pois; }, get buildings() { return buildings; }, get people() { return people; }, set tLeft(v) { tLeft = v; }, grow, start };
