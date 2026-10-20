@@ -41,12 +41,13 @@
     body.ready #menu > :nth-child(1) { transition-delay: 0.07s; } body.ready #menu > :nth-child(2) { transition-delay: 0.14s; } body.ready #menu > :nth-child(3) { transition-delay: 0.21s; } body.ready #menu > :nth-child(4) { transition-delay: 0.28s; } body.ready #menu > :nth-child(5) { transition-delay: 0.35s; } body.ready #menu > :nth-child(6) { transition-delay: 0.42s; } body.ready #menu > :nth-child(7) { transition-delay: 0.49s; } body.ready #menu > :nth-child(8) { transition-delay: 0.56s; }
     .choice { padding: 9px 14px !important; gap: 1px !important; box-shadow: 0 4px 0 #3a1f5a !important; }
     .choice b { font-size: 17px !important; } .choice span { font-size: 11.5px !important; }
+    .credits { margin: 0; max-width: min(88vw, 360px); font-size: 9.5px; line-height: 1.3; color: #a898c8; opacity: .8; text-align: center; }
     #skipIntro { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 3; font-size: 12px; padding: 5px 12px; margin: 0; opacity: .8; }
     body.ready #skipIntro { display: none; }
   </style>
 </head>
 <body>
-  <div id="intro"><img id="introEnd" src="./intro-end.jpg" alt=""><video id="introVid" src="./intro.mp4" muted playsinline preload="auto" poster="./intro-end.jpg"></video></div>
+  <div id="intro"><img id="introEnd" src="./intro-end.jpg" alt=""><video id="introVid" src="./intro.mp4" muted autoplay playsinline webkit-playsinline preload="auto" poster="./intro-start.jpg"></video></div>
   <button id="skipIntro" class="ghost">SKIP ▶</button>
   <div id="menu" class="screen">
     <button class="choice" onclick="location.href='tornado.html'"><b>🌪️ PLAY TORNADO ALLEY</b><span>Five towns, ten big targets, seeding planes and storm chasers. New? Try the tutorial.</span></button>
@@ -56,6 +57,7 @@
     <button class="choice hidden" onclick="location.href='zombieville.html'"><b>EXTRACT</b><span>Snake-style maze run. Gather a line of survivors and get them out by heli. Ten districts.</span><span class="saved" id="zvSaved"></span></button>
     <button class="choice" onclick="location.href='store.html'" style="border-color:#ffd24a;box-shadow:0 6px 0 #5a4a1a"><b style="color:#ffd24a">SKIN SHOP</b><span>Spend your coins on tornado skins, townsfolk outfits and the cars in town.</span><span class="saved" id="coins"></span></button>
 
+    <p class="credits">All monsters, robots and characters are original creations. Any resemblance to other characters is coincidental.</p>
   </div>
   <script type="module">import { stampVersion } from './src/version.js'; import { initSaveCodes } from './src/savecode.js'; import { unlockAudio, startStormMusic, setStormLevel, soundToggle } from './src/audio.js';
     // title music: the storm theme, from the first tap anywhere (browsers won't play sound before one)
@@ -63,11 +65,16 @@
     soundToggle(document.getElementById('menu')); stampVersion(); initSaveCodes(document.getElementById('menu'));
     // the intro clip plays once (muted, as browsers require), stays on its last frame, then the menu pops up. It plays every time the
     // menu opens; if the browser won't play it, the menu shows straight away on the final frame.
-    { const v = document.getElementById('introVid'); let done = false; const ready = () => { if (done) return; done = true; document.body.classList.add('ready'); try { sessionStorage.setItem('intro_seen', '1'); } catch (e) {} };
-      { v.addEventListener('ended', ready); v.addEventListener('error', ready); const pr = v.play(); if (pr && pr.catch) pr.catch(() => { v.remove(); ready(); }); setTimeout(ready, 4000); }
-      document.getElementById('skipIntro').addEventListener('click', () => { v.pause(); v.currentTime = v.duration || 99; ready(); }); window.__introReady = () => done;
-      // coming back to the menu (the back button, or the browser keeping the page) plays the intro again too
-      addEventListener('pageshow', (e) => { if (!e.persisted || !v.isConnected) return; done = false; document.body.classList.remove('ready'); v.currentTime = 0; const pr = v.play(); if (pr && pr.catch) pr.catch(() => ready()); setTimeout(ready, 4000); }); }</script>
+    { const v = document.getElementById('introVid'); v.muted = true; v.defaultMuted = true; let done = false, timer = 0;
+      const ready = () => { if (done) return; done = true; clearTimeout(timer); document.body.classList.add('ready'); };
+      // the safety net only starts once the clip is actually playing, so a slow phone connection doesn't skip it
+      v.addEventListener('playing', () => { clearTimeout(timer); timer = setTimeout(ready, Math.max(2500, (v.duration || 2) * 1000 + 1200)); });
+      v.addEventListener('ended', ready); v.addEventListener('error', ready);
+      // a phone that won't play it (low power mode, data saver) goes straight to the menu on the last frame
+      const blocked = () => ready();
+      const start = () => { const pr = v.play(); if (pr && pr.catch) pr.catch(blocked); setTimeout(() => { if (!done && v.paused && v.currentTime === 0) blocked(); }, 2500); };
+      start(); document.getElementById('skipIntro').addEventListener('click', () => { v.pause(); ready(); }); window.__introReady = () => done;
+      addEventListener('pageshow', (e) => { if (!e.persisted) return; done = false; document.body.classList.remove('ready'); v.currentTime = 0; start(); }); }</script>
   <script>
     try { if (localStorage.getItem('oo_save_dc')) document.getElementById('dcSaved').textContent = 'Saved game: night ' + (JSON.parse(localStorage.getItem('oo_save_dc')).night + 1); } catch (e) {}
     try { const c = Math.round(+JSON.parse(localStorage.getItem('oo_coins') || '0') * 100) / 100; document.getElementById('coins').textContent = c ? '🪙 ' + c + (c === 1 ? ' coin' : ' coins') : ''; } catch (e) {}
