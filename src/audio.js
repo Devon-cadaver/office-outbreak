@@ -169,7 +169,7 @@ function stormStep() {
   }
 }
 // ---------- real songs (Tornado Alley): a streamed <audio> playlist that rotates tracks; if a song can't play, the synth beat takes over ----------
-const SONGS = ['music/tornado-alley.mp3'];
+const SONGS = ['music/tornado-alley.mp3', 'music/twister-vs-army.mp3', 'music/clean-slate.mp3'];
 let song = null, songI = Math.floor(Math.random() * SONGS.length);
 export function playSongs() {
   if (!song) {
