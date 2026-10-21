@@ -8,7 +8,7 @@ import { makeCharacter, animateWalk } from '../poster/characters.js';
 import { makeCar } from '../car.js';
 import { createTwisters } from '../tornado.js';
 import { createFires } from '../fire.js';
-import { unlockAudio, soundToggle, sfx, stopMusic, setPlaneEngine, planeEngineLevel, setStormLevel, stormBoost, stormMusicState, playSongs, nextSong, songState } from '../audio.js';
+import { unlockAudio, soundToggle, sfx, stopMusic, setPlaneEngine, planeEngineLevel, setStormLevel, stormBoost, stormMusicState, playSongs, songState, gameMusic, SONGS_TORNADO } from '../audio.js';
 import { equippedSkin, equippedTornado, skinnedCarArgs, addCoins, grantSkin, equip, CHAR_SKINS } from '../skins.js';
 import { forceSeason } from '../season.js';
 import { showPrizes } from '../prizes.js';
@@ -525,9 +525,8 @@ addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
 // ---------- flow ----------
 let state = 'start', roundId = 0; // roundId: delayed effects from an earlier round check it and stand down
 soundToggle($('taStart'), $('taPaused')); // sound on/off on the start and pause screens
-// the soundtrack starts on the first tap and keeps rotating songs for as long as you're on Tornado Alley; SKIP SONG on pause
-addEventListener('pointerdown', () => { unlockAudio(); playSongs(); }, true);
-{ const b = document.createElement('button'); b.className = 'ghost'; b.textContent = '⏭ SKIP SONG'; b.addEventListener('click', (e) => { e.stopPropagation(); unlockAudio(); nextSong(); }); $('taPaused').insertBefore(b, $('taPaused').querySelector('.soundRow')); }
+// the soundtrack starts on the first tap and keeps rotating songs for as long as you're on Tornado Alley
+gameMusic($('taPaused'), SONGS_TORNADO);
 const fsMode = initFullscreen(() => state === 'play'); // full screen on play, back in after a browser drop-out, no page scrolling mid-round
 function start(tutorial = false) {
   fsMode.play();

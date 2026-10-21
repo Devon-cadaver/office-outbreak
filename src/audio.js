@@ -168,20 +168,36 @@ function stormStep() {
     storm.next += STEP; storm.step++;
   }
 }
-// ---------- real songs (Tornado Alley): a streamed <audio> playlist that keeps rotating the whole time you're on the page ----------
-const SONGS = ['music/tornado-alley.mp3', 'music/twister-vs-army.mp3', 'music/clean-slate.mp3'];
-let song = null, songI = Math.floor(Math.random() * SONGS.length);
-export function playSongs() {
+// ---------- real songs: a streamed <audio> playlist per game that keeps rotating the whole time you're on its page ----------
+export const SONGS_TORNADO = ['music/tornado-alley.mp3', 'music/twister-vs-army.mp3', 'music/clean-slate.mp3'];
+export const SONGS_KAIJU = ['music/feeding-ground.mp3', 'music/tornado-alley.mp3', 'music/twister-vs-army.mp3', 'music/clean-slate.mp3'];
+const VOLS = [['LOW', 0.25], ['MED', 0.55], ['FULL BLAST', 0.95]];
+let SONGS = SONGS_TORNADO, song = null, songGain = null, songI = 0, repeat = false, volI = 1;
+try { const v = +localStorage.getItem('oo_music_vol'); if (v >= 0 && v < VOLS.length && localStorage.getItem('oo_music_vol') !== null) volI = v; } catch { /* ignore */ }
+function applyVol() { const v = VOLS[volI][1]; if (songGain) songGain.gain.value = v; else if (song) song.volume = Math.min(1, v); }
+export function playSongs(list) {
+  if (list && !song) { SONGS = list; songI = Math.floor(Math.random() * SONGS.length); }
   if (!song) {
-    song = new Audio(); song.preload = 'auto'; song.volume = 0.4;
+    song = new Audio(); song.preload = 'auto';
     // through the mixer, so the level also holds on iPad/iPhone (they ignore .volume) and the music switch covers it
-    if (ctx) try { const g = ctx.createGain(); g.gain.value = 0.4; ctx.createMediaElementSource(song).connect(g).connect(musicSw); song.volume = 1; } catch { /* plain element volume */ } song.loop = SONGS.length === 1; song.src = SONGS[songI];
-    song.addEventListener('ended', () => { songI = (songI + 1) % SONGS.length; song.src = SONGS[songI]; song.play().catch(() => {}); });
+    if (ctx) try { songGain = ctx.createGain(); ctx.createMediaElementSource(song).connect(songGain).connect(musicSw); } catch { songGain = null; }
+    applyVol(); song.loop = repeat || SONGS.length === 1; song.src = SONGS[songI];
+    song.addEventListener('ended', () => nextSong());
   }
   song.muted = muted || musicMuted; if (song.paused) song.play().catch(() => {});
 }
 export function nextSong() { if (!song) return playSongs(); songI = (songI + 1) % SONGS.length; song.src = SONGS[songI]; song.play().catch(() => {}); }
-export function songState() { return song ? { t: song.currentTime, paused: song.paused, muted: song.muted, src: SONGS[songI] } : null; }
+export function songState() { return song ? { t: song.currentTime, paused: song.paused, muted: song.muted, src: SONGS[songI], loop: song.loop, vol: VOLS[volI][0], list: SONGS.length } : null; }
+// a game page's soundtrack: starts on the first tap and keeps going; SKIP SONG, REPEAT and VOLUME on the given screen
+export function gameMusic(host, list) {
+  addEventListener('pointerdown', () => { unlockAudio(); playSongs(list); }, true);
+  const row = document.createElement('div'); row.className = 'soundRow';
+  const mk = (label, fn) => { const b = document.createElement('button'); b.className = 'ghost soundBtn'; b.textContent = label; b.addEventListener('click', (e) => { e.stopPropagation(); unlockAudio(); fn(b); }); row.append(b); return b; };
+  mk('⏭ SKIP SONG', () => nextSong());
+  mk('🔁 REPEAT: OFF', (b) => { repeat = !repeat; if (song) song.loop = repeat || SONGS.length === 1; b.textContent = repeat ? '🔂 REPEAT: ON' : '🔁 REPEAT: OFF'; });
+  mk('🔉 MUSIC VOL: ' + VOLS[volI][0], (b) => { volI = (volI + 1) % VOLS.length; applyVol(); try { localStorage.setItem('oo_music_vol', volI); } catch { /* ignore */ } b.textContent = '🔉 MUSIC VOL: ' + VOLS[volI][0]; });
+  host.insertBefore(row, host.querySelector('.soundRow'));
+}
 export function startStormMusic() {
   if (!ctx) return; stopMusic(); storm.on = true; storm.next = ctx.currentTime + 0.1; storm.step = 0; storm.boostUntil = 0;
   storm.timer = setInterval(() => { if (ctx.state === 'running' && storm.on) stormStep(); }, 60);
