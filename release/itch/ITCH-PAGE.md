@@ -1,6 +1,6 @@
 # Dead City: Tornado Alley — itch.io page kit
 
-Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.11.8**. Upload `release/survive-dead-city-web-v1.11.8.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
+Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.11.9**. Upload `release/survive-dead-city-web-v1.11.9.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
 
 > All monsters, robots and characters in Dead City are original creations. Any resemblance to other characters is coincidental.
 
@@ -13,7 +13,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 | Short description / tagline | You are the storm. Tear through five towns, take out big targets, dodge seeding planes and outrun storm chasers. |
 | Classification | Game |
 | Kind of project | **HTML** |
-| Uploads | `survive-dead-city-web-v1.11.8.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
+| Uploads | `survive-dead-city-web-v1.11.9.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
 | Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
 | Frame options | Leave SharedArrayBuffer off. No special headers needed. |
 | Pricing | Free (or "No payments"). |
@@ -70,6 +70,7 @@ Small browser games built fast, tested on a phone, and tuned by playing. Dead Ci
 
 ## Version history
 
+- **1.11.9** (2026-10-21): Tornado Alley music is quieter (now on iPad too), starts as soon as you open Tornado Alley and keeps rotating through rounds and pauses, and the pause menu has a SKIP SONG button.
 - **1.11.8** (2026-10-21): Tornado Alley's soundtrack now rotates three songs: Tornado Alley, Twister Against the Army and Clean Slate.
 - **1.11.7** (2026-10-21): Tornado Alley now plays a real rock soundtrack during rounds, and there's a separate MUSIC on/off button next to SOUND on every menu.
 - **1.11.6** (2026-10-18): Tornado Alley: SPACE now only zaps targets in front of the storm (same priority), otherwise the bolt hits the ground just ahead; and it targets planes again.
