@@ -1,14 +1,17 @@
 // Tiny synthesized audio via WebAudio: sound effects and a looping music track. No audio files.
-let ctx = null, master = null, musicGain = null, noiseBuf = null, muted = false;
-export function setMuted(v) { muted = v; if (master) master.gain.value = muted ? 0 : 0.9; try { localStorage.setItem("oo_mute", muted ? "1" : "0"); } catch { /* ignore */ } }
+let ctx = null, master = null, musicGain = null, musicSw = null, noiseBuf = null, muted = false, musicMuted = false;
+export function setMuted(v) { muted = v; if (master) master.gain.value = muted ? 0 : 0.9; if (song) song.muted = muted || musicMuted; try { localStorage.setItem("oo_mute", muted ? "1" : "0"); } catch { /* ignore */ } }
 export function isMuted() { return muted; }
 export function audioState() { return ctx ? ctx.state : "none"; }
-try { muted = localStorage.getItem("oo_mute") === "1"; } catch { /* ignore */ }
+try { muted = localStorage.getItem("oo_mute") === "1"; musicMuted = localStorage.getItem("oo_music_off") === "1"; } catch { /* ignore */ }
+// music has its own switch, separate from the sound effects
+export function setMusicMuted(v) { musicMuted = v; if (musicSw) musicSw.gain.value = musicMuted ? 0 : 1; if (song) song.muted = muted || musicMuted; try { localStorage.setItem("oo_music_off", musicMuted ? "1" : "0"); } catch { /* ignore */ } }
 export function unlockAudio() {
   if (!ctx) {
     try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch { ctx = null; return; }
     master = ctx.createGain(); master.gain.value = muted ? 0 : 0.9; master.connect(ctx.destination);
-    musicGain = ctx.createGain(); musicGain.gain.value = 0.35; musicGain.connect(master);
+    musicSw = ctx.createGain(); musicSw.gain.value = musicMuted ? 0 : 1; musicSw.connect(master);
+    musicGain = ctx.createGain(); musicGain.gain.value = 0.35; musicGain.connect(musicSw);
     const len = ctx.sampleRate * 0.5; noiseBuf = ctx.createBuffer(1, len, ctx.sampleRate);
     const d = noiseBuf.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
   }
@@ -21,10 +24,13 @@ for (const ev of ['pointerup', 'touchend', 'click']) addEventListener(ev, () => 
 // 🔊 / 🔇 button on the given screens (placed above their tutorial / menu buttons), all kept in step
 export function soundToggle(...hosts) {
   const btns = [];
-  const draw = () => { for (const b of btns) b.textContent = muted ? '🔇 SOUND: OFF' : '🔊 SOUND: ON'; };
-  for (const h of hosts) { if (!h) continue; const b = document.createElement('button'); b.className = 'ghost soundBtn';
+  const draw = () => { for (const b of btns) b.textContent = b.dataset.k === 'm' ? (musicMuted ? '🎵 MUSIC: OFF' : '🎵 MUSIC: ON') : (muted ? '🔇 SOUND: OFF' : '🔊 SOUND: ON'); };
+  for (const h of hosts) { if (!h) continue; const row = document.createElement('div'); row.className = 'soundRow';
+    const b = document.createElement('button'); b.className = 'ghost soundBtn';
     b.addEventListener('click', (e) => { e.stopPropagation(); unlockAudio(); setMuted(!muted); if (!muted) sfx.pickup(); draw(); });
-    h.insertBefore(b, h.querySelector('.howRow, .menuBtn')); btns.push(b); }
+    const m = document.createElement('button'); m.className = 'ghost soundBtn'; m.dataset.k = 'm';
+    m.addEventListener('click', (e) => { e.stopPropagation(); unlockAudio(); setMusicMuted(!musicMuted); draw(); });
+    row.append(b, m); h.insertBefore(row, h.querySelector('.howRow, .menuBtn')); btns.push(b, m); }
   draw();
 }
 function tone(freq, dur, type = 'square', vol = 0.08, slide = 0, dest = master, when = 0) {
@@ -88,7 +94,7 @@ export function startMusic() {
   if (!ctx || musicOn) return; musicOn = true; nextBeat = ctx.currentTime + 0.1; beatIndex = 0;
   timer = setInterval(() => { if (ctx.state === 'running') scheduleBeat(); }, 100);
 }
-export function stopMusic() { musicOn = false; if (timer) clearInterval(timer); timer = null; if (typeof storm !== 'undefined') { storm.on = false; if (storm.timer) clearInterval(storm.timer); storm.timer = null; } }
+export function stopMusic() { if (song) song.pause(); musicOn = false; if (timer) clearInterval(timer); timer = null; if (typeof storm !== 'undefined') { storm.on = false; if (storm.timer) clearInterval(storm.timer); storm.timer = null; } }
 export function setMusicTension(level) { if (musicGain) musicGain.gain.setTargetAtTime(0.3 + Math.min(0.25, level * 0.05), ctx.currentTime, 0.5); }
 
 // ---------- seeding planes: an air-raid siren when one is on its way, and a propeller drone that swells as it closes ----------
@@ -162,6 +168,17 @@ function stormStep() {
     storm.next += STEP; storm.step++;
   }
 }
+// ---------- real songs (Tornado Alley): a streamed <audio> playlist that rotates tracks; if a song can't play, the synth beat takes over ----------
+const SONGS = ['music/tornado-alley.mp3'];
+let song = null, songI = Math.floor(Math.random() * SONGS.length);
+export function playSongs() {
+  if (!song) {
+    song = new Audio(); song.preload = 'auto'; song.volume = 0.55; song.loop = SONGS.length === 1; song.src = SONGS[songI];
+    song.addEventListener('ended', () => { songI = (songI + 1) % SONGS.length; song.src = SONGS[songI]; song.play().catch(() => {}); });
+  }
+  stopMusic(); song.muted = muted || musicMuted; song.play().catch(() => startStormMusic());
+}
+export function songState() { return song ? { t: song.currentTime, paused: song.paused, muted: song.muted, src: SONGS[songI] } : null; }
 export function startStormMusic() {
   if (!ctx) return; stopMusic(); storm.on = true; storm.next = ctx.currentTime + 0.1; storm.step = 0; storm.boostUntil = 0;
   storm.timer = setInterval(() => { if (ctx.state === 'running' && storm.on) stormStep(); }, 60);
