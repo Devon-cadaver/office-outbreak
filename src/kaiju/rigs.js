@@ -17,7 +17,7 @@ const S = (k, a) => Math.sin(k * Math.PI) * a; // a one-shot's swell
 // pal: skin, dark, belly, accent (plates, crystals, sail...), eye
 export const KAIJU = {
   godzilly: { name: "SCORCHBACK", kind: 'biped', pal: [0x3a6a5a, 0x1f3a32, 0x7aa08a, 0xff8a2a, 0xffe24a], opt: { plates: true, glow: true }, spells: ["Ember Belch","Furnace Breath","Spine Eruption"], speed: 1 },
-  mike: { name: "MIKE THE BOUNTY HUNTER", kind: 'human', pal: [0x1e1f24, 0x2a2b30, 0xc98d68, 0xb3262a, 0x5a7a9a], spells: ["Taser Zap","Sledgehammer Slam","Warrant Served"], borrow: [["giggle",0],["konk",1],["konk",2]], speed: 1.15 },
+  mike: { name: "MIKE FERGUSON THE BOUNTY HUNTER", kind: 'human', pal: [0x1e1f24, 0x2a2b30, 0xc98d68, 0xb3262a, 0x5a7a9a], spells: ["Taser Zap","Sledgehammer Slam","Warrant Served"], borrow: [["giggle",0],["konk",1],["konk",2]], speed: 1.15 },
   konk: { name: "GRUMBLEGORILLA", kind: 'ape', pal: [0x6a5a6a, 0x3a2e3a, 0xa08a90, 0x000000, 0x7af0ff], spells: ["Car Chuck","Belly Drum","Building Bowl"], speed: 1.12 },
   mofra: { name: "LANTERNWING", kind: 'moth', fly: true, pal: [0x5a8a7a, 0x2a6a8a, 0xd0f0e8, 0xff5a8a, 0xb8ff6a], spells: ["Gust Flap","Glitter Squall","Prism Ray"], speed: 1.2 },
   mecha: { name: "CLANKOSAUR", kind: 'biped', pal: [0xa87a3a, 0x5a3e1e, 0xd0a868, 0x7ac8a0, 0x6aff9a], opt: { plates: true, mech: true }, spells: ["Wrench Fists","Bolt Barrage","Frost Engine"], speed: 0.92 },

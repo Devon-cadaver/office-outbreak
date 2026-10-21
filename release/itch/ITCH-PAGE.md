@@ -1,6 +1,6 @@
 # Dead City: Tornado Alley — itch.io page kit
 
-Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.13.2**. Upload `release/survive-dead-city-web-v1.13.2.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
+Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.13.3**. Upload `release/survive-dead-city-web-v1.13.3.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
 
 > All monsters, robots and characters in Dead City are original creations. Any resemblance to other characters is coincidental.
 
@@ -13,7 +13,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 | Short description / tagline | You are the storm. Tear through five towns, take out big targets, dodge seeding planes and outrun storm chasers. |
 | Classification | Game |
 | Kind of project | **HTML** |
-| Uploads | `survive-dead-city-web-v1.13.2.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
+| Uploads | `survive-dead-city-web-v1.13.3.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
 | Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
 | Frame options | Leave SharedArrayBuffer off. No special headers needed. |
 | Pricing | Free (or "No payments"). |
@@ -70,6 +70,7 @@ Small browser games built fast, tested on a phone, and tuned by playing. Dead Ci
 
 ## Version history
 
+- **1.13.3** (2026-10-21): Mike is now MIKE FERGUSON THE BOUNTY HUNTER.
 - **1.13.2** (2026-10-21): Both games now share one radio station of all six songs, shuffled so none repeats until they've all played.
 - **1.13.1** (2026-10-21): Kaiju Madness now has its own three songs (Feeding Ground, Stomp the Block, Saving You the Trouble), and after a roar-off the winner celebrates and the loser sulks, each kind of monster its own way; Mike throws his sledgehammer at the rival and it flies back to him.
 - **1.13.0** (2026-10-21): New free monster in Kaiju Madness: MIKE THE BOUNTY HUNTER, a giant in a tactical vest with a sledgehammer (Taser Zap, Sledgehammer Slam, Warrant Served); his Skeleton skin has a flaming skull.

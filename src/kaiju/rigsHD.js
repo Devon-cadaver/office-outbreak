@@ -500,7 +500,7 @@ function plantHD(body, K) {
     } };
 }
 
-// ---------- MIKE THE BOUNTY HUNTER: a giant man in a black tactical vest (MOLLE webbing, pouches, a flag patch, a red
+// ---------- MIKE FERGUSON THE BOUNTY HUNTER: a giant man in a black tactical vest (MOLLE webbing, pouches, a flag patch, a red
 // name tape and a BOUNTY HUNTER tab, a yellow taser), black tee, cargo pants with knee pads and boots, sleeve tattoos,
 // studded fingerless gloves, a white beard and a grey buzz cut, dragging a sledgehammer. pal: [gear, tee, skin, patch, eyes] ----------
 const texs = new Map();
