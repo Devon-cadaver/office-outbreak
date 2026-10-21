@@ -169,14 +169,15 @@ function stormStep() {
   }
 }
 // ---------- real songs: a streamed <audio> playlist per game that keeps rotating the whole time you're on its page ----------
-export const SONGS_TORNADO = ['music/tornado-alley.mp3', 'music/twister-vs-army.mp3', 'music/clean-slate.mp3'];
-export const SONGS_KAIJU = ['music/feeding-ground.mp3', 'music/stomp-the-block.mp3', 'music/saving-you-the-trouble.mp3'];
+// one radio station for both games: every song, shuffled; nothing repeats until they've all played
+export const SONGS_ALL = ['music/tornado-alley.mp3', 'music/twister-vs-army.mp3', 'music/clean-slate.mp3', 'music/feeding-ground.mp3', 'music/stomp-the-block.mp3', 'music/saving-you-the-trouble.mp3'];
+export const SONGS_TORNADO = SONGS_ALL, SONGS_KAIJU = SONGS_ALL;
 const VOLS = [['LOW', 0.25], ['MED', 0.55], ['FULL BLAST', 0.95]];
-let SONGS = SONGS_TORNADO, song = null, songGain = null, songI = 0, repeat = false, volI = 1;
+let SONGS = SONGS_ALL, order = [], song = null, songGain = null, songI = 0, repeat = false, volI = 1;
 try { const v = +localStorage.getItem('oo_music_vol'); if (v >= 0 && v < VOLS.length && localStorage.getItem('oo_music_vol') !== null) volI = v; } catch { /* ignore */ }
 function applyVol() { const v = VOLS[volI][1]; if (songGain) songGain.gain.value = v; else if (song) song.volume = Math.min(1, v); }
 export function playSongs(list) {
-  if (list && !song) { SONGS = list; songI = Math.floor(Math.random() * SONGS.length); }
+  if (list && !song) { SONGS = list; songI = pickNext(); }
   if (!song) {
     song = new Audio(); song.preload = 'auto';
     // through the mixer, so the level also holds on iPad/iPhone (they ignore .volume) and the music switch covers it
@@ -186,7 +187,9 @@ export function playSongs(list) {
   }
   song.muted = muted || musicMuted; if (song.paused) song.play().catch(() => {});
 }
-export function nextSong() { if (!song) return playSongs(); songI = (songI + 1) % SONGS.length; song.src = SONGS[songI]; song.play().catch(() => {}); }
+// a shuffled bag: deal songs out in random order, reshuffle when it runs dry (never the same song twice in a row)
+function pickNext() { if (!order.length) { order = SONGS.map((_, i) => i); for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; } if (song && order.length > 1 && order[0] === songI) order.push(order.shift()); } return order.shift(); }
+export function nextSong() { if (!song) return playSongs(); songI = pickNext(); song.src = SONGS[songI]; song.play().catch(() => {}); }
 export function songState() { return song ? { t: song.currentTime, paused: song.paused, muted: song.muted, src: SONGS[songI], loop: song.loop, vol: VOLS[volI][0], list: SONGS.length } : null; }
 // a game page's soundtrack: starts on the first tap and keeps going; SKIP SONG, REPEAT and VOLUME on the given screen
 export function gameMusic(host, list) {
