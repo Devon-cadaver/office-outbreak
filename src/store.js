@@ -4,7 +4,7 @@ import { SKINS, CHAR_SKINS, CAR_SKINS, FX_SKINS, NPC_MAX, getCoins, addCoins, ge
 import { makeCharacter } from './poster/characters.js';
 import { makeCar } from './car.js';
 import { createTwisters } from './tornado.js';
-import { buildKaiju, KAIJU } from './kaiju/rigs.js';
+import { buildKaiju, KAIJU, FREE_KAIJU } from './kaiju/rigs.js';
 const KAIJU_FLY = new Set(Object.keys(KAIJU).filter((k) => KAIJU[k].fly));
 
 const $ = (id) => document.getElementById(id);
@@ -35,7 +35,7 @@ function build() {
   $('coins').textContent = '🪙 ' + fmtCoins(); drawTabs();
   for (const cat of [tab]) {
     // kaiju skins: monsters you've won first, then a separate row for the locked ones
-    let unl = ['godzilly']; try { unl = unl.concat(JSON.parse(localStorage.getItem('kj_unlocked') || '[]')); } catch { /* ignore */ }
+    let unl = [...FREE_KAIJU]; try { unl = unl.concat(JSON.parse(localStorage.getItem('kj_unlocked') || '[]')); } catch { /* ignore */ }
     const rowOf = (title, extra = '') => { const hh = document.createElement('h2'); hh.innerHTML = title; grid.appendChild(hh); const r = document.createElement('div'); r.className = 'row ' + extra; grid.appendChild(r); return r; };
     if (cat === 'kaiju' && !(kjSel && KAIJU[kjSel])) {
       const rows = [rowOf('PICK A MONSTER <small>then choose its skin · swipe ↔</small>'), rowOf('LOCKED MONSTERS <small>win them in the prize games first</small>', 'locked')];

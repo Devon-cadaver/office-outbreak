@@ -500,6 +500,101 @@ function plantHD(body, K) {
     } };
 }
 
+// ---------- MIKE THE BOUNTY HUNTER: a giant man in a black tactical vest (MOLLE webbing, pouches, a flag patch, a red
+// name tape and a BOUNTY HUNTER tab, a yellow taser), black tee, cargo pants with knee pads and boots, sleeve tattoos,
+// studded fingerless gloves, a white beard and a grey buzz cut, dragging a sledgehammer. pal: [gear, tee, skin, patch, eyes] ----------
+const texs = new Map();
+function canvasTex(key, w, h, draw) { if (!texs.has(key)) { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; draw(cv.getContext('2d'), w, h); const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; texs.set(key, t); } return texs.get(key); }
+const texMat = (key, color, tex) => { const k = 'tx' + key + color; if (!mats.has(k)) mats.set(k, new THREE.MeshLambertMaterial({ color, map: tex })); return mats.get(k); };
+// full-sleeve tattoos: dense black linework with teal, red and gold fills, wrapping round the arm
+const tattooTex = () => canvasTex('tattoo', 256, 256, (g, w, h) => { g.fillStyle = '#fff'; g.fillRect(0, 0, w, h); let r = 7; const rnd = () => ((r = (r * 9301 + 49297) % 233280) / 233280);
+  for (let i = 0; i < 34; i++) { const x = rnd() * w, y = rnd() * h, s = 14 + rnd() * 34; g.fillStyle = ['#2a8a8a', '#a8322a', '#c89a2a', '#3a5aa8', '#2a2a2a'][i % 5]; g.globalAlpha = 0.32; g.beginPath(); g.ellipse(x, y, s, s * 0.6, rnd() * 3, 0, 7); g.fill(); g.globalAlpha = 1; }
+  g.strokeStyle = '#141414'; g.lineCap = 'round'; for (let i = 0; i < 30; i++) { g.lineWidth = 1.5 + rnd() * 2.5; g.beginPath(); const x = rnd() * w, y = rnd() * h; g.moveTo(x, y); g.bezierCurveTo(x + rnd() * 80 - 40, y + rnd() * 80 - 40, x + rnd() * 80 - 40, y + rnd() * 80 - 40, x + rnd() * 90 - 45, y + rnd() * 90 - 45); g.stroke(); }
+  for (let i = 0; i < 8; i++) { const x = rnd() * w, y = rnd() * h; g.lineWidth = 3; g.beginPath(); for (let a = 0; a < 6; a++) g.lineTo(x + Math.cos(a * 2.5) * 16, y + Math.sin(a * 2.5) * 16); g.closePath(); g.stroke(); } });
+const flagTex = () => canvasTex('flag', 96, 60, (g, w, h) => { for (let i = 0; i < 13; i++) { g.fillStyle = i % 2 ? '#f4f0e6' : '#b8282e'; g.fillRect(0, i * h / 13, w, h / 13 + 1); } g.fillStyle = '#26306a'; g.fillRect(0, 0, w * 0.42, h * 0.54); g.fillStyle = '#f4f0e6'; for (let y = 0; y < 5; y++) for (let x = 0; x < 6; x++) g.fillRect(3 + x * 6.4 + (y % 2) * 3, 3 + y * 6, 2, 2); g.strokeStyle = '#d8c070'; g.lineWidth = 3; g.strokeRect(0, 0, w, h); });
+const tabTex = (txt, bg, fg, key) => canvasTex(key, 256, 64, (g, w, h) => { g.fillStyle = bg; g.beginPath(); g.roundRect(2, 2, w - 4, h - 4, 14); g.fill(); g.strokeStyle = '#dcdcdc'; g.lineWidth = 4; g.stroke(); g.fillStyle = fg; g.font = 'bold 34px Arial Black, Arial, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(txt, w / 2, h / 2 + 2, w - 24); });
+const BOX = () => geo('box', () => new THREE.BoxGeometry(1, 1, 1));
+const PLN = () => geo('pln', () => new THREE.PlaneGeometry(1, 1));
+const DOME = () => geo('dome', () => new THREE.SphereGeometry(0.5, 16, 8, 0, Math.PI * 2, 0, Math.PI * 0.45));
+function mikeHD(body, K) {
+  const [gearC, teeC, skinC, patchC, eyeC] = K.pal;
+  const gear = M(gearC), tee = M(teeC), skin = M(skinC), web = M(lerpC(gearC, 0x8a8a90, 0.18)), black = M(0x0c0c10), boot = M(0x141418, 'metal'), steel = M(0x9aa0a8, 'metal'), silver = M(0xc8ccd2, 'metal'),
+    beard = M(0xece8e0), beardG = M(0xb8b4ac), stubble = M(0x8a8884), eyeW = M(0xf2f0ea), iris = M(eyeC), lip = M(lerpC(skinC, 0x6a2a2a, 0.35)), yellow = M(0xf0c81a), wood = M(0x2a2420), pad = M(0x26272c, 'metal');
+  const tat = texMat('tat', skinC, tattooTex()), flag = texMat('flag', 0xffffff, flagTex()), nameTab = texMat('name', 0xffffff, tabTex('MIKE', '#' + new THREE.Color(patchC).getHexString(), '#111', 'name' + patchC)), bhTab = texMat('bh', 0xffffff, tabTex('BOUNTY HUNTER', '#3a3a3e', '#e8e8e8', 'bh'));
+  // legs: cargo pants with thigh pockets, knee pads, laced boots
+  const hip = grp(body, 0, 1.0, 0);
+  part(hip, SPH(), gear, 0.6, 0.32, 0.4, 0, -0.05, 0); part(hip, CYL(), black, 0.62, 0.08, 0.42, 0, 0.03, 0); part(hip, RBX(), silver, 0.09, 0.07, 0.03, 0, 0.03, 0.21);
+  for (const s of [-1, 1]) { part(hip, RBX(), web, 0.11, 0.11, 0.07, s * 0.23, -0.02, 0.18); part(hip, BOX(), black, 0.05, 0.04, 0.08, s * 0.3, 0.03, -0.15); } // belt pouches, loops
+  const legs = [-1, 1].map((s) => { const l = grp(hip, s * 0.17, -0.06, 0);
+    part(l, CAP(), gear, 0.3, 0.24, 0.31, 0, -0.24, 0); part(l, RBX(), web, 0.06, 0.16, 0.14, s * 0.15, -0.28, 0.01); part(l, BOX(), gear, 0.065, 0.04, 0.15, s * 0.15, -0.2, 0.01); // cargo pocket + flap
+    const k = grp(l, 0, -0.48, 0);
+    part(k, RBX(), pad, 0.24, 0.22, 0.1, 0, -0.02, 0.135); part(k, CYL(), black, 0.27, 0.03, 0.28, 0, 0.06, 0); part(k, CYL(), black, 0.26, 0.03, 0.27, 0, -0.1, 0); // knee pad + straps
+    part(k, CAP(), gear, 0.25, 0.19, 0.27, 0, -0.2, 0);
+    const ft = grp(k, 0, -0.42, 0); part(ft, CYL(), boot, 0.26, 0.13, 0.28, 0, 0.06, 0); part(ft, RBX(), boot, 0.27, 0.14, 0.4, 0, -0.03, 0.06); part(ft, RBX(), black, 0.29, 0.045, 0.43, 0, -0.1, 0.06);
+    for (let i = 0; i < 3; i++) part(ft, BOX(), silver, 0.12, 0.014, 0.014, 0, 0.0 + i * 0.04, 0.17 - i * 0.025); // laces
+    return { l, k }; });
+  // torso: black tee under a plate-carrier vest
+  const torso = grp(hip, 0, 0.06, 0); const tb = grp(torso); tb.scale.set(1.16, 1, 1.14);
+  part(tb, SPH(), tee, 0.58, 0.62, 0.38, 0, 0.36, 0); part(tb, SPH(), tee, 0.74, 0.3, 0.38, 0, 0.6, 0);
+  part(tb, RBX(), gear, 0.56, 0.5, 0.38, 0, 0.32, 0);
+  for (const s of [-1, 1]) { part(tb, RBX(), gear, 0.13, 0.08, 0.38, s * 0.17, 0.6, 0); part(tb, BOX(), black, 0.04, 0.26, 0.02, s * 0.26, 0.42, 0.19); } // shoulder straps, side straps
+  for (let i = 0; i < 6; i++) { const y = 0.12 + i * 0.065; part(tb, BOX(), web, 0.5, 0.016, 0.012, 0, y, 0.192); part(tb, BOX(), web, 0.5, 0.016, 0.012, 0, y, -0.192); } // MOLLE rows, front and back
+  for (let i = 0; i < 4; i++) part(tb, RBX(), web, 0.11, 0.13, 0.06, -0.19 + i * 0.125, 0.15, 0.215); // magazine pouches
+  for (let i = 0; i < 4; i++) part(tb, BOX(), gear, 0.115, 0.04, 0.066, -0.19 + i * 0.125, 0.205, 0.217);
+  part(tb, BOX(), silver, 0.012, 0.42, 0.012, 0, 0.36, 0.195); // zip
+  for (const y of [0.3, 0.4]) { part(tb, BOX(), black, 0.24, 0.035, 0.012, 0, y, 0.2); part(tb, BOX(), silver, 0.05, 0.045, 0.016, -0.05, y, 0.205); part(tb, BOX(), silver, 0.05, 0.045, 0.016, 0.05, y, 0.205); } // chest straps + buckles
+  part(tb, PLN(), flag, 0.13, 0.08, 1, -0.15, 0.47, 0.192); part(tb, PLN(), nameTab, 0.14, 0.04, 1, 0.15, 0.49, 0.192); part(tb, PLN(), bhTab, 0.17, 0.045, 1, 0.14, 0.4, 0.21);
+  part(tb, RBX(), yellow, 0.035, 0.08, 0.035, -0.08, 0.34, 0.225); part(tb, RBX(), black, 0.04, 0.025, 0.04, -0.08, 0.385, 0.225); // taser
+  part(tb, RBX(), web, 0.1, 0.07, 0.05, 0.12, 0.27, 0.215); // radio pouch
+  const chest = grp(torso, 0, 0.4, 0.24);
+  // head: buzz cut, heavy brows, big white beard
+  const neck = grp(torso, 0, 0.72, 0.02); part(neck, CAP(), skin, 0.17, 0.07, 0.17, 0, 0.02, 0);
+  const head = grp(neck, 0, 0.19, 0.01);
+  part(head, SPH(), skin, 0.3, 0.34, 0.32, 0, 0.02, 0); part(head, DOME(), stubble, 0.31, 0.33, 0.33, 0, 0.04, -0.012, -0.3);
+  for (const s of [-1, 1]) { part(head, SPH(), skin, 0.05, 0.08, 0.05, s * 0.15, 0.0, -0.01); // ears
+    part(head, BOX(), beardG, 0.09, 0.022, 0.03, s * 0.065, 0.075, 0.148, 0, 0, s * 0.22); // brows, angled into a scowl
+    part(head, SPH(), eyeW, 0.05, 0.03, 0.02, s * 0.062, 0.042, 0.146); part(head, SPH(), iris, 0.022, 0.024, 0.012, s * 0.06, 0.042, 0.155); part(head, SPH(), skin, 0.06, 0.02, 0.025, s * 0.062, 0.022, 0.145); } // eyes + bags
+  part(head, SPH(), skin, 0.06, 0.085, 0.07, 0, 0.0, 0.17); part(head, SPH(), skin, 0.075, 0.035, 0.045, 0, -0.03, 0.17); // nose
+  part(head, SPH(), skin, 0.2, 0.08, 0.06, 0, 0.11, 0.135); // brow ridge
+  part(head, SPH(), beard, 0.15, 0.045, 0.06, 0, -0.065, 0.16); part(head, SPH(), beardG, 0.06, 0.03, 0.04, 0, -0.07, 0.178); // moustache
+  part(head, BOX(), lip, 0.07, 0.014, 0.02, 0, -0.09, 0.15);
+  const jaw = grp(head, 0, -0.1, 0.03);
+  part(jaw, SPH(), beard, 0.27, 0.19, 0.22, 0, -0.03, 0.04); part(jaw, SPH(), beard, 0.19, 0.17, 0.15, 0, -0.1, 0.08);
+  for (const s of [-1, 1]) { part(jaw, SPH(), beard, 0.08, 0.17, 0.13, s * 0.13, 0.06, -0.02); part(jaw, SPH(), beardG, 0.06, 0.1, 0.08, s * 0.08, -0.08, 0.1); }
+  for (let i = 0; i < 7; i++) part(jaw, CON(), i % 2 ? beard : beardG, 0.05, 0.08, 0.05, -0.09 + i * 0.03, -0.17 + Math.abs(i - 3) * 0.008, 0.08, Math.PI, 0, 0); // wispy beard ends
+  const mouth = grp(head, 0, -0.1, 0.2);
+  // arms: tee sleeves, tattooed sleeves, studded fingerless gloves; the right hand drags a sledgehammer
+  const arms = [-1, 1].map((s) => { const a = grp(torso, s * 0.45, 0.6, 0);
+    part(a, SPH(), tee, 0.31, 0.29, 0.31, 0, -0.02, 0); part(a, CAP(), tee, 0.28, 0.09, 0.28, 0, -0.11, 0);
+    part(a, CAP(), tat, 0.23, 0.15, 0.23, 0, -0.24, 0); part(a, SPH(), tat, 0.22, 0.17, 0.2, 0, -0.2, 0.03); // shoulder-to-elbow ink + bicep
+    const el = grp(a, 0, -0.41, 0); part(el, SPH(), tat, 0.2, 0.17, 0.2, 0, 0, 0); part(el, CAP(), tat, 0.21, 0.15, 0.2, 0, -0.18, 0.01);
+    const fist = grp(el, 0, -0.39, 0.02);
+    part(fist, BOX(), black, 0.19, 0.045, 0.18, 0, 0.07, 0); // wrist strap
+    part(fist, RBX(), black, 0.18, 0.15, 0.15, 0, -0.02, 0); part(fist, SPH(), skin, 0.05, 0.05, 0.05, s * -0.07, -0.02, 0.05); // glove + thumb
+    for (let i = 0; i < 4; i++) { part(fist, CAP(), skin, 0.04, 0.035, 0.05, -0.06 + i * 0.04, -0.11, 0.045); part(fist, SPH(), silver, 0.035, 0.035, 0.035, -0.06 + i * 0.04, -0.035, 0.08); } // fingertips, knuckle studs
+    if (s > 0) part(fist, TOR(), black, 0.17, 0.17, 0.35, 0, 0.11, 0, Math.PI / 2); // bead bracelet
+    return { a, el, fist }; });
+  const ham = grp(arms[0].fist, 0, -0.03, 0.02); ham.rotation.x = 0.15;
+  part(ham, CYL(), wood, 0.065, 0.82, 0.065, 0, -0.32, 0); part(ham, CYL(), black, 0.08, 0.16, 0.08, 0, 0.0, 0); // handle + grip
+  part(ham, RBX(), steel, 0.19, 0.19, 0.44, 0, -0.76, 0.02); for (const z of [-0.2, 0.24]) part(ham, CYL(), silver, 0.19, 0.04, 0.19, 0, -0.76, z, Math.PI / 2); // sledge head, striking faces
+  const hand = grp(ham, 0, -0.76, 0.05);
+  return { mouth, hand, chest,
+    anim(t, dt, move, act, k) {
+      const w = t * (4.4 + move * 2), sw = Math.sin(w) * 0.55 * move;
+      legs[0].l.rotation.x = sw; legs[1].l.rotation.x = -sw; legs[0].k.rotation.x = Math.max(0, -Math.sin(w)) * 0.7 * move; legs[1].k.rotation.x = Math.max(0, Math.sin(w)) * 0.7 * move;
+      arms[0].a.rotation.set(-0.1 - sw * 0.4, 0, -0.12); arms[1].a.rotation.set(-0.1 + sw * 0.8, 0, 0.1); arms[0].el.rotation.x = -0.25; arms[1].el.rotation.x = -0.35 - Math.abs(sw) * 0.3;
+      hip.position.y = 1.0 + Math.abs(Math.sin(w)) * 0.05 * move; torso.rotation.set(0.06 * move + Math.sin(t * 1.3) * 0.015, Math.sin(w) * 0.08 * move, 0); neck.rotation.x = -0.04; jaw.rotation.x = 0; head.rotation.y = Math.sin(t * 0.5) * 0.15 * (1 - move);
+      if (act === 'hit') { // sledgehammer overhead, then SLAM
+        const up = k < 0.45 ? k / 0.45 : Math.max(0, 1 - (k - 0.45) / 0.15), down = k < 0.45 ? 0 : k < 0.6 ? (k - 0.45) / 0.15 : Math.max(0, 1 - (k - 0.6) / 0.4);
+        arms[0].a.rotation.x = -0.1 - 3.0 * up - 1.4 * down; arms[0].el.rotation.x = -0.25 - 0.6 * up; arms[1].a.rotation.x = -0.1 - 1.0 * up - 1.2 * down;
+        torso.rotation.x = -0.25 * up + 0.45 * down; jaw.rotation.x = 0.35 * down; }
+      else if (act === 'cast') { const s = S(k, 1), shake = Math.sin(k * Math.PI * 10) * 0.12 * s; // the snarl and claw-hands flex
+        for (const [i, d] of [[0, -1], [1, 1]]) { arms[i].a.rotation.set(-1.0 * s + shake, 0, d * 0.7 * s); arms[i].el.rotation.x = -1.7 * s; }
+        torso.rotation.x = 0.2 * s; neck.rotation.x = 0.15 * s; jaw.rotation.x = 0.4 * s; }
+      else if (act === 'ko') { body.rotation.x = -Math.min(1.5, k * 2); body.position.y = -k * 0.2; }
+    } };
+}
+
 // merge the meshes that sit still together inside each moving group (same material -> one mesh), so a detailed monster
 // costs about as many draw calls as a blocky one
 function mergeStatic(root) { const groups = []; root.traverse((o) => { if (!o.isMesh) groups.push(o); });
@@ -507,4 +602,4 @@ function mergeStatic(root) { const groups = []; root.traverse((o) => { if (!o.is
     for (const [m, list] of by) { if (list.length < 2) continue; const gs = list.map((ch) => { ch.updateMatrix(); const gg = ch.geometry.index ? ch.geometry.toNonIndexed() : ch.geometry.clone(); for (const k of Object.keys(gg.attributes)) if (!['position', 'normal', 'uv'].includes(k)) gg.deleteAttribute(k); return gg.applyMatrix4(ch.matrix); });
       const merged = mergeGeometries(gs, false); if (!merged) continue; for (const ch of list) g.remove(ch); g.add(new THREE.Mesh(merged, m)); } } }
 const withMerge = (fn) => (body, K) => { const r = fn(body, K); mergeStatic(body); return r; };
-export const HD = { biped: withMerge(bipedHD), squid: withMerge(squidHD), robot: withMerge(robotHD), ape: withMerge(apeHD), quad: withMerge(quadHD), crab: withMerge(crabHD), spider: withMerge(spiderHD), moth: withMerge(mothHD), ptero: withMerge(pteroHD), blob: withMerge(blobHD), plant: withMerge(plantHD) };
+export const HD = { biped: withMerge(bipedHD), squid: withMerge(squidHD), robot: withMerge(robotHD), ape: withMerge(apeHD), quad: withMerge(quadHD), crab: withMerge(crabHD), spider: withMerge(spiderHD), moth: withMerge(mothHD), ptero: withMerge(pteroHD), blob: withMerge(blobHD), plant: withMerge(plantHD), human: withMerge(mikeHD) };

@@ -17,6 +17,7 @@ const S = (k, a) => Math.sin(k * Math.PI) * a; // a one-shot's swell
 // pal: skin, dark, belly, accent (plates, crystals, sail...), eye
 export const KAIJU = {
   godzilly: { name: "SCORCHBACK", kind: 'biped', pal: [0x3a6a5a, 0x1f3a32, 0x7aa08a, 0xff8a2a, 0xffe24a], opt: { plates: true, glow: true }, spells: ["Ember Belch","Furnace Breath","Spine Eruption"], speed: 1 },
+  mike: { name: "MIKE THE BOUNTY HUNTER", kind: 'human', pal: [0x1e1f24, 0x2a2b30, 0xc98d68, 0xb3262a, 0x5a7a9a], spells: ["Taser Zap","Sledgehammer Slam","Warrant Served"], borrow: [["giggle",0],["konk",1],["konk",2]], speed: 1.15 },
   konk: { name: "GRUMBLEGORILLA", kind: 'ape', pal: [0x6a5a6a, 0x3a2e3a, 0xa08a90, 0x000000, 0x7af0ff], spells: ["Car Chuck","Belly Drum","Building Bowl"], speed: 1.12 },
   mofra: { name: "LANTERNWING", kind: 'moth', fly: true, pal: [0x5a8a7a, 0x2a6a8a, 0xd0f0e8, 0xff5a8a, 0xb8ff6a], spells: ["Gust Flap","Glitter Squall","Prism Ray"], speed: 1.2 },
   mecha: { name: "CLANKOSAUR", kind: 'biped', pal: [0xa87a3a, 0x5a3e1e, 0xd0a868, 0x7ac8a0, 0x6aff9a], opt: { plates: true, mech: true }, spells: ["Wrench Fists","Bolt Barrage","Frost Engine"], speed: 0.92 },
@@ -69,6 +70,8 @@ export const KAIJU = {
   battra: { name: "GLOOMWING", kind: 'moth', fly: true, pal: [0x3a1a1a, 0x6a1a2a, 0x140808, 0x7af0ff, 0x7af0ff], opt: {horn: true}, spells: ["Horn Ram","Twin Eye Beams","Blackout"], speed: 1.25 },
 };
 export const KAIJU_IDS = Object.keys(KAIJU);
+// monsters you have from the start, no prize game needed
+export const FREE_KAIJU = ['godzilly', 'mike'];
 
 // Two skins for every monster. SKELETON: black, with bone-white plates and bones and red eyes. HALLOWEEN: the same black, but
 // the bone parts glow bright orange, and the head becomes a flaming jack-o'-lantern; a monster with no head of its own
@@ -91,6 +94,20 @@ function pumpkinHead(head, fx, size) {
   const fl = [0xff5a1a, 0xffb02a, 0xffe24a].map((c, i) => part(p, cone8, c, 0.22 - i * 0.05, 0.4, 0.22 - i * 0.05, (i - 1) * 0.1, 0.42, 0, 0, 0, 0, true));
   fx.push((t) => fl.forEach((f, i) => { f.scale.y = 0.3 + 0.12 * Math.sin(t * 13 + i * 2); f.position.y = 0.38 + 0.04 * Math.sin(t * 9 + i); }));
 }
+const smoothBall = new THREE.SphereGeometry(0.5, 18, 12), smoothMats = new Map(); const smoothMat = (col) => { if (!smoothMats.has(col)) smoothMats.set(col, new THREE.MeshLambertMaterial({ color: col })); return smoothMats.get(col); };
+// a flaming skull where the head was (Mike's skeleton skin): bone cranium, deep sockets with red embers, teeth, fire on top
+function flamingSkull(head, fx, size) {
+  const p = grp(head, 0, 0.02, 0.02); p.scale.setScalar(size / 0.6); const bone = 0xece6d2, hole = 0x120a0a;
+  part(p, ball, bone, 0.56, 0.52, 0.58, 0, 0.06, 0); part(p, ball, bone, 0.4, 0.3, 0.36, 0, -0.14, 0.08); // cranium, cheekbones
+  for (const x of [-0.13, 0.13]) { part(p, ball, hole, 0.17, 0.15, 0.08, x, 0.0, 0.24); part(p, ball, 0xff2a1a, 0.06, 0.06, 0.04, x, 0.0, 0.28, 0, 0, 0, true); part(p, ball, bone, 0.08, 0.08, 0.12, x * 2.1, -0.06, 0.1); }
+  part(p, cone, hole, 0.07, 0.1, 0.04, 0, -0.1, 0.29, 0, 0, Math.PI); // nose hole
+  const jaw = grp(p, 0, -0.24, 0.06); part(jaw, ball, bone, 0.32, 0.12, 0.3, 0, -0.02, 0.04); for (let i = 0; i < 6; i++) { part(p, box, 0xfaf6e8, 0.035, 0.06, 0.03, -0.09 + i * 0.036, -0.2, 0.25); part(jaw, box, 0xfaf6e8, 0.035, 0.05, 0.03, -0.09 + i * 0.036, 0.04, 0.17); }
+  const fl = [0xff3a1a, 0xff8a1a, 0xffd23a, 0xfff2a0].map((c, i) => part(p, cone8, c, 0.66 - i * 0.12, 0.6, 0.64 - i * 0.12, Math.sin(i * 2) * 0.04, 0.36, -0.04 - i * 0.02, -0.15, 0, 0, true));
+  const tongues = Array.from({ length: 8 }, (_, i) => { const a = i / 8 * Math.PI * 2; return part(p, cone8, i % 2 ? 0xffb02a : 0xff5a1a, 0.16, 0.4, 0.16, Math.cos(a) * 0.22, 0.34, Math.sin(a) * 0.2 - 0.03, Math.sin(a) * 0.5, 0, -Math.cos(a) * 0.5, true); });
+  // smooth, not faceted, bone (the shared blocky parts are flat-shaded)
+  p.traverse((m) => { if (m.isMesh && m.geometry === ball) { m.geometry = smoothBall; if (!m.material.isMeshBasicMaterial) m.material = smoothMat(m.material.color.getHex()); } });
+  fx.push((t) => { fl.forEach((f, i) => { f.scale.y = 0.7 + 0.2 * Math.sin(t * 12 + i * 1.7); f.position.y = 0.42 + 0.05 * Math.sin(t * 8 + i); }); tongues.forEach((f, i) => { f.scale.y = 0.32 + 0.14 * Math.sin(t * 15 + i * 2.3); }); jaw.rotation.x = Math.max(0, Math.sin(t * 2.2)) * 0.15; });
+}
 // a pointy witch's hat with an orange band, and a few little bats flapping round it
 function witchHat(parent, at, fx, size) {
   const h = grp(parent, at.x, at.y, at.z); h.scale.setScalar(size); h.rotation.z = 0.15;
@@ -105,8 +122,9 @@ function witchHat(parent, at, fx, size) {
 export function buildKaiju(id, skin = false, lowDetail = false) {
   const look = skin === true ? 'skeleton' : typeof skin === 'string' ? skin.split(':').pop() : null;
   const sk = look && KAIJU_SKINS[id] && KAIJU_SKINS[id][look] ? KAIJU_SKINS[id][look] : null; const K = sk ? { ...KAIJU[id], pal: sk.pal } : KAIJU[id]; const g = new THREE.Group(); const body = grp(g, 0, 0, 0); const fx = [];
-  const rig = (!lowDetail && HD[K.kind] ? HD[K.kind] : ({ biped, ape, moth, ptero, quad, crab, spider, blob, plant, squid, robot })[K.kind])(body, K);
+  const rig = (!lowDetail && HD[K.kind] ? HD[K.kind] : ({ biped, ape, moth, ptero, quad, crab, spider, blob, plant, squid, robot, human: ape })[K.kind])(body, K);
   if (sk && sk.glow) g.traverse((m) => { if (m.isMesh && m.material && m.material.color && sk.glow.includes(m.material.color.getHex()) && !m.material.isMeshBasicMaterial) m.material = glowOf(m.material.color.getHex()); });
+  if (look === 'skeleton' && K.kind === 'human' && rig.mouth && rig.mouth.parent) { g.updateMatrixWorld(true); const head = rig.mouth.parent; const sz = new THREE.Box3().setFromObject(head).getSize(new THREE.Vector3()); head.traverse((m) => { if (m.isMesh) m.visible = false; }); flamingSkull(head, fx, Math.min(0.7, Math.max(0.42, Math.max(sz.x, sz.z) * 1.05))); }
   if (sk && sk.pumpkin) { g.updateMatrixWorld(true); const head = rig.mouth && rig.mouth.parent, o = K.opt || {};
     if (head && head !== body && !NO_HEAD.has(K.kind) && !o.ed && !o.pod) { const sz = new THREE.Box3().setFromObject(head).getSize(new THREE.Vector3()); head.traverse((m) => { if (m.isMesh) m.visible = false; }); pumpkinHead(head, fx, Math.min(0.7, Math.max(0.42, Math.max(sz.x, sz.z) * 1.05))); }
     else { const bb = new THREE.Box3().setFromObject(g), top = new THREE.Vector3((bb.min.x + bb.max.x) / 2, bb.max.y - 0.05, (bb.min.z + bb.max.z) / 2), par = rig.chest ? rig.chest.parent : body; witchHat(par, par.worldToLocal(top), fx, Math.min(0.9, (bb.max.x - bb.min.x) * 0.32)); } }

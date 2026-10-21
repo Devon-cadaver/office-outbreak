@@ -20,7 +20,7 @@ import { showHowTo, tip, tipsSeen, markSeen, clearTips } from '../howto.js';
 import { autoResolution, mergeStatic } from '../perf.js';
 import { rides, spinners } from '../landmarks.js';
 import { makePlane } from '../ally/units.js';
-import { KAIJU, KAIJU_IDS, buildKaiju } from './rigs.js';
+import { KAIJU, KAIJU_IDS, FREE_KAIJU, buildKaiju } from './rigs.js';
 import { createSpells } from './spells.js';
 
 const $ = (id) => document.getElementById(id);
@@ -56,8 +56,8 @@ const scaleOf = (f) => 1.5 + f * 3.2; // rigs are ~2 units tall at scale 1: abou
 const MAX_H = [0, 3.3, 6.3, 99]; // the tallest building each stage can flatten
 const CHARGE = 9; // seconds for a full Power bar (smashing things fills it faster)
 const unlockedLevel = () => { try { return Math.max(1, Math.min(LEVELS.length, +localStorage.getItem('kj_level') || 1)); } catch { return 1; } };
-const unlockedKaiju = () => { try { const u = JSON.parse(localStorage.getItem('kj_unlocked') || '[]'); return ['godzilly', ...u.filter((x) => KAIJU[x] && x !== 'godzilly')]; } catch { return ['godzilly']; } };
-const unlockKaiju = (id) => { const u = unlockedKaiju(); if (u.includes(id)) return false; u.push(id); try { localStorage.setItem('kj_unlocked', JSON.stringify(u.filter((x) => x !== 'godzilly'))); } catch { /* ignore */ } return true; };
+const unlockedKaiju = () => { try { const u = JSON.parse(localStorage.getItem('kj_unlocked') || '[]'); return [...FREE_KAIJU, ...u.filter((x) => KAIJU[x] && !FREE_KAIJU.includes(x))]; } catch { return [...FREE_KAIJU]; } };
+const unlockKaiju = (id) => { const u = unlockedKaiju(); if (u.includes(id)) return false; u.push(id); try { localStorage.setItem('kj_unlocked', JSON.stringify(u.filter((x) => !FREE_KAIJU.includes(x)))); } catch { /* ignore */ } return true; };
 let pick = 'godzilly'; try { const p = localStorage.getItem('kj_pick'); if (unlockedKaiju().includes(p)) pick = p; } catch { /* ignore */ }
 // big targets: same ten as Tornado Alley; `stage` is the size needed to take one
 const POI = { fair: { icon: '🎡', name: 'FAIRGROUND', stage: 3, pts: 4000 }, power: { icon: '⚡', name: 'POWER PLANT', stage: 2, pts: 3000 }, water: { icon: '💧', name: 'WATER STATION', stage: 2, pts: 2500 },
@@ -347,7 +347,7 @@ function megaBlast() {
 // round has fewer goes, the last go gives the rest). One you already have pays a whole coin
 let kjLeft = 0, goesLeft = 0;
 function kaijuRound(goes) { const r = Math.random(); kjLeft = r < 0.2 ? 2 : r < 0.9 ? 1 : 0; goesLeft = goes; }
-function kaijuPrize() { goesLeft--; if (kjLeft <= 0) return null; const n = goesLeft <= 0 ? kjLeft : 1; kjLeft -= n; const pool = KAIJU_IDS.filter((x) => x !== 'godzilly'); let fresh = false; const txt = [];
+function kaijuPrize() { goesLeft--; if (kjLeft <= 0) return null; const n = goesLeft <= 0 ? kjLeft : 1; kjLeft -= n; const pool = KAIJU_IDS.filter((x) => !FREE_KAIJU.includes(x)); let fresh = false; const txt = [];
   for (let i = 0; i < n; i++) { const id = pool[(Math.random() * pool.length) | 0], name = KAIJU[id].name; if (unlockKaiju(id)) { fresh = true; txt.push('NEW: ' + name + '!'); } else { addCoins(1); txt.push(name + ' (owned): +1 coin'); } }
   if (fresh) drawPicker(); return fresh ? { kind: 'kaiju', text: txt.join('  ') } : { kind: 'dupe', slot: 'kaiju', text: txt.join('  ') }; }
 function updateRival(dt, px, pz) {
