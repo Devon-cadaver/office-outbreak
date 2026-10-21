@@ -445,6 +445,48 @@ function bigMove(rig, target, n) {
     else { rig.act('cast'); for (let i = 0; i < 2; i++) shoot(rig, target, 'spell', 0.25 + i * 0.1); anims.push({ wait: 0.55, t: 0, dur: 0.01, go() { fx.explode(target.g.position.clone().setY(target.g.scale.x), Math.min(2, 0.35 * rig.g.scale.x)); sfx.boom(); }, f() {}, end() {} }); }
   }
 }
+// ---------- the roar-off result: the winner celebrates and the loser sulks, each body type its own way ----------
+const env = (k) => Math.sin(k * Math.PI);
+const EMOTE = {
+  win: {
+    biped: (b, k, s) => { b.rotation.x = -0.35 * s; b.position.y = Math.abs(Math.sin(k * Math.PI * 4)) * 0.25 * s; }, // rears back, stomp-stomp
+    ape: (b, k, s) => { b.position.y = Math.abs(Math.sin(k * Math.PI * 5)) * 0.45 * s; b.rotation.z = Math.sin(k * Math.PI * 5) * 0.15 * s; }, // hops side to side
+    robot: (b, k) => { const q = Math.min(1, k * 1.4); b.rotation.y = Math.PI * 2 * q; b.position.y = Math.sin(q * Math.PI) * 0.6; }, // victory spin and jump
+    quad: (b, k, s) => { b.rotation.x = -0.75 * s; b.position.y = 0.3 * s; }, // rears up on its hind legs
+    crab: (b, k, s) => { b.position.x = Math.sin(k * Math.PI * 6) * 0.35 * s; b.position.y = 0.15 * s; }, // side-shuffle dance
+    spider: (b, k, s) => { b.position.y = Math.abs(Math.sin(k * Math.PI * 8)) * 0.3 * s; b.rotation.y = Math.sin(k * Math.PI * 4) * 0.4 * s; }, // jittery bouncing
+    moth: (b, k) => { b.rotation.x = -Math.PI * 2 * k; b.position.y = Math.sin(k * Math.PI) * 1.2; }, // loop-the-loop
+    ptero: (b, k) => { b.rotation.x = -Math.PI * 2 * k; b.position.y = Math.sin(k * Math.PI) * 1.2; },
+    blob: (b, k, s) => { const q = Math.sin(k * Math.PI * 6) * 0.3 * s; b.scale.set(1 - q * 0.5, 1 + q, 1 - q * 0.5); b.position.y = Math.max(0, q) * 0.5; }, // boing-boing
+    plant: (b, k, s) => { b.rotation.z = Math.sin(k * Math.PI * 6) * 0.35 * s; }, // wild swaying dance
+    squid: (b, k) => { b.rotation.y = Math.PI * 4 * k; b.position.y = Math.sin(k * Math.PI) * 0.8; }, // twirls up
+    human: (b, k, s) => { b.position.y = Math.abs(Math.sin(k * Math.PI * 3)) * 0.2 * s; },
+  },
+  lose: {
+    any: (b, k, s) => { b.rotation.x = 0.35 * s; b.position.y = -0.15 * s; b.rotation.y = Math.sin(k * Math.PI * 6) * 0.25 * s; }, // slumps and shakes its head
+    robot: (b, k, s) => { b.rotation.z = Math.sin(k * Math.PI * 14) * 0.12 * s; b.position.y = -0.25 * s; }, // shudders and sags
+    blob: (b, k, s) => { b.scale.set(1 + 0.4 * s, 1 - 0.5 * s, 1 + 0.4 * s); }, // deflates
+    moth: (b, k, s) => { b.rotation.z = Math.sin(k * Math.PI * 5) * 0.5 * s; b.position.y = -0.4 * s; }, // wobbles and sinks
+    ptero: (b, k, s) => { b.rotation.z = Math.sin(k * Math.PI * 5) * 0.5 * s; b.position.y = -0.4 * s; },
+    crab: (b, k, s) => { b.position.y = -0.3 * s; b.rotation.x = 0.2 * s; }, // hides in its shell
+    spider: (b, k, s) => { b.rotation.z = Math.PI * Math.min(1, s * 1.6); b.position.y = 0.4 * s; }, // flips onto its back
+    plant: (b, k, s) => { b.rotation.x = 0.7 * s; }, // wilts
+  },
+};
+function emote(rig, good) { if (!rig || !rig.body) return; const b = rig.body, set = EMOTE[good ? 'win' : 'lose'], fn = set[rig.def.kind] || set.any || set.biped;
+  if (good) rig.act(rig.hammer ? 'win' : 'cast');
+  anims.push({ wait: 0, t: 0, dur: 1.5, go() {}, f(k) { fn(b, k, env(k)); }, end() { b.position.set(0, 0, 0); b.rotation.set(0, 0, 0); b.scale.set(1, 1, 1); } }); }
+// Mike's victory: the sledgehammer spins out at the enemy, smashes it and flies back to his hand
+function throwHammer(rig, target) { const h = rig.hammer; if (!h || h.userData.flying || !target) return; const home = h.parent, p0 = h.position.clone(), q0 = h.quaternion.clone(), s = rig.g.scale.x;
+  h.userData.flying = true;
+  anims.push({ wait: 0.35, t: 0, dur: 1.5, hit: false,
+    go() { scene.attach(h); this.a = wpos(h); sfx.throw(); },
+    f(k) { const to = target.position.clone().setY(target.scale.x * 1.3), back = wpos(home), out = k < 0.5, q = out ? k / 0.5 : (k - 0.5) / 0.5;
+      if (out) h.position.lerpVectors(this.a, to, q); else h.position.lerpVectors(to, back, q);
+      h.position.y += Math.sin(q * Math.PI) * s * 0.8; h.rotation.set(k * Math.PI * 10, 0, 0.3);
+      if (Math.random() < 0.5) fx.puff('smoke', h.position.clone(), 0.12 * s);
+      if (!out && !this.hit) { this.hit = true; fx.explode(to.clone(), Math.min(1.8, 0.35 * s)); sfx.boom(); flashT = 0.12; banner('HAMMER THROW!'); } },
+    end() { home.attach(h); h.position.copy(p0); h.quaternion.copy(q0); h.userData.flying = false; } }); }
 function updateAnims(dt) { for (let i = anims.length - 1; i >= 0; i--) { const A = anims[i]; if (A.wait > 0) { A.wait -= dt; continue; } if (A.t === 0) A.go(); A.t += dt; const k = Math.min(1, A.t / A.dur); A.f(k); if (k >= 1) { anims.splice(i, 1); A.end(); } } }
 function clearAnims() { for (const A of anims) { if (A.m) scene.remove(A.m); if (A.t > 0) A.end(); } anims.length = 0; }
 function nextDodge(m) { m.round++; m.phase = 'warn'; m.pt = 0; m.side = Math.random() < 0.5 ? 'L' : 'R'; miniEl.dataset.side = m.side; m.r.rig.act('cast'); $('kjMiniSeq').innerHTML = '<span class="on">' + (m.side === 'L' ? 'SWIPE ➡' : '⬅ SWIPE') + '</span>'; }
@@ -511,10 +553,10 @@ function endMini(res) {
     const to = new THREE.Vector3(Math.max(-hx, Math.min(hx, r.g.position.x + Math.cos(a) * D)), 0, Math.max(-hz, Math.min(hz, r.g.position.z + Math.sin(a) * D)));
     r.toss = { from: r.g.position.clone(), to, t: 0, secs: 1.3, h: 5 + meScale * 1.5 }; r.stun = 3; }
   else if (res === 'freed') { banner('IT BROKE FREE!'); r.rig.act('hit'); hurt(3 + r.stage, true); knock(me.g, r.g.position, 2); }
-  else if (res === 'roarWin') { banner('TERRIFYING ROAR!'); me.act('cast'); hitRival(10 + 4 * stage); r.stun = 2.5; knock(r.g, me.g.position, 3); fx.puff('smoke', me.g.position.clone().setY(1), 2); sfx.boom(); r.roarCd = 14; }
-  else if (res === 'roarWeak') { banner('WEAK ROAR...'); r.stun = 0.8; r.roarCd = 14; }
-  else if (res === 'choke') { banner('YOU CHOKED!'); hurt(2, true); slowT = 1.5; r.roarCd = 14; }
-  else if (res === 'roared') { banner('IT OUT-ROARED YOU!'); slowT = 2; hurt(1.5, true); r.roarCd = 14; }
+  else if (res === 'roarWin') { banner('TERRIFYING ROAR!'); emote(me, true); emote(r.rig, false); if (me.hammer) throwHammer(me, r.g); hitRival(10 + 4 * stage); r.stun = 2.5; knock(r.g, me.g.position, 3); fx.puff('smoke', me.g.position.clone().setY(1), 2); sfx.boom(); r.roarCd = 14; }
+  else if (res === 'roarWeak') { banner('WEAK ROAR...'); emote(me, false); emote(r.rig, true); r.stun = 0.8; r.roarCd = 14; }
+  else if (res === 'choke') { banner('YOU CHOKED!'); emote(me, false); emote(r.rig, true); hurt(2, true); slowT = 1.5; r.roarCd = 14; }
+  else if (res === 'roared') { banner('IT OUT-ROARED YOU!'); emote(me, false); emote(r.rig, true); if (r.rig.hammer) throwHammer(r.rig, me.g); slowT = 2; hurt(1.5, true); r.roarCd = 14; }
 }
 
 // ---------- targets, minimap (as in Tornado Alley) ----------
@@ -774,4 +816,4 @@ function frame(now) {
 function showcase() { if (state !== 'start') return; makeMe(); me.g.position.set(0, 0, 0); camTarget.set(0, 2, 0); }
 buildWorld(); makeMe(); camTarget.set(0, 2, 0);
 requestAnimationFrame(frame); requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove('booting'))); // the start screen is ready now
-window.__kj = { get song() { return songState(); }, get sceneN() { return scene.children.length; }, flourish, get anims() { return anims.length; }, dropMega, goMega, megaBlast, get megaT() { return megaT; }, get megaDrop() { return megaDrop; }, THREE, get me() { return me; }, get moveTo() { return moveTo; }, get mass() { return mass; }, set mass(v) { mass = v; }, get massTarget() { return massTarget; }, get stage() { return stage; }, get power() { return power; }, set power(v) { power = v; }, get rival() { return rival; }, spawnRival, spawnPlane, get planes() { return planes; }, get state() { return state; }, get score() { return score; }, get people() { return people; }, get buildings() { return buildings; }, get pois() { return pois; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, tapAt, get cam() { return cam; }, set tLeft(v) { tLeft = v; }, set level(v) { level = v; }, start, hurt, get calls() { return renderer.info.render.calls; }, get fires() { return fires; }, get mini() { return mini && { ...mini, side: mini.side }; }, startMini, get pool() { return pool.length; }, get unlocked() { return unlockedKaiju(); }, set pick(v) { pick = v; } };
+window.__kj = { emote, throwHammer, endMini: (res) => endMini(res), get song() { return songState(); }, get sceneN() { return scene.children.length; }, flourish, get anims() { return anims.length; }, dropMega, goMega, megaBlast, get megaT() { return megaT; }, get megaDrop() { return megaDrop; }, THREE, get me() { return me; }, get moveTo() { return moveTo; }, get mass() { return mass; }, set mass(v) { mass = v; }, get massTarget() { return massTarget; }, get stage() { return stage; }, get power() { return power; }, set power(v) { power = v; }, get rival() { return rival; }, spawnRival, spawnPlane, get planes() { return planes; }, get state() { return state; }, get score() { return score; }, get people() { return people; }, get buildings() { return buildings; }, get pois() { return pois; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, tapAt, get cam() { return cam; }, set tLeft(v) { tLeft = v; }, set level(v) { level = v; }, start, hurt, get calls() { return renderer.info.render.calls; }, get fires() { return fires; }, get mini() { return mini && { ...mini, side: mini.side }; }, startMini, get pool() { return pool.length; }, get unlocked() { return unlockedKaiju(); }, set pick(v) { pick = v; } };

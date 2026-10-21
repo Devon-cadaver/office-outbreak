@@ -170,7 +170,7 @@ function stormStep() {
 }
 // ---------- real songs: a streamed <audio> playlist per game that keeps rotating the whole time you're on its page ----------
 export const SONGS_TORNADO = ['music/tornado-alley.mp3', 'music/twister-vs-army.mp3', 'music/clean-slate.mp3'];
-export const SONGS_KAIJU = ['music/feeding-ground.mp3', 'music/tornado-alley.mp3', 'music/twister-vs-army.mp3', 'music/clean-slate.mp3'];
+export const SONGS_KAIJU = ['music/feeding-ground.mp3', 'music/stomp-the-block.mp3', 'music/saving-you-the-trouble.mp3'];
 const VOLS = [['LOW', 0.25], ['MED', 0.55], ['FULL BLAST', 0.95]];
 let SONGS = SONGS_TORNADO, song = null, songGain = null, songI = 0, repeat = false, volI = 1;
 try { const v = +localStorage.getItem('oo_music_vol'); if (v >= 0 && v < VOLS.length && localStorage.getItem('oo_music_vol') !== null) volI = v; } catch { /* ignore */ }

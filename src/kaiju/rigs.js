@@ -130,9 +130,9 @@ export function buildKaiju(id, skin = false, lowDetail = false) {
     else { const bb = new THREE.Box3().setFromObject(g), top = new THREE.Vector3((bb.min.x + bb.max.x) / 2, bb.max.y - 0.05, (bb.min.z + bb.max.z) / 2), par = rig.chest ? rig.chest.parent : body; witchHat(par, par.worldToLocal(top), fx, Math.min(0.9, (bb.max.x - bb.min.x) * 0.32)); } }
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.9, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false })); shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.03; g.add(shadow);
   let t = Math.random() * 10, actK = null, actT = 0;
-  return { id, def: K, g, body, shadow, fly: !!K.fly, tint: sk ? sk.spell : K.borrow ? K.pal[4] : null, mouth: rig.mouth, hand: rig.hand, chest: rig.chest,
+  return { id, def: K, g, body, shadow, fly: !!K.fly, tint: sk ? sk.spell : K.borrow ? K.pal[4] : null, mouth: rig.mouth, hand: rig.hand, chest: rig.chest, hammer: rig.hammer,
     act(k) { actK = k; actT = 0; },
-    anim(dt, move) { t += dt; if (actK) { actT += dt * (actK === 'ko' ? 0.8 : 2.4); if (actT >= 1 && actK !== 'ko') actK = null; } rig.anim(t, dt, move, actK, Math.min(1, actT)); for (const f of fx) f(t); shadow.scale.setScalar(rig.shadowK || 1); },
+    anim(dt, move) { t += dt; if (actK) { actT += dt * (actK === 'ko' ? 0.8 : actK === 'win' ? 0.7 : 2.4); if (actT >= 1 && actK !== 'ko') actK = null; } rig.anim(t, dt, move, actK, Math.min(1, actT)); for (const f of fx) f(t); shadow.scale.setScalar(rig.shadowK || 1); },
   };
 }
 const koTip = (body, k, axis = 'z') => { body.rotation[axis] = Math.min(1.5, k * 2) * (axis === 'x' ? -1 : 1); body.position.y = -k * 0.2; };

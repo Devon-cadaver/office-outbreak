@@ -578,7 +578,7 @@ function mikeHD(body, K) {
   part(ham, CYL(), wood, 0.065, 0.82, 0.065, 0, -0.32, 0); part(ham, CYL(), black, 0.08, 0.16, 0.08, 0, 0.0, 0); // handle + grip
   part(ham, RBX(), steel, 0.19, 0.19, 0.44, 0, -0.76, 0.02); for (const z of [-0.2, 0.24]) part(ham, CYL(), silver, 0.19, 0.04, 0.19, 0, -0.76, z, Math.PI / 2); // sledge head, striking faces
   const hand = grp(ham, 0, -0.76, 0.05);
-  return { mouth, hand, chest,
+  return { mouth, hand, chest, hammer: ham,
     anim(t, dt, move, act, k) {
       const w = t * (4.4 + move * 2), sw = Math.sin(w) * 0.55 * move;
       legs[0].l.rotation.x = sw; legs[1].l.rotation.x = -sw; legs[0].k.rotation.x = Math.max(0, -Math.sin(w)) * 0.7 * move; legs[1].k.rotation.x = Math.max(0, Math.sin(w)) * 0.7 * move;
@@ -588,6 +588,8 @@ function mikeHD(body, K) {
         const up = k < 0.45 ? k / 0.45 : Math.max(0, 1 - (k - 0.45) / 0.15), down = k < 0.45 ? 0 : k < 0.6 ? (k - 0.45) / 0.15 : Math.max(0, 1 - (k - 0.6) / 0.4);
         arms[0].a.rotation.x = -0.1 - 3.0 * up - 1.4 * down; arms[0].el.rotation.x = -0.25 - 0.6 * up; arms[1].a.rotation.x = -0.1 - 1.0 * up - 1.2 * down;
         torso.rotation.x = -0.25 * up + 0.45 * down; jaw.rotation.x = 0.35 * down; }
+      else if (act === 'win') { const s = Math.min(1, k * 5) * Math.min(1, (1 - k) * 4); // both hands in the air
+        for (const [i, d] of [[0, -1], [1, 1]]) { arms[i].a.rotation.set(-2.95 * s, 0, d * 0.3 * s); arms[i].el.rotation.x = -0.15 * s; } torso.rotation.x = -0.15 * s; neck.rotation.x = -0.35 * s; jaw.rotation.x = 0.45 * s; }
       else if (act === 'cast') { const s = S(k, 1), shake = Math.sin(k * Math.PI * 10) * 0.12 * s; // the snarl and claw-hands flex
         for (const [i, d] of [[0, -1], [1, 1]]) { arms[i].a.rotation.set(-1.0 * s + shake, 0, d * 0.7 * s); arms[i].el.rotation.x = -1.7 * s; }
         torso.rotation.x = 0.2 * s; neck.rotation.x = 0.15 * s; jaw.rotation.x = 0.4 * s; }
