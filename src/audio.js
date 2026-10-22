@@ -170,7 +170,7 @@ function stormStep() {
 }
 // ---------- real songs: a streamed <audio> playlist per game that keeps rotating the whole time you're on its page ----------
 // one radio station for both games: every song, shuffled; nothing repeats until they've all played
-export const SONGS_ALL = ['music/tornado-alley.mp3', 'music/twister-vs-army.mp3', 'music/clean-slate.mp3', 'music/feeding-ground.mp3', 'music/stomp-the-block.mp3', 'music/saving-you-the-trouble.mp3'];
+export const SONGS_ALL = ['music/tornado-alley.mp3', 'music/twister-vs-army.mp3', 'music/clean-slate.mp3', 'music/feeding-ground.mp3', 'music/stomp-the-block.mp3', 'music/saving-you-the-trouble.mp3', 'music/tatsumaki-justice.mp3'];
 export const SONGS_TORNADO = SONGS_ALL, SONGS_KAIJU = SONGS_ALL;
 const VOLS = [['LOW', 0.25], ['MED', 0.55], ['FULL BLAST', 0.95]];
 let SONGS = SONGS_ALL, order = [], song = null, songGain = null, songI = 0, repeat = false, volI = 1;
