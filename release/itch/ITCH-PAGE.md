@@ -1,6 +1,6 @@
 # Dead City: Tornado Alley — itch.io page kit
 
-Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.17.0**. Upload `release/survive-dead-city-web-v1.17.0.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
+Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.18.0**. Upload `release/survive-dead-city-web-v1.18.0.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
 
 > All monsters, robots and characters in Dead City are original creations. Any resemblance to other characters is coincidental.
 
@@ -13,7 +13,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 | Short description / tagline | You are the storm. Tear through five towns, take out big targets, dodge seeding planes and outrun storm chasers. |
 | Classification | Game |
 | Kind of project | **HTML** |
-| Uploads | `survive-dead-city-web-v1.17.0.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
+| Uploads | `survive-dead-city-web-v1.18.0.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
 | Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
 | Frame options | Leave SharedArrayBuffer off. No special headers needed. |
 | Pricing | Free (or "No payments"). |
@@ -70,6 +70,7 @@ Small browser games built fast, tested on a phone, and tuned by playing. Dead Ci
 
 ## Version history
 
+- **1.18.0** (2026-10-22): Kaiju fights reworked: a rival locks you into a fight that opens with a roar-off (win it and you're PUMPED: +50% power), then wrestling moves chain with no pauses: chokeslam, piledriver, suplex, spear, superkick and the giant swing, with arms that match each move. Miss and it reverses on you; the rival goes for moves on you too, and you tap to break free or get thrown across town. Spells follow up after a throw. New intro with the tornado tearing up the town.
 - **1.17.0** (2026-10-22): New eras: beat Megacity to unlock the Wild West and the Future for every town in both games. The Wild West has dirt roads, wooden storefronts, cacti, horse-drawn buggies, wagons, stagecoaches, biplanes and cannons. The Future has neon glass towers, pod houses, glowing roads, hover cars, flying traffic, jets and hover tanks. New outfits to match: Cowpoke and Neon Citizen.
 - **1.16.2** (2026-10-22): Cleaned up the intro: no more rooftops floating in the sky near Mike.
 - **1.16.1** (2026-10-22): Fixed Kaiju Madness rounds ending instantly at 0:00 after a previous round ran out of time.

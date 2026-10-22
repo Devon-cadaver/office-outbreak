@@ -5,7 +5,7 @@
 // vines and a squid on tentacles. rig.anim(dt, move) runs the idle/walk/fly cycle (move 0..1); rig.act('hit' | 'cast' |
 // 'ko') plays a one-shot over the top. rig.mouth / rig.hand / rig.chest are anchors for spells and throws.
 import * as THREE from 'three';
-import { HD } from './rigsHD.js';
+import { HD, gripPose } from './rigsHD.js';
 
 const box = new THREE.BoxGeometry(1, 1, 1), cone = new THREE.ConeGeometry(0.5, 1, 4), cone8 = new THREE.ConeGeometry(0.5, 1, 8), ball = new THREE.IcosahedronGeometry(0.5, 1), cyl = new THREE.CylinderGeometry(0.5, 0.5, 1, 8), oct = new THREE.OctahedronGeometry(0.5, 0);
 const mats = new Map();
@@ -133,7 +133,7 @@ export function buildKaiju(id, skin = false, lowDetail = false) {
   let t = Math.random() * 10, actK = null, actT = 0;
   return { id, def: K, g, body, shadow, fly: !!K.fly, tint: sk ? sk.spell : K.borrow ? K.pal[4] : null, mouth: rig.mouth, hand: rig.hand, chest: rig.chest, hammer: rig.hammer,
     act(k) { actK = k; actT = 0; }, get acting() { return actK; },
-    anim(dt, move) { t += dt; if (actK) { actT += dt * ((rig.actSpeed && rig.actSpeed[actK]) || (actK === 'ko' ? 0.8 : actK === 'win' ? 0.7 : 2.4)); if (actT >= 1 && actK !== 'ko') actK = null; } rig.anim(t, dt, move, actK, Math.min(1, actT)); for (const f of fx) f(t); shadow.scale.setScalar(rig.shadowK || 1); },
+    anim(dt, move) { t += dt; if (actK) { actT += dt * ((rig.actSpeed && rig.actSpeed[actK]) || (actK === 'ko' ? 0.8 : actK === 'win' ? 0.7 : actK === 'lift' || actK === 'clutch' ? 0.45 : 2.4)); if (actT >= 1 && actK !== 'ko') actK = null; } rig.anim(t, dt, move, actK, Math.min(1, actT)); if (actK === 'lift' || actK === 'clutch') gripPose(rig, actK, Math.min(1, actT), t); for (const f of fx) f(t); shadow.scale.setScalar(rig.shadowK || 1); },
   };
 }
 const koTip = (body, k, axis = 'z') => { body.rotation[axis] = Math.min(1.5, k * 2) * (axis === 'x' ? -1 : 1); body.position.y = -k * 0.2; };

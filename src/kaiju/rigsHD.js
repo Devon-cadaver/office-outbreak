@@ -75,7 +75,7 @@ function bipedHD(body, K) {
   const wings = []; if (o.wings) for (const s of [-1, 1]) { const pv = grp(torso, s * 0.3, 0.9, -0.28); const sh = new THREE.Shape(); sh.moveTo(0, 0); sh.quadraticCurveTo(0.7 * s, 0.9, 1.6 * s, 0.75); sh.quadraticCurveTo(1.4 * s, 0.3, 1.75 * s, 0.05); sh.quadraticCurveTo(1.3 * s, 0.05, 1.15 * s, -0.3); sh.quadraticCurveTo(0.8 * s, -0.1, 0.55 * s, -0.4); sh.quadraticCurveTo(0.35 * s, -0.15, 0, -0.3); sh.lineTo(0, 0);
     const wm = new THREE.Mesh(new THREE.ShapeGeometry(sh, 10), new THREE.MeshLambertMaterial({ color: o.wings === true ? acc : o.wings, side: THREE.DoubleSide })); pv.add(wm); for (const [x, y] of [[1.6, 0.75], [1.75, 0.05], [1.15, -0.3], [0.55, -0.4]]) { const len = Math.hypot(x, y); const b = part(pv, CAP(), dk, 0.035, len, 0.035, s * x / 2, y / 2, 0.01); b.rotation.z = Math.atan2(-s * x, y); } pv.rotation.y = s * 0.5; wings.push({ pv, s }); }
   const chest = grp(torso, 0, 0.8, 0.3);
-  return { mouth, hand, chest,
+  return { mouth, hand, chest, limbs: { arms: typeof arms !== 'undefined' ? arms : null, claws: typeof claws !== 'undefined' ? claws : null, tents: typeof tents !== 'undefined' ? tents : null, wings: typeof wings !== 'undefined' ? wings : null, vines: typeof vines !== 'undefined' ? vines : null }, 
     anim(t, dt, move, act, k) {
       const w = t * (5.5 + move * 2), sw = Math.sin(w) * 0.55 * move;
       legs[0].l.rotation.x = sw; legs[1].l.rotation.x = -sw; legs[0].k.rotation.x = Math.max(0, -Math.sin(w)) * 0.6 * move; legs[1].k.rotation.x = Math.max(0, Math.sin(w)) * 0.6 * move;
@@ -113,7 +113,7 @@ function treeHD(body, K) {
   const hand = grp(arms[1].fa, 0, -0.55, 0.25);
   const legs = [-1, 1].map((s) => { const l = grp(hip, s * 0.24, 0.05, 0); part(l, geo('stump', () => new THREE.CylinderGeometry(0.15, 0.2, 1, 10)), bk, 1, 0.5, 1, 0, -0.22, 0); const k = grp(l, 0, -0.46, 0);
     part(k, geo('stump', () => new THREE.CylinderGeometry(0.15, 0.2, 1, 10)), bk, 1.05, 0.42, 1.05, 0, -0.18, 0); const f = grp(k, 0, -0.42, 0.02); for (let i = 0; i < 5; i++) { const a = -1.1 + i * 0.55; part(f, CAP(), dk, 0.07, 0.36, 0.07, Math.sin(a) * 0.17, -0.02, Math.cos(a) * 0.17 + 0.04, Math.cos(a) * 1.2, 0, -Math.sin(a) * 1.2); } return { l, k }; });
-  return { mouth, hand, chest,
+  return { mouth, hand, chest, limbs: { arms: typeof arms !== 'undefined' ? arms : null, claws: typeof claws !== 'undefined' ? claws : null, tents: typeof tents !== 'undefined' ? tents : null, wings: typeof wings !== 'undefined' ? wings : null, vines: typeof vines !== 'undefined' ? vines : null }, 
     anim(t, dt, move, act, k) {
       const w = t * (4.2 + move * 2), sw = Math.sin(w) * 0.45 * move;
       legs[0].l.rotation.x = sw; legs[1].l.rotation.x = -sw; legs[0].k.rotation.x = Math.max(0, -Math.sin(w)) * 0.5 * move; legs[1].k.rotation.x = Math.max(0, Math.sin(w)) * 0.5 * move;
@@ -138,7 +138,7 @@ function toadHD(body, K) {
   const hand = grp(arms[1].a, 0, -0.34, 0.2);
   const legs = [-1, 1].map((s) => { const l = grp(hip, s * 0.48, 0.1, -0.1); part(l, SPH(), sk, 0.46, 0.4, 0.6, 0, 0, 0); const k = grp(l, 0, -0.22, 0.12); part(k, CAP(), sk, 0.16, 0.12, 0.16, 0, -0.06, 0);
     const ft = grp(k, 0, -0.18, 0.1); for (const c of [-1, 0, 1]) part(ft, SPH(), dk, 0.12, 0.06, 0.32, c * 0.1, 0, 0.1, 0, c * 0.35); return { l, k }; });
-  return { mouth, hand, chest,
+  return { mouth, hand, chest, limbs: { arms: typeof arms !== 'undefined' ? arms : null, claws: typeof claws !== 'undefined' ? claws : null, tents: typeof tents !== 'undefined' ? tents : null, wings: typeof wings !== 'undefined' ? wings : null, vines: typeof vines !== 'undefined' ? vines : null }, 
     anim(t, dt, move, act, k) {
       const w = t * (4 + move * 2), hop = Math.max(0, Math.sin(w * 0.5)) * move; hip.position.y = 0.6 + hop * 0.5; legs[0].l.rotation.x = legs[1].l.rotation.x = -hop * 0.8; legs[0].k.rotation.x = legs[1].k.rotation.x = hop * 1.2;
       torso.scale.set(1 + Math.sin(t * 2.4) * 0.02, 1 - Math.sin(t * 2.4) * 0.02, 1); jaw.rotation.x = 0.04 + Math.sin(t * 1.3) * 0.03; neck.rotation.x = 0; arms[0].a.rotation.x = arms[1].a.rotation.x = -hop * 0.6;
@@ -169,7 +169,7 @@ function squidHD(body, K) {
     if (longT) part(prev, SPH(), sk, 0.22, 0.12, 0.32, 0, 0, 0.1); tents.push({ segs, ph: i * 0.7, longT }); }
   const beak = grp(hip, 0, -0.1, 0.35); part(beak, CON(), M(0x2a1a14), 0.14, 0.2, 0.14, 0, -0.05, 0, Math.PI);
   const mouth = grp(hip, 0, 0.1, 0.55), hand = grp(hip, 0, 0, 0.9), chest = grp(mantle, 0, 0.3, 0.5);
-  return { mouth, hand, chest, shadowK: 1.6,
+  return { mouth, hand, chest, limbs: { arms: typeof arms !== 'undefined' ? arms : null, claws: typeof claws !== 'undefined' ? claws : null, tents: typeof tents !== 'undefined' ? tents : null, wings: typeof wings !== 'undefined' ? wings : null, vines: typeof vines !== 'undefined' ? vines : null },  shadowK: 1.6,
     anim(t, dt, move, act, k) {
       for (const tn of tents) tn.segs.forEach((s, j) => { s.rotation.x = (j === 0 ? 0.9 : 0) + (tn.longT ? 0.12 : 0.22) + Math.sin(t * (2.6 + move * 3) + tn.ph + j * 0.7) * (0.22 + j * 0.03); s.rotation.y = Math.sin(t * 1.7 + tn.ph + j * 0.4) * 0.18; });
       hip.position.y = 0.6 + Math.sin(t * 2) * 0.06; mantle.rotation.x = Math.sin(t * 1.3) * 0.06 + move * 0.2; mantle.rotation.z = Math.sin(t * 0.9) * 0.04; mantle.scale.set(1 + Math.sin(t * 2.4) * 0.02, 1, 1 + Math.sin(t * 2.4) * 0.02);
@@ -224,7 +224,7 @@ function robotHD(body, K) {
     part(k, RBX(), silver, 0.3 * wd, 0.12, 0.38, 0, 0.0, 0.03); part(k, RBX(), legM(s), 0.36 * wd, 0.44, 0.42, 0, -0.22, 0); line(k, 0.3 * wd, 0.015, 0, -0.1, 0.215); line(k, 0.3 * wd, 0.015, 0, -0.32, 0.215);
     if (o.windows || o.stacks) { const wh = grp(k, s * 0.2 * wd, -0.18, -0.04); part(wh, CYL(), tire, 0.3, 0.1, 0.3, 0, 0, 0, 0, 0, Math.PI / 2); part(wh, CYL(), silver, 0.15, 0.11, 0.15, 0, 0, 0, 0, 0, Math.PI / 2); }
     part(k, RBX(), silver, 0.4 * wd, 0.12, 0.56, 0, -0.45, 0.06); part(k, RBX(), legM(s), 0.38 * wd, 0.06, 0.14, 0, -0.41, 0.31); return { l, k }; });
-  return { mouth, hand, chest,
+  return { mouth, hand, chest, limbs: { arms: typeof arms !== 'undefined' ? arms : null, claws: typeof claws !== 'undefined' ? claws : null, tents: typeof tents !== 'undefined' ? tents : null, wings: typeof wings !== 'undefined' ? wings : null, vines: typeof vines !== 'undefined' ? vines : null }, 
     anim(t, dt, move, act, k) {
       const w = t * (5 + move * 2), sw = Math.sin(w) * 0.5 * move;
       legs[0].l.rotation.x = sw; legs[1].l.rotation.x = -sw; legs[0].k.rotation.x = Math.max(0, -Math.sin(w)) * 0.6 * move; legs[1].k.rotation.x = Math.max(0, Math.sin(w)) * 0.6 * move;
@@ -245,7 +245,7 @@ function edHD(body, K) {
   const arms = [-1, 1].map((s) => { const a = grp(torso, s * 0.78, 0.32, 0.05); part(a, RBX(), mn, 0.32, 0.34, 0.54, 0, 0, 0.1); part(a, CYL(), lg, 0.14, 0.7, 0.14, 0, 0.04, 0.6, Math.PI / 2); part(a, CYL(), lg, 0.14, 0.7, 0.14, 0, -0.1, 0.6, Math.PI / 2); part(a, RBX(), tr, 0.2, 0.36, 0.2, 0, -0.02, 0.32); return { a, f: a }; });
   const hand = grp(arms[1].a, 0, 0, 0.95);
   const legs = [-1, 1].map((s) => { const l = grp(hip, s * 0.5, 0, 0); part(l, RBX(), lg, 0.3, 0.56, 0.36, 0, -0.24, 0.12, -0.35); const k = grp(l, 0, -0.5, 0.24); part(k, RBX(), lg, 0.26, 0.56, 0.3, 0, -0.24, -0.1, 0.4); part(k, RBX(), dark, 0.5, 0.1, 0.64, 0, -0.5, 0.02); for (const c of [-1, 1]) part(k, RBX(), tr, 0.12, 0.08, 0.3, c * 0.16, -0.5, 0.36); return { l, k }; });
-  return { mouth, hand, chest,
+  return { mouth, hand, chest, limbs: { arms: typeof arms !== 'undefined' ? arms : null, claws: typeof claws !== 'undefined' ? claws : null, tents: typeof tents !== 'undefined' ? tents : null, wings: typeof wings !== 'undefined' ? wings : null, vines: typeof vines !== 'undefined' ? vines : null }, 
     anim(t, dt, move, act, k) {
       const w = t * (4.5 + move * 2), sw = Math.sin(w) * 0.45 * move; legs[0].l.rotation.x = sw; legs[1].l.rotation.x = -sw; hip.position.y = 1.15 + Math.abs(Math.sin(w)) * 0.06 * move; torso.rotation.y = Math.sin(t * 0.8) * 0.15;
       for (const a of arms) a.a.rotation.x = Math.sin(t * 1.4) * 0.05;
@@ -264,7 +264,7 @@ function podHD(body, K) {
   const arms = [-1, 1].map((s) => { const a = grp(torso, s * 0.78, 0.4, 0.1); part(a, RBX(), mn, 0.3, 0.3, 0.46, 0, 0, 0.05); part(a, CYL(), lg, 0.16, 0.72, 0.16, 0, 0, 0.55, Math.PI / 2); part(a, CYL(), eye, 0.1, 0.02, 0.1, 0, 0, 0.92, Math.PI / 2); return { a, f: a }; });
   const hand = grp(arms[1].a, 0, 0, 0.95);
   const legs = [-1, 1].map((s) => { const l = grp(hip, s * 0.42, 0, 0); part(l, CAP(), lg, 0.24, 0.34, 0.24, 0, -0.26, 0); const k = grp(l, 0, -0.52, 0.02); part(k, RBX(), tr, 0.3, 0.3, 0.34, 0, -0.14, 0); part(k, RBX(), mn, 0.36, 0.12, 0.5, 0, -0.38, 0.08); return { l, k }; });
-  return { mouth, hand, chest,
+  return { mouth, hand, chest, limbs: { arms: typeof arms !== 'undefined' ? arms : null, claws: typeof claws !== 'undefined' ? claws : null, tents: typeof tents !== 'undefined' ? tents : null, wings: typeof wings !== 'undefined' ? wings : null, vines: typeof vines !== 'undefined' ? vines : null }, 
     anim(t, dt, move, act, k) {
       const w = t * (5.5 + move * 2), sw = Math.sin(w) * 0.5 * move; legs[0].l.rotation.x = sw; legs[1].l.rotation.x = -sw; hip.position.y = 1.0 + Math.abs(Math.sin(w)) * 0.07 * move; torso.rotation.z = Math.sin(w) * 0.05 * move;
       if (act === 'hit') { const s = S(k, 1); torso.rotation.x = 0.25 * s; } else if (act === 'cast') { const s = S(k, 1); torso.scale.setScalar(1 + 0.08 * s); } else { torso.rotation.x = 0; torso.scale.setScalar(1); }
@@ -297,7 +297,7 @@ function apeHD(body, K) {
   const hand = grp(arms[1].el, 0, -0.62, 0.15);
   const legs = [-1, 1].map((s) => { const l = grp(hip, s * 0.34, 0, -0.05); part(l, CAP(), o.pants ? dk : fr, 0.36, 0.32, 0.38, 0, -0.18, 0); if (o.pants) part(l, CON(), dk, 0.42, 0.14, 0.42, 0, -0.38, 0, Math.PI);
     const k = grp(l, 0, -0.38, 0); part(k, CAP(), fr, 0.3, 0.22, 0.32, 0, -0.12, 0); part(k, SPH(), o.bark ? dk : fc, 0.36, 0.14, 0.52, 0, -0.32, 0.08); return { l, k }; });
-  return { mouth, hand, chest,
+  return { mouth, hand, chest, limbs: { arms: typeof arms !== 'undefined' ? arms : null, claws: typeof claws !== 'undefined' ? claws : null, tents: typeof tents !== 'undefined' ? tents : null, wings: typeof wings !== 'undefined' ? wings : null, vines: typeof vines !== 'undefined' ? vines : null }, 
     anim(t, dt, move, act, k) {
       const w = t * (4.6 + move * 2), sw = Math.sin(w) * 0.5 * move;
       legs[0].l.rotation.x = sw; legs[1].l.rotation.x = -sw; arms[0].a.rotation.x = -0.35 - sw * 0.9; arms[1].a.rotation.x = -0.35 + sw * 0.9; arms[0].el.rotation.x = 0.25; arms[1].el.rotation.x = 0.25;
@@ -331,7 +331,7 @@ function quadHD(body, K) {
     const ft = grp(kn, 0, -0.32, 0.04); part(ft, SPH(), dk, 0.34, 0.14, 0.42, 0, 0, 0.05); for (const c of [-1, 0, 1]) part(ft, CON(), bone, 0.05, 0.12, 0.05, c * 0.1, -0.02, 0.26, Math.PI / 2); return { l, kn, ph: (sx * sz > 0 ? 0 : Math.PI) }; });
   const tail = []; let prev = grp(hip, 0, 0.08, -0.95); for (let i = 0; i < 6; i++) { const s = 1 - i * 0.14; part(prev, SPH(), sk, 0.4 * s, 0.34 * s, 0.42, 0, 0, -0.16); if (o.spikes) part(prev, CON(), ac, 0.1 * s + 0.04, 0.3 * s, 0.1 * s + 0.04, 0, 0.2 * s, -0.16); tail.push(prev); prev = grp(prev, 0, -0.01, -0.3); }
   if (o.spikes) part(prev, SPH(), ac, 0.24, 0.24, 0.24, 0, 0, -0.05);
-  return { mouth, hand, chest, shadowK: 1.25,
+  return { mouth, hand, chest, limbs: { arms: typeof arms !== 'undefined' ? arms : null, claws: typeof claws !== 'undefined' ? claws : null, tents: typeof tents !== 'undefined' ? tents : null, wings: typeof wings !== 'undefined' ? wings : null, vines: typeof vines !== 'undefined' ? vines : null },  shadowK: 1.25,
     anim(t, dt, move, act, k) {
       const w = t * (5 + move * 2.5); for (const lg of legs) { lg.l.rotation.x = Math.sin(w + lg.ph) * 0.5 * move; lg.kn.rotation.x = Math.max(0, Math.sin(w + lg.ph + 1)) * 0.5 * move; }
       hip.position.y = 0.88 + Math.abs(Math.sin(w)) * 0.05 * move; hip.rotation.x = 0; neck.rotation.x = Math.sin(t * 1.5) * 0.05; head.rotation.y = Math.sin(t * 0.7) * 0.12; jaw.rotation.x = 0.05 + Math.sin(t * 1.3) * 0.03;
@@ -359,7 +359,7 @@ function crabHD(body, K) {
     part(p, CON(), lt, 0.16, 0.42, 0.14, s * -0.08, -0.06, 0.6, Math.PI / 2); const pin = grp(p, 0, 0.04, 0.32); part(pin, CON(), lt, 0.14, 0.42, 0.12, s * 0.12, 0, 0.24, Math.PI / 2); return { a, p, pin, s }; });
   const legs = []; for (let i = 0; i < 3; i++) for (const s of [-1, 1]) { const l = grp(hip, s * 0.62, -0.02, 0.12 - i * 0.3); part(l, CAP(), sh, 0.09, 0.42, 0.09, s * 0.24, 0.07, 0, 0, 0, s * (Math.PI / 2 - 0.4)); const kn = grp(l, s * 0.46, 0.17, 0); part(kn, CAP(), dk, 0.08, 0.5, 0.08, 0, -0.32, 0, 0, 0, s * 0.25); part(kn, CON(), dk, 0.06, 0.16, 0.06, s * 0.08, -0.62, 0, Math.PI); legs.push({ l, s, ph: i * 2 + (s > 0 ? 1 : 0) }); }
   const mouth = grp(head, 0, 0, 0.2), hand = grp(claws[1].p, 0, 0, 0.5), chest = grp(hip, 0, 0, 0.6);
-  return { mouth, hand, chest, shadowK: 1.35,
+  return { mouth, hand, chest, limbs: { arms: typeof arms !== 'undefined' ? arms : null, claws: typeof claws !== 'undefined' ? claws : null, tents: typeof tents !== 'undefined' ? tents : null, wings: typeof wings !== 'undefined' ? wings : null, vines: typeof vines !== 'undefined' ? vines : null },  shadowK: 1.35,
     anim(t, dt, move, act, k) {
       const w = t * (7 + move * 4); for (const lg of legs) lg.l.rotation.y = Math.sin(w + lg.ph) * 0.4 * move; hip.position.y = 0.72 + Math.abs(Math.sin(w)) * 0.04 * move; hip.rotation.z = Math.sin(w) * 0.05 * move;
       for (const c of claws) { c.a.rotation.x = Math.sin(t * 1.5 + c.s) * 0.1; c.pin.rotation.y = c.s * (0.15 + Math.max(0, Math.sin(t * 2 + c.s)) * 0.3); } tail.forEach((s, i) => { s.rotation.x = Math.sin(t * 2 - i) * 0.08; });
@@ -383,7 +383,7 @@ function spiderHD(body, K) {
     part(l, SPH(), bk, 0.16, 0.16, 0.16, 0, 0, 0); part(l, CAP(), bk, 0.11, 0.8, 0.11, s * 0.42, 0.25, 0, 0, 0, s * -(Math.PI / 2 - 0.5)); const kn = grp(l, s * 0.82, 0.48, 0); part(kn, SPH(), st, 0.13, 0.13, 0.13, 0, 0, 0);
     part(kn, CAP(), bk, 0.09, 0.94, 0.09, s * 0.12, -0.5, 0, 0, 0, s * 0.25); part(kn, CON(), dk, 0.07, 0.18, 0.07, s * 0.24, -1.0, 0, Math.PI); legs.push({ l, s, ph: i + (s > 0 ? 0.5 : 0) }); }
   const mouth = grp(hip, 0, -0.1, 0.75), hand = grp(hip, 0, -0.2, 0.7), chest = grp(hip, 0, 0, 0.7);
-  return { mouth, hand, chest, shadowK: 1.6,
+  return { mouth, hand, chest, limbs: { arms: typeof arms !== 'undefined' ? arms : null, claws: typeof claws !== 'undefined' ? claws : null, tents: typeof tents !== 'undefined' ? tents : null, wings: typeof wings !== 'undefined' ? wings : null, vines: typeof vines !== 'undefined' ? vines : null },  shadowK: 1.6,
     anim(t, dt, move, act, k) {
       const w = t * (8 + move * 4); for (const lg of legs) { lg.l.rotation.x = Math.sin(w + lg.ph * Math.PI) * 0.35 * move; lg.l.rotation.z = Math.max(0, Math.sin(w + lg.ph * Math.PI)) * 0.25 * move * lg.s; }
       hip.position.y = 1.0 + Math.sin(w * 2) * 0.03 * move; abd.rotation.x = Math.sin(t * 1.5) * 0.06; for (const f of fangs) f.rotation.x = Math.sin(t * 3) * 0.1;
@@ -412,7 +412,7 @@ function mothHD(body, K) {
     for (const [cx, cz, r, c] of front ? [[1.35, -0.45, 0.24, edge], [1.35, -0.45, 0.15, red], [1.35, -0.45, 0.06, 0x111111], [0.7, -0.25, 0.12, yel]] : [[0.75, 0.45, 0.17, red], [0.75, 0.45, 0.07, 0x111111], [0.45, 0.25, 0.08, yel]]) { const d = new THREE.Mesh(geo('disc', () => new THREE.CircleGeometry(1, 18)), new THREE.MeshLambertMaterial({ color: c, side: THREE.DoubleSide })); d.scale.setScalar(r); d.rotation.x = -Math.PI / 2; d.position.set(cx * s, 0.012, cz); w.add(d); }
     for (const [x, y] of front ? [[1.85, 0.42], [1.3, 0.62], [1.5, -0.1], [0.9, -0.2]] : [[1.25, -0.6], [0.9, -0.85], [0.5, -0.55]]) rod(w, M(edge), V(0, 0.015, 0), V(s * x * 0.95, 0.015, -y * 0.95), 0.012);
     wings.push({ piv, front, s }); }
-  return { mouth, hand, chest, shadowK: 1.3,
+  return { mouth, hand, chest, limbs: { arms: typeof arms !== 'undefined' ? arms : null, claws: typeof claws !== 'undefined' ? claws : null, tents: typeof tents !== 'undefined' ? tents : null, wings: typeof wings !== 'undefined' ? wings : null, vines: typeof vines !== 'undefined' ? vines : null },  shadowK: 1.3,
     anim(t, dt, move, act, k) {
       const sp = 5 + move * 4, f = Math.sin(t * sp);
       for (const w of wings) { w.piv.rotation.z = w.s * (0.25 + f * (w.front ? 0.65 : 0.5)); w.piv.rotation.y = w.s * (w.front ? 0.1 : -0.15); }
@@ -441,7 +441,7 @@ function pteroHD(body, K) {
     const arm = grp(piv); for (const [x0, y0, x1, y1, r] of [[0, 0.25, 1.5, 0.38, 0.06], [1.5, 0.38, 2.5, 0.05, 0.045], [1.5, 0.38, 1.75, -0.4, 0.028], [1.5, 0.38, 1.0, -0.3, 0.028]]) rod(arm, dk, V(s * x0, 0.02, -y0), V(s * x1, 0.02, -y1), r);
     part(arm, CON(), bone, 0.05, 0.16, 0.05, s * 1.5, 0.04, -0.46, -Math.PI / 2); return { piv, s }; });
   const hand = grp(hover, 0, -0.5, 0.2), chest = grp(hover, 0, 0, 0.6);
-  return { mouth, hand, chest, shadowK: heads === 3 ? 1.6 : 1.3,
+  return { mouth, hand, chest, limbs: { arms: typeof arms !== 'undefined' ? arms : null, claws: typeof claws !== 'undefined' ? claws : null, tents: typeof tents !== 'undefined' ? tents : null, wings: typeof wings !== 'undefined' ? wings : null, vines: typeof vines !== 'undefined' ? vines : null },  shadowK: heads === 3 ? 1.6 : 1.3,
     anim(t, dt, move, act, k) {
       const f = Math.sin(t * (3.5 + move * 2.5)); for (const w of wings) w.piv.rotation.z = w.s * (0.15 + f * 0.6);
       hover.position.y = 1.8 - f * 0.12 + Math.sin(t * 1.2) * 0.1; hover.rotation.x = 0.15 * move; hover.rotation.z = 0;
@@ -463,7 +463,7 @@ function blobHD(body, K) {
   part(core, SPH(), M(0x2a1a14), 0.5, 0.14, 0.18, 0, 1.35, 0.6); for (let i = 0; i < 5; i++) part(core, CON(), M(0xd8d0a0), 0.05, 0.1, 0.05, -0.16 + i * 0.08, 1.4, 0.68, Math.PI);
   const drips = []; for (let i = 0; i < 8; i++) { const d = part(core, SPH(), M(slime, 'glow'), 0.12, 0.22, 0.12, Math.cos(i) * 0.62, 0.6, Math.sin(i) * 0.62); drips.push({ d, ph: i }); }
   const mouth = grp(core, 0, 1.4, 0.62), hand = grp(core, 0, 1.0, 0.6), chest = grp(core, 0, 1.0, 0.6);
-  return { mouth, hand, chest, shadowK: 1.35,
+  return { mouth, hand, chest, limbs: { arms: typeof arms !== 'undefined' ? arms : null, claws: typeof claws !== 'undefined' ? claws : null, tents: typeof tents !== 'undefined' ? tents : null, wings: typeof wings !== 'undefined' ? wings : null, vines: typeof vines !== 'undefined' ? vines : null },  shadowK: 1.35,
     anim(t, dt, move, act, k) {
       const w = t * (3 + move * 3); core.scale.set(1 + Math.sin(w) * 0.08, 1 - Math.sin(w) * 0.08, 1 + Math.sin(w) * 0.08); lumps.forEach((l, i) => { l.position.y += Math.sin(t * 2 + i) * 0.002; });
       for (const d of drips) { const k2 = ((t * 0.6 + d.ph * 0.17) % 1); d.d.position.y = 0.9 - k2 * 0.9; d.d.scale.set(0.12 * (1 - k2 * 0.5), 0.22 * (1 - k2 * 0.3), 0.12 * (1 - k2 * 0.5)); }
@@ -490,7 +490,7 @@ function plantHD(body, K) {
     for (let j = 0; j < 5; j++) { const s = 1 - j * 0.15; part(prev, CAP(), j % 2 ? gr : lt, 0.15 * s, 0.32, 0.15 * s, 0, 0, 0.18, Math.PI / 2); part(prev, CON(), rd, 0.04, 0.1, 0.04, 0, 0.08 * s, 0.18); segs.push(prev); prev = grp(prev, 0, 0, 0.34); }
     part(prev, SPH(), rd, 0.22, 0.16, 0.26, 0, 0, 0.1); vines.push({ segs, ph: i }); }
   const mouth = grp(head, 0, 0, 0.6), hand = grp(head, 0, 0, 0.6), chest = grp(stalk, 0, 1.2, 0.4);
-  return { mouth, hand, chest, shadowK: 1.5,
+  return { mouth, hand, chest, limbs: { arms: typeof arms !== 'undefined' ? arms : null, claws: typeof claws !== 'undefined' ? claws : null, tents: typeof tents !== 'undefined' ? tents : null, wings: typeof wings !== 'undefined' ? wings : null, vines: typeof vines !== 'undefined' ? vines : null },  shadowK: 1.5,
     anim(t, dt, move, act, k) {
       for (const v of vines) v.segs.forEach((s, j) => { s.rotation.x = Math.sin(t * 2 + v.ph + j * 0.7) * 0.35 - 0.15; s.rotation.y = Math.sin(t * 1.6 + v.ph * 2 + j) * 0.3 * (1 + move); });
       stalk.rotation.x = Math.sin(t * 1.2) * 0.08 + move * 0.15; stalk.rotation.z = Math.sin(t * 0.9) * 0.08; jawT.rotation.x = -0.15 - Math.max(0, Math.sin(t * 1.4)) * 0.15; jawB.rotation.x = 0.15 + Math.max(0, Math.sin(t * 1.4)) * 0.15;
@@ -595,7 +595,7 @@ function mikeHD(body, K) {
   function reach(w) { grip.getWorldPosition(tP); torso.worldToLocal(tP); const A = arms[1]; tD.subVectors(tP, A.a.position); const d = Math.max(0.15, Math.min(L1 + L2 - 0.01, tD.length())); tD.normalize();
     const bend = Math.PI - Math.acos(Math.max(-1, Math.min(1, (L1 * L1 + L2 * L2 - d * d) / (2 * L1 * L2)))), alpha = Math.acos(Math.max(-1, Math.min(1, (L1 * L1 + d * d - L2 * L2) / (2 * L1 * d))));
     tQ.setFromUnitVectors(NY, tD).multiply(tB.setFromAxisAngle(XA, GRIP_SIGN * alpha)); A.a.quaternion.slerp(tQ, w); A.el.rotation.x += (-bend - A.el.rotation.x) * w; }
-  return { mouth, hand, chest, hammer: ham, actSpeed: { hit: 1.35, golf: 1.55, ride: 0.02, grab: 0.02 },
+  return { mouth, hand, chest, limbs: { arms: typeof arms !== 'undefined' ? arms : null, claws: typeof claws !== 'undefined' ? claws : null, tents: typeof tents !== 'undefined' ? tents : null, wings: typeof wings !== 'undefined' ? wings : null, vines: typeof vines !== 'undefined' ? vines : null },  hammer: ham, actSpeed: { hit: 1.35, golf: 1.55, ride: 0.02, grab: 0.02 },
     anim(t, dt, move, act, k) {
       mv += (move - mv) * Math.min(1, dt * 5); const m = mv, ph = t * (3.6 + m * 2.2), s = Math.sin(ph), c = Math.cos(ph), br = Math.sin(t * 1.7);
       // legs: sg flips the phase for the right leg; fwd > 0 while that leg is travelling forward (its swing)
@@ -639,7 +639,7 @@ function mikeHD(body, K) {
       else if (act === 'ko') { body.rotation.x = -Math.min(1.5, k * 2); body.position.y = -k * 0.2; }
       // the sledgehammer hangs: it keeps pointing down as the arm swings and swings on a little spring when the arm moves
       const ax = arms[0].a.rotation.x, acc = (ax - prevArm) / Math.max(dt, 1e-3); prevArm = ax; hamV += (-hamA * 38 - hamV * 6.5 - acc * 0.8) * Math.min(dt, 0.05); hamA = Math.max(-0.6, Math.min(0.6, hamA + hamV * Math.min(dt, 0.05)));
-      ham.visible = act !== 'ride' && act !== 'grab'; ham.rotation.x = act === 'hit' || act === 'golf' ? 0.15 + cock : 0.15 - (ax + arms[0].el.rotation.x) * 0.55 + hamA;
+      ham.visible = act !== 'ride' && act !== 'grab' && act !== 'lift' && act !== 'clutch'; ham.rotation.x = act === 'hit' || act === 'golf' ? 0.15 + cock : 0.15 - (ax + arms[0].el.rotation.x) * 0.55 + hamA;
       if (act === 'hit' || act === 'golf') { const w = act === 'golf' ? Math.min(ease(cl(k / 0.12)), 1 - ease(cl((k - 0.86) / 0.14))) : Math.min(ease(cl(k / 0.3)), 1 - ease(cl((k - 0.72) / 0.24))); if (w > 0.01) reach(w); } // both hands on the handle
     } };
 }
@@ -674,6 +674,17 @@ export function buildChopper() {
   const hm = grp(g, -0.22, 0.62, -0.55); hm.rotation.set(-1.2, 0, 0.1); part(hm, CYL(), wood, 0.06, 0.8, 0.06, 0, 0, 0); part(hm, RBX(), steel, 0.17, 0.17, 0.38, 0, 0.42, 0);
   mergeStatic(g);
   return { g, front, rear, pipe: V(0.19, 0.44, -1.32) };
+}
+
+// ---------- grappling poses, for every body type: LIFT (arms straight up, hoisting someone overhead) and CLUTCH (arms out in
+// front and pulled together, locked round someone). Claws rise and pinch, wings spread and beat hard, tentacles and vines
+// curl up round the catch. Runs after a rig's own animation, on whatever limbs it has ----------
+export function gripPose(rig, act, k, t) { const L = rig.limbs; if (!L) return; const s0 = Math.min(1, k * 8), lift = act === 'lift';
+  if (L.arms) L.arms.forEach((A, i) => { if (!A || !A.a) return; const s = i === 0 ? -1 : 1; A.a.rotation.set((lift ? -2.75 : -1.45) * s0, 0, (lift ? s * 0.25 : -s * 0.4) * s0);
+    for (const j of [A.el, A.f, A.fa]) if (j && j !== A.a && j.rotation) { j.rotation.x = (lift ? -0.3 : -0.55) * s0; break; } });
+  if (L.claws) L.claws.forEach((C, i) => { if (!C || !C.a) return; const s = i === 0 ? -1 : 1; C.a.rotation.x = (lift ? -1.4 : -0.7) * s0; C.a.rotation.y = -s * 0.45 * s0; });
+  if (L.wings) L.wings.forEach((W) => { const piv = W.piv || W; if (!piv.rotation) return; const sd = W.s || (piv.position.x < 0 ? -1 : 1); piv.rotation.z = sd * (0.2 + Math.sin(t * 22 + (W.front ? 0 : 0.6)) * 0.55) * s0; });
+  for (const list of [L.tents, L.vines]) if (list) list.forEach((T) => { const segs = T && (T.segs || T); if (Array.isArray(segs)) segs.forEach((g, j) => { if (g && g.rotation) g.rotation.x = (lift ? -0.32 : 0.3) * s0 * (1 + j * 0.1); }); });
 }
 
 // merge the meshes that sit still together inside each moving group (same material -> one mesh), so a detailed monster

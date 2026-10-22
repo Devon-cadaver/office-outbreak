@@ -122,7 +122,7 @@ for (const b of city.buildings || []) if (b.obj && !b.obj.visible) for (const m 
 { const gone = city.group.children.filter((o) => !o.visible).map((o) => new THREE.Box3().setFromObject(o).expandByScalar(0.5)).filter((bb) => !bb.isEmpty() && bb.max.y > 2); const v = new THREE.Vector3(), s = new THREE.Vector3(); // loose roof slabs and rooftop bits left hanging over them
   for (const m of city.group.children) { if (!m.visible) continue; const mb = new THREE.Box3().setFromObject(m); if (mb.isEmpty() || mb.min.y < 0.6 || mb.getSize(s).x > 8 || s.z > 8) continue; mb.getCenter(v); if (gone.some((bb) => v.x > bb.min.x && v.x < bb.max.x && v.z > bb.min.z && v.z < bb.max.z)) m.visible = false; } }
 for (let i = 0; i < 60; i++) { tw.update(0.05); city.updateRain(0.05); }
-renderer.render(scene, cam); window.__P = { scene, cam, gz, rb, THREE, bats, tw, beam, hit, renderer, city, nukeBlast, fightX, fightZ, KS }; // the intro animator drives these frame by frame
+renderer.render(scene, cam); window.__P = { scene, cam, gz, rb, THREE, bats, storm: g, TX, TZ, tw, beam, hit, renderer, city, nukeBlast, fightX, fightZ, KS }; // the intro animator drives these frame by frame
 // the titles
 const S = W / 1000, $ = (id) => document.getElementById(id), place = (id, top, size) => { const e = $(id); e.style.top = top + 'px'; e.style.fontSize = size + 'px'; };
 const hide = (...ids) => ids.forEach((id) => { $(id).style.display = 'none'; });
