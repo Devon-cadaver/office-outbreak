@@ -1,11 +1,11 @@
 // Tiny synthesized audio via WebAudio: sound effects and a looping music track. No audio files.
 let ctx = null, master = null, musicGain = null, musicSw = null, noiseBuf = null, muted = false, musicMuted = false;
-export function setMuted(v) { muted = v; if (master) master.gain.value = muted ? 0 : 0.9; if (song) song.muted = muted || musicMuted; try { localStorage.setItem("oo_mute", muted ? "1" : "0"); } catch { /* ignore */ } }
+export function setMuted(v) { muted = v; if (FRAME) FRAME.setMuted(v); if (master) master.gain.value = muted ? 0 : 0.9; if (song) song.muted = muted || musicMuted; try { localStorage.setItem("oo_mute", muted ? "1" : "0"); } catch { /* ignore */ } }
 export function isMuted() { return muted; }
 export function audioState() { return ctx ? ctx.state : "none"; }
 try { muted = localStorage.getItem("oo_mute") === "1"; musicMuted = localStorage.getItem("oo_music_off") === "1"; } catch { /* ignore */ }
 // music has its own switch, separate from the sound effects
-export function setMusicMuted(v) { musicMuted = v; if (musicSw) musicSw.gain.value = musicMuted ? 0 : 1; if (song) { song.muted = muted || musicMuted; if (!musicMuted && song.paused) song.play().catch(() => {}); } try { localStorage.setItem("oo_music_off", musicMuted ? "1" : "0"); } catch { /* ignore */ } }
+export function setMusicMuted(v) { musicMuted = v; if (FRAME) FRAME.setMusicMuted(v); if (musicSw) musicSw.gain.value = musicMuted ? 0 : 1; if (song) { song.muted = muted || musicMuted; if (!musicMuted && song.paused) song.play().catch(() => {}); } try { localStorage.setItem("oo_music_off", musicMuted ? "1" : "0"); } catch { /* ignore */ } }
 export function unlockAudio() {
   if (!ctx) {
     try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch { ctx = null; return; }
@@ -168,6 +168,9 @@ function stormStep() {
     storm.next += STEP; storm.step++;
   }
 }
+// Inside the frame (index.html: START, then the menu and the games load inside it) the frame owns the one radio, so the
+// music never stops between pages; a page opened on its own runs its own radio as below
+const FRAME = (() => { try { return window.parent !== window && window.parent.__radio ? window.parent.__radio : null; } catch { return null; } })();
 // ---------- the radio: one shuffled station of every song, on every page (the menu, both games, the shop). Each page is a
 // fresh load, so the station carries over in sessionStorage: same song, same spot, same shuffle. It tries to play straight
 // away (fine on a computer once you've been on the site); phones and tablets pick it up at the first tap ----------
@@ -183,25 +186,30 @@ function applyVol() { const v = VOLS[volI][1]; if (songGain) songGain.gain.value
 // once the sound engine is running, the song goes through it (iPad/iPhone ignore an element's volume; MUSIC: OFF covers it)
 function routeSong() { if (!song || songGain || !ctx) return; try { songGain = ctx.createGain(); ctx.createMediaElementSource(song).connect(songGain).connect(musicSw); song.volume = 1; } catch { songGain = null; } applyVol(); }
 export function playSongs() {
+  if (FRAME) return FRAME.playSongs();
   if (!song) { if (!SONGS[songI]) songI = pickNext(); song = new Audio(); song.preload = 'auto'; song.loop = repeat || SONGS.length === 1; song.src = SONGS[songI];
     if (resumeAt > 1) { const t = resumeAt; song.addEventListener('loadedmetadata', () => { if (t < song.duration - 2) song.currentTime = t; }, { once: true }); }
     song.addEventListener('ended', () => nextSong()); applyVol(); }
   routeSong(); song.muted = muted || musicMuted; if (song.paused && !musicMuted) song.play().catch(() => {});
 }
 // every page: try now, and again at the first tap or key (browsers block sound until then)
-export function radio() { playSongs(); const go = () => { unlockAudio(); playSongs(); }; addEventListener('pointerdown', go, true); addEventListener('keydown', go, true); }
+export function radio() { if (FRAME) return FRAME.playSongs(); playSongs(); const go = () => { unlockAudio(); playSongs(); }; addEventListener('pointerdown', go, true); addEventListener('keydown', go, true); }
 // a shuffled bag: deal songs out in random order, reshuffle when it runs dry (never the same song twice in a row)
 function pickNext() { if (!order.length) { order = SONGS.map((_, i) => i); for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; } if (song && order.length > 1 && order[0] === songI) order.push(order.shift()); } return order.shift(); }
-export function nextSong() { if (!song) return playSongs(); songI = pickNext(); resumeAt = 0; song.src = SONGS[songI]; if (!musicMuted) song.play().catch(() => {}); saveRadio(); }
-export function songState() { return song ? { t: song.currentTime, paused: song.paused, muted: song.muted, src: SONGS[songI], loop: song.loop, vol: VOLS[volI][0], list: SONGS.length } : null; }
+export function nextSong() { if (FRAME) return FRAME.nextSong(); if (!song) return playSongs(); songI = pickNext(); resumeAt = 0; song.src = SONGS[songI]; if (!musicMuted) song.play().catch(() => {}); saveRadio(); }
+export function songState() { if (FRAME) return FRAME.songState(); return song ? { t: song.currentTime, paused: song.paused, muted: song.muted, src: SONGS[songI], loop: song.loop, vol: VOLS[volI][0], list: SONGS.length } : null; }
+function toggleRepeat() { repeat = !repeat; if (song) song.loop = repeat || SONGS.length === 1; saveRadio(); return repeat; }
+function cycleVol() { volI = (volI + 1) % VOLS.length; applyVol(); try { localStorage.setItem('oo_music_vol', volI); } catch { /* ignore */ } return VOLS[volI][0]; }
+// the frame page shares its radio with the pages inside it
+export function frameRadio() { window.__radio = { playSongs, nextSong, songState, toggleRepeat, cycleVol, setMuted, setMusicMuted, get repeat() { return repeat; }, get volName() { return VOLS[volI][0]; } }; }
 // a game page's soundtrack: starts on the first tap and keeps going; SKIP SONG, REPEAT and VOLUME on the given screen
 export function gameMusic(host, list) {
   radio();
   const row = document.createElement('div'); row.className = 'soundRow';
   const mk = (label, fn) => { const b = document.createElement('button'); b.className = 'ghost soundBtn'; b.textContent = label; b.addEventListener('click', (e) => { e.stopPropagation(); unlockAudio(); fn(b); }); row.append(b); return b; };
   mk('⏭ SKIP SONG', () => nextSong());
-  mk(repeat ? '🔂 REPEAT: ON' : '🔁 REPEAT: OFF', (b) => { repeat = !repeat; if (song) song.loop = repeat || SONGS.length === 1; b.textContent = repeat ? '🔂 REPEAT: ON' : '🔁 REPEAT: OFF'; });
-  mk('🔉 MUSIC VOL: ' + VOLS[volI][0], (b) => { volI = (volI + 1) % VOLS.length; applyVol(); try { localStorage.setItem('oo_music_vol', volI); } catch { /* ignore */ } b.textContent = '🔉 MUSIC VOL: ' + VOLS[volI][0]; });
+  const rpt = () => (FRAME ? FRAME.repeat : repeat); mk(rpt() ? '🔂 REPEAT: ON' : '🔁 REPEAT: OFF', (b) => { const on = FRAME ? FRAME.toggleRepeat() : toggleRepeat(); b.textContent = on ? '🔂 REPEAT: ON' : '🔁 REPEAT: OFF'; });
+  mk('🔉 MUSIC VOL: ' + (FRAME ? FRAME.volName : VOLS[volI][0]), (b) => { b.textContent = '🔉 MUSIC VOL: ' + (FRAME ? FRAME.cycleVol() : cycleVol()); });
   host.insertBefore(row, host.querySelector('.soundRow'));
 }
 export function startStormMusic() {

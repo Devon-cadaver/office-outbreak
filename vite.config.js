@@ -28,6 +28,6 @@ export default defineConfig({
   server: { host: true, port: 5173 },
   build: {
     target: 'es2019',
-    rollupOptions: { input: { main: resolve(__dirname, 'index.html'), zombieville: resolve(__dirname, 'zombieville.html'), store: resolve(__dirname, 'store.html'), editor: resolve(__dirname, 'editor.html'), deadcity: resolve(__dirname, 'deadcity.html'), tornado: resolve(__dirname, 'tornado.html'), kaiju: resolve(__dirname, 'kaiju.html') } },
+    rollupOptions: { input: { main: resolve(__dirname, 'index.html'), menu: resolve(__dirname, 'menu.html'), zombieville: resolve(__dirname, 'zombieville.html'), store: resolve(__dirname, 'store.html'), editor: resolve(__dirname, 'editor.html'), deadcity: resolve(__dirname, 'deadcity.html'), tornado: resolve(__dirname, 'tornado.html'), kaiju: resolve(__dirname, 'kaiju.html') } },
   },
 });

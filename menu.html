@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Dead City" />
+  <link rel="apple-touch-icon" href="./icon-180.png" />
+  <title>Dead City: Tornado Alley</title>
+  <link rel="stylesheet" href="./src/style.css" />
+  <style>
+    body { background: radial-gradient(circle at 50% 30%, #2a1449, #120a1f 70%); }
+    #menu { gap: 14px; }
+    #menu h1 { font-size: clamp(34px, 9vw, 64px); }
+    #menu { overflow-y: auto; justify-content: flex-start; padding-top: 16px; }
+    @media (max-height: 820px) { #titleArt { width: min(80vw, 340px) !important; } }
+    #titleArt { position: relative; flex: none; width: min(92vw, 420px); aspect-ratio: 420 / 300; border-radius: 22px; overflow: hidden; box-shadow: 0 10px 30px #000a; border: 3px solid #7dff3a; background: #0e0c18; }
+    #titleArt canvas, #titleArt img { width: 100%; height: 100%; display: block; }
+    #titleArt .ttl { position: absolute; top: 6%; left: 0; right: 0; text-align: center; pointer-events: none; font-family: system-ui, 'Segoe UI', sans-serif; }
+    #titleArt .ttl small { display: block; letter-spacing: .5em; color: #c9a6ff; font-weight: 800; font-size: clamp(10px, 3vw, 14px); text-shadow: 0 2px 6px #000; }
+    #titleArt .ttl b { display: block; font-size: clamp(28px, 9.5vw, 46px); font-weight: 900; letter-spacing: .02em; line-height: 1; color: #7dff3a; -webkit-text-stroke: 2px #120a1f; paint-order: stroke fill; text-shadow: 0 0 14px #7dff3a99, 0 4px 0 #3a1a5a, 0 8px 18px #000; }
+    #titleFlash { position: absolute; inset: 0; background: #eaffd8; opacity: 0; pointer-events: none; }
+    #menu .tag { color: #c9a6ff; font-size: 14px; margin-top: -6px; }
+    .choice { width: min(88vw, 360px); text-align: left; padding: 14px 18px; display: grid; gap: 4px; border: 2px solid #7dff3a; background: #1a0f2e; color: #fff; border-radius: 14px; box-shadow: 0 6px 0 #3a1f5a; }
+    .choice b { font-size: 20px; color: #7dff3a; letter-spacing: 1px; }
+    .choice span { font-size: 13px; opacity: .85; font-weight: 400; }
+    .choice .saved { color: #ffd24a; font-weight: 700; }
+    /* the intro: the clip plays once full screen, freezes on its last frame, then the menu pops up over the lower half */
+    #intro { position: fixed; inset: 0; z-index: 0; background: #0b0614 url(./intro-end.jpg) center / cover no-repeat; overflow: hidden; }
+    #intro::before { content: ''; position: absolute; inset: 0; background: inherit; filter: blur(18px) brightness(.55); transform: scale(1.1); }
+    #intro video, #introEnd { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: contain; object-position: 50% 0; }
+    @media (max-aspect-ratio: 3/4) { #intro video, #introEnd { object-fit: cover; } } /* phones: the tall art fills the screen */
+    #intro::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 30%, #0b0614b0 52%, #0b0614f2 75%); opacity: 0; transition: opacity .6s; }
+    body.ready #intro::after { opacity: 1; }
+    #menu > :first-child { margin-top: auto; }
+    #menu { display: flex; background: transparent !important; justify-content: flex-end !important; padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); gap: 8px !important; z-index: 1; }
+    #menu > * { opacity: 0; transform: translateY(24px) scale(.96); transition: opacity .35s, transform .45s cubic-bezier(.2, 1.4, .4, 1); }
+    body.ready #menu > * { opacity: 1; transform: none; }
+    body.ready #menu > :nth-child(1) { transition-delay: 0.07s; } body.ready #menu > :nth-child(2) { transition-delay: 0.14s; } body.ready #menu > :nth-child(3) { transition-delay: 0.21s; } body.ready #menu > :nth-child(4) { transition-delay: 0.28s; } body.ready #menu > :nth-child(5) { transition-delay: 0.35s; } body.ready #menu > :nth-child(6) { transition-delay: 0.42s; } body.ready #menu > :nth-child(7) { transition-delay: 0.49s; } body.ready #menu > :nth-child(8) { transition-delay: 0.56s; }
+    .choice { padding: 9px 14px !important; gap: 1px !important; box-shadow: 0 4px 0 #3a1f5a !important; }
+    .choice b { font-size: 17px !important; } .choice span { font-size: 11.5px !important; }
+    .credits { order: 99; margin: 0 !important; max-width: min(88vw, 360px); font-size: 9.5px !important; line-height: 1.3; color: #a898c8; opacity: .8; text-align: center; }
+    #skipIntro { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 3; font-size: 12px; padding: 5px 12px; margin: 0; opacity: .8; }
+    body.ready #skipIntro { display: none; }
+  </style>
+</head>
+<body>
+  <div id="intro"><img id="introEnd" src="./intro-end.jpg" alt=""><video id="introVid" src="./intro.mp4" muted autoplay playsinline webkit-playsinline preload="auto" poster="./intro-start.jpg"></video></div>
+  <button id="skipIntro" class="ghost">SKIP ▶</button>
+  <div id="menu" class="screen">
+    <button class="choice" onclick="location.href='tornado.html'"><b>🌪️ PLAY TORNADO ALLEY</b><span>Five towns, ten big targets, seeding planes and storm chasers. New? Try the tutorial.</span></button>
+    <button class="choice" onclick="location.href='kaiju.html'" style="border-color:#ff7a3a;box-shadow:0 6px 0 #5a2a1a"><b style="color:#ff9a5a">🦖 PLAY KAIJU BATTLE</b><span>Be the monster. Eat people to grow, smash the town, fight rival kaiju and unlock them.</span></button>
+    <!-- Survival and Extract are hidden for now; the pages still work and can come back by removing hidden -->
+    <button class="choice hidden" onclick="location.href='deadcity.html'"><b>DEAD CITY (SURVIVAL)</b><span>Third-person joystick. Six nights, spells, guns, vehicles, survivors and a chopper at dawn.</span><span class="saved" id="dcSaved"></span></button>
+    <button class="choice hidden" onclick="location.href='zombieville.html'"><b>EXTRACT</b><span>Snake-style maze run. Gather a line of survivors and get them out by heli. Ten districts.</span><span class="saved" id="zvSaved"></span></button>
+    <button class="choice" onclick="location.href='store.html'" style="margin-top:14px;border-color:#ffd24a;box-shadow:0 6px 0 #5a4a1a"><b style="color:#ffd24a">SKIN SHOP</b><span>Spend your coins on tornado skins, townsfolk outfits and the cars in town.</span><span class="saved" id="coins"></span></button>
+
+    <p class="credits">All monsters, robots and characters are original creations. Any resemblance to other characters is coincidental.</p>
+  </div>
+  <script type="module">import { stampVersion } from './src/version.js'; import { initSaveCodes } from './src/savecode.js'; import { soundToggle, radio } from './src/audio.js';
+    // the radio: same song and spot as the last page, from the first tap if the browser needs one
+    radio();
+    soundToggle(document.getElementById('menu')); stampVersion(); initSaveCodes(document.getElementById('menu'));
+    // the intro clip plays once (muted, as browsers require), stays on its last frame, then the menu pops up. It plays every time the
+    // menu opens; if the browser won't play it, the menu shows straight away on the final frame.
+    { const v = document.getElementById('introVid'); v.muted = true; v.defaultMuted = true; let done = false, timer = 0;
+      const ready = () => { if (done) return; done = true; clearTimeout(timer); document.body.classList.add('ready'); };
+      // the safety net only starts once the clip is actually playing, so a slow phone connection doesn't skip it
+      v.addEventListener('playing', () => { clearTimeout(timer); timer = setTimeout(ready, Math.max(2500, (v.duration || 2) * 1000 + 1200)); });
+      v.addEventListener('ended', ready); v.addEventListener('error', ready);
+      // a phone that won't play it (low power mode, data saver) goes straight to the menu on the last frame
+      const blocked = () => ready();
+      const start = () => { const pr = v.play(); if (pr && pr.catch) pr.catch(blocked); setTimeout(() => { if (!done && v.paused && v.currentTime === 0) blocked(); }, 2500); };
+      start(); document.getElementById('skipIntro').addEventListener('click', () => { v.pause(); ready(); }); window.__introReady = () => done;
+      addEventListener('pageshow', (e) => { if (!e.persisted) return; done = false; document.body.classList.remove('ready'); v.currentTime = 0; start(); }); }</script>
+  <script>
+    try { if (localStorage.getItem('oo_save_dc')) document.getElementById('dcSaved').textContent = 'Saved game: night ' + (JSON.parse(localStorage.getItem('oo_save_dc')).night + 1); } catch (e) {}
+    try { const c = Math.round(+JSON.parse(localStorage.getItem('oo_coins') || '0') * 100) / 100; document.getElementById('coins').textContent = c ? '🪙 ' + c + (c === 1 ? ' coin' : ' coins') : ''; } catch (e) {}
+    try { if (localStorage.getItem('oo_save_zv')) document.getElementById('zvSaved').textContent = 'Saved game: district ' + JSON.parse(localStorage.getItem('oo_save_zv')).level; } catch (e) {}
+  </script>
+</body>
+</html>

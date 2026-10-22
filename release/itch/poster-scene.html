@@ -41,7 +41,7 @@ import { createTwisters } from '/src/tornado.js';
 import { makeCharacter, animateWalk } from '/src/poster/characters.js';
 import { buildKaiju } from '/src/kaiju/rigs.js';
 import { nukeBlast } from '/src/nuke.js';
-const q = new URLSearchParams(location.search); const layout = q.get('layout') || 'poster';
+const q = new URLSearchParams(location.search); const layout = q.get('layout') || 'poster', SKIN = q.get('skin') || 'july4'; // the storm's skin (Liberty Twister by default)
 const [W, H] = { poster: [1000, 1500], tall: [900, 1950], wide: [1280, 720], banner: [960, 400] }[layout] || [1000, 1500];
 const wide = layout !== 'poster' && layout !== 'tall';
 const canvas = document.getElementById('c'); const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true }); renderer.setPixelRatio(1); renderer.setSize(W, H);
@@ -59,7 +59,7 @@ const city = buildCity(scene, maze, 6); city.detail.clouds.visible = false;
 // clear the foreground: nothing tall right in front of the camera
 { const wp = new THREE.Vector3(), bb = new THREE.Box3(); scene.updateMatrixWorld(true); const hideL = []; scene.traverse((o) => { if (!o.isMesh && !o.isLine && !o.isLineSegments) return; o.getWorldPosition(wp); if (wp.z < 9 || Math.abs(wp.x) > 7.5) return; bb.setFromObject(o); if (bb.max.y > 1.4) hideL.push(o); }); hideL.forEach((o) => { o.visible = false; }); }
 // the storm
-const tw = createTwisters(scene); const g = tw.make(true, [], 'halloween'); const TS = wide ? 1.25 : 1.45; g.scale.setScalar(TS); const TX = (layout === 'poster' || layout === 'tall') ? -5 : layout === 'wide' ? -6 : -7, TZ = (layout === 'poster' || layout === 'tall') ? -15 : -6; g.position.set(TX, 0, TZ); scene.add(g);
+const tw = createTwisters(scene); const g = tw.make(true, [], SKIN); const TS = wide ? 1.25 : 1.45; g.scale.setScalar(TS); const TX = (layout === 'poster' || layout === 'tall') ? -5 : layout === 'wide' ? -6 : -7, TZ = (layout === 'poster' || layout === 'tall') ? -15 : -6; g.position.set(TX, 0, TZ); scene.add(g);
 greenL.position.set(TX, 6, TZ);
 // a wrecked swath where it has been: buildings near its path gone, rubble and fires left behind
 const glowM = (c, o) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });
@@ -76,17 +76,17 @@ for (let i = 0; i < 26; i++) { const bt = new THREE.Group(); const body = new TH
   for (const s of [-1, 1]) { const e = new THREE.Mesh(box, glowM(0xff3a2a, 1)); e.scale.setScalar(0.04); e.position.set(s * 0.04, 0.03, 0.13); bt.add(e); }
   const a = Math.random() * 6.28, r = 3 + Math.random() * 9, near = i < 8; bt.position.set(near ? (Math.random() - 0.5) * 14 : TX + Math.cos(a) * r, near ? 2 + Math.random() * 4.5 : 3 + Math.random() * 14, near ? 6 + Math.random() * 8 : TZ + Math.sin(a) * r * 0.6);
   bt.scale.setScalar(near ? 1.6 + Math.random() : 0.8 + Math.random() * 0.8); bt.rotation.set((Math.random() - 0.5) * 0.6, Math.random() * 6.28, (Math.random() - 0.5) * 0.6); scene.add(bt); bats.push(bt); }
-for (let i = 0; i < 9; i++) { const p = new THREE.Group(); const shell = new THREE.Mesh(ball, new THREE.MeshLambertMaterial({ color: 0xf07a1a, emissive: 0x6a2a00 })); shell.scale.set(0.55, 0.45, 0.55); p.add(shell);
+for (let i = 0; i < (SKIN === 'halloween' ? 9 : 0); i++) { const p = new THREE.Group(); const shell = new THREE.Mesh(ball, new THREE.MeshLambertMaterial({ color: 0xf07a1a, emissive: 0x6a2a00 })); shell.scale.set(0.55, 0.45, 0.55); p.add(shell);
   const stem = new THREE.Mesh(box, new THREE.MeshLambertMaterial({ color: 0x2a5a1a })); stem.scale.set(0.08, 0.2, 0.08); stem.position.y = 0.48; p.add(stem);
   const face = glowM(0xffe24a, 1); for (const s of [-1, 1]) { const e = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.12, 3), face); e.position.set(s * 0.18, 0.08, 0.5); e.rotation.x = Math.PI / 2; p.add(e); } const mth = new THREE.Mesh(box, face); mth.scale.set(0.32, 0.07, 0.06); mth.position.set(0, -0.12, 0.5); p.add(mth);
   const a = i / 9 * 6.28 + 0.4, r = 2.2 + (i % 3) * 1.6; p.position.set(TX + Math.cos(a) * r * TS * 0.7, 2.5 + i * 1.3, TZ + Math.sin(a) * r * 0.5); p.rotation.set(Math.random() * 0.8, -0.3 + Math.random() * 0.6, Math.random() * 0.8); p.scale.setScalar(0.9 + Math.random() * 0.7); scene.add(p); lanterns.push(p); }
 // far behind: two titans fighting downtown, and a nuke going off beyond them
-const fightX = (layout === 'poster' || layout === 'tall') ? 10.5 : 10, fightZ = (layout === 'poster' || layout === 'tall') ? -44 : -48;
-const gz = buildKaiju('godzilly'), rb = buildKaiju('grime'); const KS = (layout === 'poster' || layout === 'tall') ? 8 : 9; gz.g.scale.setScalar(KS); rb.g.scale.setScalar(KS); { const rim = new THREE.PointLight(0xff8a3a, 140, 90, 1.2); rim.position.set(fightX, KS, fightZ + 14); const rim2 = new THREE.PointLight(0x9a6aff, 160, 80, 1.2); rim2.position.set(fightX, KS * 2.2, fightZ - 8); scene.add(rim, rim2); } gz.g.position.set(fightX - KS * 0.68, 0, fightZ); rb.g.position.set(fightX + KS * 0.68, 0, fightZ + 1);
-gz.g.rotation.y = Math.PI / 2 - 0.25; rb.g.rotation.y = -Math.PI / 2 + 0.25; scene.add(gz.g, rb.g);
-gz.act('cast'); rb.act('hit'); for (let i = 0; i < 8; i++) { gz.anim(0.05, 0.6); rb.anim(0.05, 0.6); }
-const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.9, 7, 12, 1, true), glowM(0x6ac8ff, 0.7)); beam.rotation.z = Math.PI / 2; beam.scale.setScalar(KS / 6.2); beam.position.set(fightX + 0.2, KS * 1.5, fightZ + 0.5); scene.add(beam);
-const hit = new THREE.Mesh(ball, glowM(0xfff2c0, 0.9)); hit.scale.setScalar(1.2 * KS / 6.2); hit.position.set(fightX + KS * 0.5, KS * 1.5, fightZ + 0.8); scene.add(hit);
+const fightX = (layout === 'poster' || layout === 'tall') ? 7.2 : 10, fightZ = (layout === 'poster' || layout === 'tall') ? -44 : -48;
+const gz = buildKaiju('godzilly'), rb = buildKaiju('mike'); const KS = (layout === 'poster' || layout === 'tall') ? 8 : 9; gz.g.scale.setScalar(KS); rb.g.scale.setScalar(KS); { const rim = new THREE.PointLight(0xff8a3a, 140, 90, 1.2); rim.position.set(fightX, KS, fightZ + 14); const rim2 = new THREE.PointLight(0x9a6aff, 160, 80, 1.2); rim2.position.set(fightX, KS * 2.2, fightZ - 8); scene.add(rim, rim2); } gz.g.position.set(fightX - KS * 0.68, 0, fightZ); rb.g.position.set(fightX + KS * 0.68, 0, fightZ + 1);
+gz.g.rotation.y = Math.PI / 2 - 0.25; rb.g.rotation.y = -Math.PI / 2 + 0.85; scene.add(gz.g, rb.g);
+gz.act('cast'); rb.act('hit'); for (let i = 0; i < 8; i++) gz.anim(0.05, 0.6); for (let i = 0; i < 6; i++) rb.anim(0.05, 0); // Mike: sledgehammer raised overhead, about to slam
+const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.9, 7, 12, 1, true), glowM(0x6ac8ff, 0.7)); beam.rotation.z = Math.PI / 2; beam.scale.setScalar(KS / 6.2); beam.position.set(fightX - 0.6, KS * 1.5, fightZ + 0.5); beam.scale.x *= 0.75; beam.scale.z *= 0.75; scene.add(beam);
+const hit = new THREE.Mesh(ball, glowM(0xfff2c0, 0.9)); hit.scale.setScalar(1.2 * KS / 6.2); hit.position.set(fightX + KS * 0.12, KS * 1.5, fightZ + 0.8); scene.add(hit);
 const blast = nukeBlast(scene, new THREE.Vector3((layout === 'poster' || layout === 'tall') ? -16 : fightX - 18, 0, -90), 26, { kind: 'nuke' }); const bt0 = +q.get('t') || 2.3; for (let t = 0; t < bt0; t += 0.05) blast.update(0.05);
 // orange lightning: one huge bolt cracking right across the front of the frame, more forking through the clouds
 function boltTube(a, b, n, jag, r, col) { const pts = []; for (let i = 0; i <= n; i++) { const p = a.clone().lerp(b, i / n); if (i > 0 && i < n) { p.x += (Math.random() - 0.5) * jag; p.y += (Math.random() - 0.5) * jag * 0.4; p.z += (Math.random() - 0.5) * jag * 0.3; } pts.push(p); }
@@ -118,7 +118,7 @@ cam.updateMatrixWorld(); for (const b of city.buildings || []) { const p = b.pos
     for (const h of ray.intersectObjects(city.group.children, true)) { const t = top(h.object); if (!t.visible) continue; bb.setFromObject(t); if (bb.max.y - bb.min.y < 2.2 || h.distance < 6) continue; t.visible = false; n++; if (Math.random() < 0.4) fireAt((bb.min.x + bb.max.x) / 2, (bb.min.z + bb.max.z) / 2, 0.9); } } console.log('cleared', n); }
 { const bb = new THREE.Box3(), keep = new Set([gz.g, rb.g, g]); const cand = [...scene.children, ...city.group.children]; for (const o of cand) { if (keep.has(o) || !o.visible || o === city.group) continue; bb.setFromObject(o); if (bb.isEmpty() || bb.max.y - bb.min.y < 3.5) continue; const cz = (bb.min.z + bb.max.z) / 2, cx = (bb.min.x + bb.max.x) / 2; if (cz > 6 || cz < fightZ + 4) continue; const v = new THREE.Vector3(cx, bb.max.y, cz).project(cam); if (v.x > -0.25 && v.x < 0.95 && bb.max.x - bb.min.x < 30) o.visible = false; } }
 for (let i = 0; i < 60; i++) { tw.update(0.05); city.updateRain(0.05); }
-renderer.render(scene, cam); window.__P = { scene, cam, gz, rb, THREE };
+renderer.render(scene, cam); window.__P = { scene, cam, gz, rb, THREE, bats, tw, beam, hit, renderer, city, nukeBlast, fightX, fightZ, KS }; // the intro animator drives these frame by frame
 // the titles
 const S = W / 1000, $ = (id) => document.getElementById(id), place = (id, top, size) => { const e = $(id); e.style.top = top + 'px'; e.style.fontSize = size + 'px'; };
 const hide = (...ids) => ids.forEach((id) => { $(id).style.display = 'none'; });

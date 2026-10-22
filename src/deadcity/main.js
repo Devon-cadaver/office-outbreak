@@ -602,7 +602,7 @@ function applySave(s) { night = s.night || 0; hearts = s.hearts; maxHearts = s.m
 function pauseGame() { if (state !== 'play') return; state = 'paused'; setMusicChase(false); stick.id = null; stick.x = stick.y = 0; knob.style.transform = 'translate(-50%, -50%)'; look.id = null; $('dcPauseText').textContent = (isNight ? 'Night ' : 'Day after night ') + night + ' · $' + cash + '. Saving keeps your hearts, cash, gear and spells from the start of this day.'; $('dc').classList.add('hidden'); $('dcPaused').classList.remove('hidden'); }
 function resumeGame() { if (state !== 'paused') return; $('dcPaused').classList.add('hidden'); $('dc').classList.remove('hidden'); state = 'play'; }
 $('dcPause').addEventListener('pointerdown', (e) => e.stopPropagation()); $('dcPause').addEventListener('click', pauseGame); $('dcResume').addEventListener('click', resumeGame);
-$('dcSave').addEventListener('click', () => { saveGame(); location.href = 'index.html'; }); $('dcQuit').addEventListener('click', () => { location.href = 'index.html'; });
+$('dcSave').addEventListener('click', () => { saveGame(); location.href = 'menu.html'; }); $('dcQuit').addEventListener('click', () => { location.href = 'menu.html'; });
 addEventListener('keydown', (e) => { if (e.key === 'Escape' || e.key === 'p') { if (state === 'play') pauseGame(); else if (state === 'paused') resumeGame(); } });
 { const sv = loadGame(); if (sv) { $('dcContinue').classList.remove('hidden'); $('dcContinue').textContent = 'CONTINUE · DAY ' + ((sv.night || 0) + 1); $('dcContinue').addEventListener('click', () => startRun(sv)); } }
 function startRun(save) {

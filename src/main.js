@@ -820,7 +820,7 @@ function clearRun() { try { localStorage.removeItem(SAVE_KEY); } catch { /* igno
 // ---- pause ----
 function pauseRun() { if (state !== 'play') return; state = 'paused'; input.reset(); setMusicChase(false); $('pauseText').textContent = 'District ' + level + ' · Score ' + score + ' · $' + cash + '. Saving keeps your score, lives, cash and gear from the start of this district.'; show($('pause')); }
 $('pauseBtn').addEventListener('click', pauseRun); $('resumeBtn').addEventListener('click', () => { if (state !== 'paused') return; show(null); state = 'play'; });
-$('saveBtn').addEventListener('click', () => { saveRun(); location.href = 'index.html'; }); $('quitBtn').addEventListener('click', () => { location.href = 'index.html'; });
+$('saveBtn').addEventListener('click', () => { saveRun(); location.href = 'menu.html'; }); $('quitBtn').addEventListener('click', () => { location.href = 'menu.html'; });
 addEventListener('keydown', (e) => { if (e.key === 'Escape' || e.key === 'p') { if (state === 'play') pauseRun(); else if (state === 'paused') { show(null); state = 'play'; } } });
 { const sv = loadRun(); if (sv) { $('continueBtn').classList.remove('hidden'); $('continueBtn').textContent = 'CONTINUE · DISTRICT ' + sv.level; $('continueBtn').addEventListener('click', () => { unlockAudio(); startRun(sv); }); } }
 function loseLife() {
