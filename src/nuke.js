@@ -7,7 +7,10 @@ import * as THREE from 'three';
 const ball = new THREE.IcosahedronGeometry(1, 2), ringG = new THREE.RingGeometry(0.9, 1, 64), cyl = new THREE.CylinderGeometry(1, 1, 1, 16, 1, true);
 const mat = (color, opacity, additive = true) => new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending });
 
-export function nukeBlast(scene, at, R, { kind = 'nuke', color = null, secs = 1.6, onRadius = null } = {}) {
+// green: a radioactive green mushroom cloud (Mike's) instead of the orange one
+const NUKE_COLS = { orange: { fire: 0xffe27a, fire2: 0xff7a1a, wave: 0xfff2c0, scorch: 0x1a0e08, stem: 0xffa040, cap: 0xff8a2a, capCool: 0xd06a3a, ring: 0xffc060, smoke: 0x5a4a40 },
+  green: { fire: 0xe2ffb0, fire2: 0x39ff14, wave: 0xd8ffc0, scorch: 0x0a1a06, stem: 0x5aff3a, cap: 0x39ff14, capCool: 0x2ad82a, ring: 0xa8ff70, smoke: 0x2a4a28 } };
+export function nukeBlast(scene, at, R, { kind = 'nuke', color = null, secs = 1.6, onRadius = null, green = false } = {}) { const NC = NUKE_COLS[green ? 'green' : 'orange'];
   const g = new THREE.Group(); g.position.set(at.x, 0, at.z); scene.add(g); const parts = [];
   const add = (m) => { g.add(m); parts.push(m); return m; };
   let t = 0;
@@ -21,11 +24,11 @@ export function nukeBlast(scene, at, R, { kind = 'nuke', color = null, secs = 1.
       dome.scale.set(R * k, R * 0.45 * k, R * k); dome.material.opacity = 0.3 * (1 - k); core.scale.setScalar(1.5 + k * 4); core.material.opacity = 0.8 * (1 - k * 1.5);
       if (onRadius && k < 1) onRadius(R * k); if (t > secs + 0.3) { scene.remove(g); return false; } return true; } };
   }
-  const fire = add(new THREE.Mesh(ball, mat(0xffe27a, 1))), fire2 = add(new THREE.Mesh(ball, mat(0xff7a1a, 0.8)));
-  const wave = add(new THREE.Mesh(ringG, mat(0xfff2c0, 0.95))); wave.rotation.x = -Math.PI / 2; wave.position.y = 0.25;
-  const scorch = add(new THREE.Mesh(new THREE.CircleGeometry(1, 40), mat(0x1a0e08, 0.7, false))); scorch.rotation.x = -Math.PI / 2; scorch.position.y = 0.06;
-  const stem = add(new THREE.Mesh(cyl, mat(0xffa040, 0.85))), cap = add(new THREE.Mesh(ball, mat(0xff8a2a, 0.9))), capRing = add(new THREE.Mesh(new THREE.TorusGeometry(1, 0.35, 8, 24), mat(0xffc060, 0.7)));
-  const smoke = add(new THREE.Mesh(ball, mat(0x5a4a40, 0.55, false))); capRing.rotation.x = Math.PI / 2;
+  const fire = add(new THREE.Mesh(ball, mat(NC.fire, 1))), fire2 = add(new THREE.Mesh(ball, mat(NC.fire2, 0.8)));
+  const wave = add(new THREE.Mesh(ringG, mat(NC.wave, 0.95))); wave.rotation.x = -Math.PI / 2; wave.position.y = 0.25;
+  const scorch = add(new THREE.Mesh(new THREE.CircleGeometry(1, 40), mat(NC.scorch, 0.7, false))); scorch.rotation.x = -Math.PI / 2; scorch.position.y = 0.06;
+  const stem = add(new THREE.Mesh(cyl, mat(NC.stem, 0.85))), cap = add(new THREE.Mesh(ball, mat(NC.cap, 0.9))), capRing = add(new THREE.Mesh(new THREE.TorusGeometry(1, 0.35, 8, 24), mat(NC.ring, 0.7)));
+  const smoke = add(new THREE.Mesh(ball, mat(NC.smoke, 0.55, false))); capRing.rotation.x = Math.PI / 2;
   const H = R * 1.1;
   return { remove: () => scene.remove(g), update(dt) { t += dt; const k = Math.min(1, t / secs), life = 4.5, f = Math.min(1, t / life);
     const fb = Math.min(1, t / 0.5); fire.scale.setScalar(R * 0.32 * fb); fire.position.y = R * 0.12 * fb; fire.material.opacity = Math.max(0, 1 - t / 1.4);
@@ -34,7 +37,7 @@ export function nukeBlast(scene, at, R, { kind = 'nuke', color = null, secs = 1.
     // the mushroom cloud climbs, swells and cools from glowing orange to grey smoke
     const up = Math.min(1, t / 2.2), cool = Math.min(1, t / 3);
     stem.scale.set(R * 0.07 * (1 + up), H * up, R * 0.07 * (1 + up)); stem.position.y = H * up / 2; stem.material.opacity = 0.85 * (1 - f);
-    cap.scale.set(R * 0.28 * (0.4 + up), R * 0.16 * (0.4 + up), R * 0.28 * (0.4 + up)); cap.position.y = H * up; cap.material.color.setHex(cool < 0.5 ? 0xff8a2a : 0xd06a3a); cap.material.opacity = 0.9 * (1 - f);
+    cap.scale.set(R * 0.28 * (0.4 + up), R * 0.16 * (0.4 + up), R * 0.28 * (0.4 + up)); cap.position.y = H * up; cap.material.color.setHex(cool < 0.5 ? NC.cap : NC.capCool); cap.material.opacity = 0.9 * (1 - f);
     capRing.scale.setScalar(R * 0.26 * (0.4 + up)); capRing.position.y = H * up - R * 0.1; capRing.material.opacity = 0.7 * (1 - f);
     smoke.scale.set(R * 0.36 * (0.3 + up), R * 0.2 * (0.3 + up), R * 0.36 * (0.3 + up)); smoke.position.y = H * up + R * 0.04; smoke.material.opacity = 0.55 * cool * (1 - f);
     if (onRadius && k < 1) onRadius(R * k); if (t > life) { scene.remove(g); return false; } return true; } };

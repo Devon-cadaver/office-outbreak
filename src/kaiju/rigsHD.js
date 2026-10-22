@@ -516,6 +516,7 @@ const tabTex = (txt, bg, fg, key) => canvasTex(key, 256, 64, (g, w, h) => { g.fi
 const BOX = () => geo('box', () => new THREE.BoxGeometry(1, 1, 1));
 const PLN = () => geo('pln', () => new THREE.PlaneGeometry(1, 1));
 const DOME = () => geo('dome', () => new THREE.SphereGeometry(0.5, 16, 8, 0, Math.PI * 2, 0, Math.PI * 0.45));
+const GRIP_SIGN = 1;
 function mikeHD(body, K) {
   const [gearC, teeC, skinC, patchC, eyeC] = K.pal;
   const gear = M(gearC), tee = M(teeC), skin = M(skinC), web = M(lerpC(gearC, 0x8a8a90, 0.18)), black = M(0x0c0c10), boot = M(0x141418, 'metal'), steel = M(0x9aa0a8, 'metal'), silver = M(0xc8ccd2, 'metal'),
@@ -532,7 +533,7 @@ function mikeHD(body, K) {
     part(k, CAP(), gear, 0.25, 0.19, 0.27, 0, -0.2, 0);
     const ft = grp(k, 0, -0.42, 0); part(ft, CYL(), boot, 0.26, 0.13, 0.28, 0, 0.06, 0); part(ft, RBX(), boot, 0.27, 0.14, 0.4, 0, -0.03, 0.06); part(ft, RBX(), black, 0.29, 0.045, 0.43, 0, -0.1, 0.06);
     for (let i = 0; i < 3; i++) part(ft, BOX(), silver, 0.12, 0.014, 0.014, 0, 0.0 + i * 0.04, 0.17 - i * 0.025); // laces
-    return { l, k }; });
+    return { l, k, ft }; });
   // torso: black tee under a plate-carrier vest
   const torso = grp(hip, 0, 0.06, 0); const tb = grp(torso); tb.scale.set(1.16, 1, 1.14);
   part(tb, SPH(), tee, 0.58, 0.62, 0.38, 0, 0.36, 0); part(tb, SPH(), tee, 0.74, 0.3, 0.38, 0, 0.6, 0);
@@ -577,24 +578,95 @@ function mikeHD(body, K) {
   const ham = grp(arms[0].fist, 0, -0.03, 0.02); ham.rotation.x = 0.15;
   part(ham, CYL(), wood, 0.065, 0.82, 0.065, 0, -0.32, 0); part(ham, CYL(), black, 0.08, 0.16, 0.08, 0, 0.0, 0); // handle + grip
   part(ham, RBX(), steel, 0.19, 0.19, 0.44, 0, -0.76, 0.02); for (const z of [-0.2, 0.24]) part(ham, CYL(), silver, 0.19, 0.04, 0.19, 0, -0.76, z, Math.PI / 2); // sledge head, striking faces
-  const hand = grp(ham, 0, -0.76, 0.05);
-  return { mouth, hand, chest, hammer: ham,
+  const hand = grp(ham, 0, -0.76, 0.05), grip = grp(ham, 0, -0.2, 0); // grip: where the free hand takes hold, just below the other
+  // motion: a heavy, natural gait (heel-to-toe feet, knees that bend on the swing, hip bob and sway, shoulders twisting
+  // against the hips, a steady head), a sledgehammer that hangs and lags like real weight, and a two-handed overhead slam
+  const cl = (x) => Math.max(0, Math.min(1, x)), ease = (x) => (x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2), lerp = (a, b, q) => a + (b - a) * q;
+  let mv = 0, hamA = 0, hamV = 0, prevArm = 0;
+  // two-joint reach: aim the free arm so its fist lands on the handle (law of cosines for the elbow), blended in by w
+  const L1 = 0.41, L2 = 0.41, NY = V(0, -1, 0), XA = V(1, 0, 0), tP = V(0, 0, 0), tD = V(0, 0, 0), tQ = new THREE.Quaternion(), tB = new THREE.Quaternion();
+  function reach(w) { grip.getWorldPosition(tP); torso.worldToLocal(tP); const A = arms[1]; tD.subVectors(tP, A.a.position); const d = Math.max(0.15, Math.min(L1 + L2 - 0.01, tD.length())); tD.normalize();
+    const bend = Math.PI - Math.acos(Math.max(-1, Math.min(1, (L1 * L1 + L2 * L2 - d * d) / (2 * L1 * L2)))), alpha = Math.acos(Math.max(-1, Math.min(1, (L1 * L1 + d * d - L2 * L2) / (2 * L1 * d))));
+    tQ.setFromUnitVectors(NY, tD).multiply(tB.setFromAxisAngle(XA, GRIP_SIGN * alpha)); A.a.quaternion.slerp(tQ, w); A.el.rotation.x += (-bend - A.el.rotation.x) * w; }
+  return { mouth, hand, chest, hammer: ham, actSpeed: { hit: 1.35, golf: 1.55, ride: 0.02, grab: 0.02 },
     anim(t, dt, move, act, k) {
-      const w = t * (4.4 + move * 2), sw = Math.sin(w) * 0.55 * move;
-      legs[0].l.rotation.x = sw; legs[1].l.rotation.x = -sw; legs[0].k.rotation.x = Math.max(0, -Math.sin(w)) * 0.7 * move; legs[1].k.rotation.x = Math.max(0, Math.sin(w)) * 0.7 * move;
-      arms[0].a.rotation.set(-0.1 - sw * 0.4, 0, -0.12); arms[1].a.rotation.set(-0.1 + sw * 0.8, 0, 0.1); arms[0].el.rotation.x = -0.25; arms[1].el.rotation.x = -0.35 - Math.abs(sw) * 0.3;
-      hip.position.y = 1.0 + Math.abs(Math.sin(w)) * 0.05 * move; torso.rotation.set(0.06 * move + Math.sin(t * 1.3) * 0.015, Math.sin(w) * 0.08 * move, 0); neck.rotation.x = -0.04; jaw.rotation.x = 0; head.rotation.y = Math.sin(t * 0.5) * 0.15 * (1 - move);
-      if (act === 'hit') { // sledgehammer overhead, then SLAM
-        const up = k < 0.45 ? k / 0.45 : Math.max(0, 1 - (k - 0.45) / 0.15), down = k < 0.45 ? 0 : k < 0.6 ? (k - 0.45) / 0.15 : Math.max(0, 1 - (k - 0.6) / 0.4);
-        arms[0].a.rotation.x = -0.1 - 3.0 * up - 1.4 * down; arms[0].el.rotation.x = -0.25 - 0.6 * up; arms[1].a.rotation.x = -0.1 - 1.0 * up - 1.2 * down;
-        torso.rotation.x = -0.25 * up + 0.45 * down; jaw.rotation.x = 0.35 * down; }
-      else if (act === 'win') { const s = Math.min(1, k * 5) * Math.min(1, (1 - k) * 4); // both hands in the air
-        for (const [i, d] of [[0, -1], [1, 1]]) { arms[i].a.rotation.set(-2.95 * s, 0, d * 0.3 * s); arms[i].el.rotation.x = -0.15 * s; } torso.rotation.x = -0.15 * s; neck.rotation.x = -0.35 * s; jaw.rotation.x = 0.45 * s; }
-      else if (act === 'cast') { const s = S(k, 1), shake = Math.sin(k * Math.PI * 10) * 0.12 * s; // the snarl and claw-hands flex
-        for (const [i, d] of [[0, -1], [1, 1]]) { arms[i].a.rotation.set(-1.0 * s + shake, 0, d * 0.7 * s); arms[i].el.rotation.x = -1.7 * s; }
-        torso.rotation.x = 0.2 * s; neck.rotation.x = 0.15 * s; jaw.rotation.x = 0.4 * s; }
+      mv += (move - mv) * Math.min(1, dt * 5); const m = mv, ph = t * (3.6 + m * 2.2), s = Math.sin(ph), c = Math.cos(ph), br = Math.sin(t * 1.7);
+      // legs: sg flips the phase for the right leg; fwd > 0 while that leg is travelling forward (its swing)
+      for (const [i, sg] of [[0, 1], [1, -1]]) { const L = legs[i], sw = s * sg, fwd = c * sg;
+        L.l.rotation.x = -sw * 0.55 * m; L.k.rotation.x = (Math.max(0, fwd) * 0.72 + 0.06) * m;
+        L.ft.rotation.x = -(L.l.rotation.x + L.k.rotation.x) * 0.9 + (sw > 0.6 ? -(sw - 0.6) * 0.5 : 0) * m + Math.max(0, -sw) * Math.max(0, fwd) * 0.4 * m; } // heel strike, toe-off
+      hip.position.y = 1.0 - 0.03 * m + (Math.abs(c) - 0.5) * 0.06 * m + br * 0.004; hip.rotation.set(0, s * 0.13 * m, -s * 0.035 * m);
+      torso.rotation.set(0.07 * m + br * 0.012, -s * 0.2 * m, s * 0.025 * m); torso.position.y = 0.06 + br * 0.006;
+      neck.rotation.set(-0.04 - 0.05 * m, -(torso.rotation.y + hip.rotation.y) * 0.85, 0); jaw.rotation.x = 0;
+      head.rotation.set(0, Math.sin(t * 0.45) * 0.25 * (1 - m), Math.sin(t * 0.3) * 0.04 * (1 - m)); // looks about when standing
+      // free arm counter-swings with more bend going forward; the hammer arm barely swings (it's carrying weight)
+      arms[1].a.rotation.set(-s * 0.5 * m - 0.06, 0, 0.13 + br * 0.01); arms[1].el.rotation.x = -(0.22 + Math.max(0, s) * 0.45 * m);
+      arms[0].a.rotation.set(s * 0.16 * m - 0.04, 0, -0.17 - br * 0.01); arms[0].el.rotation.x = -0.1;
+      let cock = 0;
+      if (act === 'hit') { // wind-up (lean back, hammer over the shoulder), SLAM (both hands, knees give), then recover
+        const u = ease(cl(k / 0.38)), d = Math.pow(cl((k - 0.38) / 0.14), 2), rr = ease(cl((k - 0.68) / 0.32)), v = (a, b, c0) => lerp(lerp(lerp(a, b, u), c0, d), a, rr);
+        const ax = arms[0].a.rotation.x; arms[0].a.rotation.x = v(ax, -3.0, -1.2); arms[0].a.rotation.z = v(-0.17, -0.05, 0.12); arms[0].el.rotation.x = v(-0.1, -0.95, -0.04);
+        arms[1].a.rotation.x = v(arms[1].a.rotation.x, -2.75, -1.1); arms[1].a.rotation.z = v(0.13, -0.3, -0.42); arms[1].el.rotation.x = v(-0.22, -1.0, -0.25);
+        cock = v(0, -1.25, 0.25);
+        torso.rotation.x = v(torso.rotation.x, -0.24, 0.52); torso.rotation.y = v(torso.rotation.y, 0.32, -0.12);
+        hip.position.y = v(hip.position.y, hip.position.y + 0.02, 0.88); neck.rotation.x = v(-0.04, -0.25, 0.25); jaw.rotation.x = v(0, 0.1, 0.4);
+        const st = 1 - m; for (const L of legs) { L.l.rotation.x = lerp(L.l.rotation.x, v(L.l.rotation.x, 0.05, -0.4), st); L.k.rotation.x = lerp(L.k.rotation.x, v(L.k.rotation.x, 0.05, 0.7), st); L.ft.rotation.x = lerp(L.ft.rotation.x, -(L.l.rotation.x + L.k.rotation.x), st); } }
+      else if (act === 'golf') { // a golf swing with the sledgehammer: address, backswing, a fast sweep low through the hit, follow-through
+        const T = [0, 0.38, 0.52, 0.76, 1], kf = (vals) => { let i = 0; while (i < 3 && k > T[i + 1]) i++; return lerp(vals[i], vals[i + 1], ease(cl((k - T[i]) / (T[i + 1] - T[i])))); };
+        const ty = kf([0, 1.15, -0.2, -1.1, 0]), st = 1 - m; torso.rotation.set(kf([0.35, 0.25, 0.42, 0.05, 0.02]) * (1 - 0.4 * m), ty, kf([0, 0.08, -0.05, -0.1, 0])); hip.rotation.y = lerp(hip.rotation.y, ty * 0.45, st) + ty * 0.15 * m; hip.position.y = lerp(hip.position.y, 1.0 - kf([0.05, 0.03, 0.08, 0.02, 0]), st);
+        arms[0].a.rotation.set(kf([-0.5, -1.7, -0.35, -2.2, -0.04]), 0, kf([0.38, 0.2, 0.42, 0.2, -0.17])); arms[0].el.rotation.x = kf([-0.2, -0.7, -0.05, -0.6, -0.1]);
+        arms[1].a.rotation.set(-0.5, 0, -0.3); arms[1].el.rotation.x = -0.3; cock = kf([0.35, -0.45, 0.25, -0.35, 0]);
+        neck.rotation.set(kf([0.2, 0.15, 0.25, -0.1, -0.04]), -ty * kf([0.8, 0.85, 0.8, 0.2, 0]), 0); jaw.rotation.x = kf([0, 0, 0.35, 0.1, 0]);
+        for (const [i, sg] of [[0, 1], [1, -1]]) { const L = legs[i]; L.l.rotation.x = lerp(L.l.rotation.x, -0.15, st); L.l.rotation.y = ty * 0.2 * sg * st; L.k.rotation.x = lerp(L.k.rotation.x, 0.3, st); L.ft.rotation.x = lerp(L.ft.rotation.x, -0.15, st); } }
+      else if (act === 'ride') { for (const L of legs) { L.l.rotation.set(-1.4, 0, 0); L.k.rotation.x = 1.05; L.ft.rotation.x = 0.3; }
+        hip.position.y = 1.0; hip.rotation.set(0, 0, 0); torso.rotation.set(-0.14 + Math.sin(t * 9) * 0.01, 0, 0); neck.rotation.set(0.1, 0, 0); head.rotation.set(0, 0, 0); jaw.rotation.x = 0;
+        for (const [i, d] of [[0, -1], [1, 1]]) { arms[i].a.rotation.set(-1.15, 0, d * -0.08); arms[i].el.rotation.x = -0.55; } }
+      else if (act === 'grab') { const tug = Math.sin(t * 9) * 0.06; // Spin & Throw: both arms out in front and up, gripping the monster he's swinging, leaning back against it
+        for (const [i, d] of [[0, -1], [1, 1]]) { arms[i].a.rotation.set(-2.05 + tug, 0, d * -0.18); arms[i].el.rotation.x = -0.12; } torso.rotation.set(-0.28, 0, Math.sin(t * 4.5) * 0.05); neck.rotation.set(-0.35, 0, 0); jaw.rotation.x = 0.3 + tug;
+        hip.position.y = 0.94; for (const [i, sg] of [[0, 1], [1, -1]]) { const L = legs[i]; L.l.rotation.set(-0.35 + sg * 0.25, 0, sg * -0.12); L.k.rotation.x = 0.45; L.ft.rotation.x = -0.1 - sg * 0.25; } }
+      else if (act === 'win') { const q = Math.min(1, k * 5) * Math.min(1, (1 - k) * 4); // both hands in the air
+        for (const [i, d] of [[0, -1], [1, 1]]) { arms[i].a.rotation.set(-2.95 * q, 0, d * 0.3 * q); arms[i].el.rotation.x = -0.15 * q; } torso.rotation.x = -0.15 * q; neck.rotation.x = -0.35 * q; jaw.rotation.x = 0.45 * q; }
+      else if (act === 'cast') { const q = Math.sin(k * Math.PI), shake = Math.sin(k * Math.PI * 10) * 0.12 * q; // the snarl and claw-hands flex
+        for (const [i, d] of [[0, -1], [1, 1]]) { arms[i].a.rotation.set(-1.0 * q + shake, 0, d * 0.7 * q); arms[i].el.rotation.x = -1.7 * q; }
+        torso.rotation.x = 0.2 * q; neck.rotation.x = 0.15 * q; jaw.rotation.x = 0.4 * q; }
       else if (act === 'ko') { body.rotation.x = -Math.min(1.5, k * 2); body.position.y = -k * 0.2; }
+      // the sledgehammer hangs: it keeps pointing down as the arm swings and swings on a little spring when the arm moves
+      const ax = arms[0].a.rotation.x, acc = (ax - prevArm) / Math.max(dt, 1e-3); prevArm = ax; hamV += (-hamA * 38 - hamV * 6.5 - acc * 0.8) * Math.min(dt, 0.05); hamA = Math.max(-0.6, Math.min(0.6, hamA + hamV * Math.min(dt, 0.05)));
+      ham.visible = act !== 'ride' && act !== 'grab'; ham.rotation.x = act === 'hit' || act === 'golf' ? 0.15 + cock : 0.15 - (ax + arms[0].el.rotation.x) * 0.55 + hamA;
+      if (act === 'hit' || act === 'golf') { const w = act === 'golf' ? Math.min(ease(cl(k / 0.12)), 1 - ease(cl((k - 0.86) / 0.14))) : Math.min(ease(cl(k / 0.3)), 1 - ease(cl((k - 0.72) / 0.24))); if (w > 0.01) reach(w); } // both hands on the handle
     } };
+}
+
+// ---------- Mike's chopper (his ride out of town): a custom black chopper sized to him, facing +z; front and rear are
+// wheel groups that spin about x; pipe is where the exhaust comes out (in bike space) ----------
+export function buildChopper() {
+  const tube = (parent, m, a, b, r) => { const d = new THREE.Vector3().subVectors(b, a), len = d.length(); const o = new THREE.Mesh(CYL(), m); o.scale.set(r * 2, len, r * 2); o.position.copy(a).addScaledVector(d, 0.5); o.quaternion.setFromUnitVectors(UP, d.normalize()); parent.add(o); return o; };
+  const g = new THREE.Group(), black = M(0x0c0c10, 'metal'), chrome = M(0xdfe3ea, 'metal'), rubber = M(0x161618), seat = M(0x1c1a1c), red = M(0xff2a2a, 'glow'), lamp = M(0xfff2c0, 'glow'), steel = M(0x8c9096, 'metal'), wood = M(0x2a2420), dark = M(0x2a2a30, 'metal');
+  const wheel = (r, w, z) => { const wg = grp(g, 0, r, z); const s = r / 0.62; part(wg, TOR(), rubber, s, s, w / 0.12 / 2 * 0.62 / r * s, 0, 0, 0, 0, Math.PI / 2, 0); part(wg, TOR(), chrome, s * 0.72, s * 0.72, s * 0.5, 0, 0, 0, 0, Math.PI / 2, 0);
+    part(wg, CYL(), chrome, r * 0.35, w * 1.1, r * 0.35, 0, 0, 0, 0, 0, Math.PI / 2); for (let i = 0; i < 14; i++) part(wg, BOX(), steel, 0.012, r * 1.4, 0.012, 0, 0, 0, i / 14 * Math.PI, 0, 0); return wg; };
+  const rear = wheel(0.38, 0.22, -0.88), front = wheel(0.34, 0.1, 1.12);
+  // frame
+  for (const [a, b] of [[V(0, 0.38, -0.88), V(0, 0.62, -0.2)], [V(0, 1.0, 0.6), V(0, 0.3, 0.18)], [V(0, 0.3, 0.18), V(0, 0.32, -0.3)], [V(0, 1.0, 0.6), V(0, 0.72, -0.2)], [V(0, 0.32, -0.3), V(0, 0.38, -0.88)]]) tube(g, black, a, b, 0.045);
+  // tank, seat, fender, sissy bar, tail light
+  part(g, SPH(), black, 0.34, 0.24, 0.62, 0, 0.92, 0.28, -0.12); part(g, BOX(), chrome, 0.345, 0.02, 0.4, 0, 0.92, 0.3, -0.12); part(g, CYL(), chrome, 0.06, 0.03, 0.06, 0, 1.04, 0.3);
+  part(g, RBX(), seat, 0.3, 0.1, 0.52, 0, 0.74, -0.24, 0.08); part(g, RBX(), seat, 0.24, 0.12, 0.2, 0, 0.8, -0.52, 0.2);
+  part(g, SPH(), black, 0.3, 0.32, 0.86, 0, 0.5, -0.88); part(g, BOX(), red, 0.12, 0.05, 0.03, 0, 0.66, -1.31);
+  for (const x of [-0.12, 0.12]) tube(g, chrome, V(x, 0.62, -0.95), V(x * 0.8, 1.3, -0.98), 0.025); tube(g, chrome, V(-0.1, 1.3, -0.98), V(0.1, 1.3, -0.98), 0.025);
+  // V-twin: crankcase, two finned cylinders, chrome covers, air cleaner
+  part(g, RBX(), steel, 0.22, 0.24, 0.38, 0, 0.42, -0.05); part(g, CYL(), chrome, 0.24, 0.05, 0.24, 0.12, 0.42, -0.05, 0, 0, Math.PI / 2);
+  for (const [z, tilt] of [[0.1, 0.45], [-0.2, -0.45]]) { const cy = grp(g, 0, 0.6, z); cy.rotation.x = tilt; part(cy, CYL(), steel, 0.17, 0.3, 0.17, 0, 0.08, 0); for (let i = 0; i < 5; i++) part(cy, CYL(), dark, 0.22, 0.015, 0.22, 0, -0.02 + i * 0.05, 0); part(cy, RBX(), chrome, 0.18, 0.07, 0.18, 0, 0.25, 0); }
+  part(g, CYL(), chrome, 0.2, 0.05, 0.2, 0.15, 0.62, -0.05, 0, 0, Math.PI / 2);
+  // straight-back twin pipes
+  for (const [y0, z0, y1] of [[0.62, 0.18, 0.34], [0.58, -0.3, 0.46]]) { tube(g, chrome, V(0.12, y0, z0), V(0.17, y1, z0 - 0.15), 0.035); tube(g, chrome, V(0.17, y1, z0 - 0.15), V(0.19, y1 - 0.02, -1.28), 0.04); }
+  // raked forks, headlight, ape hangers, grips, forward pegs
+  for (const x of [-0.08, 0.08]) tube(g, chrome, V(x, 1.08, 0.62), V(x, 0.34, 1.12), 0.032);
+  part(g, RBX(), chrome, 0.24, 0.06, 0.12, 0, 1.06, 0.62, -0.5); part(g, SPH(), chrome, 0.18, 0.18, 0.16, 0, 1.0, 0.8); part(g, CYL(), lamp, 0.13, 0.02, 0.13, 0, 1.0, 0.885, Math.PI / 2);
+  for (const s of [-1, 1]) { tube(g, chrome, V(s * 0.08, 1.1, 0.6), V(s * 0.12, 1.55, 0.56), 0.022); tube(g, chrome, V(s * 0.12, 1.55, 0.56), V(s * 0.33, 1.55, 0.42), 0.022); part(g, CYL(), black, 0.05, 0.14, 0.05, s * 0.4, 1.55, 0.4, 0, 0, Math.PI / 2);
+    tube(g, chrome, V(s * 0.1, 0.36, 0.5), V(s * 0.28, 0.36, 0.52), 0.025); }
+  // his sledgehammer, strapped down the side
+  const hm = grp(g, -0.22, 0.62, -0.55); hm.rotation.set(-1.2, 0, 0.1); part(hm, CYL(), wood, 0.06, 0.8, 0.06, 0, 0, 0); part(hm, RBX(), steel, 0.17, 0.17, 0.38, 0, 0.42, 0);
+  mergeStatic(g);
+  return { g, front, rear, pipe: V(0.19, 0.44, -1.32) };
 }
 
 // merge the meshes that sit still together inside each moving group (same material -> one mesh), so a detailed monster
