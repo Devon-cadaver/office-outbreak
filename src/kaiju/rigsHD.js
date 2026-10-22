@@ -564,6 +564,13 @@ function mikeHD(body, K) {
   for (const s of [-1, 1]) { part(jaw, SPH(), beard, 0.08, 0.17, 0.13, s * 0.13, 0.06, -0.02); part(jaw, SPH(), beardG, 0.06, 0.1, 0.08, s * 0.08, -0.08, 0.1); }
   for (let i = 0; i < 7; i++) part(jaw, CON(), i % 2 ? beard : beardG, 0.05, 0.08, 0.05, -0.09 + i * 0.03, -0.17 + Math.abs(i - 3) * 0.008, 0.08, Math.PI, 0, 0); // wispy beard ends
   const mouth = grp(head, 0, -0.1, 0.2);
+  // costume (his Halloween skin): a frilly pink tutu at the hips and a long blond wig with bangs
+  if (K.opt && K.opt.tutu) { const pk = M(0xff8ad0), hot = M(0xff4fb0), pale = M(0xffc8ea), blond = M(0xf2d27a), light = M(0xffe7a6);
+    part(hip, CYL(), hot, 0.66, 0.06, 0.52, 0, -0.04, 0);
+    for (const [n, rr, y, m, sz] of [[18, 0.4, -0.07, pk, 0.15], [16, 0.34, -0.03, pale, 0.13], [14, 0.29, 0.0, hot, 0.11]]) for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2; part(hip, SPH(), m, sz * 1.3, sz * 0.5, sz, Math.cos(a) * rr, y + (i % 2) * 0.015, Math.sin(a) * rr * 0.82); }
+    part(head, SPH(), blond, 0.34, 0.32, 0.36, 0, 0.07, -0.01); for (let i = 0; i < 5; i++) part(head, SPH(), i % 2 ? light : blond, 0.09, 0.07, 0.07, -0.12 + i * 0.06, 0.15 - Math.abs(i - 2) * 0.01, 0.15); // cap, bangs
+    for (let i = 0; i < 7; i++) { const x = -0.15 + i * 0.05; part(head, CAP(), i % 2 ? light : blond, 0.09, 0.26, 0.08, x, -0.24, -0.15 + Math.abs(x) * 0.2, 0.15, 0, x * 0.4); } // long hair down the back
+    for (const s of [-1, 1]) for (let i = 0; i < 2; i++) part(head, CAP(), i ? light : blond, 0.07, 0.2, 0.07, s * (0.165 + i * 0.02), -0.13, 0.02 - i * 0.05, 0, 0, s * 0.06); } // locks framing the face
   // arms: tee sleeves, tattooed sleeves, studded fingerless gloves; the right hand drags a sledgehammer
   const arms = [-1, 1].map((s) => { const a = grp(torso, s * 0.45, 0.6, 0);
     part(a, SPH(), tee, 0.31, 0.29, 0.31, 0, -0.02, 0); part(a, CAP(), tee, 0.28, 0.09, 0.28, 0, -0.11, 0);

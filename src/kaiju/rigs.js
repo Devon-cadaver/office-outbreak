@@ -121,7 +121,8 @@ function witchHat(parent, at, fx, size) {
 // lowDetail: build the old blocky rig (comparisons, very slow devices)
 export function buildKaiju(id, skin = false, lowDetail = false) {
   const look = skin === true ? 'skeleton' : typeof skin === 'string' ? skin.split(':').pop() : null;
-  const sk = look && KAIJU_SKINS[id] && KAIJU_SKINS[id][look] ? KAIJU_SKINS[id][look] : null; const K = sk ? { ...KAIJU[id], pal: sk.pal } : KAIJU[id]; const g = new THREE.Group(); const body = grp(g, 0, 0, 0); const fx = [];
+  const costume = id === 'mike' && look === 'halloween', sk0 = look && KAIJU_SKINS[id] && KAIJU_SKINS[id][look] ? KAIJU_SKINS[id][look] : null;
+  const sk = costume ? { ...sk0, spell: 0xff4fb0, glow: null, pumpkin: false, pal: KAIJU[id].pal } : sk0; const K = sk ? { ...KAIJU[id], pal: sk.pal, opt: costume ? { ...(KAIJU[id].opt || {}), tutu: true } : KAIJU[id].opt } : KAIJU[id]; const g = new THREE.Group(); const body = grp(g, 0, 0, 0); const fx = [];
   const rig = (!lowDetail && HD[K.kind] ? HD[K.kind] : ({ biped, ape, moth, ptero, quad, crab, spider, blob, plant, squid, robot, human: ape })[K.kind])(body, K);
   if (sk && sk.glow) g.traverse((m) => { if (m.isMesh && m.material && m.material.color && sk.glow.includes(m.material.color.getHex()) && !m.material.isMeshBasicMaterial) m.material = glowOf(m.material.color.getHex()); });
   if (look === 'skeleton' && K.kind === 'human' && rig.mouth && rig.mouth.parent) { g.updateMatrixWorld(true); const head = rig.mouth.parent; const sz = new THREE.Box3().setFromObject(head).getSize(new THREE.Vector3()); head.traverse((m) => { if (m.isMesh) m.visible = false; }); flamingSkull(head, fx, Math.min(0.7, Math.max(0.42, Math.max(sz.x, sz.z) * 1.05))); }
