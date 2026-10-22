@@ -35,7 +35,9 @@ export function totalReward(ids, nameOf, host) { const pool = ids.slice(); for (
   const id = pool.find((x) => grantSkin(x)); if (id) equipWon(id); else addCoins(5); const u = document.createElement('div'); u.className = 'bonusSkin';
   u.innerHTML = id ? '💥 TOTAL DESTRUCTION REWARD: <b>' + nameOf(id).toUpperCase() + '</b><br><small>A free skin, and it\'s on for your next round. Switch skins from the pause menu.</small>' : '💥 TOTAL DESTRUCTION REWARD: <b>+5 🪙</b><br><small>You already own every skin, so have some coins.</small>'; host.appendChild(u); return id; }
 export function grantSkin(id) { const owned = getOwned(); if (owned.includes(id)) return false; owned.push(id); set(K.owned, owned); return true; }
-export function getOwned() { return get(K.owned, []); }
+// skins everyone has from the start
+const FREE_SKINS = Object.entries(TWISTER_SKINS).filter(([, s]) => s.free).map(([k]) => 'tornado:' + k);
+export function getOwned() { const o = get(K.owned, []); return [...o, ...FREE_SKINS.filter((x) => !o.includes(x))]; }
 export function getEquipped() { const e = { player: null, npc: [], car: null, fx: null, tornado: null, ...get(K.equip, {}) }; if (typeof e.npc === 'string') e.npc = [e.npc]; if (!Array.isArray(e.npc)) e.npc = []; return e; }
 export const NPC_MAX = 10;
 export function equip(cat, id) { const e = getEquipped(); if (cat === 'npc') { if (id == null) e.npc = []; else if (e.npc.includes(id)) e.npc = e.npc.filter((x) => x !== id); else if (e.npc.length < NPC_MAX) e.npc.push(id); } else e[cat] = id; set(K.equip, e); }
@@ -97,7 +99,7 @@ export const SKINS = [
   ...Object.entries(CHAR_SKINS).flatMap(([id, s]) => s.cats.map((cat) => ({ id: cat + ':' + id, key: id, cat, name: s.name + (cat === 'npc' ? ' survivors' : ''), price: cat === 'npc' ? 1 : 2, desc: cat === 'npc' ? 'Pick up to ten; survivors and crowds wear a random mix.' : 'Your character wears it in both games.' }))),
   ...Object.entries(FX_SKINS).map(([id, s]) => ({ id: 'fx:' + id, key: id, cat: 'fx', name: s.name, price: s.price, desc: s.flames ? 'Hellfire, burning zombies and fires change colour.' : 'What you throw turns to gold.' })),
   ...Object.entries(CAR_SKINS).map(([id, s]) => ({ id: 'car:' + id, key: id, cat: 'car', name: s.name, price: s.price, desc: 'Your car and the parked cars and vans.' })),
-  ...Object.entries(KAIJU_SKINS).flatMap(([id, looks]) => Object.values(looks).map((s) => ({ id: 'kaiju:' + id + ':' + s.look, key: id, look: s.look, cat: 'kaiju', name: s.name, price: 1, desc: (id === 'mike' && s.look === 'halloween' ? 'His Halloween costume: a frilly pink tutu and a long blond wig.' : s.look === 'skeleton' ? 'Black with bone-white plates and red eyes.' : "Glowing orange bones and a flaming jack-o'-lantern head (or a witch's hat).") }))),
+  ...Object.entries(KAIJU_SKINS).flatMap(([id, looks]) => Object.values(looks).map((s) => ({ id: 'kaiju:' + id + ':' + s.look, key: id, look: s.look, cat: 'kaiju', name: s.name, price: 1, desc: (id === 'mike' && s.look === 'halloween' ? 'His Halloween costume: a frilly pink tutu and a long blond wig.' : s.look === 'gear' ? 'Alternate ring gear in new colours.' : s.look === 'skeleton' ? 'Black with bone-white plates and red eyes.' : "Glowing orange bones and a flaming jack-o'-lantern head (or a witch's hat).") }))),
   ...Object.entries(TWISTER_SKINS).map(([id, s]) => ({ id: 'tornado:' + id, key: id, cat: 'tornado', name: s.name, price: s.price, desc: s.desc, bonus: s.bonus || null })),
 ];
 export function equippedTornado() { const e = getEquipped().tornado; return e ? e.split(':')[1] : null; }

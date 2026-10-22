@@ -48,7 +48,7 @@
     #taStart .poi { font-size: 14px; max-width: 360px; }
     #taLevels { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; width: min(92vw, 420px); }
     #taLevels .lvl { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 2px; font-size: 10px; min-height: 58px; border-radius: 10px; }
-    #taLevels .lvl b { font-size: 18px; } #taLevels .lvl i { font-style: normal; color: #ffd24a; font-size: 10px; }
+    #taLevels .lvl b { font-size: 18px; } #taLevels .lvl i { font-style: normal; color: #1f4a12; font-weight: 800; font-size: 10px; }
     #taLevels .lvl.on { outline: 3px solid #7dff3a; } #taLevels .lvl:disabled { opacity: .45; }
     #taLevel { color: #c9a6ff; }
     .zoomBtn { position: absolute; right: 10px; width: 34px; height: 34px; padding: 0; font-size: 20px; line-height: 1; pointer-events: auto; }
@@ -90,11 +90,13 @@
     <p class="small" style="letter-spacing:4px;color:#c9a6ff;margin-bottom:-8px">DEAD CITY</p>
     <h1>TORNADO<br>ALLEY</h1>
     <p>You are the storm. Wreck the town!</p>
+    <div id="twChosen" class="chosenCard"><canvas id="twChosenCv" width="150" height="150"></canvas><div><small>YOUR TORNADO</small><b id="twChosenName"></b><span id="twChosenDesc"></span><button id="twChoose" class="ghost">🌪️ CHOOSE TORNADO</button></div></div>
     <div id="taLevels"></div>
     <button id="taPlay">PLAY</button>
     <div class="howRow"><button id="taTutBtn" class="ghost">🎓 TUTORIAL</button><button id="taHow" class="ghost">HOW TO PLAY</button></div>
     <button class="ghost menuBtn" onclick="location.href='menu.html'">MAIN MENU</button>
   </div>
+  <div id="twPickScr" class="screen hidden pickScr"><h1>CHOOSE YOUR TORNADO</h1><p id="twPickInfo" class="pickInfo"></p><div id="twPick" class="pickGrid"></div><button id="twPickDone" class="pickDone">✔ DONE</button></div>
   <div id="taPaused" class="screen hidden"><h1>PAUSED</h1><button id="taResume">RESUME</button><button id="taRestart" class="ghost">↺ RESTART LEVEL</button><button class="ghost menuBtn" onclick="location.href='menu.html'">MAIN MENU</button></div>
   <div id="taPrize" class="screen hidden"><h1>PRIZE TIME!</h1><div id="taChests" class="chests"></div></div>
   <div id="taEnd" class="screen hidden">

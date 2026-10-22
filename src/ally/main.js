@@ -10,7 +10,7 @@ import { isFuture, isPast, hoverize, futurePlane, pastPlane, buildCannon, buildC
 import { createTwisters, TWISTER_SKINS } from '../tornado.js';
 import { createFires } from '../fire.js';
 import { unlockAudio, soundToggle, sfx, stopMusic, setPlaneEngine, planeEngineLevel, setStormLevel, stormBoost, stormMusicState, playSongs, songState, gameMusic, SONGS_TORNADO } from '../audio.js';
-import { townSkin, equippedSkin, equippedTornado, skinnedCarArgs, addCoins, grantSkin, equip, CHAR_SKINS, totalReward, pauseSkinRow } from '../skins.js';
+import { townSkin, equippedSkin, equippedTornado, skinnedCarArgs, addCoins, grantSkin, equip, CHAR_SKINS, totalReward, pauseSkinRow, getOwned, getEquipped } from '../skins.js';
 import { forceSeason } from '../season.js';
 import { showPrizes } from '../prizes.js';
 import { stampVersion } from '../version.js';
@@ -526,6 +526,23 @@ addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
 
 // ---------- flow ----------
 let state = 'start', roundId = 0; // roundId: delayed effects from an earlier round check it and stand down
+// ---------- YOUR TORNADO: the storm you play as. Default and the Poonado are free; the rest come from prizes and the shop ----------
+const twThumbS = new THREE.Scene(), twThumbR = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true }); twThumbR.setSize(150, 150); twThumbR.setPixelRatio(1);
+twThumbS.add(new THREE.HemisphereLight(0xe0e8ff, 0x3a2a4a, 1.6)); const twThumbC = new THREE.PerspectiveCamera(32, 1, 0.1, 100); twThumbC.position.set(0, 6.5, 19); twThumbC.lookAt(0, 5.2, 0);
+const twThumbT = createTwisters(twThumbS), twThumbs = new Map();
+function twThumb(key, cv) { const k = key || 'default', g2 = cv.getContext('2d'); if (!twThumbs.has(k)) { const o = twThumbT.make(true, [], key); twThumbS.add(o); for (let i = 0; i < 40; i++) twThumbT.update(1 / 30, o.position); twThumbR.render(twThumbS, twThumbC); const img = document.createElement('canvas'); img.width = img.height = 150; img.getContext('2d').drawImage(twThumbR.domElement, 0, 0); twThumbs.set(k, img); twThumbT.remove && twThumbT.remove(o); twThumbS.remove(o); }
+  g2.clearRect(0, 0, cv.width, cv.height); g2.drawImage(twThumbs.get(k), 0, 0, cv.width, cv.height); }
+const twName = (k) => (k ? TWISTER_SKINS[k].name : 'Classic Twister'), twDesc = (k) => (k ? TWISTER_SKINS[k].desc : 'Free! The classic grey funnel with blue-white lightning.');
+function drawTwPicker() { const cur = equippedTornado(); $('twChosenName').textContent = twName(cur).toUpperCase(); $('twChosenDesc').textContent = twDesc(cur); twThumb(cur, $('twChosenCv'));
+  if ($('twPickScr').classList.contains('hidden')) return; const owned = getOwned(), all = [null, ...Object.keys(TWISTER_SKINS)], mine = (k) => !k || owned.includes('tornado:' + k);
+  $('twPickInfo').textContent = all.filter(mine).length + ' of ' + all.length + ' storms are yours. Win more in TOTAL DESTRUCTION and the prize games, or buy them in the skin shop.';
+  const box = $('twPick'); box.innerHTML = '';
+  for (const k of [...all.filter(mine), ...all.filter((x) => !mine(x))]) { const open = mine(k), b = document.createElement('button'); b.className = 'kjCard' + (k === cur ? ' on' : '') + (open ? '' : ' locked'); b.disabled = !open;
+    b.innerHTML = '<canvas width="150" height="150"></canvas><b>' + (open ? '' : '🔒 ') + twName(k) + '</b>'; twThumb(k, b.querySelector('canvas'));
+    b.addEventListener('click', () => { equip('tornado', k ? 'tornado:' + k : null); drawTwPicker(); }); box.appendChild(b); } }
+$('twChoose').addEventListener('click', () => { $('taStart').classList.add('hidden'); $('twPickScr').classList.remove('hidden'); $('twPickScr').scrollTop = 0; drawTwPicker(); });
+$('twPickDone').addEventListener('click', () => { $('twPickScr').classList.add('hidden'); $('taStart').classList.remove('hidden'); drawTwPicker(); });
+drawTwPicker();
 soundToggle($('taStart'), $('taPaused')); eraPicker($('taLevels')); // sound on/off on the start and pause screens
 // the soundtrack starts on the first tap and keeps rotating songs for as long as you're on Tornado Alley
 gameMusic($('taPaused'), SONGS_TORNADO);
@@ -535,7 +552,7 @@ function start(tutorial = false) {
   clearTutMarks(); tut = tutorial === true ? { step: 0, t: 0 } : null; if (tut) level = 1; if (tutRing) { scene.remove(tutRing); tutRing = null; } $('taTut').classList.add('hidden');
   if (state !== 'start' || roundN > 0) roundN++; ROUND = L().time; unlockAudio(); buildWorld(); makeStorm(); score = 0; totalD = 0; chain = 0; lastHit = -9; tLeft = ROUND; played = 0; boostT = 0; lastRank = 0; moveTo = null; for (const b of bolts) scene.remove(b.g); bolts.length = 0; sinking.length = 0; peopleN = carsN = propsN = bDone = 0; clearPlanes();
   radarDown = radioDown = fireBoost = stink = false; setupPoiHud();
-  for (const s of ['taStart', 'taEnd', 'taPaused', 'taPrize']) $(s).classList.add('hidden'); $('ta').classList.remove('hidden');
+  for (const s of ['taStart', 'taEnd', 'taPaused', 'taPrize', 'twPickScr']) $(s).classList.add('hidden'); $('ta').classList.remove('hidden');
   state = 'play'; playSongs(); setStormLevel(0); sfx.whoosh(); banner(tut ? 'TUTORIAL' : 'LEVEL ' + level + ': ' + L().name.toUpperCase()); if (tut) { tLeft = 99999; addTutMarkers(); tutGo(1); } setTimeout(() => { if (state === 'play' && !tut) banner(SEASON_NAME[seasonFor()].toUpperCase()); }, 2300);
   renderer.compile(scene, viewCam()); // compile every material in the new town now, not mid-play
   $('taLevel').textContent = 'L' + level + ' · goal ' + L().goal + '%'; for (const k in hudCache) delete hudCache[k]; rankShown = -1; $('taTargets').style.color = '';
