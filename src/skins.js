@@ -1,6 +1,7 @@
 // Skins bought with the coins you earn for beating a game. Character skins change the outfit colours and add
 // accessories; car skins recolour and dress the player's car and the parked cars and vans.
 import * as THREE from 'three';
+import { getEra } from './era.js';
 import { CHAR_SKINS2, CAR_SKINS2, FX_SKINS } from './skins2.js';
 import { TWISTER_SKINS } from './tornado.js';
 import { KAIJU, KAIJU_SKINS } from './kaiju/rigs.js';
@@ -45,6 +46,15 @@ const box = new THREE.BoxGeometry(1, 1, 1), cone = new THREE.ConeGeometry(0.5, 1
 
 // character skins: outfit colours plus a dress(parts) hook. parts = { g, body, head, armL, armR, legL, legR, part(geo, color, sx, sy, sz, x, y, z) }
 export const CHAR_SKINS = {
+  // the era outfits: townsfolk wear them in the Wild West and the Future, and you can buy them to use anywhere
+  cowpoke: { name: 'Cowpoke', price: 1, cats: ['player', 'npc'], outfit: { skin: 0xf0c9a6, hair: 0x5a3a24, shirt: 0xb84a3a, pants: 0x3a4a6a, tie: null },
+    dress: ({ head, body, part }) => { head.add(part(cyl, 0x7a5232, 0.98, 0.05, 0.98, 0, 0.6, 0)); head.add(part(cyl, 0x7a5232, 0.52, 0.34, 0.52, 0, 0.78, 0)); head.add(part(cyl, 0x2a1a10, 0.54, 0.06, 0.54, 0, 0.66, 0));
+      const band = part(cone, 0xc62828, 0.36, 0.26, 0.2, 0, 0.06, 0.24); band.rotation.x = Math.PI; head.add(band); /* bandana */ for (const s of [-1, 1]) body.add(part(box, 0x5a3a24, 0.22, 0.48, 0.66, s * 0.25, 1.27, 0)); body.add(part(box, 0xd8b04a, 0.1, 0.1, 0.04, -0.24, 1.38, 0.34)); } },
+  neon: { name: 'Neon Citizen', price: 1, cats: ['player', 'npc'], outfit: { skin: 0xf0c9a6, hair: 0xe8eef4, shirt: 0x1c2030, pants: 0x2a3044, tie: null },
+    dress: ({ head, body, armL, armR, part }) => { const glow = (m, c) => { m.material = new THREE.MeshBasicMaterial({ color: c }); return m; };
+      const halo = glow(part(ring, 0x3af0ff, 0.62, 0.62, 0.62, 0, 0.86, 0), 0x3af0ff); halo.rotation.x = Math.PI / 2; head.add(halo); head.add(glow(part(box, 0x3af0ff, 0.5, 0.09, 0.1, 0, 0.36, 0.3), 0x3af0ff)); // halo ring hat, visor
+      for (const a of [armL, armR]) { const cuff = glow(part(ring, 0xff4fd8, 0.32, 0.32, 0.5, 0, -0.95, 0), 0xff4fd8); cuff.rotation.x = Math.PI / 2; a.add(cuff); } // glowing cuffs
+      body.add(glow(part(box, 0x3af0ff, 0.72, 0.05, 0.64, 0, 1.02, 0), 0x3af0ff)); } }, // light-strip belt
   witch: { name: 'Witch', price: 1, cats: ['player', 'npc'], outfit: { skin: 0x9fe08a, hair: 0x2a1a3a, shirt: 0x1a1024, pants: 0x1a1024, tie: null },
     dress: ({ head, armL, part }) => { head.add(part(cyl, 0x1a1024, 0.95, 0.06, 0.95, 0, 0.62, 0)); head.add(part(cone, 0x3a1a5a, 0.55, 0.75, 0.55, 0, 0.98, 0)); head.add(part(box, 0x7dff3a, 0.56, 0.08, 0.56, 0, 0.66, 0)); const broom = part(cyl, 0x8a5a3a, 0.06, 1.6, 0.06, 0, -0.5, 0.15); broom.rotation.x = 0.3; armL.add(broom); armL.add(part(cone, 0xc9a35a, 0.26, 0.4, 0.26, 0, -1.25, 0.4)); } },
   skeleton: { name: 'Skeleton', price: 1, cats: ['player', 'npc'], outfit: { skin: 0xe8e2c8, hair: null, shirt: 0xe8e2c8, pants: 0xe8e2c8, tie: null },
@@ -93,6 +103,8 @@ export const SKINS = [
 export function equippedTornado() { const e = getEquipped().tornado; return e ? e.split(':')[1] : null; }
 // a car in the player's equipped car skin (or plain, in the given colour)
 export function skinnedCarArgs(color) { const s = equippedSkin('car'); return s ? [s.color, s] : [color]; }
+// what a townsperson wears: in the Wild West or the Future, mostly the era's outfit (some still wear your picked outfits)
+export function townSkin() { const era = getEra(), eq = equippedSkin('npc'); if (era === 'past' || era === 'future') return eq && Math.random() < 0.35 ? eq : CHAR_SKINS[era === 'past' ? 'cowpoke' : 'neon']; return eq; }
 export function equippedSkin(cat) { let e = getEquipped()[cat]; if (cat === 'npc') e = e.length ? e[(Math.random() * e.length) | 0] : null; if (!e) return null; const key = e.split(':')[1] || e; return cat === 'car' ? CAR_SKINS[key] || null : cat === 'fx' ? FX_SKINS[key] || null : CHAR_SKINS[key] || null; }
 // ghost cars: every material on the finished group goes see-through
 export function ghostify(group) { group.traverse((m) => { if (m.isMesh && m.material && m.material.color) { m.material = m.material.clone(); m.material.transparent = true; m.material.opacity = 0.45; } }); }

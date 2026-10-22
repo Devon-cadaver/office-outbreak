@@ -2,6 +2,7 @@
 // Visual style (from reference art): isometric rainy night, teal/purple palette,
 // flat shading, big glowing windows, warm street lamps, wires, trees, parked cars.
 import * as THREE from 'three';
+import { isFuture, isPast, hoverize, buildWagon } from './era.js';
 import { pickLandmarks, buildLandmark, resetLandmarks, updateLandmarks } from './landmarks.js';
 import { createSeason } from './season.js';
 import { createDetail } from './detail.js';
@@ -184,7 +185,22 @@ const cyl = new THREE.CylinderGeometry(0.5, 0.5, 1, 10);
 const cone = new THREE.ConeGeometry(0.5, 1, 8);
 const ball = new THREE.IcosahedronGeometry(0.5, 1);
 
+function skyTraffic(group, W, D, rng) {
+  const sky = new THREE.Group(); group.add(sky); const cars = []; const body = new THREE.BoxGeometry(1, 1, 1), pad = new THREE.CircleGeometry(0.5, 16);
+  const cols = [0xe8eef4, 0x3af0ff, 0xff4fd8, 0x9aa6b8, 0xffd24a, 0x7a5aff];
+  for (let i = 0; i < 14; i++) { const g = new THREE.Group(); const c = cols[i % cols.length];
+    const hull = new THREE.Mesh(body, new THREE.MeshLambertMaterial({ color: c })); hull.scale.set(0.8, 0.3, 1.7); g.add(hull);
+    const cab = new THREE.Mesh(body, new THREE.MeshLambertMaterial({ color: 0x1a2238 })); cab.scale.set(0.62, 0.26, 0.8); cab.position.set(0, 0.25, -0.1); g.add(cab);
+    const glow = new THREE.Mesh(pad, new THREE.MeshBasicMaterial({ color: i % 2 ? 0x3af0ff : 0xff4fd8, transparent: true, opacity: 0.6, depthWrite: false, blending: THREE.AdditiveBlending })); glow.rotation.x = -Math.PI / 2; glow.position.y = -0.2; glow.scale.set(1, 1.8, 1); g.add(glow);
+    for (const x of [-0.25, 0.25]) { const l = new THREE.Mesh(body, new THREE.MeshBasicMaterial({ color: 0xfff2c0 })); l.scale.set(0.14, 0.08, 0.04); l.position.set(x, 0, 0.86); g.add(l); }
+    const alongX = i % 2 === 0, lane = (rng() - 0.5) * (alongX ? D : W) * 0.85, dir = rng() < 0.5 ? 1 : -1, y = 5.5 + (i % 4) * 0.9 + rng() * 0.4, span = (alongX ? W : D) / 2 + 6;
+    g.scale.setScalar(0.9); g.rotation.y = alongX ? (dir > 0 ? Math.PI / 2 : -Math.PI / 2) : (dir > 0 ? 0 : Math.PI); sky.add(g);
+    cars.push({ g, alongX, lane, dir, y, span, s: (rng() * 2 - 1) * span, v: 3.5 + rng() * 3, t: rng() * 6 }); }
+  return (dt) => { for (const k of cars) { k.s += k.v * k.dir * dt; if (k.s > k.span) k.s = -k.span; else if (k.s < -k.span) k.s = k.span; k.t += dt;
+    if (k.alongX) k.g.position.set(k.s, k.y + Math.sin(k.t * 2) * 0.1, k.lane); else k.g.position.set(k.lane, k.y + Math.sin(k.t * 2) * 0.1, k.s); } };
+}
 export function buildCity(scene, wall, level) {
+  const FUT = isFuture(), PAST = isPast(), LINE = PAST ? '#6a4a2c' : FUT ? '#3af0ff' : '#e3c84f'; // the Future era: glass, neon and glowing roads; the Wild West: dirt, wood and wagon ruts
   const T = makeTextures(); resetLandmarks();
   const rows = wall.length, cols = wall[0].length;
   const group = new THREE.Group(); scene.add(group);
@@ -215,7 +231,7 @@ export function buildCity(scene, wall, level) {
     p.g.position.x = p.x + p.dir.x * k * (p.kind === 'car' ? 2.2 : 1.2); p.g.position.z = p.z + p.dir.z * k * (p.kind === 'car' ? 2.2 : 1.2); p.g.position.y = Math.sin(k * Math.PI) * lift;
     const ang = k * (p.kind === 'car' ? Math.PI : 1.45); p.g.rotation.x = p.dir.z * ang; p.g.rotation.z = -p.dir.x * ang; } };
 
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(W + 16, D + 16), M({ color: NIGHT.ground }));
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(W + 16, D + 16), M({ color: PAST ? 0x8a6a44 : NIGHT.ground }));
   ground.rotation.x = -Math.PI / 2; ground.position.y = -0.02; group.add(ground);
 
   // ---------- roads ----------
@@ -242,16 +258,16 @@ export function buildCity(scene, wall, level) {
     wall.park = park;
     const C = (x) => x * P + P / 2;
     // 1. pavement wherever there is open ground: light concrete with a faint slab grid
-    g.fillStyle = '#8c9a9e'; for (const [x, y] of streetCells) g.fillRect(x * P, y * P, P, P);
-    g.strokeStyle = '#7f8d91'; g.lineWidth = 1; for (const [x, y] of streetCells) { g.strokeRect(x * P + 0.5, y * P + 0.5, P / 2, P / 2); g.strokeRect(x * P + P / 2 + 0.5, y * P + P / 2 + 0.5, P / 2, P / 2); }
+    g.fillStyle = (PAST ? '#b89a6a' : FUT ? '#3c4458' : '#8c9a9e'); for (const [x, y] of streetCells) g.fillRect(x * P, y * P, P, P);
+    g.strokeStyle = (PAST ? '#a88a5a' : FUT ? '#4c5772' : '#7f8d91'); g.lineWidth = 1; for (const [x, y] of streetCells) { g.strokeRect(x * P + 0.5, y * P + 0.5, P / 2, P / 2); g.strokeRect(x * P + P / 2 + 0.5, y * P + P / 2 + 0.5, P / 2, P / 2); }
     // 1b. grass for the parks, with a pavement rim on edges that meet a road cell or a building
-    for (const [x, y] of streetCells) if (park(x, y)) { const X = x * P, Y = y * P; g.fillStyle = '#2f5a38'; g.fillRect(X, Y, P, P);
-      g.fillStyle = '#3a6a44'; for (let i = 0; i < 40; i++) g.fillRect(X + ((rng() * P) | 0), Y + ((rng() * P) | 0), 2, 1);
-      g.fillStyle = '#8c9a9e'; if (!park(x, y - 1)) g.fillRect(X, Y, P, 5); if (!park(x, y + 1)) g.fillRect(X, Y + P - 5, P, 5); if (!park(x - 1, y)) g.fillRect(X, Y, 5, P); if (!park(x + 1, y)) g.fillRect(X + P - 5, Y, 5, P); }
+    for (const [x, y] of streetCells) if (park(x, y)) { const X = x * P, Y = y * P; g.fillStyle = (PAST ? '#8a8448' : FUT ? '#1c3646' : '#2f5a38'); g.fillRect(X, Y, P, P);
+      g.fillStyle = (PAST ? '#a09a58' : FUT ? '#2a6a7a' : '#3a6a44'); for (let i = 0; i < 40; i++) g.fillRect(X + ((rng() * P) | 0), Y + ((rng() * P) | 0), 2, 1);
+      g.fillStyle = (PAST ? '#b89a6a' : FUT ? '#3c4458' : '#8c9a9e'); if (!park(x, y - 1)) g.fillRect(X, Y, P, 5); if (!park(x, y + 1)) g.fillRect(X, Y + P - 5, P, 5); if (!park(x - 1, y)) g.fillRect(X, Y, 5, P); if (!park(x + 1, y)) g.fillRect(X + P - 5, Y, 5, P); }
     // 2. roads: strips between the centres of neighbouring road cells (gutter first, asphalt on top), square joints at every centre.
     //    A road meeting a park runs up to the park's edge.
     const strip = (x0, y0, x1, y1, w, col) => { g.strokeStyle = col; g.lineWidth = w; g.lineCap = 'butt'; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); };
-    for (const pass of [[RW + 6, '#2d3c41'], [RW, '#3a4c52']]) {
+    for (const pass of [[RW + 6, (PAST ? '#7a5a38' : FUT ? '#0c1020' : '#2d3c41')], [RW, (PAST ? '#8a6a44' : FUT ? '#151a2c' : '#3a4c52')]]) {
       const col = pass[1];
       for (const [x, y] of streetCells) { if (!road(x, y)) continue; const w = pass[0] + (aveCell(x, y) ? 14 : 0);
         if (link(x, y, 'E')) strip(C(x), C(y), C(x + 1), C(y), w, col); else if (!cz && park(x + 1, y)) strip(C(x), C(y), x * P + P, C(y), w, col);
@@ -260,11 +276,11 @@ export function buildCity(scene, wall, level) {
       g.fillStyle = col; for (const [x, y] of streetCells) if (road(x, y)) { const w = pass[0] + (aveCell(x, y) ? 14 : 0); g.fillRect(C(x) - w / 2, C(y) - w / 2, w, w); }
     }
     // 3. wear: speckles and patches on the road only
-    g.fillStyle = '#425860'; for (const [x, y] of streetCells) if (road(x, y)) for (let i = 0; i < 18; i++) { const a = (rng() - 0.5) * RW * 0.9, b = (rng() - 0.5) * RW * 0.9; g.fillRect(C(x) + a, C(y) + b, 2, 2); }
-    g.fillStyle = '#33444a'; for (const [x, y] of streetCells) if (road(x, y) && rng() < 0.2) { g.beginPath(); g.ellipse(C(x) + (rng() - 0.5) * 12, C(y) + (rng() - 0.5) * 12, 5 + rng() * 7, 4 + rng() * 5, rng() * 3, 0, Math.PI * 2); g.fill(); }
+    g.fillStyle = (PAST ? '#6a4a2a' : FUT ? '#202842' : '#425860'); for (const [x, y] of streetCells) if (road(x, y)) for (let i = 0; i < 18; i++) { const a = (rng() - 0.5) * RW * 0.9, b = (rng() - 0.5) * RW * 0.9; g.fillRect(C(x) + a, C(y) + b, 2, 2); }
+    g.fillStyle = (PAST ? '#5a3e24' : FUT ? '#10142a' : '#33444a'); for (const [x, y] of streetCells) if (road(x, y) && rng() < 0.2) { g.beginPath(); g.ellipse(C(x) + (rng() - 0.5) * 12, C(y) + (rng() - 0.5) * 12, 5 + rng() * 7, 4 + rng() * 5, rng() * 3, 0, Math.PI * 2); g.fill(); }
     // 4. double yellow centre line: along every road strip except inside junction boxes. A straight or corner cell draws
     //    from its centre to each open edge (corners as a curve); a T keeps the through street; a 4-way stays clear.
-    const yellow = (fn) => { g.save(); g.strokeStyle = '#e3c84f'; g.lineWidth = 2; g.lineCap = 'butt'; for (const o of [-2.4, 2.4]) { g.beginPath(); fn(o); g.stroke(); } g.restore(); };
+    const yellow = (fn) => { g.save(); g.strokeStyle = LINE; g.lineWidth = 2; g.lineCap = 'butt'; for (const o of [-2.4, 2.4]) { g.beginPath(); fn(o); g.stroke(); } g.restore(); };
     const stopShort = 9;
     for (const [x, y] of streetCells) {
       if (!road(x, y)) continue;
@@ -283,7 +299,7 @@ export function buildCity(scene, wall, level) {
       if (d === 2 && n && s) { yellow((o) => { g.moveTo(cx + o, endN); g.lineTo(cx + o, endS); }); continue; }
       if (d === 2) { // corner curve around the inside corner of the cell
         const kx = e ? X + P : X, ky = s ? Y + P : Y; const a0 = Math.atan2(cy - ky, 0), a1 = Math.atan2(0, cx - kx); const sweep = (((a1 - a0) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
-        g.save(); g.strokeStyle = '#e3c84f'; g.lineWidth = 2; for (const r of [P / 2 - 2.4, P / 2 + 2.4]) { g.beginPath(); g.arc(kx, ky, r, a0, a1, sweep > Math.PI); g.stroke(); } g.restore();
+        g.save(); g.strokeStyle = LINE; g.lineWidth = 2; for (const r of [P / 2 - 2.4, P / 2 + 2.4]) { g.beginPath(); g.arc(kx, ky, r, a0, a1, sweep > Math.PI); g.stroke(); } g.restore();
         continue;
       }
       if (d === 1) { // dead end: stop a little before the end of the road
@@ -342,7 +358,7 @@ export function buildCity(scene, wall, level) {
       // inside corner fill where two street cells meet around a building corner
       for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) if (open(x + dx, y) && open(x, y + dz) && !open(x + dx, y + dz)) curbs.push([w.x + dx * (h - SW / 2), w.z + dz * (h - SW / 2), SW, SW]);
     }
-    const curbMesh = new THREE.InstancedMesh(box, M({ color: 0xaab9bd }), curbs.length);
+    const curbMesh = new THREE.InstancedMesh(box, M({ color: PAST ? 0x7a5a3a : FUT ? 0x5a6478 : 0xaab9bd }), curbs.length); // wooden boardwalks in the Wild West
     const cm = new THREE.Matrix4(), cq = new THREE.Quaternion(), cs = new THREE.Vector3(), cp = new THREE.Vector3();
     curbs.forEach(([cx, cz, cw, cd], i) => { cm.compose(cp.set(cx, 0.05, cz), cq, cs.set(cw, 0.1, cd)); curbMesh.setMatrixAt(i, cm); });
     curbMesh.instanceMatrix.needsUpdate = true; group.add(curbMesh);
@@ -367,7 +383,7 @@ export function buildCity(scene, wall, level) {
   }
 
   // ---------- buildings ----------
-  const roofMat = M({ color: NIGHT.roof }), corniceMat = M({ color: 0x8aa0a4 }), doorMat = new THREE.MeshBasicMaterial({ color: 0xf6e94a }), frameMat = M({ color: 0x2a3a40 });
+  const roofMat = M({ color: FUT ? 0x2a3044 : PAST ? 0x5a3e28 : NIGHT.roof }), corniceMat = M({ color: 0x8aa0a4 }), doorMat = new THREE.MeshBasicMaterial({ color: FUT ? 0x8af4ff : PAST ? 0xffb050 : 0xf6e94a }), frameMat = M({ color: 0x2a3a40 });
   const awningMats = [M({ color: 0x9a3a4a }), M({ color: 0x2f6f8a }), M({ color: 0x7a3f8a })];
   // the border has its own random stream so editing the map inside does not reshuffle it; the builder can bump the seed
   const borderSeed = wall.custom ? 1000 + (wall.custom.border || 0) : level; const prng = mulberry32(borderSeed * 9176 + 5);
@@ -389,23 +405,27 @@ export function buildCity(scene, wall, level) {
     }
   };
   const HOUSE_WALLS = [0xe8d54a, 0x3f6fb0, 0xb8473a, 0x8a5a3a, 0xd9c7a8, 0x6a8f5a], HOUSE_ROOFS = [0x4a3324, 0x3a3a44, 0x5a2e2a, 0x2f3d4a];
-  const roofTrim = M({ color: 0x2a2a30 }), brickMat = M({ color: 0xb8473a }), litWin = new THREE.MeshBasicMaterial({ color: 0xf6e94a }), darkWin = M({ color: 0x34506e }), doorMatH = M({ color: 0x2a2320 });
+  const roofTrim = M({ color: 0x2a2a30 }), brickMat = M({ color: 0xb8473a }), litWin = new THREE.MeshBasicMaterial({ color: FUT ? 0x8af4ff : PAST ? 0xffb050 : 0xf6e94a }), darkWin = M({ color: FUT ? 0x1a2238 : PAST ? 0x2a1e16 : 0x34506e }), doorMatH = M({ color: FUT ? 0x1a1e2a : 0x2a2320 });
+  const PAST_HOUSES = [0x8a5a3a, 0x9a6a44, 0x7a4e30, 0xa87a50, 0xc8b490], PAST_BUILD = [0x9a6a44, 0x8a5a3a, 0xb08a5a, 0x7a4a2e, 0xa04a3a, 0xd8c8a0], woodTrim = M({ color: 0x4a2e1a }), stoneW = M({ color: 0x8a8478 });
+  const FUT_HOUSES = [0xe8eef4, 0xc8d4e0, 0xb4c4dc, 0xd8ccf0, 0xd0e8e4], FUT_BUILD = [0xdfe6ee, 0x9aa6b8, 0x2a3a5a, 0x1c2030, 0x5a4a7a, 0x3a5a6a];
+  const neonC = new THREE.MeshBasicMaterial({ color: 0x3af0ff }), neonM = new THREE.MeshBasicMaterial({ color: 0xff4fd8 }), metalF = new THREE.MeshPhongMaterial({ color: 0xc8d0dc, shininess: 60 });
+  const domeGeo = new THREE.SphereGeometry(0.5, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), haloGeo = new THREE.TorusGeometry(0.5, 0.035, 6, 28);
   const house = (w, x, y, openFaces, rr = rng, vi = -1) => {
-    const wall = new THREE.Color(HOUSE_WALLS[(rr() * HOUSE_WALLS.length) | 0]), roofC = HOUSE_ROOFS[(rr() * HOUSE_ROOFS.length) | 0];
+    const HW = PAST ? PAST_HOUSES : FUT ? FUT_HOUSES : HOUSE_WALLS, wall = new THREE.Color(HW[(rr() * HW.length) | 0]), roofC = FUT ? 0x7ad8ff : PAST ? [0x5a3a24, 0x4a3020, 0x6a4a2e][(rr() * 3) | 0] : HOUSE_ROOFS[(rr() * HOUSE_ROOFS.length) | 0];
     const bw = 2.1, bd = 1.9, bh = 1.0 + (rr() < 0.3 ? 0.9 : 0), rh = 0.9;
     const ry = vi >= 0 ? (openFaces.length ? openFaces[vi % openFaces.length][2] : (vi % 4) * Math.PI / 2) : openFaces.length ? openFaces[(rr() * openFaces.length) | 0][2] : 0; // face the street
     const g = new THREE.Group(); g.position.set(w.x, 0, w.z); g.rotation.y = ry; group.add(g);
     const wallMat = M({ color: wall, transparent: true }), roofMat = new THREE.MeshLambertMaterial({ color: roofC, transparent: true, side: THREE.DoubleSide, flatShading: true });
     const body = new THREE.Mesh(box, wallMat); body.scale.set(bw, bh, bd); body.position.y = bh / 2; g.add(body);
-    const roof = new THREE.Mesh(roofGeo, roofMat); roof.scale.set(bw + 0.5, rh, bd + 0.5); roof.position.y = bh - 0.04; g.add(roof);
-    const ridge = new THREE.Mesh(box, roofTrim); ridge.scale.set(0.12, 0.08, bd + 0.56); ridge.position.y = bh + rh - 0.02; g.add(ridge);
-    const soffit = new THREE.Mesh(box, roofTrim); soffit.scale.set(bw + 0.5, 0.06, bd + 0.5); soffit.position.y = bh - 0.07; g.add(soffit);
-    const chim = new THREE.Mesh(box, brickMat); chim.scale.set(0.25, 0.7, 0.25); chim.position.set(bw * 0.3, bh + rh * 0.6, -bd * 0.2); g.add(chim);
+    const roof = new THREE.Mesh(FUT ? domeGeo : roofGeo, roofMat); if (FUT) { roof.scale.set(bw * 0.95, rh * 1.5, bd * 0.95); roofMat.opacity = 0.85; roofMat.emissive = new THREE.Color(0x0a3a5a); } else roof.scale.set(bw + 0.5, rh, bd + 0.5); roof.position.y = bh - 0.04; g.add(roof);
+    const ridge = new THREE.Mesh(box, roofTrim); ridge.scale.set(0.12, 0.08, bd + 0.56); ridge.position.y = bh + rh - 0.02; g.add(ridge); if (FUT) ridge.visible = false;
+    const soffit = new THREE.Mesh(box, FUT ? (rr() < 0.5 ? neonC : neonM) : roofTrim); if (FUT) soffit.scale.set(bw + 0.08, 0.06, bd + 0.08); else soffit.scale.set(bw + 0.5, 0.06, bd + 0.5); soffit.position.y = bh - 0.07; g.add(soffit);
+    const chim = new THREE.Mesh(box, FUT ? metalF : PAST ? stoneW : brickMat); if (FUT) chim.scale.set(0.06, 1.3, 0.06); else chim.scale.set(0.25, 0.7, 0.25); chim.position.set(bw * 0.3, bh + rh * 0.6, -bd * 0.2); g.add(chim);
     // door + windows on the street face (local +z)
     const door = new THREE.Mesh(box, doorMatH); door.scale.set(0.42, 0.8, 0.06); door.position.set(-0.55, 0.4, bd / 2 + 0.03); g.add(door);
     for (const [wx, wy] of [[0.45, 0.6], [0.45, bh > 1.2 ? 1.45 : -1]]) if (wy > 0) { const win = new THREE.Mesh(box, rr() < 0.55 ? season.win(litWin, rr) : darkWin); win.scale.set(0.5, 0.4, 0.06); win.position.set(wx, wy, bd / 2 + 0.03); g.add(win); const fr = new THREE.Mesh(box, doorMatH); fr.scale.set(0.56, 0.46, 0.04); fr.position.set(wx, wy, bd / 2 + 0.02); g.add(fr); }
     const side = new THREE.Mesh(box, rr() < 0.4 ? season.win(litWin, rr) : darkWin); side.scale.set(0.06, 0.4, 0.5); side.position.set(bw / 2 + 0.03, 0.6, 0.2); g.add(side);
-    if (rr() < 0.5) { const porch = new THREE.Mesh(box, roofMat); porch.scale.set(1.0, 0.06, 0.5); porch.position.set(-0.55, 0.95, bd / 2 + 0.25); g.add(porch); }
+    if (PAST || rr() < 0.5) { const porch = new THREE.Mesh(box, roofMat); porch.scale.set(1.0, 0.06, 0.5); porch.position.set(-0.55, 0.95, bd / 2 + 0.25); g.add(porch); }
     season.house(g, { bw, bd, bh, rh, rr });
     // fade + outline on the body mesh so the see-through logic works
     body.userData.fade = [wallMat, roofMat]; body.userData.h = bh + rh; body.userData.extras = g.children.filter((ch) => ch !== body && ch !== roof);
@@ -459,29 +479,35 @@ export function buildCity(scene, wall, level) {
       house(w, x, y, facesH, R, wall.custom ? vi : -1); obstacles.push({ x: w.x, z: w.z, hw: CELL / 2 - 0.05, hd: CELL / 2 - 0.05 }); continue;
     }
     const tower = wall.custom ? wall.custom.towers.has(y * cols + x) : (!edge && zone === 'downtown' && R() < 0.14);
-    const floors = edge ? 2 : tower ? 6 + ((R() * 6) | 0) : zone === 'downtown' ? 2 + ((R() * 2) | 0) + (R() < 0.25 ? 1 : 0) : 1 + ((R() * 2) | 0);
+    const floors = edge ? 2 : tower ? (PAST ? 3 + ((R() * 2) | 0) : 6 + ((R() * 6) | 0)) : zone === 'downtown' ? 2 + ((R() * 2) | 0) + (R() < 0.25 ? 1 : 0) : 1 + ((R() * 2) | 0);
     const fh = 1.1, h = floors * fh + 0.25;
-    const base = new THREE.Color(NIGHT.buildings[(R() * NIGHT.buildings.length) | 0]); if (edge) base.multiplyScalar(0.7);
+    const base = new THREE.Color(FUT ? FUT_BUILD[(R() * FUT_BUILD.length) | 0] : PAST ? PAST_BUILD[(R() * PAST_BUILD.length) | 0] : NIGHT.buildings[(R() * NIGHT.buildings.length) | 0]); if (edge) base.multiplyScalar(0.7);
     const useA = R() < 0.6;
     const map = (useA ? T.facadeA : T.facadeB).clone(), glow = (useA ? T.glowA : T.glowB).clone();
     map.needsUpdate = glow.needsUpdate = true;
     map.repeat.set(1, floors); glow.repeat.set(1, floors); const ox = R() < 0.5 ? 0 : 0.5; map.offset.set(ox, 0); glow.offset.set(ox, 0);
-    const side = M({ color: base, map, emissive: 0xffffff, emissiveMap: glow, emissiveIntensity: 1, transparent: true });
+    const side = M({ color: base, map, emissive: FUT ? (R() < 0.55 ? 0x5af0ff : 0xff6ad8) : PAST ? 0xffa040 : 0xffffff, emissiveMap: glow, emissiveIntensity: FUT ? 1.3 : PAST ? 0.6 : 1, transparent: true });
     const footprint = CELL - 0.7;
     const roofM = roofMat.clone(); roofM.transparent = true; const extras = []; const addX = (...a) => { const m = add(...a); extras.push(m); return m; };
     const mesh = add(box, [side, side, roofM, roofM, side, side], footprint, h, footprint, w.x, h / 2, w.z);
     mesh.userData.fade = [side, roofM]; mesh.userData.h = h; mesh.userData.extras = extras;
-    if (tower) { addX(box, M({ color: 0x3a4a52 }), 0.3, 1.6, 0.3, w.x, h + 0.8, w.z); addX(box, new THREE.MeshBasicMaterial({ color: 0xff3a3a }), 0.14, 0.14, 0.14, w.x, h + 1.65, w.z); }
+    if (PAST && tower) { const wt = R() * 0; for (const [lx, lz] of [[-0.4, -0.4], [0.4, -0.4], [-0.4, 0.4], [0.4, 0.4]]) addX(box, woodTrim, 0.08, 0.9, 0.08, w.x + lx, h + 0.45 + wt, w.z + lz); addX(cyl, M({ color: 0x7a5232 }), 1.1, 0.8, 1.1, w.x, h + 1.3, w.z); addX(cone, woodTrim, 1.2, 0.35, 1.2, w.x, h + 1.88, w.z); } // a water tank on stilts
+    if (tower && !FUT && !PAST) { addX(box, M({ color: 0x3a4a52 }), 0.3, 1.6, 0.3, w.x, h + 0.8, w.z); addX(box, new THREE.MeshBasicMaterial({ color: 0xff3a3a }), 0.14, 0.14, 0.14, w.x, h + 1.65, w.z); }
+    if (FUT && (tower || h > 4)) { const hm = R() < 0.5 ? neonC : neonM; for (const hy of tower ? [h * 0.55, h * 0.85, h + 0.25] : [h * 0.7]) { const hr = addX(haloGeo, hm, footprint * 1.22, footprint * 1.22, 1, w.x, hy, w.z); hr.rotation.x = Math.PI / 2; }
+      if (tower) { addX(cone, metalF, 0.35, 2.6, 0.35, w.x, h + 1.3, w.z); addX(ball, neonM, 0.22, 0.22, 0.22, w.x, h + 2.65, w.z); } }
     const edges = new THREE.LineSegments(new THREE.EdgesGeometry(box), outlineMat); edges.scale.copy(mesh.scale); edges.position.copy(mesh.position); edges.visible = false; group.add(edges); mesh.userData.edges = edges;
-    addX(box, corniceMat, footprint + 0.15, 0.12, footprint + 0.15, w.x, h + 0.02, w.z);
-    if (!edge && R() < 0.4) addX(box, M({ color: 0x4f6366 }), 0.5, 0.35, 0.5, w.x + (R() - 0.5) * 1.4, h + 0.25, w.z + (R() - 0.5) * 1.4);
-    if (!edge && R() < 0.25) addX(cyl, M({ color: 0x5c6f73 }), 0.5, 0.6, 0.5, w.x + (R() - 0.5) * 1.2, h + 0.38, w.z + (R() - 0.5) * 1.2);
+    if (FUT) { const nm = R() < 0.5 ? neonC : neonM, L = footprint + 0.12, o = footprint / 2 + 0.03; for (const s of [-1, 1]) { addX(box, nm, L, 0.09, 0.09, w.x, h + 0.04, w.z + s * o); addX(box, nm, 0.09, 0.09, L, w.x + s * o, h + 0.04, w.z); } } // neon edges round the roof
+    else addX(box, PAST ? woodTrim : corniceMat, footprint + 0.15, 0.12, footprint + 0.15, w.x, h + 0.02, w.z);
+    if (!edge && !PAST && R() < 0.4) addX(box, M({ color: 0x4f6366 }), 0.5, 0.35, 0.5, w.x + (R() - 0.5) * 1.4, h + 0.25, w.z + (R() - 0.5) * 1.4);
+    if (!edge && !PAST && R() < 0.25) addX(cyl, M({ color: 0x5c6f73 }), 0.5, 0.6, 0.5, w.x + (R() - 0.5) * 1.2, h + 0.38, w.z + (R() - 0.5) * 1.2);
     const faces = [[0, 1, 0], [1, 0, Math.PI / 2], [0, -1, Math.PI], [-1, 0, -Math.PI / 2]].filter(([dx, dz]) => open(x + dx, y + dz));
     if (faces.length && !edge) {
       const [dx, dz, ry] = faces[wall.custom ? vi % faces.length : (R() * faces.length) | 0];
       const fx = w.x + dx * (footprint / 2 + 0.03), fz = w.z + dz * (footprint / 2 + 0.03);
       addX(box, frameMat, 0.7, 0.95, 0.06, fx, 0.48, fz, ry); addX(box, doorMat, 0.5, 0.8, 0.07, fx, 0.42, fz, ry);
-      if (R() < 0.5) addX(box, awningMats[(R() * 3) | 0], 1.3, 0.08, 0.5, fx + dx * 0.25, 1.05, fz + dz * 0.25, ry);
+      if (PAST) { const sx = Math.abs(dz) > 0.5 ? 1 : 0, sz = 1 - sx; addX(box, side, sx ? footprint : 0.14, 0.9, sz ? footprint : 0.14, w.x + dx * (footprint / 2 + 0.06), h + 0.42, w.z + dz * (footprint / 2 + 0.06)); // the false front
+        addX(box, woodTrim, sx ? footprint : 0.9, 0.07, sz ? footprint : 0.9, w.x + dx * (footprint / 2 + 0.45), 1.2, w.z + dz * (footprint / 2 + 0.45)); for (const k of [-1, 1]) addX(box, woodTrim, 0.07, 1.2, 0.07, w.x + dx * (footprint / 2 + 0.85) + sz * k * footprint * 0.45, 0.6, w.z + dz * (footprint / 2 + 0.85) + sx * k * footprint * 0.45); } // boardwalk roof on posts
+      else if (R() < 0.5) addX(box, FUT ? (R() < 0.5 ? neonC : neonM) : awningMats[(R() * 3) | 0], 1.3, FUT ? 0.04 : 0.08, 0.5, fx + dx * 0.25, 1.05, fz + dz * 0.25, ry);
     }
     season.business(w, h, footprint, addX, faces, edge);
     obstacles.push({ x: w.x, z: w.z, hw: CELL / 2 - 0.05, hd: CELL / 2 - 0.05 });
@@ -493,6 +519,7 @@ export function buildCity(scene, wall, level) {
   const bodyGeo = new THREE.BoxGeometry(0.9, 0.36, 1.8), cabinGeo = new THREE.BoxGeometry(0.8, 0.34, 0.95);
   const fleet = ['tank', 'truck', 'van', 'van', 'car', 'car', 'car'].sort(() => rng() - 0.5);
   const vehicle = (kind) => {
+    if (PAST) { const wg = buildWagon(new THREE.Group(), kind); wg.scale.setScalar(0.85); return wg; }
     const car = new THREE.Group(); const part = (geo, mat, sx, sy, sz, x, y, z) => { const mm = new THREE.Mesh(geo, mat); mm.scale.set(sx, sy, sz); mm.position.set(x, y, z); car.add(mm); return mm; };
     const wheels = (r, pts) => { for (const [wx, wz] of pts) { const wh = part(cyl, wheelMat, r, 0.16, r, wx, r / 2, wz); wh.rotation.z = Math.PI / 2; } };
     const skin = (kind === 'van' || kind === 'car') ? equippedSkin('car') : null; const partC = (geo, c, sx, sy, sz, x, y, z) => part(geo, M({ color: c }), sx, sy, sz, x, y, z);
@@ -502,7 +529,7 @@ export function buildCity(scene, wall, level) {
     else if (kind === 'tank') { const olive = M({ color: 0x4a5a3a }), dark = M({ color: 0x2a3326 }); part(box, olive, 1.2, 0.45, 2.3, 0, 0.5, 0); part(box, dark, 0.3, 0.55, 2.3, -0.6, 0.3, 0); part(box, dark, 0.3, 0.55, 2.3, 0.6, 0.3, 0); const turret = part(box, olive, 0.85, 0.35, 0.95, 0, 0.9, -0.15); car.userData.turret = turret; const barrel = part(cyl, dark, 0.1, 1.5, 0.1, 0, 0.92, 0.95); barrel.rotation.x = Math.PI / 2; part(ball, M({ color: 0x3fdf6a }), 0.15, 0.15, 0.15, 0, 1.12, -0.3); }
     else { const bodyMat = M({ color: skin ? skin.color : NIGHT.cars[(rng() * NIGHT.cars.length) | 0] }); part(bodyGeo, bodyMat, 1, 1, 1, 0, 0.36, 0); part(box, bodyMat, 0.8, 0.12, 0.5, 0, 0.6, 0.55); part(cabinGeo, glass, 1, 1, 1, 0, 0.7, -0.15); part(box, bodyMat, 0.82, 0.06, 0.97, 0, 0.9, -0.15); wheels(0.34, [[-0.44, 0.58], [0.44, 0.58], [-0.44, -0.58], [0.44, -0.58]]); for (const hx of [-0.3, 0.3]) { part(box, headMat, 0.16, 0.1, 0.05, hx, 0.42, 0.91); part(box, tailMat, 0.16, 0.08, 0.05, hx, 0.42, -0.91); } }
     if (skin && !skin.replace) skin.dress(partC, kind); if (skin && skin.ghost) ghostify(car);
-    car.scale.setScalar(0.85); return car;
+    car.scale.setScalar(0.85); if (FUT) hoverize(car, kind === 'tank' ? 0xff4fd8 : 0x3af0ff); return car;
   };
   for (const [x, y] of streetCells) {
     if (x === 0 || y === 0 || x === cols - 1 || y === rows - 1) continue;
@@ -525,7 +552,7 @@ export function buildCity(scene, wall, level) {
   // ---------- lamps, poles, wires ----------
   // Poles stand along straight street runs at a regular spacing, on one side of the road.
   // Wires connect consecutive poles down the same street only, so lines follow the roads.
-  const poleMat = M({ color: 0x1e2a2c }), bulbMat = new THREE.MeshBasicMaterial({ color: NIGHT.lamp });
+  const poleMat = M({ color: FUT ? 0x8a94a8 : PAST ? 0x5a3a24 : 0x1e2a2c }), bulbMat = new THREE.MeshBasicMaterial({ color: FUT ? 0x8af4ff : PAST ? 0xffb050 : NIGHT.lamp });
   const poolMat = new THREE.MeshBasicMaterial({ map: T.lampPool, transparent: true, depthWrite: false });
   const wirePts = [], lamps = [];
   const SPACING = 2; // cells between poles
@@ -621,11 +648,19 @@ const sp = prop(px, pz, 'street', false);
     rainGeo.attributes.position.needsUpdate = true;
   };
 
+  if (FUT) { const SWAP = { 0x2f7a3f: 0x2ad8c8, 0x3f9a4a: 0x8a6aff, 0x1f5a2f: 0x1a9aaa, 0x245a3a: 0x4a5ad8, 0x4a3324: 0xd8e0ea, 0x2f5a38: 0x1c3646 }, done = new Map();
+    group.traverse((m) => { if (!m.isMesh || !m.material || Array.isArray(m.material) || !m.material.color) return; const to = SWAP[m.material.color.getHex()]; if (to === undefined) return; if (!done.has(m.material)) { const nm = m.material.clone(); nm.color.setHex(to); if (nm.emissive && to !== 0xd8e0ea && to !== 0x1c3646) nm.emissive.setHex(to).multiplyScalar(0.35); done.set(m.material, nm); } m.material = done.get(m.material); }); }
+  if (PAST) { const cact = M({ color: 0x4a7a3a }); for (const [x, y] of streetCells) { if (!(wall.park && wall.park(x, y)) || rng() > 0.45) continue; const w = toWorld(x, y, cols, rows), cx = w.x + (rng() - 0.5) * 1.6, cz2 = w.z + (rng() - 0.5) * 1.6, s = 0.8 + rng() * 0.6;
+      add(cyl, cact, 0.32 * s, 1.9 * s, 0.32 * s, cx, 0.95 * s, cz2); for (const k of [-1, 1]) { if (rng() < 0.25) continue; const ay = (0.7 + rng() * 0.5) * s; add(cyl, cact, 0.2 * s, 0.4 * s, 0.2 * s, cx + k * 0.25 * s, ay, cz2).rotation.z = Math.PI / 2; add(cyl, cact, 0.2 * s, 0.6 * s, 0.2 * s, cx + k * 0.42 * s, ay + 0.28 * s, cz2); } } }
   // batch the season's static decorations, then point the buildings' loose-part lists at the merged meshes
   // keep a lively handful of animated decorations; the rest stand still and batch with everything else
   if (season.anim.length > 60) { for (let i = season.anim.length - 1; i > 0; i--) { const j = (rng() * (i + 1)) | 0; [season.anim[i], season.anim[j]] = [season.anim[j], season.anim[i]]; } for (const a of season.anim.slice(60)) if (a.m) a.m.visible = true; season.anim.length = 60; }
   { const merged = batchDecor(group, new Set(season.anim.map((a) => a.m))); if (merged.size) for (const b of buildings) { const ex = b.userData.extras; if (!ex) continue; const out = []; for (const e of ex) { const m = merged.get(e) || e; if (!out.includes(m)) out.push(m); } b.userData.extras = out; } }
   const parkFn = wall.park || (() => false);
   const detail = createDetail(group, { grassCells: [...streetCells.filter(([x, y]) => parkFn(x, y)).map(([x, y]) => ({ ...toWorld(x, y, cols, rows), roads: wall.custom ? [] : [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([dx, dy]) => open(x + dx, y + dy)) })), ...treeLots.map((w) => ({ ...w, roads: [] }))], streetCells: streetCells.filter(([x, y]) => !parkFn(x, y)).map(([x, y]) => toWorld(x, y, cols, rows)), cell: CELL, W, D, rng: mulberry32(borderSeed * 613 + 11), skyRng: mulberry32(borderSeed * 131 + 9) });
-  return { group, obstacles, cols, rows, updateRain: (dt) => { updateRain(dt); updateLandmarks(dt); updateProps(dt); season.update(dt); detail.update(dt); }, season, detail, buildings, cars, hazards, props, knock };
+  // Future: everything still leafy green (park trees, bushes, grass tufts) turns glowing teal or violet
+  if (FUT || PAST) { const hsl = {}, done = new Map(); group.traverse((m) => { if (!m.isMesh || !m.material || Array.isArray(m.material) || !m.material.color || (PAST && m.material.color.getHex() === 0x4a7a3a)) return; m.material.color.getHSL(hsl); if (hsl.h < 0.2 || hsl.h > 0.46 || hsl.s < 0.2) return; if (!done.has(m.material)) { const nm = m.material.clone(); if (FUT) nm.color.setHSL(hsl.l > 0.3 ? 0.5 : 0.74, 0.7, Math.max(0.3, hsl.l)); else nm.color.setHSL(0.2, 0.28, Math.min(0.42, hsl.l * 0.95)); done.set(m.material, nm); } m.material = done.get(m.material); }); }
+  // Future: hover cars streaming along sky lanes above the streets (one group, so the chunk freezer leaves it moving)
+  const sky = FUT ? skyTraffic(group, W, D, rng) : null;
+  return { group, obstacles, cols, rows, updateRain: (dt) => { updateRain(dt); if (sky) sky(dt); updateLandmarks(dt); updateProps(dt); season.update(dt); detail.update(dt); }, season, detail, buildings, cars, hazards, props, knock };
 }

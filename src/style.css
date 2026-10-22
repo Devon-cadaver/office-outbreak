@@ -152,6 +152,7 @@ body.look #game { cursor: grab; }
 .psMenu { position: fixed; inset: 0; z-index: 60; background: #0a0612e6; display: flex; align-items: center; justify-content: center; padding: 16px; }
 .psBox { width: min(92vw, 360px); max-height: 80vh; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; text-align: center; } .psBox h2 { margin: 0 0 6px; color: #7dff3a; font-size: 24px; } .psHint { color: #cfc4ea; font-size: 13px; margin: 0 0 6px; }
 .psOpt { font-size: 15px; padding: 9px 14px; } .psOpt.on { background: #7dff3a; color: #111; border-color: #7dff3a; } .psBack { margin-top: 6px; }
+#eraRow { display: flex; gap: 6px; align-items: center; justify-content: center; flex-wrap: wrap; margin: 2px 0 4px; } .eraLbl { font-size: 11px; font-weight: 900; letter-spacing: 2px; color: #c9a6ff; } .eraBtn { font-size: 12px; padding: 5px 12px; } .eraBtn.on { background: #3af0ff; color: #0c1020; border-color: #3af0ff; } .eraBtn.locked { opacity: 0.6; } .eraHint { flex-basis: 100%; text-align: center; font-size: 12px; color: #ffd24a; }
 .soundRow { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
 .doneBtn { display: block; margin: 10px auto 0; }
 #taRestart.armed { color: #ff7a5a; border-color: #ff5a3a; box-shadow: 0 0 12px #ff5a3a88; }

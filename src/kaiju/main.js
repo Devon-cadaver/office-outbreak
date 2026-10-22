@@ -7,10 +7,11 @@ import * as THREE from 'three';
 import { generateMaze, buildCity, toWorld, toCell, findPath, CELL, mulberry32 } from '../city.js';
 import { makeCharacter, animateWalk } from '../poster/characters.js';
 import { makeCar } from '../car.js';
+import { isFuture, isPast, hoverize, futurePlane, pastPlane, buildCannon, buildChaserCoach, eraPicker, unlockEra } from '../era.js';
 import { createTwisters } from '../tornado.js';
 import { createFires } from '../fire.js';
 import { unlockAudio, soundToggle, sfx, stopMusic, setPlaneEngine, setStormLevel, stormBoost, playSongs, songState, gameMusic, SONGS_KAIJU } from '../audio.js';
-import { equippedSkin, skinnedCarArgs, addCoins, CHAR_SKINS, getEquipped, totalReward, pauseSkinRow } from '../skins.js';
+import { townSkin, equippedSkin, skinnedCarArgs, addCoins, CHAR_SKINS, getEquipped, totalReward, pauseSkinRow } from '../skins.js';
 import { forceSeason } from '../season.js';
 import { showPrizes } from '../prizes.js';
 import { nukeBlast } from '../nuke.js';
@@ -122,13 +123,13 @@ function buildWorld() {
   people = []; const roads = []; for (let y = 1; y < rows - 1; y++) for (let x = 1; x < cols - 1; x++) if (!maze[y][x]) roads.push([x, y]);
   const groups = Math.min(120, Math.round(70 * Math.pow(big, 1.3)));
   for (let g = 0; g < groups; g++) { const [x, y] = roads[(rng() * roads.length) | 0]; const w = toWorld(x, y, cols, rows); if (Math.hypot(w.x, w.z) < 5) continue; const n = 2 + ((rng() * 3) | 0);
-    for (let i = 0; i < n; i++) { const c = makeCharacter(['worker', 'pink', 'plaid', 'hivis', 'suit', 'hoodie', 'punk', 'vest'][(rng() * 8) | 0], { skin: equippedSkin('npc') }); c.scale.setScalar(0.25); c.position.set(w.x + (rng() - 0.5) * 1.6, 0, w.z + (rng() - 0.5) * 1.6); c.rotation.y = rng() * 6.28; c.userData.home = c.position.clone(); c.userData.goal = null; c.userData.wait = rng() * 3; scene.add(c); people.push(c); } }
+    for (let i = 0; i < n; i++) { const c = makeCharacter(['worker', 'pink', 'plaid', 'hivis', 'suit', 'hoodie', 'punk', 'vest'][(rng() * 8) | 0], { skin: townSkin() }); c.scale.setScalar(0.25); c.position.set(w.x + (rng() - 0.5) * 1.6, 0, w.z + (rng() - 0.5) * 1.6); c.rotation.y = rng() * 6.28; c.userData.home = c.position.clone(); c.userData.goal = null; c.userData.wait = rng() * 3; scene.add(c); people.push(c); } }
   cars = city.cars.slice();
   roadCells = roads; for (const o of [...drivers, ...soldiers, ...tanks]) scene.remove(o.g || o); drivers = []; soldiers = []; tanks = []; for (const s of shots) scene.remove(s.m); shots = [];
   const farRoad = (min) => { for (let k = 0; k < 60; k++) { const [x, y] = roads[(rng() * roads.length) | 0]; const w = toWorld(x, y, cols, rows); if (Math.hypot(w.x, w.z) > min) return [x, y]; } return roads[0]; };
   for (let i = 0; i < 9 + 3 * (level - 1); i++) { const [x, y] = farRoad(5); const c = makeCar(...skinnedCarArgs([0xc23b3b, 0x4f8fd6, 0xe8d54a, 0xd8dde0, 0x3a8a5a][(rng() * 5) | 0])); c.scale.setScalar(0.8); const w = toWorld(x, y, cols, rows); c.position.set(w.x, 0, w.z); scene.add(c); drivers.push({ g: c, cell: [x, y], path: [], speed: 3 + rng() * 1.5 }); }
   for (let sq = 0; sq < 4 + 2 * (level - 1); sq++) { const [x, y] = farRoad(14); const w = toWorld(x, y, cols, rows); for (let i = 0; i < 3; i++) { const s = makeCharacter('vest', { skin: CHAR_SKINS.hunter }); s.scale.setScalar(0.25); s.position.set(w.x + (i - 1) * 0.5, 0, w.z + (rng() - 0.5) * 0.6); const gun = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, 0.6), new THREE.MeshLambertMaterial({ color: 0x22262a })); gun.position.set(0, -0.72, 0.25); s.userData.armR.add(gun); s.userData.cd = 1 + rng() * 2; scene.add(s); soldiers.push(s); } }
-  for (let i = 0; i < 2 + (level - 1); i++) { const [x, y] = farRoad(18); const t = makeTank(); const w = toWorld(x, y, cols, rows); t.position.set(w.x, 0, w.z); scene.add(t); tanks.push({ g: t, cell: [x, y], path: [], cd: 3 + rng() * 2, repath: 0 }); }
+  for (let i = 0; i < 2 + (level - 1); i++) { const [x, y] = farRoad(18); const t = isPast() ? buildCannon() : makeTank(); if (isFuture()) hoverize(t, 0xff4fd8); const w = toWorld(x, y, cols, rows); t.position.set(w.x, 0, w.z); scene.add(t); tanks.push({ g: t, cell: [x, y], path: [], cd: 3 + rng() * 2, repath: 0 }); }
   massTarget = buildings.reduce((s, x) => s + x.h, 0) * 0.3 * Math.sqrt(1 / big) + 40;
 }
 
@@ -221,7 +222,7 @@ const gulps = []; // people on their way into the kaiju's mouth
 const pool = [], OUTFITS = ['worker', 'pink', 'plaid', 'hivis', 'suit', 'hoodie', 'punk', 'vest'];
 function spill(at, n) {
   if (people.length > 420) return; let made = 0;
-  for (let i = 0; i < n; i++) { let c = pool.pop(); if (!c) { if (made >= 3) break; c = makeCharacter(OUTFITS[(Math.random() * 8) | 0], { skin: equippedSkin('npc') }); made++; }
+  for (let i = 0; i < n; i++) { let c = pool.pop(); if (!c) { if (made >= 3) break; c = makeCharacter(OUTFITS[(Math.random() * 8) | 0], { skin: townSkin() }); made++; }
     c.scale.setScalar(0.25); c.rotation.set(0, Math.random() * 6.28, 0); const a = Math.random() * 6.28, r = 0.6 + Math.random() * 1.4; c.position.set(at.x + Math.cos(a) * r, 0, at.z + Math.sin(a) * r);
     Object.assign(c.userData, { home: c.position.clone(), goal: null, wait: Math.random(), frz: false }); delete c.updateMatrixWorld; scene.add(c); people.push(c); }
 }
@@ -259,7 +260,7 @@ let planes = [], planeT = 35, noPlanes = false; const bombs = [], fires = [];
 const bombGeo = new THREE.SphereGeometry(0.16, 8, 6), bombMat = new THREE.MeshLambertMaterial({ color: 0x2a2e33 });
 function spawnPlane() {
   const lim = toWorld(cols - 1, rows - 1, cols, rows); const a = Math.random() * Math.PI * 2, R0 = Math.max(lim.x, lim.z) + 8;
-  const g = makePlane(); g.position.set(Math.cos(a) * R0, 7 + Math.random(), Math.sin(a) * R0); scene.add(g);
+  const g = makePlane(); if (isFuture()) futurePlane(g); else if (isPast()) pastPlane(g); g.position.set(Math.cos(a) * R0, 7 + Math.random(), Math.sin(a) * R0); scene.add(g);
   g.traverse((m) => { if (m.isMesh && m.material.color && m.material.color.getHex() === 0xf07a28) m.material = m.material.clone(), m.material.color.setHex(0x8a2a1a); }); // dark red: these ones drop napalm
   const arrow = document.createElement('div'); arrow.className = 'planeArrow'; arrow.textContent = '✈'; document.body.appendChild(arrow);
   planes.push({ g, arrow, heading: Math.atan2(-g.position.x, -g.position.z), life: 28, cool: 0, dropT: 0 }); banner('✈ NAPALM PLANE!'); sfx.whoosh(); tip('kj_plane', '✈ Napalm plane! It drops fire that burns you. Walk out of the fire, or zap it with a spell.');
@@ -635,7 +636,7 @@ addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; if (mini &
 
 // ---------- flow ----------
 let state = 'start', died = false, roundId = 0; // roundId: delayed effects from an earlier round check it and stand down
-soundToggle($('taStart'), $('taPaused')); // sound on/off on the start and pause screens
+soundToggle($('taStart'), $('taPaused')); eraPicker($('taLevels')); // sound on/off on the start and pause screens
 // the soundtrack starts on the first tap and keeps rotating songs for as long as you're on Kaiju Madness
 gameMusic($('taPaused'), SONGS_KAIJU);
 const fsMode = initFullscreen(() => state === 'play'); // full screen on play, back in after a browser drop-out, no page scrolling mid-round
@@ -692,6 +693,7 @@ function finishNow() {
   $('taAgain').textContent = cleared && level < LEVELS.length ? 'NEXT LEVEL' : cleared ? 'PLAY AGAIN' : 'TRY AGAIN'; $('taAgain').dataset.next = cleared && level < LEVELS.length ? '1' : '';
   $('taGoalLine').textContent = died ? 'The army got you. Eat more people to grow back, and walk out of the napalm.' : cleared ? (level < LEVELS.length ? 'Level ' + (level + 1) + ' unlocked: ' + LEVELS[level].name + '.' : 'Every town crushed. Monster.') : 'Flatten ' + L().goal + '% of ' + L().name + ' and take out ' + (need >= poiOrder.length ? 'every big target' : need + ' big targets') + ' (you got ' + pct + '% and ' + done.length + ').';
   if (totalD) { $('taEndTitle').innerHTML = 'TOTAL<br>DESTRUCTION!'; totalReward(unlockedKaiju().flatMap((k) => SKIN_LOOKS.map((lk) => 'kaiju:' + k + ':' + lk)), (id) => { const [, k, lk] = id.split(':'); return KAIJU_SKINS[k][lk].name; }, $('taGoalLine')); }
+  if (cleared && level === LEVELS.length && (unlockEra('future') | unlockEra('past'))) { const u = document.createElement('div'); u.className = 'bonusSkin'; u.innerHTML = '🤠🚀 WILD WEST AND FUTURE ERAS UNLOCKED<br><small>Pick an era under the towns to play every town back in the Wild West or in the future.</small>'; $('taGoalLine').appendChild(u); eraPicker($('taLevels')); }
   $('taStats').innerHTML = [...(totalD ? [['💥 Total destruction', '+' + totalD]] : []), ['Buildings', bDone + ' / ' + totalB + ' (' + pct + '%)'], ['People eaten', peopleN], ['Cars wrecked', carsN], ['Rivals KO\'d', ko], ['Big targets', done.length + ' / ' + poiOrder.length + ' ' + done.map((k) => POI[k].icon).join('')], ['Biggest', STAGE[topStage]], ['Score', score], ['Score coins', '+' + scoreCoins + ' 🪙'], ['Best', best]].map(([a, b]) => '<tr><td>' + a + '</td><td>' + b + '</td></tr>').join('');
   const goes = Math.min(3, 1 + (cleared ? 1 : 0) + Math.floor(done.length / 2)) + (totalD ? 1 : 0); kaijuRound(goes); showPrizes($('taChests'), goes, '1 go, +1 for clearing the level, +1 for every 2 big targets destroyed (max 3)', () => { location.href = 'store.html?from=kaiju'; }, kaijuPrize, () => { $('taPrize').classList.add('hidden'); $('taEnd').classList.remove('hidden'); });
   $('ta').classList.add('hidden'); $('taPrize').classList.remove('hidden'); drawPicker(); // the prize game first, then the score

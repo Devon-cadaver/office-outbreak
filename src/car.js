@@ -1,6 +1,7 @@
 // The player's car: a chunky sedan in the town's style, with headlights, dents and smoke as it takes damage.
 import * as THREE from 'three';
 import { ghostify } from './skins.js';
+import { isFuture, isPast, hoverize, buildWagon } from './era.js';
 
 const box = new THREE.BoxGeometry(1, 1, 1);
 const cyl = new THREE.CylinderGeometry(0.5, 0.5, 1, 10);
@@ -13,6 +14,7 @@ export function makeCar(color = 0x3f6fd8, skin = null) {
   const part = (geo, mat, sx, sy, sz, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.scale.set(sx, sy, sz); m.position.set(x, y, z); g.add(m); return m; };
   const partC = (geo, c, sx, sy, sz, x, y, z) => part(geo, M(c), sx, sy, sz, x, y, z);
   if (skin && skin.replace) { skin.dress(partC, 'car'); }
+  else if (isPast()) buildWagon(g, 'car', color);
   else {
   part(box, body, 0.95, 0.38, 1.9, 0, 0.38, 0);
   part(box, body, 0.85, 0.12, 0.5, 0, 0.62, 0.6);
@@ -24,11 +26,12 @@ export function makeCar(color = 0x3f6fd8, skin = null) {
   if (skin && skin.ghost) ghostify(g);
   // headlight beams on the road ahead
   const beam = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 3.2), new THREE.MeshBasicMaterial({ color: 0xfff2b0, transparent: true, opacity: 0.14, depthWrite: false }));
-  beam.rotation.x = -Math.PI / 2; beam.position.set(0, 0.03, 2.5); g.add(beam);
+  beam.rotation.x = -Math.PI / 2; beam.position.set(0, 0.03, 2.5); if (!isPast()) g.add(beam); // no headlights on a buggy
   // smoke puffs appear as damage mounts
   const smokeMat = new THREE.MeshLambertMaterial({ color: 0x2a2a2e, transparent: true, opacity: 0.55, depthWrite: false });
   const smokes = []; for (let i = 0; i < 4; i++) { const s = new THREE.Mesh(box, smokeMat); s.visible = false; g.add(s); smokes.push({ m: s, t: Math.random() }); }
   g.userData = { smokes, body, hp: 5, maxHp: 5, t: 0 };
+  if (isFuture()) hoverize(g);
   return g;
 }
 

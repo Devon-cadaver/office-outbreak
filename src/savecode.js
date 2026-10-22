@@ -75,7 +75,7 @@ export function initSaveCodes(menu, before = null) {
     try { await navigator.clipboard.writeText(code); say('saveOutMsg', '✓ Copied! Paste it somewhere safe.', 'good'); }
     catch { sel(); let ok = false; try { ok = document.execCommand('copy'); } catch { /* ignore */ } say('saveOutMsg', ok ? '✓ Copied! Paste it somewhere safe.' : 'The code is selected: press and hold it, then Copy.', ok ? 'good' : ''); } });
   $('saveLoad').addEventListener('click', async () => {
-    if ($('saveIn').value.replace(/[^a-z]/gi, '').toUpperCase() === UNLOCK_ALL) { try { localStorage.setItem('kj_unlocked', JSON.stringify(KAIJU_IDS.filter((x) => !FREE_KAIJU.includes(x)))); } catch { /* ignore */ } say('saveInMsg', '✓ All ' + KAIJU_IDS.length + ' monsters unlocked!', 'good'); return; }
+    if ($('saveIn').value.replace(/[^a-z]/gi, '').toUpperCase() === UNLOCK_ALL) { try { localStorage.setItem('dc_era_future', '1'); localStorage.setItem('dc_era_past', '1'); localStorage.setItem('kj_unlocked', JSON.stringify(KAIJU_IDS.filter((x) => !FREE_KAIJU.includes(x)))); } catch { /* ignore */ } say('saveInMsg', '✓ All ' + KAIJU_IDS.length + ' monsters unlocked!', 'good'); return; }
     if (pending && performance.now() - armT < 4000) { applyCode(pending.data); say('saveInMsg', '✓ Loaded! Restarting…', 'good'); setTimeout(() => location.reload(), 900); return; }
     try { pending = await readCode($('saveIn').value); armT = performance.now(); $('saveLoad').classList.add('armed'); $('saveLoad').textContent = '⚠️ TAP AGAIN TO REPLACE THIS DEVICE\'S PROGRESS';
       say('saveInMsg', 'This code has: ' + pending.summary, ''); setTimeout(() => { if (performance.now() - armT >= 3900) { $('saveLoad').classList.remove('armed'); $('saveLoad').textContent = '⬇️ LOAD'; } }, 4000); }

@@ -6,10 +6,11 @@ import { nukeBlast } from '../nuke.js';
 import { generateMaze, buildCity, toWorld, toCell, findPath, CELL, mulberry32 } from '../city.js';
 import { makeCharacter, animateWalk } from '../poster/characters.js';
 import { makeCar } from '../car.js';
+import { isFuture, isPast, hoverize, futurePlane, pastPlane, buildCannon, buildChaserCoach, eraPicker, unlockEra } from '../era.js';
 import { createTwisters, TWISTER_SKINS } from '../tornado.js';
 import { createFires } from '../fire.js';
 import { unlockAudio, soundToggle, sfx, stopMusic, setPlaneEngine, planeEngineLevel, setStormLevel, stormBoost, stormMusicState, playSongs, songState, gameMusic, SONGS_TORNADO } from '../audio.js';
-import { equippedSkin, equippedTornado, skinnedCarArgs, addCoins, grantSkin, equip, CHAR_SKINS, totalReward, pauseSkinRow } from '../skins.js';
+import { townSkin, equippedSkin, equippedTornado, skinnedCarArgs, addCoins, grantSkin, equip, CHAR_SKINS, totalReward, pauseSkinRow } from '../skins.js';
 import { forceSeason } from '../season.js';
 import { showPrizes } from '../prizes.js';
 import { stampVersion } from '../version.js';
@@ -131,14 +132,14 @@ function buildWorld() {
   people = []; const roads = []; for (let y = 1; y < rows - 1; y++) for (let x = 1; x < cols - 1; x++) if (!maze[y][x]) roads.push([x, y]);
   const groups = Math.min(80, Math.round(44 * Math.pow(big, 1.3)));
   for (let g = 0; g < groups; g++) { const [x, y] = roads[(rng() * roads.length) | 0]; const w = toWorld(x, y, cols, rows); if (Math.hypot(w.x, w.z) < 6) continue; const n = 2 + ((rng() * 3) | 0);
-    for (let i = 0; i < n; i++) { const c = makeCharacter(['worker', 'pink', 'plaid', 'hivis', 'suit', 'hoodie', 'punk', 'vest'][(rng() * 8) | 0], { skin: equippedSkin('npc') }); c.scale.setScalar(0.25); c.position.set(w.x + (rng() - 0.5) * 1.6, 0, w.z + (rng() - 0.5) * 1.6); c.rotation.y = rng() * 6.28; c.userData.home = c.position.clone(); c.userData.goal = null; c.userData.wait = rng() * 3; scene.add(c); people.push(c); } }
+    for (let i = 0; i < n; i++) { const c = makeCharacter(['worker', 'pink', 'plaid', 'hivis', 'suit', 'hoodie', 'punk', 'vest'][(rng() * 8) | 0], { skin: townSkin() }); c.scale.setScalar(0.25); c.position.set(w.x + (rng() - 0.5) * 1.6, 0, w.z + (rng() - 0.5) * 1.6); c.rotation.y = rng() * 6.28; c.userData.home = c.position.clone(); c.userData.goal = null; c.userData.wait = rng() * 3; scene.add(c); people.push(c); } }
   cars = city.cars.slice();
   // traffic, army squads and tanks
   roadCells = roads; for (const o of [...drivers, ...soldiers, ...tanks]) scene.remove(o.g || o); drivers = []; soldiers = []; tanks = []; for (const s of shots) scene.remove(s.m); shots = [];
   const farRoad = (min) => { for (let k = 0; k < 60; k++) { const [x, y] = roads[(rng() * roads.length) | 0]; const w = toWorld(x, y, cols, rows); if (Math.hypot(w.x, w.z) > min) return [x, y]; } return roads[0]; };
   for (let i = 0; i < 9 + 3 * (level - 1); i++) { const [x, y] = farRoad(5); const c = makeCar(...skinnedCarArgs([0xc23b3b, 0x4f8fd6, 0xe8d54a, 0xd8dde0, 0x3a8a5a][(rng() * 5) | 0])); c.scale.setScalar(0.8); const w = toWorld(x, y, cols, rows); c.position.set(w.x, 0, w.z); scene.add(c); drivers.push({ g: c, cell: [x, y], path: [], speed: 3 + rng() * 1.5 }); }
   for (let sq = 0; sq < 5 + 2 * (level - 1); sq++) { const [x, y] = farRoad(12); const w = toWorld(x, y, cols, rows); for (let i = 0; i < 3; i++) { const s = makeCharacter('vest', { skin: CHAR_SKINS.hunter }); s.scale.setScalar(0.25); s.position.set(w.x + (i - 1) * 0.5, 0, w.z + (rng() - 0.5) * 0.6); const gun = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, 0.6), new THREE.MeshLambertMaterial({ color: 0x22262a })); gun.position.set(0, -0.72, 0.25); s.userData.armR.add(gun); s.userData.cd = rng() * 2; scene.add(s); soldiers.push(s); } }
-  for (let i = 0; i < 3 + (level - 1); i++) { const [x, y] = farRoad(16); const t = makeTank(); const w = toWorld(x, y, cols, rows); t.position.set(w.x, 0, w.z); scene.add(t); tanks.push({ g: t, cell: [x, y], path: [], cd: 2 + rng() * 2, repath: 0 }); }
+  for (let i = 0; i < 3 + (level - 1); i++) { const [x, y] = farRoad(16); const t = isPast() ? buildCannon() : makeTank(); if (isFuture()) hoverize(t, 0xff4fd8); const w = toWorld(x, y, cols, rows); t.position.set(w.x, 0, w.z); scene.add(t); tanks.push({ g: t, cell: [x, y], path: [], cd: 2 + rng() * 2, repath: 0 }); }
   massTarget = buildings.reduce((s, x) => s + x.h, 0) * 0.42 * Math.sqrt(1 / big) + 12; // bigger towns: a smaller share grows you to full size
 }
 
@@ -260,7 +261,7 @@ const SEED = () => { const k = level - 1; return { speed: 5.5 + 0.6 * k, turn: 0
 const sprayGeo = new THREE.SphereGeometry(0.07, 6, 4), sprayMat = new THREE.MeshBasicMaterial({ color: 0xe8f6ff, transparent: true, opacity: 0.85, depthWrite: false });
 function spawnPlane() {
   const lim = toWorld(cols - 1, rows - 1, cols, rows); const a = Math.random() * Math.PI * 2, R0 = Math.max(lim.x, lim.z) + 8;
-  const g = makePlane(); g.position.set(Math.cos(a) * R0, 6.5 + Math.random(), Math.sin(a) * R0); scene.add(g);
+  const g = makePlane(); if (isFuture()) futurePlane(g); else if (isPast()) pastPlane(g); g.position.set(Math.cos(a) * R0, 6.5 + Math.random(), Math.sin(a) * R0); scene.add(g);
   const zone = new THREE.Mesh(new THREE.RingGeometry(3.2, 4, 32), new THREE.MeshBasicMaterial({ color: 0x9fd6ff, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide })); zone.rotation.x = -Math.PI / 2; scene.add(zone);
   const arrow = document.createElement('div'); arrow.className = 'planeArrow'; arrow.textContent = '✈'; document.body.appendChild(arrow);
   planes.push({ g, zone, arrow, heading: Math.atan2(-g.position.x, -g.position.z), life: 26, spraying: false }); banner('✈ CLOUD SEEDER!'); sfx.whoosh(); tipA('ta_plane', '✈ Seeding plane! Its spray shrinks you. Dodge the blue ring, or tap the plane to zap it.');
@@ -305,7 +306,7 @@ let chaser = null, chaserT = 25, extraSeeders = 0, chasersCaught = 0, chasersLos
 function spawnChaser() {
   const far = []; for (const c of roadCells) { const w = toWorld(c[0], c[1], cols, rows); const d = Math.hypot(w.x - twObj.position.x, w.z - twObj.position.z); if (d > 22 && d < 40) far.push(c); }
   const cell = (far.length ? far : roadCells)[(Math.random() * (far.length || roadCells.length)) | 0]; const w = toWorld(cell[0], cell[1], cols, rows);
-  const g = makeChaser(); g.position.set(w.x, 0, w.z); scene.add(g); const arrow = document.createElement('div'); arrow.className = 'planeArrow chaserArrow'; arrow.textContent = '📷'; document.body.appendChild(arrow);
+  const g = isPast() ? buildChaserCoach() : makeChaser(); if (isFuture()) hoverize(g); g.position.set(w.x, 0, w.z); scene.add(g); const arrow = document.createElement('div'); arrow.className = 'planeArrow chaserArrow'; arrow.textContent = '📷'; document.body.appendChild(arrow);
   const bar = document.createElement('div'); bar.className = 'photoBar'; bar.innerHTML = '<i></i>'; document.body.appendChild(bar);
   chaser = { g, cell, path: [], repath: 0, mode: 'approach', shots: 0, fleeT: 0, arrow, bar, flashT: 0 }; banner('📷 STORM CHASER!'); sfx.whoosh(); tipA('ta_chaser', '📷 Storm chaser! Tap it to fry its photos, or run it down before it escapes.');
 }
@@ -525,7 +526,7 @@ addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
 
 // ---------- flow ----------
 let state = 'start', roundId = 0; // roundId: delayed effects from an earlier round check it and stand down
-soundToggle($('taStart'), $('taPaused')); // sound on/off on the start and pause screens
+soundToggle($('taStart'), $('taPaused')); eraPicker($('taLevels')); // sound on/off on the start and pause screens
 // the soundtrack starts on the first tap and keeps rotating songs for as long as you're on Tornado Alley
 gameMusic($('taPaused'), SONGS_TORNADO);
 const fsMode = initFullscreen(() => state === 'play'); // full screen on play, back in after a browser drop-out, no page scrolling mid-round
@@ -570,6 +571,7 @@ function finishNow() {
   $('taGoalLine').textContent = cleared ? (level < LEVELS.length ? 'Level ' + (level + 1) + ' unlocked: ' + LEVELS[level].name + '.' : 'You flattened every town. Legend.') : 'Flatten ' + L().goal + '% of ' + L().name + ' and take out ' + (need >= poiOrder.length ? 'every big target' : need + ' big targets') + ' to clear it (you got ' + pct + '% and ' + done.length + ').';
   if (cleared && level === LEVELS.length && grantSkin('tornado:acid')) { equip('tornado', 'tornado:acid'); const u = document.createElement('div'); u.className = 'bonusSkin'; u.innerHTML = '🏆 BONUS SKIN UNLOCKED: <b>ACID STORM</b><br><small>Acid rain, green lightning and baby tornadoes. It\'s on now; change it in the skin shop.</small>'; $('taGoalLine').appendChild(u); }
   if (totalD) { $('taEndTitle').innerHTML = 'TOTAL<br>DESTRUCTION!'; totalReward(Object.keys(TWISTER_SKINS).filter((k) => !TWISTER_SKINS[k].bonus).map((k) => 'tornado:' + k), (id) => TWISTER_SKINS[id.split(':')[1]].name, $('taGoalLine')); }
+  if (cleared && level === LEVELS.length && (unlockEra('future') | unlockEra('past'))) { const u = document.createElement('div'); u.className = 'bonusSkin'; u.innerHTML = '🤠🚀 WILD WEST AND FUTURE ERAS UNLOCKED<br><small>Pick an era under the towns to play every town back in the Wild West or in the future.</small>'; $('taGoalLine').appendChild(u); eraPicker($('taLevels')); }
   $('taStats').innerHTML = [...(totalD ? [['💥 Total destruction', '+' + totalD]] : []), ['Buildings', bDone + ' / ' + totalB + ' (' + pct + '%)'], ['People swept up', peopleN], ['Cars thrown', carsN], ['Storm chasers', chasersCaught + ' caught, ' + chasersLost + ' got away'], ['Big targets', done.length + ' / ' + poiOrder.length + ' ' + done.map((k) => POI[k].icon).join('')], ['Peak size', 'F' + rankOf(size) + ' (' + size.toFixed(1) + 'x)'], ['Score', score], ['Score coins', '+' + scoreCoins + ' 🪙'], ['Best', best]].map(([a, b]) => '<tr><td>' + a + '</td><td>' + b + '</td></tr>').join('');
   showPrizes($('taChests'), Math.min(3, 1 + (cleared ? 1 : 0) + Math.floor(done.length / 2)) + (totalD ? 1 : 0), '1 go, +1 for clearing the level, +1 for every 2 big targets destroyed (max 3), +1 for TOTAL DESTRUCTION', () => { location.href = 'store.html?from=alley'; }, null, () => { $('taPrize').classList.add('hidden'); $('taEnd').classList.remove('hidden'); });
   $('ta').classList.add('hidden'); $('taPrize').classList.remove('hidden'); // the prize game first, then the score
