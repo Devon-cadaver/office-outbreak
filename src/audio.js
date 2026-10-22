@@ -5,7 +5,7 @@ export function isMuted() { return muted; }
 export function audioState() { return ctx ? ctx.state : "none"; }
 try { muted = localStorage.getItem("oo_mute") === "1"; musicMuted = localStorage.getItem("oo_music_off") === "1"; } catch { /* ignore */ }
 // music has its own switch, separate from the sound effects
-export function setMusicMuted(v) { musicMuted = v; if (musicSw) musicSw.gain.value = musicMuted ? 0 : 1; if (song) song.muted = muted || musicMuted; try { localStorage.setItem("oo_music_off", musicMuted ? "1" : "0"); } catch { /* ignore */ } }
+export function setMusicMuted(v) { musicMuted = v; if (musicSw) musicSw.gain.value = musicMuted ? 0 : 1; if (song) { song.muted = muted || musicMuted; if (!musicMuted && song.paused) song.play().catch(() => {}); } try { localStorage.setItem("oo_music_off", musicMuted ? "1" : "0"); } catch { /* ignore */ } }
 export function unlockAudio() {
   if (!ctx) {
     try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch { ctx = null; return; }
@@ -168,36 +168,39 @@ function stormStep() {
     storm.next += STEP; storm.step++;
   }
 }
-// ---------- real songs: a streamed <audio> playlist per game that keeps rotating the whole time you're on its page ----------
-// one radio station for both games: every song, shuffled; nothing repeats until they've all played
+// ---------- the radio: one shuffled station of every song, on every page (the menu, both games, the shop). Each page is a
+// fresh load, so the station carries over in sessionStorage: same song, same spot, same shuffle. It tries to play straight
+// away (fine on a computer once you've been on the site); phones and tablets pick it up at the first tap ----------
 export const SONGS_ALL = ['music/tornado-alley.mp3', 'music/twister-vs-army.mp3', 'music/clean-slate.mp3', 'music/feeding-ground.mp3', 'music/stomp-the-block.mp3', 'music/saving-you-the-trouble.mp3', 'music/tatsumaki-justice.mp3'];
 export const SONGS_TORNADO = SONGS_ALL, SONGS_KAIJU = SONGS_ALL;
 const VOLS = [['LOW', 0.25], ['MED', 0.55], ['FULL BLAST', 0.95]];
-let SONGS = SONGS_ALL, order = [], song = null, songGain = null, songI = 0, repeat = false, volI = 1;
+let SONGS = SONGS_ALL, order = [], song = null, songGain = null, songI = -1, repeat = false, volI = 1, resumeAt = 0;
 try { const v = +localStorage.getItem('oo_music_vol'); if (v >= 0 && v < VOLS.length && localStorage.getItem('oo_music_vol') !== null) volI = v; } catch { /* ignore */ }
+try { const st = JSON.parse(sessionStorage.getItem('oo_radio') || 'null'); if (st && SONGS[st.i]) { songI = st.i; resumeAt = st.t || 0; order = (st.order || []).filter((i) => SONGS[i]); repeat = !!st.rep; } } catch { /* ignore */ }
+function saveRadio() { if (!song) return; try { sessionStorage.setItem('oo_radio', JSON.stringify({ i: songI, t: song.readyState >= 1 ? song.currentTime : resumeAt, order, rep: repeat })); } catch { /* ignore */ } }
+addEventListener('pagehide', saveRadio); setInterval(saveRadio, 1000);
 function applyVol() { const v = VOLS[volI][1]; if (songGain) songGain.gain.value = v; else if (song) song.volume = Math.min(1, v); }
-export function playSongs(list) {
-  if (list && !song) { SONGS = list; songI = pickNext(); }
-  if (!song) {
-    song = new Audio(); song.preload = 'auto';
-    // through the mixer, so the level also holds on iPad/iPhone (they ignore .volume) and the music switch covers it
-    if (ctx) try { songGain = ctx.createGain(); ctx.createMediaElementSource(song).connect(songGain).connect(musicSw); } catch { songGain = null; }
-    applyVol(); song.loop = repeat || SONGS.length === 1; song.src = SONGS[songI];
-    song.addEventListener('ended', () => nextSong());
-  }
-  song.muted = muted || musicMuted; if (song.paused) song.play().catch(() => {});
+// once the sound engine is running, the song goes through it (iPad/iPhone ignore an element's volume; MUSIC: OFF covers it)
+function routeSong() { if (!song || songGain || !ctx) return; try { songGain = ctx.createGain(); ctx.createMediaElementSource(song).connect(songGain).connect(musicSw); song.volume = 1; } catch { songGain = null; } applyVol(); }
+export function playSongs() {
+  if (!song) { if (!SONGS[songI]) songI = pickNext(); song = new Audio(); song.preload = 'auto'; song.loop = repeat || SONGS.length === 1; song.src = SONGS[songI];
+    if (resumeAt > 1) { const t = resumeAt; song.addEventListener('loadedmetadata', () => { if (t < song.duration - 2) song.currentTime = t; }, { once: true }); }
+    song.addEventListener('ended', () => nextSong()); applyVol(); }
+  routeSong(); song.muted = muted || musicMuted; if (song.paused && !musicMuted) song.play().catch(() => {});
 }
+// every page: try now, and again at the first tap or key (browsers block sound until then)
+export function radio() { playSongs(); const go = () => { unlockAudio(); playSongs(); }; addEventListener('pointerdown', go, true); addEventListener('keydown', go, true); }
 // a shuffled bag: deal songs out in random order, reshuffle when it runs dry (never the same song twice in a row)
 function pickNext() { if (!order.length) { order = SONGS.map((_, i) => i); for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; } if (song && order.length > 1 && order[0] === songI) order.push(order.shift()); } return order.shift(); }
-export function nextSong() { if (!song) return playSongs(); songI = pickNext(); song.src = SONGS[songI]; song.play().catch(() => {}); }
+export function nextSong() { if (!song) return playSongs(); songI = pickNext(); resumeAt = 0; song.src = SONGS[songI]; if (!musicMuted) song.play().catch(() => {}); saveRadio(); }
 export function songState() { return song ? { t: song.currentTime, paused: song.paused, muted: song.muted, src: SONGS[songI], loop: song.loop, vol: VOLS[volI][0], list: SONGS.length } : null; }
 // a game page's soundtrack: starts on the first tap and keeps going; SKIP SONG, REPEAT and VOLUME on the given screen
 export function gameMusic(host, list) {
-  addEventListener('pointerdown', () => { unlockAudio(); playSongs(list); }, true);
+  radio();
   const row = document.createElement('div'); row.className = 'soundRow';
   const mk = (label, fn) => { const b = document.createElement('button'); b.className = 'ghost soundBtn'; b.textContent = label; b.addEventListener('click', (e) => { e.stopPropagation(); unlockAudio(); fn(b); }); row.append(b); return b; };
   mk('⏭ SKIP SONG', () => nextSong());
-  mk('🔁 REPEAT: OFF', (b) => { repeat = !repeat; if (song) song.loop = repeat || SONGS.length === 1; b.textContent = repeat ? '🔂 REPEAT: ON' : '🔁 REPEAT: OFF'; });
+  mk(repeat ? '🔂 REPEAT: ON' : '🔁 REPEAT: OFF', (b) => { repeat = !repeat; if (song) song.loop = repeat || SONGS.length === 1; b.textContent = repeat ? '🔂 REPEAT: ON' : '🔁 REPEAT: OFF'; });
   mk('🔉 MUSIC VOL: ' + VOLS[volI][0], (b) => { volI = (volI + 1) % VOLS.length; applyVol(); try { localStorage.setItem('oo_music_vol', volI); } catch { /* ignore */ } b.textContent = '🔉 MUSIC VOL: ' + VOLS[volI][0]; });
   host.insertBefore(row, host.querySelector('.soundRow'));
 }

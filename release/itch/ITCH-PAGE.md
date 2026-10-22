@@ -1,6 +1,6 @@
 # Dead City: Tornado Alley — itch.io page kit
 
-Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.15.1**. Upload `release/survive-dead-city-web-v1.15.1.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
+Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.15.2**. Upload `release/survive-dead-city-web-v1.15.2.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
 
 > All monsters, robots and characters in Dead City are original creations. Any resemblance to other characters is coincidental.
 
@@ -13,7 +13,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 | Short description / tagline | You are the storm. Tear through five towns, take out big targets, dodge seeding planes and outrun storm chasers. |
 | Classification | Game |
 | Kind of project | **HTML** |
-| Uploads | `survive-dead-city-web-v1.15.1.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
+| Uploads | `survive-dead-city-web-v1.15.2.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
 | Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
 | Frame options | Leave SharedArrayBuffer off. No special headers needed. |
 | Pricing | Free (or "No payments"). |
@@ -70,6 +70,7 @@ Small browser games built fast, tested on a phone, and tuned by playing. Dead Ci
 
 ## Version history
 
+- **1.15.2** (2026-10-21): The music is now one radio that plays on the main menu, both games and the skin shop, picking up the same song where it left off as you move around (until you switch MUSIC off). The end-of-round screens have a SKIN SHOP button.
 - **1.15.1** (2026-10-21): Fixed the camera staying frozen in the round after Mike rides off on his chopper, and the mouse wheel no longer zooms the camera over menus. Mike's Halloween skin is now a pink tutu and a long blond wig over his normal outfit.
 - **1.15.0** (2026-10-21): Mike Ferguson gets a big upgrade: a natural walk, two-handed hammer swings, a golf swing for smashing and snacking, overhead slams instead of spins in fights, a bright green nuke, arms out in Spin & Throw, and at the end of the round he rides off on a chopper that bursts out of the street.
 - **1.14.1** (2026-10-21): Skins you win now go straight on, and the pause menu has a CHOOSE SKIN button that lists only the skins you own and swaps your storm or monster on the spot.

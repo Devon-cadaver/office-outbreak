@@ -60,9 +60,9 @@
 
     <p class="credits">All monsters, robots and characters are original creations. Any resemblance to other characters is coincidental.</p>
   </div>
-  <script type="module">import { stampVersion } from './src/version.js'; import { initSaveCodes } from './src/savecode.js'; import { unlockAudio, startStormMusic, setStormLevel, soundToggle } from './src/audio.js';
-    // title music: the storm theme, from the first tap anywhere (browsers won't play sound before one)
-    { let on = false; const go = () => { if (on) return; on = true; unlockAudio(); startStormMusic(); setStormLevel(1); }; addEventListener('pointerdown', go, { capture: true }); addEventListener('keydown', go, { capture: true }); }
+  <script type="module">import { stampVersion } from './src/version.js'; import { initSaveCodes } from './src/savecode.js'; import { soundToggle, radio } from './src/audio.js';
+    // the radio: same song and spot as the last page, from the first tap if the browser needs one
+    radio();
     soundToggle(document.getElementById('menu')); stampVersion(); initSaveCodes(document.getElementById('menu'));
     // the intro clip plays once (muted, as browsers require), stays on its last frame, then the menu pops up. It plays every time the
     // menu opens; if the browser won't play it, the menu shows straight away on the final frame.

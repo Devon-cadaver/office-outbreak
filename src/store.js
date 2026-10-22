@@ -1,3 +1,4 @@
+import { radio } from './audio.js';
 // Skin shop: live 3D previews of every skin, buy with coins, tap again to equip.
 import * as THREE from 'three';
 import { SKINS, CHAR_SKINS, CAR_SKINS, FX_SKINS, NPC_MAX, getCoins, addCoins, getOwned, getEquipped, equip, isEquipped, buy, fmtCoins } from './skins.js';
@@ -68,3 +69,5 @@ build();
 // one static render per card at a three-quarter angle: no per-frame WebGL work, so the page scrolls freely
 function renderAll() { for (let k = 0; k < 4; k++) twPreview.update(0.05); for (const it of items) { scene.add(it.obj); it.obj.rotation.y = -0.6; renderer.render(scene, cam); scene.remove(it.obj); it.ctx.clearRect(0, 0, 150, 150); it.ctx.drawImage(renderer.domElement, 0, 0); } }
 renderAll();
+
+radio(); // the radio keeps playing in the shop
