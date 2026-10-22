@@ -181,6 +181,9 @@ export function createSpells(env) {
   };
   // robots borrow other monsters' effects under their own names
   for (const id in KAIJU) if (KAIJU[id].borrow) SP[id] = KAIJU[id].borrow.map(([src, i]) => SP[src][i]);
+  const flyElbow = (c, at, o) => { const p0 = wp(c.g), to = clampTo(p0, at, 16).setY(0); c.g.rotation.y = Math.atan2(to.x - p0.x, to.z - p0.z); c.rig.act('elbow'); sfx.whoosh();
+    env.leap(c, to, 0.95, () => { c.rig.act('sprawl'); blast(to, 4.4, 52, 0xffd24a, o); ring({ at: to, color: 0xffffff, r1: 8, life: 0.8 }); for (let i = 0; i < 8; i++) fx.puff('smoke', to.clone().add(new THREE.Vector3((Math.random() - 0.5) * 5, 0.4, (Math.random() - 0.5) * 5)), 1.4); if (env.flash) env.flash(0.3); }, 6); };
+  for (const id in KAIJU) if (KAIJU[id].elbow != null) SP[id][KAIJU[id].elbow] = flyElbow;
   return {
     cast(caster, stage, at, opts = {}) { const fn = SP[caster.id] && SP[caster.id][Math.max(0, Math.min(2, stage - 1))]; if (!fn) return; caster.rig.act('cast'); later(caster.rig.tint ?? null, () => fn(caster, at.clone(), opts))(); },
     update(dt) { for (let i = live.length - 1; i >= 0; i--) if (!live[i].update(dt)) live.splice(i, 1); },

@@ -489,7 +489,7 @@ function flourish(rig, target, big = false) {
   if (isGunner(rig)) { // rock back and unload
     anims.push({ wait: 0, t: 0, dur: big ? 0.5 : 0.32, go() {}, f(k) { rig.body.position.z = -(big ? 0.45 : 0.3) * Math.sin(k * Math.PI); rig.body.rotation.x = -0.12 * Math.sin(k * Math.PI); }, end() { rig.body.position.z = 0; rig.body.rotation.x = 0; } });
     if (big) { knock(rig.g, target.g.position, 0.5); for (let i = 0; i < 4; i++) shoot(rig, target, 'rocket', 0.08 + i * 0.1); } else for (let i = 0; i < 4; i++) shoot(rig, target, 'bullet', i * 0.06);
-  } else if (rig.hammer) { if (rig.acting !== 'hit') hammerSlam(rig, target, big); }
+  } else if (rig.hammer || rig.wrestler) { if (rig.acting !== 'hit') hammerSlam(rig, target, big); }
   else { // spin round and fling a bolt
     anims.push({ wait: 0, t: 0, dur: big ? 0.55 : 0.38, go() {}, f(k) { rig.body.rotation.y = Math.PI * 2 * (big ? 2 : 1) * (1 - Math.pow(1 - k, 2)); }, end() { rig.body.rotation.y = 0; } });
     shoot(rig, target, 'spell', big ? 0.2 : 0.16); if (big) { shoot(rig, target, 'spell', 0.32); shoot(rig, target, 'spell', 0.44); }
@@ -503,10 +503,11 @@ function bigMove(rig, target, n) {
     if (step === 0) { recoil(0.25, 0.7); for (let i = 0; i < 10; i++) shoot(rig, target, 'bullet', i * 0.06); }
     else if (step === 1) { rig.act('cast'); shoot(rig, target, 'laser', 0.12); }
     else { recoil(0.5, 0.6); for (let i = 0; i < 4; i++) shoot(rig, target, 'rocket', 0.05 + i * 0.12); }
-  } else if (rig.hammer) { // slam, a double slam, then the boomerang hammer throw
+  } else if (rig.hammer || rig.wrestler) { // slam, a double slam, then the boomerang hammer throw (a wrestler throws a big boot)
     if (step === 0) hammerSlam(rig, target, true);
     else if (step === 1) { hammerSlam(rig, target, true); anims.push({ wait: 0.78, t: 0, dur: 0.01, go() { rig.act(null); hammerSlam(rig, target, true); }, f() {}, end() {} }); }
-    else { rig.act('win'); throwHammer(rig, target.g); }
+    else if (rig.hammer) throwHammer(rig, target.g);
+    else bootAway(rig, target);
   } else {
     const spin = (turns, dur) => anims.push({ wait: 0, t: 0, dur, go() {}, f(k) { rig.body.rotation.y = Math.PI * 2 * turns * (1 - Math.pow(1 - k, 2)); }, end() { rig.body.rotation.y = 0; } });
     if (step === 0) { spin(1, 0.55); anims.push({ wait: 0.3, t: 0, dur: 0.01, go() { rig.act('hit'); sfx.hit(); }, f() {}, end() {} }); shoot(rig, target, 'spell', 0.32); }
@@ -530,6 +531,7 @@ const EMOTE = {
     plant: (b, k, s) => { b.rotation.z = Math.sin(k * Math.PI * 6) * 0.35 * s; }, // wild swaying dance
     squid: (b, k) => { b.rotation.y = Math.PI * 4 * k; b.position.y = Math.sin(k * Math.PI) * 0.8; }, // twirls up
     human: (b, k, s) => { b.position.y = Math.abs(Math.sin(k * Math.PI * 3)) * 0.2 * s; },
+    wrestler: (b, k, s) => { b.position.y = Math.abs(Math.sin(k * Math.PI * 3)) * 0.2 * s; },
   },
   lose: {
     any: (b, k, s) => { b.rotation.x = 0.35 * s; b.position.y = -0.15 * s; b.rotation.y = Math.sin(k * Math.PI * 6) * 0.25 * s; }, // slumps and shakes its head
@@ -543,12 +545,12 @@ const EMOTE = {
   },
 };
 function emote(rig, good) { if (!rig || !rig.body) return; const b = rig.body, set = EMOTE[good ? 'win' : 'lose'], fn = set[rig.def.kind] || set.any || set.biped;
-  if (good) rig.act(rig.hammer ? 'win' : 'cast');
+  if (good) rig.act(rig.hammer || rig.wrestler ? 'win' : 'cast');
   anims.push({ wait: 0, t: 0, dur: 1.5, go() {}, f(k) { fn(b, k, env(k)); }, end() { b.position.set(0, 0, 0); b.rotation.set(0, 0, 0); b.scale.set(1, 1, 1); } }); }
 // Mike's victory: the sledgehammer spins out at the enemy, smashes it and flies back to his hand
-function throwHammer(rig, target) { const h = rig.hammer; if (!h || h.userData.flying || !target) return; const home = h.parent, p0 = h.position.clone(), q0 = h.quaternion.clone(), s = rig.g.scale.x;
-  h.userData.flying = true;
-  anims.push({ wait: 0.35, t: 0, dur: 1.5, hit: false,
+function throwHammer(rig, target, delay = 0) { const h = rig.hammer; if (!h || h.userData.flying || !target) return; const home = h.parent, p0 = h.position.clone(), q0 = h.quaternion.clone(), s = rig.g.scale.x;
+  h.userData.flying = true; anims.push({ wait: delay, t: 0, dur: 0.01, go() { rig.g.rotation.y = Math.atan2(target.position.x - rig.g.position.x, target.position.z - rig.g.position.z); rig.act('bat'); }, f() {}, end() {} });
+  anims.push({ wait: delay + 0.42, t: 0, dur: 1.5, hit: false,
     go() { scene.attach(h); this.a = wpos(h); sfx.throw(); },
     f(k) { const to = target.position.clone().setY(target.scale.x * 1.3), back = wpos(home), out = k < 0.5, q = out ? k / 0.5 : (k - 0.5) / 0.5;
       if (out) h.position.lerpVectors(this.a, to, q); else h.position.lerpVectors(to, back, q);
@@ -556,6 +558,10 @@ function throwHammer(rig, target) { const h = rig.hammer; if (!h || h.userData.f
       if (Math.random() < 0.5) fx.puff('smoke', h.position.clone(), 0.12 * s);
       if (!out && !this.hit) { this.hit = true; fx.explode(to.clone(), Math.min(1.8, 0.35 * s)); sfx.boom(); flashT = 0.12; banner('HAMMER THROW!'); } },
     end() { home.attach(h); h.position.copy(p0); h.quaternion.copy(q0); h.userData.flying = false; } }); }
+// the big boot: a front kick that sends a close rival flying back
+function bootAway(rig, target, delay = 0) { const tg = target.g || target;
+  anims.push({ wait: delay, t: 0, dur: 0.01, go() { rig.g.rotation.y = Math.atan2(tg.position.x - rig.g.position.x, tg.position.z - rig.g.position.z); rig.act('kick'); sfx.whoosh(); }, f() {}, end() {} });
+  anims.push({ wait: delay + 0.2, t: 0, dur: 0.01, go() { if (!tg.parent) return; knock(tg, rig.g.position, 2.2); const p = tg.position.clone().setY(tg.scale.x * 1.2); fx.explode(p, Math.min(1.6, 0.3 * rig.g.scale.x)); sfx.boom(); flashT = 0.12; popup(p, 'BOOT!', '#ffd24a'); }, f() {}, end() {} }); }
 function updateAnims(dt) { for (let i = anims.length - 1; i >= 0; i--) { const A = anims[i]; if (A.wait > 0) { A.wait -= dt; continue; } if (A.t === 0) A.go(); A.t += dt; const k = Math.min(1, A.t / A.dur); A.f(k); if (k >= 1) { anims.splice(i, 1); A.end(); } } }
 function clearAnims() { for (const A of anims) { if (A.m) scene.remove(A.m); if (A.t > 0) A.end(); } anims.length = 0; }
 function nextDodge(m) { m.round++; m.phase = 'warn'; m.pt = 0; m.side = Math.random() < 0.5 ? 'L' : 'R'; miniEl.dataset.side = m.side; m.r.rig.act('cast'); $('kjMiniSeq').innerHTML = '<span class="on">' + (m.side === 'L' ? 'SWIPE ➡' : '⬅ SWIPE') + '</span>'; }
@@ -649,7 +655,7 @@ function endMini(res) { if (me && me.acting === 'grab') me.act(null);
     const to = new THREE.Vector3(Math.max(-hx, Math.min(hx, r.g.position.x + Math.cos(a) * D)), 0, Math.max(-hz, Math.min(hz, r.g.position.z + Math.sin(a) * D)));
     r.toss = { from: r.g.position.clone(), to, t: 0, secs: 1.3, h: 5 + meScale * 1.5 }; r.stun = 3; }
   else if (res === 'freed') { if (bout) bout.wait = 0.6; banner('IT BROKE FREE!'); r.rig.act('hit'); hurt(3 + r.stage, true); knock(me.g, r.g.position, 2); }
-  else if (res === 'roarWin') { banner(bout ? '💪 PUMPED UP! +50% POWER THIS FIGHT' : 'TERRIFYING ROAR!'); if (bout) { bout.buff = 1; bout.wait = 1.5; } emote(me, true); emote(r.rig, false); if (me.hammer) throwHammer(me, r.g); fx.puff('smoke', me.g.position.clone().setY(1), 2); sfx.boom(); r.stun = 2; if (!bout) { hitRival(10 + 4 * stage); knock(r.g, me.g.position, 3); } }
+  else if (res === 'roarWin') { banner(bout ? '💪 PUMPED UP! +50% POWER THIS FIGHT' : 'TERRIFYING ROAR!'); if (bout) { bout.buff = 1; bout.wait = 1.5; } emote(me, true); emote(r.rig, false); { const near = me.g.position.distanceTo(r.g.position) < (meScale + r.scale) * 1.15; if (near && (me.hammer || me.wrestler)) bootAway(me, r, 0.15); if (me.hammer) throwHammer(me, r.g, near ? 0.75 : 0); } fx.puff('smoke', me.g.position.clone().setY(1), 2); sfx.boom(); r.stun = 2; if (!bout) { hitRival(10 + 4 * stage); knock(r.g, me.g.position, 3); } }
   else if (res === 'roarWeak') { banner(bout ? 'WEAK ROAR... IT\'S PUMPED UP!' : 'WEAK ROAR...'); if (bout) { bout.buff = -1; bout.wait = 1.5; } emote(me, false); emote(r.rig, true); r.stun = 2; }
   else if (res === 'choke') { banner(bout ? 'YOU CHOKED! IT\'S PUMPED UP!' : 'YOU CHOKED!'); if (bout) { bout.buff = -1; bout.wait = 1.5; } emote(me, false); emote(r.rig, true); r.stun = 2; }
   else if (res === 'roared') { banner(bout ? 'IT OUT-ROARED YOU! IT\'S PUMPED UP!' : 'IT OUT-ROARED YOU!'); if (bout) { bout.buff = -1; bout.wait = 1.5; } emote(me, false); emote(r.rig, true); if (r.rig.hammer) throwHammer(r.rig, me.g); r.stun = 2; }
@@ -746,7 +752,7 @@ function finish() { if (state !== 'play') return; state = 'outro'; outroT = 0; c
   banner('THE MADNESS HAS ENDED!'); me.act('cast'); sfx.boom(); setTimeout(() => sfx.whoosh(), 500); setTimeout(() => sfx.boom(), 1300); }
 // Mike leaves town on his chopper: it bursts up out of the street (0-0.9 s), he hops on (0.9-1.5), revs, and guns it
 function rideOff(dt) { const g = me.g, T = outroT, s = g.scale.x;
-  if (!bike) { bike = buildChopper(); bike.g.position.set(1.2, -1.6, 0.22); g.add(bike.g); bike.v = 0; sfx.boom(); }
+  if (!bike) { bike = buildChopper(me.hammer ? undefined : me.def.pal[0]); bike.g.position.set(1.2, -1.6, 0.22); g.add(bike.g); bike.v = 0; sfx.boom(); }
   const fwd = new THREE.Vector3(Math.sin(g.rotation.y), 0, Math.cos(g.rotation.y)), at = (x, y, z) => g.localToWorld(new THREE.Vector3(x, y, z));
   if (T < 0.9) { const q = T / 0.9; bike.g.position.y = -1.6 * Math.pow(1 - q, 3); bike.g.rotation.z = Math.sin(q * 14) * 0.08 * (1 - q); me.anim(dt, 0);
     if (Math.random() < dt * 40) fx.puff('smoke', at(1.2 + (Math.random() - 0.5) * 1.6, 0.2, 0.2 + (Math.random() - 0.5) * 2.4), 0.5 + s * 0.25); if (T % 0.3 < dt) { flashT = Math.max(flashT, 0.05); sfx.hit(); } }
@@ -756,7 +762,12 @@ function rideOff(dt) { const g = me.g, T = outroT, s = g.scale.x;
       bike.front.rotation.x += bike.v * dt * 0.8; bike.rear.rotation.x += bike.v * dt * 0.8; if (Math.random() < dt * 30) fx.puff('smoke', at(bike.pipe.x, bike.pipe.y, bike.pipe.z), (0.25 + wl * 0.3) * s); }
     me.anim(dt, 0); }
   if (T >= 3.7) { g.visible = false; g.rotation.x = 0; finishNow(); } }
-function outroTick(dt) { if (me.hammer && !me.fly) { outroT += dt; return rideOff(dt); } outroT += dt; const g = me.g, k = Math.min(1, outroT / 2.6);
+// a wrestler's pyro exit: fireworks pop all round while it poses, then it leaps off into the sky elbow-first
+function pyroOff(dt) { const g = me.g, T = outroT, s = g.scale.x, at = (x, y, z) => g.localToWorld(new THREE.Vector3(x, y, z));
+  if (T < 1.4) { if (me.acting !== 'win') me.act('win'); if (T % 0.2 < dt) { const a = Math.random() * 6.28; fx.explode(at(Math.cos(a) * 1.4, 0.2, Math.sin(a) * 1.4), 0.4 + s * 0.15); sfx.hit(); flashT = Math.max(flashT, 0.05); } me.anim(dt, 0); }
+  else { camHold = true; if (me.acting !== 'elbow') me.act('elbow'); const q = T - 1.4, fwd = new THREE.Vector3(Math.sin(g.rotation.y), 0, Math.cos(g.rotation.y)); g.position.addScaledVector(fwd, dt * s * 6); g.position.y += dt * s * (3 + q * 8); if (Math.random() < dt * 30) fx.puff('smoke', g.position.clone(), 0.4 * s); me.anim(dt, 0); }
+  if (T >= 3.2) { g.visible = false; finishNow(); } }
+function outroTick(dt) { if (me.wrestler && me.def.opt && me.def.opt.exit === 'pyro') { outroT += dt; return pyroOff(dt); } if ((me.hammer || me.wrestler) && !me.fly) { outroT += dt; return rideOff(dt); } outroT += dt; const g = me.g, k = Math.min(1, outroT / 2.6);
   if (me.fly) { g.position.y += dt * (2 + outroT * 9); g.rotation.y += dt * 0.6; me.anim(dt, 1); if (Math.random() < dt * 12) fx.puff('smoke', g.position.clone().setY(0.3), 0.5 + meScale * 0.2); }
   else { g.position.y = -k * k * meScale * 2.4; me.anim(dt, 0.6); if (outroT % 0.45 < dt) me.act('hit');
     if (Math.random() < dt * 30 * (1 - k * 0.5)) { const a = Math.random() * 6.28, r = meScale * (0.4 + Math.random() * 0.6); fx.puff('smoke', new THREE.Vector3(g.position.x + Math.cos(a) * r, 0.2, g.position.z + Math.sin(a) * r), 0.6 + meScale * 0.25); }

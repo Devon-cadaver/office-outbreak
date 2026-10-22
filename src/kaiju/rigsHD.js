@@ -595,7 +595,7 @@ function mikeHD(body, K) {
   function reach(w) { grip.getWorldPosition(tP); torso.worldToLocal(tP); const A = arms[1]; tD.subVectors(tP, A.a.position); const d = Math.max(0.15, Math.min(L1 + L2 - 0.01, tD.length())); tD.normalize();
     const bend = Math.PI - Math.acos(Math.max(-1, Math.min(1, (L1 * L1 + L2 * L2 - d * d) / (2 * L1 * L2)))), alpha = Math.acos(Math.max(-1, Math.min(1, (L1 * L1 + d * d - L2 * L2) / (2 * L1 * d))));
     tQ.setFromUnitVectors(NY, tD).multiply(tB.setFromAxisAngle(XA, GRIP_SIGN * alpha)); A.a.quaternion.slerp(tQ, w); A.el.rotation.x += (-bend - A.el.rotation.x) * w; }
-  return { mouth, hand, chest, limbs: { arms: typeof arms !== 'undefined' ? arms : null, claws: typeof claws !== 'undefined' ? claws : null, tents: typeof tents !== 'undefined' ? tents : null, wings: typeof wings !== 'undefined' ? wings : null, vines: typeof vines !== 'undefined' ? vines : null },  hammer: ham, actSpeed: { hit: 1.35, golf: 1.55, ride: 0.02, grab: 0.02 },
+  return { mouth, hand, chest, limbs: { arms: typeof arms !== 'undefined' ? arms : null, claws: typeof claws !== 'undefined' ? claws : null, tents: typeof tents !== 'undefined' ? tents : null, wings: typeof wings !== 'undefined' ? wings : null, vines: typeof vines !== 'undefined' ? vines : null },  hammer: ham, actSpeed: { hit: 1.35, golf: 1.55, ride: 0.02, grab: 0.02, kick: 1.5, bat: 1.15, sprawl: 0.6 },
     anim(t, dt, move, act, k) {
       mv += (move - mv) * Math.min(1, dt * 5); const m = mv, ph = t * (3.6 + m * 2.2), s = Math.sin(ph), c = Math.cos(ph), br = Math.sin(t * 1.7);
       // legs: sg flips the phase for the right leg; fwd > 0 while that leg is travelling forward (its swing)
@@ -631,6 +631,14 @@ function mikeHD(body, K) {
       else if (act === 'grab') { const tug = Math.sin(t * 9) * 0.06; // Spin & Throw: both arms out in front and up, gripping the monster he's swinging, leaning back against it
         for (const [i, d] of [[0, -1], [1, 1]]) { arms[i].a.rotation.set(-2.05 + tug, 0, d * -0.18); arms[i].el.rotation.x = -0.12; } torso.rotation.set(-0.28, 0, Math.sin(t * 4.5) * 0.05); neck.rotation.set(-0.35, 0, 0); jaw.rotation.x = 0.3 + tug;
         hip.position.y = 0.94; for (const [i, sg] of [[0, 1], [1, -1]]) { const L = legs[i]; L.l.rotation.set(-0.35 + sg * 0.25, 0, sg * -0.12); L.k.rotation.x = 0.45; L.ft.rotation.x = -0.1 - sg * 0.25; } }
+      else if (act === 'kick') { const q = k < 0.3 ? ease(k / 0.3) : 1 - ease(cl((k - 0.45) / 0.55)); legs[1].l.rotation.set(-1.75 * q, 0, 0); legs[1].k.rotation.x = 0.9 * (1 - q) * Math.min(1, k * 6) * (k < 0.3 ? 1 : 0.2); legs[1].ft.rotation.x = 0.3 * q; legs[0].k.rotation.x = 0.25 * q; legs[0].l.rotation.x = 0.2 * q;
+        torso.rotation.set(-0.35 * q, 0, 0); hip.rotation.set(-0.25 * q, 0, 0); arms[0].a.rotation.set(0.5 * q, 0, -0.9 * q); arms[1].a.rotation.set(0.4 * q, 0, 0.9 * q); jaw.rotation.x = 0.35 * q; } // big boot
+      else if (act === 'bat') { // a baseball swing: load up over the back shoulder, step and rip through the zone, wrap the follow-through
+        const T = [0, 0.4, 0.5, 0.75, 1], kf = (vals) => { let i = 0; while (i < 3 && k > T[i + 1]) i++; return lerp(vals[i], vals[i + 1], ease(cl((k - T[i]) / (T[i + 1] - T[i])))); }, ty = kf([0, 1.05, -0.2, -1.5, 0]);
+        torso.rotation.set(kf([0.05, 0.1, 0.15, 0.05, 0.02]), ty, kf([0, 0.12, -0.06, -0.12, 0])); hip.rotation.set(0, ty * 0.55, 0); hip.position.y = 1.0 - kf([0.02, 0.06, 0.08, 0.03, 0]);
+        arms[0].a.rotation.set(kf([-0.4, -1.95, -1.45, -1.9, -0.04]), 0, kf([-0.17, -0.75, 0.15, 0.7, -0.17])); arms[0].el.rotation.x = kf([-0.2, -1.2, -0.1, -0.7, -0.1]); arms[1].a.rotation.set(-1.2, 0, -0.3); arms[1].el.rotation.x = -0.5;
+        cock = kf([0.2, -1.35, -1.5, -0.6, 0]); neck.rotation.set(0, -ty * kf([0.8, 0.9, 0.95, 0.5, 0]), 0); jaw.rotation.x = kf([0, 0, 0.35, 0.15, 0]);
+        legs[1].l.rotation.set(kf([0, 0.1, -0.45, -0.3, 0]), 0, 0); legs[1].k.rotation.x = kf([0.05, 0.45, 0.1, 0.1, 0.05]); legs[0].l.rotation.set(kf([0, -0.1, 0.25, 0.2, 0]), ty * 0.2, 0); legs[0].k.rotation.x = kf([0.05, 0.2, 0.3, 0.35, 0.05]); }
       else if (act === 'win') { const q = Math.min(1, k * 5) * Math.min(1, (1 - k) * 4); // both hands in the air
         for (const [i, d] of [[0, -1], [1, 1]]) { arms[i].a.rotation.set(-2.95 * q, 0, d * 0.3 * q); arms[i].el.rotation.x = -0.15 * q; } torso.rotation.x = -0.15 * q; neck.rotation.x = -0.35 * q; jaw.rotation.x = 0.45 * q; }
       else if (act === 'cast') { const q = Math.sin(k * Math.PI), shake = Math.sin(k * Math.PI * 10) * 0.12 * q; // the snarl and claw-hands flex
@@ -639,16 +647,138 @@ function mikeHD(body, K) {
       else if (act === 'ko') { body.rotation.x = -Math.min(1.5, k * 2); body.position.y = -k * 0.2; }
       // the sledgehammer hangs: it keeps pointing down as the arm swings and swings on a little spring when the arm moves
       const ax = arms[0].a.rotation.x, acc = (ax - prevArm) / Math.max(dt, 1e-3); prevArm = ax; hamV += (-hamA * 38 - hamV * 6.5 - acc * 0.8) * Math.min(dt, 0.05); hamA = Math.max(-0.6, Math.min(0.6, hamA + hamV * Math.min(dt, 0.05)));
-      ham.visible = act !== 'ride' && act !== 'grab' && act !== 'lift' && act !== 'clutch'; ham.rotation.x = act === 'hit' || act === 'golf' ? 0.15 + cock : 0.15 - (ax + arms[0].el.rotation.x) * 0.55 + hamA;
-      if (act === 'hit' || act === 'golf') { const w = act === 'golf' ? Math.min(ease(cl(k / 0.12)), 1 - ease(cl((k - 0.86) / 0.14))) : Math.min(ease(cl(k / 0.3)), 1 - ease(cl((k - 0.72) / 0.24))); if (w > 0.01) reach(w); } // both hands on the handle
+      ham.visible = act !== 'ride' && act !== 'grab' && act !== 'lift' && act !== 'clutch'; ham.rotation.x = act === 'hit' || act === 'golf' || act === 'bat' ? 0.15 + cock : 0.15 - (ax + arms[0].el.rotation.x) * 0.55 + hamA;
+      if (act === 'hit' || act === 'golf' || act === 'bat') { const w = act !== 'hit' ? Math.min(ease(cl(k / 0.12)), 1 - ease(cl((k - 0.86) / 0.14))) : Math.min(ease(cl(k / 0.3)), 1 - ease(cl((k - 0.72) / 0.24))); if (w > 0.01) reach(w); } // both hands on the handle
+    } };
+}
+
+// ---------- WRESTLERS: Mike's body and moves under a wrestler's costume. Bare muscle or a suit, trunks or tights,
+// kneepads and boots, taped wrists, and per-wrestler gear from opt: a luchador mask (bolt/flame/skull patterns), a hood
+// with glowing eyes, face paint, hair (bald, long, mohawk, pompadour), a beard, shades, a cape, a robe or a long coat,
+// a title belt, arm tassels, a bone-print suit. pal: [outfit, trim/boots, skin, mask/paint, eyes] ----------
+function wrestlerHD(body, K) {
+  const o = K.opt || {}, [outC, accC, skinC, markC, eyeC] = K.pal, B = o.bulk || 1;
+  const skin = M(skinC), out = M(outC), acc = M(accC), mark = M(markC), black = M(0x111114), white = M(0xeeeeec), gold = M(0xd8b04a, 'metal'), eyeW = M(0xf2f0ea), iris = M(eyeC), boot = M(accC, 'metal'), glowE = M(eyeC, 'glow');
+  const hair = M(o.hairC || 0x2a1a10), lip = M(lerpC(skinC, 0x6a2a2a, 0.35)), suit = o.suit ? out : skin;
+  const hip = grp(body, 0, 1.0, 0);
+  part(hip, SPH(), out, 0.58 * B, 0.34, 0.42 * B, 0, -0.03, 0);
+  if (o.belt) { part(hip, CYL(), gold, 0.62 * B, 0.13, 0.46 * B, 0, 0.06, 0); part(hip, RBX(), gold, 0.26, 0.2, 0.05, 0, 0.06, 0.23 * B); part(hip, SPH(), M(markC, 'glow'), 0.08, 0.08, 0.03, 0, 0.06, 0.26 * B); }
+  const legC = o.tights || o.suit ? out : skin;
+  const legs = [-1, 1].map((s) => { const l = grp(hip, s * 0.17 * B, -0.06, 0);
+    part(l, CAP(), legC, 0.3 * B, 0.24, 0.31 * B, 0, -0.24, 0); if (o.bones) part(l, BOX(), white, 0.05, 0.4, 0.05, 0, -0.24, 0.15 * B);
+    const k = grp(l, 0, -0.48, 0); part(k, RBX(), o.pads === false ? legC : acc, 0.24 * B, 0.2, 0.1, 0, -0.02, 0.13 * B); part(k, CAP(), legC, 0.25 * B, 0.19, 0.27 * B, 0, -0.2, 0); if (o.bones) part(k, BOX(), white, 0.05, 0.34, 0.05, 0, -0.2, 0.13 * B);
+    const ft = grp(k, 0, -0.42, 0); part(ft, CYL(), boot, 0.27 * B, 0.38, 0.29 * B, 0, 0.1, 0); part(ft, RBX(), boot, 0.27 * B, 0.14, 0.38, 0, -0.04, 0.06); part(ft, RBX(), black, 0.29 * B, 0.04, 0.41, 0, -0.11, 0.06);
+    return { l, k, ft }; });
+  const torso = grp(hip, 0, 0.06, 0); const tb = grp(torso); tb.scale.set(1.12 * B, 1, 1.1 * B);
+  part(tb, SPH(), suit, 0.6, 0.64, 0.4, 0, 0.36, 0); part(tb, SPH(), suit, 0.8, 0.33, 0.42, 0, 0.6, 0); // chest and shoulders
+  for (const s of [-1, 1]) part(tb, SPH(), suit, 0.28, 0.22, 0.14, s * 0.13, 0.5, 0.17); // pecs
+  for (let i = 0; i < 3; i++) for (const s of [-1, 1]) part(tb, SPH(), suit, 0.11, 0.08, 0.06, s * 0.06, 0.32 - i * 0.09, 0.19); // abs
+  if (o.singlet) { part(tb, SPH(), out, 0.62, 0.5, 0.41, 0, 0.26, 0); for (const s of [-1, 1]) part(tb, BOX(), out, 0.11, 0.34, 0.4, s * 0.17, 0.6, 0); }
+  if (o.bones) { for (let i = 0; i < 4; i++) part(tb, BOX(), white, 0.46 - i * 0.04, 0.04, 0.02, 0, 0.5 - i * 0.09, 0.21); part(tb, BOX(), white, 0.05, 0.42, 0.02, 0, 0.36, 0.215); for (const [cx, cy, cc] of [[-0.18, 0.62, 0xff4fb0], [0.18, 0.62, 0x3af0ff], [0, 0.08, 0xffd24a]]) part(tb, SPH(), M(cc, 'glow'), 0.08, 0.08, 0.03, cx, cy, 0.2); }
+  if (o.robe || o.coat) { const rc = o.robe ? out : M(0x16141c); for (const s of [-1, 1]) part(torso, BOX(), rc, 0.3 * B, 1.45, 0.08, s * 0.32 * B, 0.12, 0.2 * B); part(torso, BOX(), rc, 0.86 * B, 1.5, 0.08, 0, 0.12, -0.22 * B); for (const s of [-1, 1]) part(torso, BOX(), rc, 0.08, 1.45, 0.42 * B, s * 0.46 * B, 0.12, 0);
+    if (o.robe) { for (const s of [-1, 1]) part(torso, BOX(), gold, 0.06, 1.45, 0.09, s * 0.18 * B, 0.12, 0.21 * B);} else part(torso, BOX(), M(0x26222e), 0.9 * B, 0.18, 0.5 * B, 0, 0.82, -0.02); }
+  if (o.cape) { const cp = grp(torso, 0, 0.78, -0.24 * B); part(cp, BOX(), acc, 0.9 * B, o.cape === 'short' ? 0.8 : 1.3, 0.04, 0, o.cape === 'short' ? -0.35 : -0.6, -0.04); for (const s of [-1, 1]) part(torso, SPH(), acc, 0.18, 0.12, 0.18, s * 0.34 * B, 0.78, -0.12); }
+  const chest = grp(torso, 0, 0.4, 0.24);
+  const neck = grp(torso, 0, 0.72, 0.02); part(neck, CAP(), skin, 0.21 * B, 0.07, 0.21 * B, 0, 0.02, 0);
+  const head = grp(neck, 0, 0.19, 0.01);
+  part(head, SPH(), skin, 0.3, 0.34, 0.32, 0, 0.02, 0); for (const s of [-1, 1]) part(head, SPH(), skin, 0.05, 0.08, 0.05, s * 0.15, 0.0, -0.01);
+  if (o.mask) { part(head, SPH(), mark, 0.315, 0.355, 0.335, 0, 0.03, -0.004); for (const s of [-1, 1]) part(head, SPH(), acc, 0.12, 0.085, 0.04, s * 0.065, 0.045, 0.15); part(head, SPH(), acc, 0.12, 0.05, 0.04, 0, -0.09, 0.15);
+    if (o.mask === 'bolt') for (const [x, y, r] of [[-0.05, 0.16, 0.6], [0.02, 0.12, -0.6], [0.06, 0.08, 0.6]]) part(head, BOX(), acc, 0.025, 0.09, 0.02, x, y, 0.15, 0, 0, r);
+    if (o.mask === 'flame') for (let i = 0; i < 5; i++) part(head, CON(), acc, 0.06, 0.16, 0.04, -0.12 + i * 0.06, 0.16 + (i % 2) * 0.03, 0.12, -0.4);
+    if (o.mask === 'skull') { for (const s of [-1, 1]) part(head, SPH(), black, 0.11, 0.1, 0.05, s * 0.065, 0.045, 0.155); part(head, SPH(), black, 0.05, 0.05, 0.04, 0, -0.02, 0.17); for (let i = 0; i < 5; i++) part(head, BOX(), white, 0.025, 0.04, 0.02, -0.05 + i * 0.025, -0.09, 0.17); for (const [x, y, cc] of [[-0.13, 0.15, 0xff4fb0], [0.13, 0.15, 0x3af0ff], [0, 0.2, 0xffd24a]]) part(head, SPH(), M(cc, 'glow'), 0.06, 0.06, 0.03, x, y, 0.13); } }
+  if (o.hood) { part(head, SPH(), acc, 0.4, 0.42, 0.4, 0, 0.06, -0.05); part(head, CON(), acc, 0.34, 0.3, 0.3, 0, 0.26, -0.12, -0.5); for (const s of [-1, 1]) part(head, SPH(), glowE, 0.06, 0.035, 0.02, s * 0.065, 0.04, 0.155); part(head, SPH(), black, 0.26, 0.26, 0.06, 0, 0.02, 0.13); }
+  else { for (const s of [-1, 1]) { part(head, SPH(), eyeW, 0.05, 0.03, 0.02, s * 0.062, 0.042, 0.146); part(head, SPH(), iris, 0.022, 0.024, 0.012, s * 0.06, 0.042, 0.155); part(head, BOX(), o.mask ? acc : hair, 0.09, 0.022, 0.03, s * 0.065, 0.075, 0.148, 0, 0, s * 0.18); } }
+  if (!o.mask && !o.hood) { part(head, SPH(), skin, 0.06, 0.085, 0.07, 0, 0.0, 0.17); part(head, BOX(), lip, 0.08, 0.015, 0.02, 0, -0.09, 0.15); }
+  if (o.paint) for (const s of [-1, 1]) { part(head, BOX(), mark, 0.11, 0.035, 0.02, s * 0.07, 0.07, 0.15, 0, 0, s * 0.4); part(head, BOX(), mark, 0.035, 0.12, 0.02, s * 0.1, -0.04, 0.15, 0, 0, s * 0.3); part(head, BOX(), acc, 0.12, 0.03, 0.02, 0, 0.13, 0.15); }
+  if (o.shades) { for (const s of [-1, 1]) part(head, RBX(), black, 0.1, 0.06, 0.03, s * 0.065, 0.045, 0.16); part(head, BOX(), gold, 0.18, 0.015, 0.02, 0, 0.065, 0.165); }
+  if (o.hair === 'long') { part(head, SPH(), hair, 0.33, 0.3, 0.35, 0, 0.08, -0.02); for (let i = 0; i < 6; i++) part(head, CAP(), hair, 0.08, 0.24, 0.07, -0.13 + i * 0.052, -0.22, -0.13, 0.15); }
+  if (o.hair === 'mohawk') for (let i = 0; i < 6; i++) part(head, CON(), hair, 0.07, 0.18, 0.1, 0, 0.2, 0.12 - i * 0.06, -0.3 + i * 0.15);
+  if (o.hair === 'pomp') { part(head, SPH(), hair, 0.32, 0.18, 0.3, 0, 0.17, -0.03); part(head, SPH(), hair, 0.22, 0.16, 0.2, 0, 0.21, 0.08); }
+  const jaw = grp(head, 0, -0.1, 0.03);
+  if (o.beard) { const bc = M(o.beard); part(jaw, SPH(), bc, 0.26, 0.17, 0.21, 0, -0.03, 0.05); part(jaw, SPH(), bc, 0.17, 0.2, 0.14, 0, -0.12, 0.08); for (const s of [-1, 1]) part(jaw, SPH(), bc, 0.08, 0.16, 0.12, s * 0.13, 0.06, -0.02);
+    if (o.braid) for (let i = 0; i < 3; i++) part(jaw, SPH(), bc, 0.07, 0.07, 0.07, 0, -0.24 - i * 0.07, 0.1); part(head, SPH(), bc, 0.15, 0.04, 0.06, 0, -0.065, 0.16); }
+  const mouth = grp(head, 0, -0.1, 0.2);
+  const armC = o.suit || o.sleeves ? out : skin;
+  const arms = [-1, 1].map((s) => { const a = grp(torso, s * 0.47 * B, 0.6, 0);
+    part(a, SPH(), o.robe || o.coat ? (o.robe ? out : M(0x16141c)) : armC, 0.32 * B, 0.3, 0.32 * B, 0, -0.02, 0); part(a, CAP(), armC, 0.24 * B, 0.15, 0.24 * B, 0, -0.24, 0); part(a, SPH(), armC, 0.24 * B, 0.18, 0.22 * B, 0, -0.2, 0.03);
+    if (o.tassels) for (let i = 0; i < 3; i++) part(a, CON(), mark, 0.05, 0.22, 0.05, s * 0.12, -0.3 - i * 0.04, -0.04 + i * 0.04, 0, 0, s * 0.5);
+    const el = grp(a, 0, -0.41, 0); part(el, SPH(), armC, 0.21 * B, 0.17, 0.21 * B, 0, 0, 0); part(el, CAP(), armC, 0.22 * B, 0.15, 0.21 * B, 0, -0.18, 0.01); if (o.bones) part(el, BOX(), white, 0.04, 0.3, 0.04, 0, -0.18, 0.1);
+    const fist = grp(el, 0, -0.39, 0.02); part(fist, BOX(), white, 0.21 * B, 0.08, 0.2 * B, 0, 0.06, 0); part(fist, RBX(), skin, 0.19 * B, 0.16, 0.16 * B, 0, -0.03, 0);
+    return { a, el, fist }; });
+  const ham = grp(arms[0].fist, 0, -0.03, 0.02), hand = grp(arms[0].fist, 0, -0.12, 0.08), grip = grp(ham, 0, -0.2, 0);
+  // motion: a heavy, natural gait (heel-to-toe feet, knees that bend on the swing, hip bob and sway, shoulders twisting
+  // against the hips, a steady head), a sledgehammer that hangs and lags like real weight, and a two-handed overhead slam
+  const cl = (x) => Math.max(0, Math.min(1, x)), ease = (x) => (x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2), lerp = (a, b, q) => a + (b - a) * q;
+  let mv = 0, hamA = 0, hamV = 0, prevArm = 0;
+  // two-joint reach: aim the free arm so its fist lands on the handle (law of cosines for the elbow), blended in by w
+  const L1 = 0.41, L2 = 0.41, NY = V(0, -1, 0), XA = V(1, 0, 0), tP = V(0, 0, 0), tD = V(0, 0, 0), tQ = new THREE.Quaternion(), tB = new THREE.Quaternion();
+  function reach(w) { grip.getWorldPosition(tP); torso.worldToLocal(tP); const A = arms[1]; tD.subVectors(tP, A.a.position); const d = Math.max(0.15, Math.min(L1 + L2 - 0.01, tD.length())); tD.normalize();
+    const bend = Math.PI - Math.acos(Math.max(-1, Math.min(1, (L1 * L1 + L2 * L2 - d * d) / (2 * L1 * L2)))), alpha = Math.acos(Math.max(-1, Math.min(1, (L1 * L1 + d * d - L2 * L2) / (2 * L1 * d))));
+    tQ.setFromUnitVectors(NY, tD).multiply(tB.setFromAxisAngle(XA, GRIP_SIGN * alpha)); A.a.quaternion.slerp(tQ, w); A.el.rotation.x += (-bend - A.el.rotation.x) * w; }
+  return { mouth, hand, chest, limbs: { arms: typeof arms !== 'undefined' ? arms : null, claws: typeof claws !== 'undefined' ? claws : null, tents: typeof tents !== 'undefined' ? tents : null, wings: typeof wings !== 'undefined' ? wings : null, vines: typeof vines !== 'undefined' ? vines : null },  hammer: null, actSpeed: { hit: 1.35, golf: 1.55, ride: 0.02, grab: 0.02, kick: 1.5, bat: 1.15, sprawl: 0.6, elbow: 1.0 },
+    anim(t, dt, move, act, k) {
+      mv += (move - mv) * Math.min(1, dt * 5); const m = mv, ph = t * (3.6 + m * 2.2), s = Math.sin(ph), c = Math.cos(ph), br = Math.sin(t * 1.7);
+      // legs: sg flips the phase for the right leg; fwd > 0 while that leg is travelling forward (its swing)
+      for (const [i, sg] of [[0, 1], [1, -1]]) { const L = legs[i], sw = s * sg, fwd = c * sg;
+        L.l.rotation.x = -sw * 0.55 * m; L.k.rotation.x = (Math.max(0, fwd) * 0.72 + 0.06) * m;
+        L.ft.rotation.x = -(L.l.rotation.x + L.k.rotation.x) * 0.9 + (sw > 0.6 ? -(sw - 0.6) * 0.5 : 0) * m + Math.max(0, -sw) * Math.max(0, fwd) * 0.4 * m; } // heel strike, toe-off
+      hip.position.y = 1.0 - 0.03 * m + (Math.abs(c) - 0.5) * 0.06 * m + br * 0.004; hip.rotation.set(0, s * 0.13 * m, -s * 0.035 * m);
+      torso.rotation.set(0.07 * m + br * 0.012, -s * 0.2 * m, s * 0.025 * m); torso.position.y = 0.06 + br * 0.006;
+      neck.rotation.set(-0.04 - 0.05 * m, -(torso.rotation.y + hip.rotation.y) * 0.85, 0); jaw.rotation.x = 0;
+      head.rotation.set(0, Math.sin(t * 0.45) * 0.25 * (1 - m), Math.sin(t * 0.3) * 0.04 * (1 - m)); // looks about when standing
+      // free arm counter-swings with more bend going forward; the hammer arm barely swings (it's carrying weight)
+      arms[1].a.rotation.set(-s * 0.5 * m - 0.06, 0, 0.13 + br * 0.01); arms[1].el.rotation.x = -(0.22 + Math.max(0, s) * 0.45 * m);
+      arms[0].a.rotation.set(s * 0.16 * m - 0.04, 0, -0.17 - br * 0.01); arms[0].el.rotation.x = -0.1;
+      let cock = 0;
+      if (act === 'hit') { // wind-up (lean back, hammer over the shoulder), SLAM (both hands, knees give), then recover
+        const u = ease(cl(k / 0.38)), d = Math.pow(cl((k - 0.38) / 0.14), 2), rr = ease(cl((k - 0.68) / 0.32)), v = (a, b, c0) => lerp(lerp(lerp(a, b, u), c0, d), a, rr);
+        const ax = arms[0].a.rotation.x; arms[0].a.rotation.x = v(ax, -3.0, -1.2); arms[0].a.rotation.z = v(-0.17, -0.05, 0.12); arms[0].el.rotation.x = v(-0.1, -0.95, -0.04);
+        arms[1].a.rotation.x = v(arms[1].a.rotation.x, -2.75, -1.1); arms[1].a.rotation.z = v(0.13, -0.3, -0.42); arms[1].el.rotation.x = v(-0.22, -1.0, -0.25);
+        cock = v(0, -1.25, 0.25);
+        torso.rotation.x = v(torso.rotation.x, -0.24, 0.52); torso.rotation.y = v(torso.rotation.y, 0.32, -0.12);
+        hip.position.y = v(hip.position.y, hip.position.y + 0.02, 0.88); neck.rotation.x = v(-0.04, -0.25, 0.25); jaw.rotation.x = v(0, 0.1, 0.4);
+        const st = 1 - m; for (const L of legs) { L.l.rotation.x = lerp(L.l.rotation.x, v(L.l.rotation.x, 0.05, -0.4), st); L.k.rotation.x = lerp(L.k.rotation.x, v(L.k.rotation.x, 0.05, 0.7), st); L.ft.rotation.x = lerp(L.ft.rotation.x, -(L.l.rotation.x + L.k.rotation.x), st); } }
+      else if (act === 'golf') { // a golf swing with the sledgehammer: address, backswing, a fast sweep low through the hit, follow-through
+        const T = [0, 0.38, 0.52, 0.76, 1], kf = (vals) => { let i = 0; while (i < 3 && k > T[i + 1]) i++; return lerp(vals[i], vals[i + 1], ease(cl((k - T[i]) / (T[i + 1] - T[i])))); };
+        const ty = kf([0, 1.15, -0.2, -1.1, 0]), st = 1 - m; torso.rotation.set(kf([0.35, 0.25, 0.42, 0.05, 0.02]) * (1 - 0.4 * m), ty, kf([0, 0.08, -0.05, -0.1, 0])); hip.rotation.y = lerp(hip.rotation.y, ty * 0.45, st) + ty * 0.15 * m; hip.position.y = lerp(hip.position.y, 1.0 - kf([0.05, 0.03, 0.08, 0.02, 0]), st);
+        arms[0].a.rotation.set(kf([-0.5, -1.7, -0.35, -2.2, -0.04]), 0, kf([0.38, 0.2, 0.42, 0.2, -0.17])); arms[0].el.rotation.x = kf([-0.2, -0.7, -0.05, -0.6, -0.1]);
+        arms[1].a.rotation.set(-0.5, 0, -0.3); arms[1].el.rotation.x = -0.3; cock = kf([0.35, -0.45, 0.25, -0.35, 0]);
+        neck.rotation.set(kf([0.2, 0.15, 0.25, -0.1, -0.04]), -ty * kf([0.8, 0.85, 0.8, 0.2, 0]), 0); jaw.rotation.x = kf([0, 0, 0.35, 0.1, 0]);
+        for (const [i, sg] of [[0, 1], [1, -1]]) { const L = legs[i]; L.l.rotation.x = lerp(L.l.rotation.x, -0.15, st); L.l.rotation.y = ty * 0.2 * sg * st; L.k.rotation.x = lerp(L.k.rotation.x, 0.3, st); L.ft.rotation.x = lerp(L.ft.rotation.x, -0.15, st); } }
+      else if (act === 'ride') { for (const L of legs) { L.l.rotation.set(-1.4, 0, 0); L.k.rotation.x = 1.05; L.ft.rotation.x = 0.3; }
+        hip.position.y = 1.0; hip.rotation.set(0, 0, 0); torso.rotation.set(-0.14 + Math.sin(t * 9) * 0.01, 0, 0); neck.rotation.set(0.1, 0, 0); head.rotation.set(0, 0, 0); jaw.rotation.x = 0;
+        for (const [i, d] of [[0, -1], [1, 1]]) { arms[i].a.rotation.set(-1.15, 0, d * -0.08); arms[i].el.rotation.x = -0.55; } }
+      else if (act === 'grab') { const tug = Math.sin(t * 9) * 0.06; // Spin & Throw: both arms out in front and up, gripping the monster he's swinging, leaning back against it
+        for (const [i, d] of [[0, -1], [1, 1]]) { arms[i].a.rotation.set(-2.05 + tug, 0, d * -0.18); arms[i].el.rotation.x = -0.12; } torso.rotation.set(-0.28, 0, Math.sin(t * 4.5) * 0.05); neck.rotation.set(-0.35, 0, 0); jaw.rotation.x = 0.3 + tug;
+        hip.position.y = 0.94; for (const [i, sg] of [[0, 1], [1, -1]]) { const L = legs[i]; L.l.rotation.set(-0.35 + sg * 0.25, 0, sg * -0.12); L.k.rotation.x = 0.45; L.ft.rotation.x = -0.1 - sg * 0.25; } }
+      else if (act === 'elbow') { const q = Math.min(1, k * 4); hip.rotation.set(1.3 * q, 0, 0); arms[1].a.rotation.set(-1.5 * q, 0, 0.5 * q); arms[1].el.rotation.x = -2.4 * q; arms[0].a.rotation.set(0.5 * q, 0, -0.6 * q); arms[0].el.rotation.x = -0.4 * q; for (const L of legs) { L.l.rotation.x = 0.2 * q; L.k.rotation.x = 0.25 * q; } neck.rotation.x = -0.6 * q; jaw.rotation.x = 0.4 * q; } // diving, elbow first
+      else if (act === 'sprawl') { const down = k < 0.55 ? 1 : 1 - ease(cl((k - 0.55) / 0.45)); hip.rotation.set(0, 0, Math.PI / 2 * down); hip.position.y = 1.0 - 0.62 * down; arms[0].a.rotation.set(-0.3 * down, 0, -1.2 * down); arms[1].a.rotation.set(-1.2 * down, 0, 0.4 * down); arms[1].el.rotation.x = -1.6 * down; for (const L of legs) L.k.rotation.x = 0.6 * down; neck.rotation.z = -0.5 * down; } // flat on its side in the rubble, then gets up
+      else if (act === 'kick') { const q = k < 0.3 ? ease(k / 0.3) : 1 - ease(cl((k - 0.45) / 0.55)); legs[1].l.rotation.set(-1.75 * q, 0, 0); legs[1].k.rotation.x = 0.9 * (1 - q) * Math.min(1, k * 6) * (k < 0.3 ? 1 : 0.2); legs[1].ft.rotation.x = 0.3 * q; legs[0].k.rotation.x = 0.25 * q; legs[0].l.rotation.x = 0.2 * q;
+        torso.rotation.set(-0.35 * q, 0, 0); hip.rotation.set(-0.25 * q, 0, 0); arms[0].a.rotation.set(0.5 * q, 0, -0.9 * q); arms[1].a.rotation.set(0.4 * q, 0, 0.9 * q); jaw.rotation.x = 0.35 * q; } // big boot
+      else if (act === 'bat') { // a baseball swing: load up over the back shoulder, step and rip through the zone, wrap the follow-through
+        const T = [0, 0.4, 0.5, 0.75, 1], kf = (vals) => { let i = 0; while (i < 3 && k > T[i + 1]) i++; return lerp(vals[i], vals[i + 1], ease(cl((k - T[i]) / (T[i + 1] - T[i])))); }, ty = kf([0, 1.05, -0.2, -1.5, 0]);
+        torso.rotation.set(kf([0.05, 0.1, 0.15, 0.05, 0.02]), ty, kf([0, 0.12, -0.06, -0.12, 0])); hip.rotation.set(0, ty * 0.55, 0); hip.position.y = 1.0 - kf([0.02, 0.06, 0.08, 0.03, 0]);
+        arms[0].a.rotation.set(kf([-0.4, -1.95, -1.45, -1.9, -0.04]), 0, kf([-0.17, -0.75, 0.15, 0.7, -0.17])); arms[0].el.rotation.x = kf([-0.2, -1.2, -0.1, -0.7, -0.1]); arms[1].a.rotation.set(-1.2, 0, -0.3); arms[1].el.rotation.x = -0.5;
+        cock = kf([0.2, -1.35, -1.5, -0.6, 0]); neck.rotation.set(0, -ty * kf([0.8, 0.9, 0.95, 0.5, 0]), 0); jaw.rotation.x = kf([0, 0, 0.35, 0.15, 0]);
+        legs[1].l.rotation.set(kf([0, 0.1, -0.45, -0.3, 0]), 0, 0); legs[1].k.rotation.x = kf([0.05, 0.45, 0.1, 0.1, 0.05]); legs[0].l.rotation.set(kf([0, -0.1, 0.25, 0.2, 0]), ty * 0.2, 0); legs[0].k.rotation.x = kf([0.05, 0.2, 0.3, 0.35, 0.05]); }
+      else if (act === 'win') { const q = Math.min(1, k * 5) * Math.min(1, (1 - k) * 4); // both hands in the air
+        for (const [i, d] of [[0, -1], [1, 1]]) { arms[i].a.rotation.set(-2.95 * q, 0, d * 0.3 * q); arms[i].el.rotation.x = -0.15 * q; } torso.rotation.x = -0.15 * q; neck.rotation.x = -0.35 * q; jaw.rotation.x = 0.45 * q; }
+      else if (act === 'cast') { const q = Math.sin(k * Math.PI), shake = Math.sin(k * Math.PI * 10) * 0.12 * q; // the snarl and claw-hands flex
+        for (const [i, d] of [[0, -1], [1, 1]]) { arms[i].a.rotation.set(-1.0 * q + shake, 0, d * 0.7 * q); arms[i].el.rotation.x = -1.7 * q; }
+        torso.rotation.x = 0.2 * q; neck.rotation.x = 0.15 * q; jaw.rotation.x = 0.4 * q; }
+      else if (act === 'ko') { body.rotation.x = -Math.min(1.5, k * 2); body.position.y = -k * 0.2; }
+      // the sledgehammer hangs: it keeps pointing down as the arm swings and swings on a little spring when the arm moves
+      const ax = arms[0].a.rotation.x, acc = (ax - prevArm) / Math.max(dt, 1e-3); prevArm = ax; hamV += (-hamA * 38 - hamV * 6.5 - acc * 0.8) * Math.min(dt, 0.05); hamA = Math.max(-0.6, Math.min(0.6, hamA + hamV * Math.min(dt, 0.05)));
+      ham.visible = act !== 'ride' && act !== 'grab' && act !== 'lift' && act !== 'clutch'; ham.rotation.x = act === 'hit' || act === 'golf' || act === 'bat' ? 0.15 + cock : 0.15 - (ax + arms[0].el.rotation.x) * 0.55 + hamA;
+      if (act === 'hit' || act === 'golf' || act === 'bat') { const w = act !== 'hit' ? Math.min(ease(cl(k / 0.12)), 1 - ease(cl((k - 0.86) / 0.14))) : Math.min(ease(cl(k / 0.3)), 1 - ease(cl((k - 0.72) / 0.24))); if (w > 0.01) reach(w); } // both hands on the handle
     } };
 }
 
 // ---------- Mike's chopper (his ride out of town): a custom black chopper sized to him, facing +z; front and rear are
 // wheel groups that spin about x; pipe is where the exhaust comes out (in bike space) ----------
-export function buildChopper() {
+export function buildChopper(paint) {
   const tube = (parent, m, a, b, r) => { const d = new THREE.Vector3().subVectors(b, a), len = d.length(); const o = new THREE.Mesh(CYL(), m); o.scale.set(r * 2, len, r * 2); o.position.copy(a).addScaledVector(d, 0.5); o.quaternion.setFromUnitVectors(UP, d.normalize()); parent.add(o); return o; };
-  const g = new THREE.Group(), black = M(0x0c0c10, 'metal'), chrome = M(0xdfe3ea, 'metal'), rubber = M(0x161618), seat = M(0x1c1a1c), red = M(0xff2a2a, 'glow'), lamp = M(0xfff2c0, 'glow'), steel = M(0x8c9096, 'metal'), wood = M(0x2a2420), dark = M(0x2a2a30, 'metal');
+  const g = new THREE.Group(), black = M(paint ?? 0x0c0c10, 'metal'), chrome = M(0xdfe3ea, 'metal'), rubber = M(0x161618), seat = M(0x1c1a1c), red = M(0xff2a2a, 'glow'), lamp = M(0xfff2c0, 'glow'), steel = M(0x8c9096, 'metal'), wood = M(0x2a2420), dark = M(0x2a2a30, 'metal');
   const wheel = (r, w, z) => { const wg = grp(g, 0, r, z); const s = r / 0.62; part(wg, TOR(), rubber, s, s, w / 0.12 / 2 * 0.62 / r * s, 0, 0, 0, 0, Math.PI / 2, 0); part(wg, TOR(), chrome, s * 0.72, s * 0.72, s * 0.5, 0, 0, 0, 0, Math.PI / 2, 0);
     part(wg, CYL(), chrome, r * 0.35, w * 1.1, r * 0.35, 0, 0, 0, 0, 0, Math.PI / 2); for (let i = 0; i < 14; i++) part(wg, BOX(), steel, 0.012, r * 1.4, 0.012, 0, 0, 0, i / 14 * Math.PI, 0, 0); return wg; };
   const rear = wheel(0.38, 0.22, -0.88), front = wheel(0.34, 0.1, 1.12);
@@ -694,4 +824,4 @@ function mergeStatic(root) { const groups = []; root.traverse((o) => { if (!o.is
     for (const [m, list] of by) { if (list.length < 2) continue; const gs = list.map((ch) => { ch.updateMatrix(); const gg = ch.geometry.index ? ch.geometry.toNonIndexed() : ch.geometry.clone(); for (const k of Object.keys(gg.attributes)) if (!['position', 'normal', 'uv'].includes(k)) gg.deleteAttribute(k); return gg.applyMatrix4(ch.matrix); });
       const merged = mergeGeometries(gs, false); if (!merged) continue; for (const ch of list) g.remove(ch); g.add(new THREE.Mesh(merged, m)); } } }
 const withMerge = (fn) => (body, K) => { const r = fn(body, K); mergeStatic(body); return r; };
-export const HD = { biped: withMerge(bipedHD), squid: withMerge(squidHD), robot: withMerge(robotHD), ape: withMerge(apeHD), quad: withMerge(quadHD), crab: withMerge(crabHD), spider: withMerge(spiderHD), moth: withMerge(mothHD), ptero: withMerge(pteroHD), blob: withMerge(blobHD), plant: withMerge(plantHD), human: withMerge(mikeHD) };
+export const HD = { biped: withMerge(bipedHD), squid: withMerge(squidHD), robot: withMerge(robotHD), ape: withMerge(apeHD), quad: withMerge(quadHD), crab: withMerge(crabHD), spider: withMerge(spiderHD), moth: withMerge(mothHD), ptero: withMerge(pteroHD), blob: withMerge(blobHD), plant: withMerge(plantHD), human: withMerge(mikeHD), wrestler: withMerge(wrestlerHD) };
