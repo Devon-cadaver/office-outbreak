@@ -1,6 +1,6 @@
 # Dead City: Tornado Alley — itch.io page kit
 
-Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.16.1**. Upload `release/survive-dead-city-web-v1.16.1.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
+Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.16.2**. Upload `release/survive-dead-city-web-v1.16.2.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
 
 > All monsters, robots and characters in Dead City are original creations. Any resemblance to other characters is coincidental.
 
@@ -13,7 +13,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 | Short description / tagline | You are the storm. Tear through five towns, take out big targets, dodge seeding planes and outrun storm chasers. |
 | Classification | Game |
 | Kind of project | **HTML** |
-| Uploads | `survive-dead-city-web-v1.16.1.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
+| Uploads | `survive-dead-city-web-v1.16.2.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
 | Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
 | Frame options | Leave SharedArrayBuffer off. No special headers needed. |
 | Pricing | Free (or "No payments"). |
@@ -70,6 +70,7 @@ Small browser games built fast, tested on a phone, and tuned by playing. Dead Ci
 
 ## Version history
 
+- **1.16.2** (2026-10-22): Cleaned up the intro: no more rooftops floating in the sky near Mike.
 - **1.16.1** (2026-10-22): Fixed Kaiju Madness rounds ending instantly at 0:00 after a previous round ran out of time.
 - **1.16.0** (2026-10-21): The game now opens on a TAP TO PLAY screen, and after that the music plays non-stop through the menu, both games and the shop. New intro: Mike swings a kaiju round and hurls it, with the neon Liberty Twister behind. The Kaiju menu button now reads PLAY KAIJU BATTLE.
 - **1.15.2** (2026-10-21): The music is now one radio that plays on the main menu, both games and the skin shop, picking up the same song where it left off as you move around (until you switch MUSIC off). The end-of-round screens have a SKIN SHOP button.
