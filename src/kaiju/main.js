@@ -10,7 +10,7 @@ import { makeCar } from '../car.js';
 import { createTwisters } from '../tornado.js';
 import { createFires } from '../fire.js';
 import { unlockAudio, soundToggle, sfx, stopMusic, setPlaneEngine, setStormLevel, stormBoost, playSongs, songState, gameMusic, SONGS_KAIJU } from '../audio.js';
-import { equippedSkin, skinnedCarArgs, addCoins, CHAR_SKINS, getEquipped } from '../skins.js';
+import { equippedSkin, skinnedCarArgs, addCoins, CHAR_SKINS, getEquipped, totalReward } from '../skins.js';
 import { forceSeason } from '../season.js';
 import { showPrizes } from '../prizes.js';
 import { nukeBlast } from '../nuke.js';
@@ -20,7 +20,7 @@ import { showHowTo, tip, tipsSeen, markSeen, clearTips } from '../howto.js';
 import { autoResolution, mergeStatic } from '../perf.js';
 import { rides, spinners } from '../landmarks.js';
 import { makePlane } from '../ally/units.js';
-import { KAIJU, KAIJU_IDS, FREE_KAIJU, buildKaiju } from './rigs.js';
+import { KAIJU, KAIJU_IDS, FREE_KAIJU, KAIJU_SKINS, SKIN_LOOKS, buildKaiju } from './rigs.js';
 import { createSpells } from './spells.js';
 
 const $ = (id) => document.getElementById(id);
@@ -631,7 +631,7 @@ function start() {
   fsMode.play();
   megaT = 0; megaUsed = false; megaDropT = 25 + Math.random() * 15; if (megaDrop) scene.remove(megaDrop.g); megaDrop = null; megaArrow.style.display = 'none'; megaEl.className = 'hidden'; for (const b of blasts) b.remove(); blasts.length = 0; camK = 1; roundId++;
   clearAnims();
-  unlockAudio(); buildWorld(); makeMe(); spells.clear(); score = 0; chain = 0; lastHit = -9; tLeft = L().time; played = 0; peopleN = carsN = bDone = 0; ko = 0; died = false; moveTo = null; slowT = 0; boostT = 0;
+  unlockAudio(); buildWorld(); makeMe(); spells.clear(); score = 0; totalD = 0; chain = 0; lastHit = -9; tLeft = L().time; played = 0; peopleN = carsN = bDone = 0; ko = 0; died = false; moveTo = null; slowT = 0; boostT = 0;
   for (const pl of planes) { scene.remove(pl.g); pl.arrow.remove(); } planes = []; planeT = 50 + Math.random() * 10; noPlanes = false; for (const b of bombs) scene.remove(b.m); bombs.length = 0; for (const f of fires) scene.remove(f.ring); fires.length = 0;
   if (rival) scene.remove(rival.g); rival = null; mini = null; lastMini = ''; miniEl.className = 'hidden'; rivalQueue = []; rivalWait = 0; queueRivals(1); sinking.length = 0; gulps.length = 0;
   setupPoiHud(); for (const s of ['taStart', 'taEnd', 'taPaused', 'taPrize', 'kjPickScr']) $(s).classList.add('hidden'); $('ta').classList.remove('hidden');
@@ -651,6 +651,10 @@ function outroTick(dt) { outroT += dt; const g = me.g, k = Math.min(1, outroT / 
     if (Math.random() < dt * 30 * (1 - k * 0.5)) { const a = Math.random() * 6.28, r = meScale * (0.4 + Math.random() * 0.6); fx.puff('smoke', new THREE.Vector3(g.position.x + Math.cos(a) * r, 0.2, g.position.z + Math.sin(a) * r), 0.6 + meScale * 0.25); }
     if (outroT % 0.6 < dt) { flashT = Math.max(flashT, 0.06); sfx.hit(); } }
   if (outroT >= 3.1) { g.visible = false; finishNow(); } }
+// TOTAL DESTRUCTION: every building and every big target gone before the clock runs out. Points for every second left,
+// an extra prize go, and a free skin at the end
+let totalD = 0;
+function totalWipe(at) { totalD = 5000 + Math.round(tLeft) * 250; score += totalD; banner('💥 TOTAL DESTRUCTION! 💥'); popup(at.clone().setY(4), '+' + totalD + ' TIME BONUS', '#ffd24a'); sfx.boom(); setTimeout(() => sfx.boom(), 300); flashT = 0.5; }
 function finishNow() {
   state = 'over'; mini = null; miniEl.className = 'hidden'; stopMusic(); setPlaneEngine(0); sUp(stick.id); clearTips(); const done = poiOrder.filter((k) => pois[k].done); for (const k of poiOrder) if (pois[k].arrow) pois[k].arrow.style.display = 'none'; rivalEl.classList.add('hidden'); rivalArrow.style.display = 'none'; for (const pl of planes) pl.arrow.style.display = 'none';
   let best = 0; const bk = 'kj_best_' + level; try { best = +localStorage.getItem(bk) || 0; if (score > best) { best = score; localStorage.setItem(bk, String(score)); } } catch { /* ignore */ }
@@ -660,8 +664,9 @@ function finishNow() {
   $('taEndTitle').innerHTML = died ? 'KAIJU<br>DOWN' : cleared ? (level === LEVELS.length ? 'MEGACITY<br>CRUSHED' : 'LEVEL ' + level + '<br>CRUSHED') : "TIME'S<br>UP";
   $('taAgain').textContent = cleared && level < LEVELS.length ? 'NEXT LEVEL' : cleared ? 'PLAY AGAIN' : 'TRY AGAIN'; $('taAgain').dataset.next = cleared && level < LEVELS.length ? '1' : '';
   $('taGoalLine').textContent = died ? 'The army got you. Eat more people to grow back, and walk out of the napalm.' : cleared ? (level < LEVELS.length ? 'Level ' + (level + 1) + ' unlocked: ' + LEVELS[level].name + '.' : 'Every town crushed. Monster.') : 'Flatten ' + L().goal + '% of ' + L().name + ' and take out ' + (need >= poiOrder.length ? 'every big target' : need + ' big targets') + ' (you got ' + pct + '% and ' + done.length + ').';
-  $('taStats').innerHTML = [['Buildings', bDone + ' / ' + totalB + ' (' + pct + '%)'], ['People eaten', peopleN], ['Cars wrecked', carsN], ['Rivals KO\'d', ko], ['Big targets', done.length + ' / ' + poiOrder.length + ' ' + done.map((k) => POI[k].icon).join('')], ['Biggest', STAGE[topStage]], ['Score', score], ['Score coins', '+' + scoreCoins + ' 🪙'], ['Best', best]].map(([a, b]) => '<tr><td>' + a + '</td><td>' + b + '</td></tr>').join('');
-  const goes = Math.min(3, 1 + (cleared ? 1 : 0) + Math.floor(done.length / 2)); kaijuRound(goes); showPrizes($('taChests'), goes, '1 go, +1 for clearing the level, +1 for every 2 big targets destroyed (max 3)', () => { location.href = 'store.html?from=kaiju'; }, kaijuPrize, () => { $('taPrize').classList.add('hidden'); $('taEnd').classList.remove('hidden'); });
+  if (totalD) { $('taEndTitle').innerHTML = 'TOTAL<br>DESTRUCTION!'; totalReward(unlockedKaiju().flatMap((k) => SKIN_LOOKS.map((lk) => 'kaiju:' + k + ':' + lk)), (id) => { const [, k, lk] = id.split(':'); return KAIJU_SKINS[k][lk].name; }, $('taGoalLine')); }
+  $('taStats').innerHTML = [...(totalD ? [['💥 Total destruction', '+' + totalD]] : []), ['Buildings', bDone + ' / ' + totalB + ' (' + pct + '%)'], ['People eaten', peopleN], ['Cars wrecked', carsN], ['Rivals KO\'d', ko], ['Big targets', done.length + ' / ' + poiOrder.length + ' ' + done.map((k) => POI[k].icon).join('')], ['Biggest', STAGE[topStage]], ['Score', score], ['Score coins', '+' + scoreCoins + ' 🪙'], ['Best', best]].map(([a, b]) => '<tr><td>' + a + '</td><td>' + b + '</td></tr>').join('');
+  const goes = Math.min(3, 1 + (cleared ? 1 : 0) + Math.floor(done.length / 2)) + (totalD ? 1 : 0); kaijuRound(goes); showPrizes($('taChests'), goes, '1 go, +1 for clearing the level, +1 for every 2 big targets destroyed (max 3)', () => { location.href = 'store.html?from=kaiju'; }, kaijuPrize, () => { $('taPrize').classList.add('hidden'); $('taEnd').classList.remove('hidden'); });
   $('ta').classList.add('hidden'); $('taPrize').classList.remove('hidden'); drawPicker(); // the prize game first, then the score
 }
 const HOWTO = [
@@ -787,7 +792,7 @@ function update(dt) {
   setT('taScore', score); setT('taCombo', mult() > 1 && played - lastHit < 2.5 ? 'x' + mult() + ' COMBO' : ''); setT('taRank', STAGE[stage]); setT('taPct', Math.round((bDone / totalB) * 100) + '% destroyed'); setT('taPeople', peopleN + ' eaten');
   { const w = (meF * 100).toFixed(1) + '%'; if (hudCache.grow !== w) { hudCache.grow = w; $('taGrowFill').style.width = w; } const pw = Math.round(power * 100) + '%'; if (hudCache.pw !== pw) { hudCache.pw = pw; $('kjPowerFill').style.width = pw; $('kjPower').classList.toggle('full', power >= 1); setT('kjPowerTxt', power >= 1 ? '⚡ ' + K.spells[stage - 1].toUpperCase() + ' READY: TAP A TARGET' : '⚡ POWER'); } }
   setStormLevel(stage * 2 - 1 + (rival && rival.hp > 0 ? 1 : 0));
-  if (bDone >= totalB && poiOrder.every((k) => pois[k].done)) tLeft = Math.min(tLeft, 1.5);
+  if (bDone >= totalB && poiOrder.every((k) => pois[k].done)) { if (!totalD && !died) totalWipe(me.g.position); tLeft = Math.min(tLeft, 1.5); }
   { let n = 0; for (const k of poiOrder) { const P = pois[k]; if (P.done) { n++; continue; } const ready = stage >= POI[k].stage; if (P.chip) P.chip.classList.toggle('ready', ready); P.arrow.classList.toggle('ready', ready); edgeArrow(P.arrow, P.center, true); }
     const need = Math.min(L().need, poiOrder.length); setT('taTargets', '🎯 ' + n + '/' + need); if (hudCache.tgtOk !== (n >= need)) { hudCache.tgtOk = n >= need; $('taTargets').style.color = n >= need ? '#7dff3a' : ''; } }
   mapT -= dt; if (mapT <= 0) { mapT = 0.08; drawMini(); }
@@ -816,4 +821,4 @@ function frame(now) {
 function showcase() { if (state !== 'start') return; makeMe(); me.g.position.set(0, 0, 0); camTarget.set(0, 2, 0); }
 buildWorld(); makeMe(); camTarget.set(0, 2, 0);
 requestAnimationFrame(frame); requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove('booting'))); // the start screen is ready now
-window.__kj = { emote, throwHammer, endMini: (res) => endMini(res), get song() { return songState(); }, get sceneN() { return scene.children.length; }, flourish, get anims() { return anims.length; }, dropMega, goMega, megaBlast, get megaT() { return megaT; }, get megaDrop() { return megaDrop; }, THREE, get me() { return me; }, get moveTo() { return moveTo; }, get mass() { return mass; }, set mass(v) { mass = v; }, get massTarget() { return massTarget; }, get stage() { return stage; }, get power() { return power; }, set power(v) { power = v; }, get rival() { return rival; }, spawnRival, spawnPlane, get planes() { return planes; }, get state() { return state; }, get score() { return score; }, get people() { return people; }, get buildings() { return buildings; }, get pois() { return pois; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, tapAt, get cam() { return cam; }, set tLeft(v) { tLeft = v; }, set level(v) { level = v; }, start, hurt, get calls() { return renderer.info.render.calls; }, get fires() { return fires; }, get mini() { return mini && { ...mini, side: mini.side }; }, startMini, get pool() { return pool.length; }, get unlocked() { return unlockedKaiju(); }, set pick(v) { pick = v; } };
+window.__kj = { get totalD() { return totalD; }, set bDone(v) { bDone = v; }, get totalB() { return totalB; }, emote, throwHammer, endMini: (res) => endMini(res), get song() { return songState(); }, get sceneN() { return scene.children.length; }, flourish, get anims() { return anims.length; }, dropMega, goMega, megaBlast, get megaT() { return megaT; }, get megaDrop() { return megaDrop; }, THREE, get me() { return me; }, get moveTo() { return moveTo; }, get mass() { return mass; }, set mass(v) { mass = v; }, get massTarget() { return massTarget; }, get stage() { return stage; }, get power() { return power; }, set power(v) { power = v; }, get rival() { return rival; }, spawnRival, spawnPlane, get planes() { return planes; }, get state() { return state; }, get score() { return score; }, get people() { return people; }, get buildings() { return buildings; }, get pois() { return pois; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, tapAt, get cam() { return cam; }, set tLeft(v) { tLeft = v; }, set level(v) { level = v; }, start, hurt, get calls() { return renderer.info.render.calls; }, get fires() { return fires; }, get mini() { return mini && { ...mini, side: mini.side }; }, startMini, get pool() { return pool.length; }, get unlocked() { return unlockedKaiju(); }, set pick(v) { pick = v; } };

@@ -16,6 +16,9 @@ export function fmtCoins(c = getCoins()) { const v = Math.round(c * 100) / 100; 
 // skins bought before there were two per monster ('kaiju:<id>') become that monster's skeleton skin
 { try { const own = JSON.parse(localStorage.getItem('oo_skins_owned') || '[]'); const fix = (x) => (typeof x === 'string' && /^kaiju:[a-z0-9]+$/.test(x) ? x + ':skeleton' : x); if (own.some((x) => fix(x) !== x)) localStorage.setItem('oo_skins_owned', JSON.stringify(own.map(fix)));
   const eq = JSON.parse(localStorage.getItem('oo_skins_equip') || '{}'); let ch = false; for (const k in eq) if (fix(eq[k]) !== eq[k]) { eq[k] = fix(eq[k]); ch = true; } if (ch) localStorage.setItem('oo_skins_equip', JSON.stringify(eq)); } catch { /* ignore */ } }
+export function totalReward(ids, nameOf, host) { const pool = ids.slice(); for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+  const id = pool.find((x) => grantSkin(x)); if (!id) addCoins(5); const u = document.createElement('div'); u.className = 'bonusSkin';
+  u.innerHTML = id ? '💥 TOTAL DESTRUCTION REWARD: <b>' + nameOf(id).toUpperCase() + '</b><br><small>A free skin! Wear it from the skin shop.</small>' : '💥 TOTAL DESTRUCTION REWARD: <b>+5 🪙</b><br><small>You already own every skin, so have some coins.</small>'; host.appendChild(u); return id; }
 export function grantSkin(id) { const owned = getOwned(); if (owned.includes(id)) return false; owned.push(id); set(K.owned, owned); return true; }
 export function getOwned() { return get(K.owned, []); }
 export function getEquipped() { const e = { player: null, npc: [], car: null, fx: null, tornado: null, ...get(K.equip, {}) }; if (typeof e.npc === 'string') e.npc = [e.npc]; if (!Array.isArray(e.npc)) e.npc = []; return e; }

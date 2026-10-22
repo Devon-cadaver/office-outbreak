@@ -6,10 +6,10 @@ import { nukeBlast } from '../nuke.js';
 import { generateMaze, buildCity, toWorld, toCell, findPath, CELL, mulberry32 } from '../city.js';
 import { makeCharacter, animateWalk } from '../poster/characters.js';
 import { makeCar } from '../car.js';
-import { createTwisters } from '../tornado.js';
+import { createTwisters, TWISTER_SKINS } from '../tornado.js';
 import { createFires } from '../fire.js';
 import { unlockAudio, soundToggle, sfx, stopMusic, setPlaneEngine, planeEngineLevel, setStormLevel, stormBoost, stormMusicState, playSongs, songState, gameMusic, SONGS_TORNADO } from '../audio.js';
-import { equippedSkin, equippedTornado, skinnedCarArgs, addCoins, grantSkin, equip, CHAR_SKINS } from '../skins.js';
+import { equippedSkin, equippedTornado, skinnedCarArgs, addCoins, grantSkin, equip, CHAR_SKINS, totalReward } from '../skins.js';
 import { forceSeason } from '../season.js';
 import { showPrizes } from '../prizes.js';
 import { stampVersion } from '../version.js';
@@ -531,7 +531,7 @@ const fsMode = initFullscreen(() => state === 'play'); // full screen on play, b
 function start(tutorial = false) {
   fsMode.play();
   clearTutMarks(); tut = tutorial === true ? { step: 0, t: 0 } : null; if (tut) level = 1; if (tutRing) { scene.remove(tutRing); tutRing = null; } $('taTut').classList.add('hidden');
-  if (state !== 'start' || roundN > 0) roundN++; ROUND = L().time; unlockAudio(); buildWorld(); makeStorm(); score = 0; chain = 0; lastHit = -9; tLeft = ROUND; played = 0; boostT = 0; lastRank = 0; moveTo = null; for (const b of bolts) scene.remove(b.g); bolts.length = 0; sinking.length = 0; peopleN = carsN = propsN = bDone = 0; clearPlanes();
+  if (state !== 'start' || roundN > 0) roundN++; ROUND = L().time; unlockAudio(); buildWorld(); makeStorm(); score = 0; totalD = 0; chain = 0; lastHit = -9; tLeft = ROUND; played = 0; boostT = 0; lastRank = 0; moveTo = null; for (const b of bolts) scene.remove(b.g); bolts.length = 0; sinking.length = 0; peopleN = carsN = propsN = bDone = 0; clearPlanes();
   radarDown = radioDown = fireBoost = stink = false; setupPoiHud();
   for (const s of ['taStart', 'taEnd', 'taPaused', 'taPrize']) $(s).classList.add('hidden'); $('ta').classList.remove('hidden');
   state = 'play'; playSongs(); setStormLevel(0); sfx.whoosh(); banner(tut ? 'TUTORIAL' : 'LEVEL ' + level + ': ' + L().name.toUpperCase()); if (tut) { tLeft = 99999; addTutMarkers(); tutGo(1); } setTimeout(() => { if (state === 'play' && !tut) banner(SEASON_NAME[seasonFor()].toUpperCase()); }, 2300);
@@ -540,6 +540,10 @@ function start(tutorial = false) {
   setTimeout(() => { if (state === 'play' && !tut) banner('TAKE OUT ' + (L().need >= poiOrder.length ? 'ALL ' + poiOrder.length : L().need) + ' TARGETS'); }, 4600);
 }
 function togglePause() { if (state === 'play') { state = 'paused'; setPlaneEngine(0); stopMusic(); $('taPaused').classList.remove('hidden'); } else if (state === 'paused') { state = 'play'; $('taPaused').classList.add('hidden'); playSongs(); setStormLevel(rankOf(sizeShown)); } }
+// TOTAL DESTRUCTION: every building and every big target gone before the clock runs out. Points for every second left,
+// an extra prize go, and a free skin at the end
+let totalD = 0;
+function totalWipe(at) { totalD = 5000 + Math.round(tLeft) * 250; score += totalD; banner('💥 TOTAL DESTRUCTION! 💥'); popup(at.clone().setY(4), '+' + totalD + ' TIME BONUS', '#ffd24a'); sfx.boom(); setTimeout(() => sfx.boom(), 300); flashT = 0.5; }
 // the round's over: the storm winds down and fades away in the town (about 3 s), then the prizes and the score
 let outroT = 0;
 function finish() { if (state !== 'play') return; state = 'outro'; outroT = 0; stopMusic(); setPlaneEngine(0); sUp(stick.id); clearTips(); moveTo = null;
@@ -560,8 +564,9 @@ function finishNow() {
   $('taAgain').dataset.next = cleared && level < LEVELS.length ? '1' : '';
   $('taGoalLine').textContent = cleared ? (level < LEVELS.length ? 'Level ' + (level + 1) + ' unlocked: ' + LEVELS[level].name + '.' : 'You flattened every town. Legend.') : 'Flatten ' + L().goal + '% of ' + L().name + ' and take out ' + (need >= poiOrder.length ? 'every big target' : need + ' big targets') + ' to clear it (you got ' + pct + '% and ' + done.length + ').';
   if (cleared && level === LEVELS.length && grantSkin('tornado:acid')) { equip('tornado', 'tornado:acid'); const u = document.createElement('div'); u.className = 'bonusSkin'; u.innerHTML = '🏆 BONUS SKIN UNLOCKED: <b>ACID STORM</b><br><small>Acid rain, green lightning and baby tornadoes. It\'s on now; change it in the skin shop.</small>'; $('taGoalLine').appendChild(u); }
-  $('taStats').innerHTML = [['Buildings', bDone + ' / ' + totalB + ' (' + pct + '%)'], ['People swept up', peopleN], ['Cars thrown', carsN], ['Storm chasers', chasersCaught + ' caught, ' + chasersLost + ' got away'], ['Big targets', done.length + ' / ' + poiOrder.length + ' ' + done.map((k) => POI[k].icon).join('')], ['Peak size', 'F' + rankOf(size) + ' (' + size.toFixed(1) + 'x)'], ['Score', score], ['Score coins', '+' + scoreCoins + ' 🪙'], ['Best', best]].map(([a, b]) => '<tr><td>' + a + '</td><td>' + b + '</td></tr>').join('');
-  showPrizes($('taChests'), Math.min(3, 1 + (cleared ? 1 : 0) + Math.floor(done.length / 2)), '1 go, +1 for clearing the level, +1 for every 2 big targets destroyed (max 3)', () => { location.href = 'store.html?from=alley'; }, null, () => { $('taPrize').classList.add('hidden'); $('taEnd').classList.remove('hidden'); });
+  if (totalD) { $('taEndTitle').innerHTML = 'TOTAL<br>DESTRUCTION!'; totalReward(Object.keys(TWISTER_SKINS).filter((k) => !TWISTER_SKINS[k].bonus).map((k) => 'tornado:' + k), (id) => TWISTER_SKINS[id.split(':')[1]].name, $('taGoalLine')); }
+  $('taStats').innerHTML = [...(totalD ? [['💥 Total destruction', '+' + totalD]] : []), ['Buildings', bDone + ' / ' + totalB + ' (' + pct + '%)'], ['People swept up', peopleN], ['Cars thrown', carsN], ['Storm chasers', chasersCaught + ' caught, ' + chasersLost + ' got away'], ['Big targets', done.length + ' / ' + poiOrder.length + ' ' + done.map((k) => POI[k].icon).join('')], ['Peak size', 'F' + rankOf(size) + ' (' + size.toFixed(1) + 'x)'], ['Score', score], ['Score coins', '+' + scoreCoins + ' 🪙'], ['Best', best]].map(([a, b]) => '<tr><td>' + a + '</td><td>' + b + '</td></tr>').join('');
+  showPrizes($('taChests'), Math.min(3, 1 + (cleared ? 1 : 0) + Math.floor(done.length / 2)) + (totalD ? 1 : 0), '1 go, +1 for clearing the level, +1 for every 2 big targets destroyed (max 3), +1 for TOTAL DESTRUCTION', () => { location.href = 'store.html?from=alley'; }, null, () => { $('taPrize').classList.add('hidden'); $('taEnd').classList.remove('hidden'); });
   $('ta').classList.add('hidden'); $('taPrize').classList.remove('hidden'); // the prize game first, then the score
 }
 const HOWTO = [
@@ -662,7 +667,7 @@ function update(dt) {
   setT('taScore', score); setT('taCombo', mult() > 1 && played - lastHit < 2.5 ? 'x' + mult() + ' COMBO' : '');
   setT('taRank', 'F' + rankOf(sizeShown)); setStormLevel(rankOf(sizeShown)); setT('taPct', Math.round((bDone / totalB) * 100) + '% destroyed'); setT('taPeople', peopleN + ' people');
   { const w = ((sizeShown - 1) / (MAX_S - 1) * 100).toFixed(1) + '%'; if (hudCache.grow !== w) { hudCache.grow = w; $('taGrowFill').style.width = w; } const r = rankOf(sizeShown); if (r !== rankShown) { rankShown = r; document.querySelectorAll('#taGrow .tick').forEach((t, i) => t.classList.toggle('got', i < r)); } }
-  if (bDone >= totalB && poiOrder.every((k) => pois[k].done)) { tLeft = Math.min(tLeft, 1.5); }
+  if (bDone >= totalB && poiOrder.every((k) => pois[k].done)) { if (!totalD && !tut) totalWipe(twObj.position); tLeft = Math.min(tLeft, 1.5); }
   if (tut) tutUpdate(dt);
   // target tray, edge arrows and the minimap
   { const rk = rankOf(sizeShown); let n = 0; for (const k of poiOrder) { const P = pois[k]; if (P.done) { n++; continue; } const ready = rk >= POI[k].f; if (P.chip) P.chip.classList.toggle('ready', ready); if (ready) tipA('ta_target', '🎯 A big target is ready! Follow its glowing arrow.'); P.arrow.classList.toggle('ready', ready); edgeArrow(P.arrow, P.center, !tut || (tut.step === 4 && k === 'cemetery')); }
