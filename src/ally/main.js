@@ -9,7 +9,7 @@ import { makeCar } from '../car.js';
 import { createTwisters, TWISTER_SKINS } from '../tornado.js';
 import { createFires } from '../fire.js';
 import { unlockAudio, soundToggle, sfx, stopMusic, setPlaneEngine, planeEngineLevel, setStormLevel, stormBoost, stormMusicState, playSongs, songState, gameMusic, SONGS_TORNADO } from '../audio.js';
-import { equippedSkin, equippedTornado, skinnedCarArgs, addCoins, grantSkin, equip, CHAR_SKINS, totalReward } from '../skins.js';
+import { equippedSkin, equippedTornado, skinnedCarArgs, addCoins, grantSkin, equip, CHAR_SKINS, totalReward, pauseSkinRow } from '../skins.js';
 import { forceSeason } from '../season.js';
 import { showPrizes } from '../prizes.js';
 import { stampVersion } from '../version.js';
@@ -224,10 +224,11 @@ function endTutorial() { // back to the title screen with a calm town, tutorial 
 
 // ---------- the storm ----------
 let tw = null, twObj = null, size = 1, sizeShown = 1, mass = 0, boostT = 0, lastRank = 0;
-function makeStorm() {
-  const junk = []; const c = makeCar(...skinnedCarArgs([0xc23b3b, 0x4f8fd6, 0xe8d54a][(Math.random() * 3) | 0])); c.scale.setScalar(0.28); junk.push(c);
+function stormJunk() { const junk = []; const c = makeCar(...skinnedCarArgs([0xc23b3b, 0x4f8fd6, 0xe8d54a][(Math.random() * 3) | 0])); c.scale.setScalar(0.28); junk.push(c);
   junk.push(new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.45, 10), new THREE.MeshLambertMaterial({ color: 0x3a6a8a })));
-  twObj = twisters.make(true, junk, equippedTornado()); twObj.position.set(0, 0, 0); twObj.visible = true; scene.add(twObj); tw = twObj.userData.twister; tw.layers.forEach((L) => { L.userData.op0 = L.material.opacity; });
+  return junk; }
+function makeStorm() {
+  twObj = twisters.make(true, stormJunk(), equippedTornado()); twObj.position.set(0, 0, 0); twObj.visible = true; scene.add(twObj); tw = twObj.userData.twister; tw.layers.forEach((L) => { L.userData.op0 = L.material.opacity; });
   size = sizeShown = 1; mass = 0; twObj.scale.setScalar(S0); nukeT = 0; nukeSave = null; nukeHalo = null; for (const b of blasts) b.remove(); blasts.length = 0; roundId++; stormPrev = null;
 }
 const reach = () => 1.6 * sizeShown; // ground radius that wrecks things
@@ -539,7 +540,11 @@ function start(tutorial = false) {
   $('taLevel').textContent = 'L' + level + ' · goal ' + L().goal + '%'; for (const k in hudCache) delete hudCache[k]; rankShown = -1; $('taTargets').style.color = '';
   setTimeout(() => { if (state === 'play' && !tut) banner('TAKE OUT ' + (L().need >= poiOrder.length ? 'ALL ' + poiOrder.length : L().need) + ' TARGETS'); }, 4600);
 }
-function togglePause() { if (state === 'play') { state = 'paused'; setPlaneEngine(0); stopMusic(); $('taPaused').classList.remove('hidden'); } else if (state === 'paused') { state = 'play'; $('taPaused').classList.add('hidden'); playSongs(); setStormLevel(rankOf(sizeShown)); } }
+// a new storm skin from the pause menu: the same storm, same size and place, in its new look
+function swapStorm() { if (!twObj) return; if (nukeT > 0) { banner('NOT WHILE NUKULAR!'); return false; } const pos = twObj.position.clone(), sc = twObj.scale.x; twisters.remove(twObj);
+  twObj = twisters.make(true, stormJunk(), equippedTornado()); twObj.position.copy(pos); twObj.scale.setScalar(sc); twObj.visible = true; scene.add(twObj); tw = twObj.userData.twister; tw.layers.forEach((L) => { L.userData.op0 = L.material.opacity; }); }
+const drawPauseSkins = () => pauseSkinRow($('taPaused'), '🌪️', 'tornado', Object.keys(TWISTER_SKINS).map((k) => ['tornado:' + k, TWISTER_SKINS[k].name]), swapStorm);
+function togglePause() { if (state === 'play') { state = 'paused'; drawPauseSkins(); setPlaneEngine(0); stopMusic(); $('taPaused').classList.remove('hidden'); } else if (state === 'paused') { state = 'play'; $('taPaused').classList.add('hidden'); playSongs(); setStormLevel(rankOf(sizeShown)); } }
 // TOTAL DESTRUCTION: every building and every big target gone before the clock runs out. Points for every second left,
 // an extra prize go, and a free skin at the end
 let totalD = 0;

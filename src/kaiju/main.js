@@ -10,7 +10,7 @@ import { makeCar } from '../car.js';
 import { createTwisters } from '../tornado.js';
 import { createFires } from '../fire.js';
 import { unlockAudio, soundToggle, sfx, stopMusic, setPlaneEngine, setStormLevel, stormBoost, playSongs, songState, gameMusic, SONGS_KAIJU } from '../audio.js';
-import { equippedSkin, skinnedCarArgs, addCoins, CHAR_SKINS, getEquipped, totalReward } from '../skins.js';
+import { equippedSkin, skinnedCarArgs, addCoins, CHAR_SKINS, getEquipped, totalReward, pauseSkinRow } from '../skins.js';
 import { forceSeason } from '../season.js';
 import { showPrizes } from '../prizes.js';
 import { nukeBlast } from '../nuke.js';
@@ -638,7 +638,10 @@ function start() {
   state = 'play'; playSongs(); setStormLevel(1); sfx.whoosh(); banner(KAIJU[me.id].name + ' VS ' + L().name.toUpperCase()); setTimeout(() => { if (state === 'play') banner('TAKE OUT ' + (L().need >= poiOrder.length ? 'ALL ' + poiOrder.length : L().need) + ' TARGETS'); }, 2600);
   renderer.compile(scene, cam); $('taLevel').textContent = 'L' + level + ' · goal ' + L().goal + '%'; for (const k in hudCache) delete hudCache[k];
 }
-function togglePause() { if (state === 'play') { state = 'paused'; setPlaneEngine(0); stopMusic(); $('taPaused').classList.remove('hidden'); } else if (state === 'paused') { state = 'play'; $('taPaused').classList.add('hidden'); playSongs(); setStormLevel(stage * 2 - 1); } }
+// a new look from the pause menu: the same monster, size and place
+function swapMe() { if (!me) return; const old = me, nu = buildKaiju(pick, getEquipped()['kj_' + pick] || false); nu.g.position.copy(old.g.position); nu.g.rotation.copy(old.g.rotation); nu.g.scale.copy(old.g.scale); scene.remove(old.g); scene.add(nu.g); me = nu; }
+const drawPauseSkins = () => pauseSkinRow($('taPaused'), '👹', 'kj_' + pick, SKIN_LOOKS.map((lk) => ['kaiju:' + pick + ':' + lk, KAIJU_SKINS[pick][lk].name.split(' ')[0]]), swapMe);
+function togglePause() { if (state === 'play') { state = 'paused'; drawPauseSkins(); setPlaneEngine(0); stopMusic(); $('taPaused').classList.remove('hidden'); } else if (state === 'paused') { state = 'play'; $('taPaused').classList.add('hidden'); playSongs(); setStormLevel(stage * 2 - 1); } }
 function die() { if (died) return; died = true; me.act('ko'); banner('KAIJU DOWN!'); sfx.over(); setTimeout(finishNow, 1800); state = 'dying'; }
 // time's up: the monster burrows back into the ground (flyers take off into the sky) and the city goes quiet, then the
 // prizes and the score

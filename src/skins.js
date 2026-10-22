@@ -16,9 +16,23 @@ export function fmtCoins(c = getCoins()) { const v = Math.round(c * 100) / 100; 
 // skins bought before there were two per monster ('kaiju:<id>') become that monster's skeleton skin
 { try { const own = JSON.parse(localStorage.getItem('oo_skins_owned') || '[]'); const fix = (x) => (typeof x === 'string' && /^kaiju:[a-z0-9]+$/.test(x) ? x + ':skeleton' : x); if (own.some((x) => fix(x) !== x)) localStorage.setItem('oo_skins_owned', JSON.stringify(own.map(fix)));
   const eq = JSON.parse(localStorage.getItem('oo_skins_equip') || '{}'); let ch = false; for (const k in eq) if (fix(eq[k]) !== eq[k]) { eq[k] = fix(eq[k]); ch = true; } if (ch) localStorage.setItem('oo_skins_equip', JSON.stringify(eq)); } catch { /* ignore */ } }
+// put on a skin you just won (the slot comes from its id: tornado:<k>, kaiju:<id>:<look>, or the shop's own category)
+export function equipWon(id) { const s = SKINS.find((x) => x.id === id); const slot = id.startsWith('kaiju:') ? 'kj_' + id.split(':')[1] : s ? s.cat : null; if (slot && slot !== 'npc') equip(slot, id); }
+// the pause menu's CHOOSE SKIN button: opens its own little menu listing Default plus the skins you own for that slot;
+// tapping one puts it on and onPick swaps it in live (onPick returns false to refuse, e.g. mid-Nukular)
+export function pauseSkinRow(host, icon, slot, opts, onPick) { let b = host.querySelector('.psBtn'); if (!b) { b = document.createElement('button'); b.className = 'ghost psBtn'; host.insertBefore(b, host.querySelector('.soundRow')); }
+  const owned = getOwned(), list = [[null, 'Default'], ...opts.filter(([id]) => owned.includes(id))], nameNow = () => (list.find(([id]) => id === (getEquipped()[slot] || null)) || list[0])[1];
+  b.textContent = icon + ' CHOOSE SKIN (' + nameNow() + ')';
+  b.onclick = (e) => { e.stopPropagation(); const m = document.createElement('div'); m.className = 'psMenu'; const box = document.createElement('div'); box.className = 'psBox'; m.appendChild(box);
+    box.innerHTML = '<h2>' + icon + ' CHOOSE SKIN</h2>' + (list.length < 2 ? '<p class="psHint">No skins yet. Win them in TOTAL DESTRUCTION and prize games, or buy them in the skin shop.</p>' : '');
+    const cur = getEquipped()[slot] || null; for (const [id, name] of list) { const o = document.createElement('button'); o.className = 'ghost psOpt' + (id === cur ? ' on' : ''); o.textContent = (id === cur ? '✓ ' : '') + name;
+      o.onclick = (ev) => { ev.stopPropagation(); equip(slot, id); if (onPick(id) === false) equip(slot, cur); m.remove(); pauseSkinRow(host, icon, slot, opts, onPick); }; box.appendChild(o); }
+    const back = document.createElement('button'); back.className = 'psBack'; back.textContent = 'BACK'; back.onclick = (ev) => { ev.stopPropagation(); m.remove(); }; box.appendChild(back);
+    m.addEventListener('pointerdown', (ev) => ev.stopPropagation()); document.body.appendChild(m); };
+}
 export function totalReward(ids, nameOf, host) { const pool = ids.slice(); for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
-  const id = pool.find((x) => grantSkin(x)); if (!id) addCoins(5); const u = document.createElement('div'); u.className = 'bonusSkin';
-  u.innerHTML = id ? '💥 TOTAL DESTRUCTION REWARD: <b>' + nameOf(id).toUpperCase() + '</b><br><small>A free skin! Wear it from the skin shop.</small>' : '💥 TOTAL DESTRUCTION REWARD: <b>+5 🪙</b><br><small>You already own every skin, so have some coins.</small>'; host.appendChild(u); return id; }
+  const id = pool.find((x) => grantSkin(x)); if (id) equipWon(id); else addCoins(5); const u = document.createElement('div'); u.className = 'bonusSkin';
+  u.innerHTML = id ? '💥 TOTAL DESTRUCTION REWARD: <b>' + nameOf(id).toUpperCase() + '</b><br><small>A free skin, and it\'s on for your next round. Switch skins from the pause menu.</small>' : '💥 TOTAL DESTRUCTION REWARD: <b>+5 🪙</b><br><small>You already own every skin, so have some coins.</small>'; host.appendChild(u); return id; }
 export function grantSkin(id) { const owned = getOwned(); if (owned.includes(id)) return false; owned.push(id); set(K.owned, owned); return true; }
 export function getOwned() { return get(K.owned, []); }
 export function getEquipped() { const e = { player: null, npc: [], car: null, fx: null, tornado: null, ...get(K.equip, {}) }; if (typeof e.npc === 'string') e.npc = [e.npc]; if (!Array.isArray(e.npc)) e.npc = []; return e; }
