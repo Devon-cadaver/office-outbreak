@@ -34,7 +34,7 @@ export const TWISTER_SKINS = {
   easter: { name: 'Bunnynado', price: 2, desc: 'Pastel swirls, bunnies and eggs; pink lightning.', layers: [0xf4a6c8, 0xc8b4f4, 0xb4f0dc], op: [0.72, 0.5, 0.35], cloud: 0xe0c4e8, dust: 0xfce4f2, junk: [0xf4a6c8, 0xc8b4f4, 0xb4f0dc, 0xfff09a], bolts: [0xff6ac8, 0xff9ad8], lights: [0xff9ad8, 0xb49aff, 0x9affd8, 0xfff09a], items: () => [...rep(4, (_, i) => bunny([0xf8f8f8, 0xf4c8e0, 0xd8c8f8, 0xc8f0e0][i])), ...rep(5, (_, i) => egg([0xff9ad8, 0x9ad8ff, 0xfff09a, 0xb4f0dc, 0xd8b4ff][i]))] },
   // the bonus skin for beating Megacity: an acid storm with acid rain, bright green lightning and baby tornadoes
   acid: { name: 'Acid Storm', price: 0, bonus: 'Beat Megacity in Tornado Alley', desc: 'Toxic green funnel, acid rain, bright green lightning, and baby tornadoes that spin off, circle you and roam the town.', layers: [0x1f6a0a, 0x7dff3a, 0xd8ff6a], op: [0.85, 0.5, 0.32], cloud: 0x14300c, dust: 0x5aff2a, junk: [0x3a5a1a, 0x7dff3a, 0x2a2a20, 0xd8c81a], bolts: [0x7dff3a, 0xb8ff3a, 0x3aff8a], boltGlow: 0x7dff3a, boltRate: 2, lights: [0x7dff3a, 0xd8ff3a, 0x3aff8a], fx: 'acid', glow: true, babies: true, items: () => rep(5, drum) },
-  july4: { name: 'Liberty Twister', price: 2, desc: 'Red, white and blue, flags flying, fireworks bursting out.', layers: [0xc23b3b, 0xf2f2f2, 0x2f5fbf], op: [0.75, 0.5, 0.35], cloud: 0x1e2440, dust: 0xd8dde0, junk: [0xc23b3b, 0xf2f2f2, 0x2f5fbf], bolts: [0xff3a3a, 0xffffff, 0x3a7aff, 0xffd24a], lights: [0xff3a3a, 0xffffff, 0x3a7aff], fx: 'fireworks', items: () => rep(4, flag) },
+  july4: { name: 'Liberty Twister', price: 2, desc: 'A dark funnel wrapped in spinning neon red and blue rings, flags flying, fireworks bursting out.', layers: [0x2a2a3a, 0x5a3a52, 0x2a3a6a], op: [0.8, 0.45, 0.3], neon: [0xff2a4a, 0x2ad8ff], cloud: 0x1e2440, dust: 0xd8dde0, junk: [0xc23b3b, 0xf2f2f2, 0x2f5fbf], bolts: [0xff3a3a, 0xffffff, 0x3a7aff, 0xffd24a], lights: [0xff3a3a, 0xffffff, 0x3a7aff], fx: 'fireworks', items: () => rep(4, flag) },
 };
 // lightning matches the skin (its own bolts and the tap-to-move bolts in Tornado Alley); boltEdge draws a dark outline
 // instead of a glow (Hallowstorm: orange bolts edged in black)
@@ -84,13 +84,21 @@ export function createTwisters(scene, { onBolt } = {}) {
     // glowing lights swirling in the funnel
     if (skin && skin.lights) { const ln = big ? 22 : 10; const lights = new THREE.InstancedMesh(puffGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false }), ln); lights.frustumCulled = false; tw.lights = lights; tw.lightP = []; tw.own.push(lights.material);
       for (let i = 0; i < ln; i++) { tw.lightP.push({ a: Math.random() * 6.28, y: Math.random() * H, v: 2 + Math.random() * 3, s: 0.12 + Math.random() * 0.12 }); lights.setColorAt(i, tmpC.set(skin.lights[i % skin.lights.length])); } g.add(lights); }
+    // neon rings (Liberty Twister): glowing red and blue bands spiralling round the funnel, spinning fast
+    if (skin && skin.neon) { const ng = new THREE.Group(); tw.neonG = ng; tw.neon = []; const n = big ? 9 : 5, th = big ? 0.08 : 0.035;
+      for (let i = 0; i < n; i++) { const y0 = H * (0.04 + i / n * 0.9), dy = H * (0.06 + Math.random() * 0.06), a0 = Math.random() * 6.28, turns = 0.75 + Math.random() * 0.6, pts = [];
+        for (let j = 0; j <= 24; j++) { const s = j / 24, y = y0 + s * dy, a = a0 + s * turns * Math.PI * 2, r = radiusAt(tw, y) * (1.12 + 0.12 * Math.sin(s * Math.PI)); pts.push(new THREE.Vector3(Math.cos(a) * r, y, Math.sin(a) * r)); }
+        const curve = new THREE.CatmullRomCurve3(pts), col = skin.neon[i % skin.neon.length];
+        for (const [w, op, core] of [[th * 3.2, 0.28, false], [th, 1, false], [th * 0.45, 1, true]]) { const geo = new THREE.TubeGeometry(curve, 40, w, 6, false), mat = new THREE.MeshBasicMaterial({ color: core ? 0xffffff : col, transparent: true, opacity: op, blending: THREE.AdditiveBlending, depthWrite: false });
+          const m = new THREE.Mesh(geo, mat); m.renderOrder = 3; ng.add(m); tw.neon.push(m); tw.own.push(mat); } }
+      g.add(ng); }
     for (const it of extras) { g.add(it); tw.items.push({ o: it, a: Math.random() * 6.28, y: H * (0.25 + Math.random() * 0.5), spin: 1 + Math.random() * 2 }); }
     twisters.push(tw); g.userData.twister = tw; return g;
   }
 
   function remove(g) { const i = twisters.findIndex((t) => t.g === g); if (i >= 0) twisters.splice(i, 1); scene.remove(g); }
   // free a twister's own GPU resources (babies come and go all round)
-  function dispose(tw) { for (const m of tw.own || []) { if (m.map) m.map.dispose(); m.dispose(); } for (const L of tw.layers) L.geometry.dispose(); for (const m of [tw.cap, tw.dust, tw.junk, tw.lights]) if (m) m.dispose(); }
+  function dispose(tw) { for (const m of tw.own || []) { if (m.map) m.map.dispose(); m.dispose(); } for (const L of [...tw.layers, ...(tw.neon || [])]) L.geometry.dispose(); for (const m of [tw.cap, tw.dust, tw.junk, tw.lights]) if (m) m.dispose(); }
 
   // baby tornadoes (Acid Storm): spin off the storm, circle it, wander out across town and fade away
   const babies = []; let bounds = null; const glowCache = new Map();
@@ -148,6 +156,7 @@ export function createTwisters(scene, { onBolt } = {}) {
         if (u.fly) { o.rotation.set(0, Math.atan2(-Math.sin(it.a), Math.cos(it.a)), 0); o.rotateZ(-0.4); o.position.y += Math.sin(t * 3 + it.a) * 0.2; if (u.wings) { const f = Math.sin(t * 16 + it.a * 3) * 0.7; u.wings[0].rotation.z = f; u.wings[1].rotation.z = -f; } if (u.tail) u.tail.rotation.y = Math.sin(t * 9 + it.a) * 0.5; }
         else { o.rotation.x += dt * it.spin; o.rotation.z += dt * it.spin * 0.7; if (u.cloth) u.cloth.rotation.y = Math.sin(t * 8 + it.a) * 0.4; } }
       if (tw.lights) { tw.lightP.forEach((p, i) => { p.a += dt * p.v; p.y += dt * 0.8; if (p.y > tw.H) p.y = 0.2; const r = radiusAt(tw, p.y) * 0.8; tmpP.set(Math.cos(p.a) * r, p.y, Math.sin(p.a) * r); tmpS.setScalar(p.s * (1 + Math.sin(t * 6 + i) * 0.35)); tmpM.compose(tmpP, tmpQ.identity(), tmpS); tw.lights.setMatrixAt(i, tmpM); }); tw.lights.instanceMatrix.needsUpdate = true; }
+      if (tw.neonG) { tw.neonG.rotation.y += dt * 4.5; const pulse = 0.22 + Math.sin(t * 7) * 0.08; for (let i = 0; i < tw.neon.length; i += 3) tw.neon[i].material.opacity = pulse; }
       if (tw.skin && tw.skin.fx && g.parent === scene) skinFx(tw, dt);
       if (tw.big) { tw.boltT -= dt; if (tw.boltT <= 0 && g.scale.x > 0.5) { tw.boltT = (0.35 + Math.random() * 1.3) / ((tw.skin && tw.skin.boltRate) || 1); bolt(tw); } }
       if (tw.skin && tw.skin.babies && tw.big && !tw.baby && g.parent === scene && g.scale.x > 0.2) { tw.babyT -= dt; if (tw.babyT <= 0) { tw.babyT = 3 + Math.random() * 3; if (babies.length < 4) spawnBaby(tw); } }
