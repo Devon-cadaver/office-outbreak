@@ -175,7 +175,7 @@ function aimAt(cx, cy) {
   for (const t of tanks) if (near(t.g.position, 40)) return t.g.position.clone();
   return p;
 }
-let moveTo = null;
+let moveTo = null, stepT = 0, powerFull = false;
 function castAt(p) { power = 0; const face = Math.atan2(p.x - me.g.position.x, p.z - me.g.position.z); me.g.rotation.y = faceY = face; spells.cast(caster(me, stage), stage, p, {}); popup(me.g.position.clone().setY(meScale * 2), KAIJU[me.id].spells[stage - 1].toUpperCase() + '!', '#7dff3a'); markSeen('kj_cast'); }
 // SPACE (computers): cast without aiming. It goes for the nearest rival, plane or tank in range; with none about, it lands
 // a good stride ahead of the monster (further as it grows), so jumps, charges, beams and blasts all have room
@@ -249,7 +249,7 @@ function grabBuilding(at) { let best = null, bd = 14; for (const x of buildings)
 // ---------- score, popups, banners ----------
 let score = 0, chain = 0, lastHit = -9, tLeft = 150, played = 0, peopleN = 0, carsN = 0, bDone = 0, tooBigT = 0, ko = 0;
 const mult = () => Math.min(5, 1 + Math.floor(chain / 4));
-function award(base, pos, label) { if (played - lastHit < 2.5) chain++; else chain = 0; lastHit = played; const pts = Math.round(base * mult()); score += pts; popup(pos, '+' + pts + (label ? ' ' + label : ''), mult() > 1 ? '#ff9a3a' : '#ffe27a'); return pts; }
+function award(base, pos, label) { if (played - lastHit < 2.5) chain++; else chain = 0; lastHit = played; sfx.coin(chain); const pts = Math.round(base * mult()); score += pts; popup(pos, '+' + pts + (label ? ' ' + label : ''), mult() > 1 ? '#ff9a3a' : '#ffe27a'); return pts; }
 const pops = []; for (let i = 0; i < 14; i++) { const el = document.createElement('div'); el.className = 'pop'; el.style.display = 'none'; document.body.appendChild(el); pops.push({ el, t: 0, p: new THREE.Vector3() }); }
 let popI = 0; function popup(pos, text, color) { const o = pops[popI++ % pops.length]; o.t = 1; o.p.set(pos.x, (pos.y || 0) + 1.5, pos.z); o.el.textContent = text; o.el.style.color = color; o.el.style.display = 'block'; }
 function updatePops(dt) { for (const o of pops) { if (o.t <= 0) continue; o.t -= dt * 0.9; o.p.y += dt * 1.6; const v = o.p.clone().project(cam); o.el.style.transform = 'translate(' + ((v.x * 0.5 + 0.5) * innerWidth) + 'px,' + ((-v.y * 0.5 + 0.5) * innerHeight) + 'px) translate(-50%,-50%)'; o.el.style.opacity = Math.min(1, o.t * 2); if (o.t <= 0) o.el.style.display = 'none'; } }
@@ -326,7 +326,7 @@ function dropMega() {
   const rings = [0, 1].map((i) => { const r = new THREE.Mesh(new THREE.TorusGeometry(1.4 + i * 0.4, 0.08, 6, 32), glowM(0xfff27a, 0.8)); r.position.y = 2; g.add(r); return r; });
   const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.9, 40, 12, 1, true), glowM(0xffd21a, 0.18)); beam.position.y = 20; g.add(beam);
   const pad = new THREE.Mesh(new THREE.RingGeometry(1.6, 2.2, 32), glowM(0xffd21a, 0.6)); pad.rotation.x = -Math.PI / 2; pad.position.y = 0.1; g.add(pad);
-  scene.add(g); megaDrop = { g, orb, halo, rings, life: 25 }; banner('⚡ MEGA BOOSTER DROPPED!'); sfx.pickup(); popup(g.position.clone().setY(4), 'MEGA BOOSTER!', '#ffd21a');
+  scene.add(g); megaDrop = { g, orb, halo, rings, life: 25 }; banner('⚡ MEGA BOOSTER DROPPED!'); sfx.power(); popup(g.position.clone().setY(4), 'MEGA BOOSTER!', '#ffd21a');
 }
 function updateMega(dt) {
   if (megaDrop) { const D = megaDrop; D.life -= dt; const t = played; D.orb.rotation.y += dt * 2; D.orb.position.y = D.halo.position.y = 2 + Math.sin(t * 3) * 0.3; D.rings[0].rotation.set(t * 1.7, t, 0); D.rings[1].rotation.set(-t, t * 1.3, 0.5); D.halo.scale.setScalar(1 + Math.sin(t * 6) * 0.1);
@@ -866,6 +866,8 @@ function update(dt) {
   const lim = toWorld(cols - 1, rows - 1, cols, rows); g.position.x = Math.max(-lim.x, Math.min(lim.x, g.position.x)); g.position.z = Math.max(-lim.z, Math.min(lim.z, g.position.z));
   { let dr = faceY - g.rotation.y; dr = Math.atan2(Math.sin(dr), Math.cos(dr)); g.rotation.y += dr * Math.min(1, dt * 6); }
   me.anim(dt, moving);
+  if (moving > 0.3 && !leap) { stepT -= dt; if (stepT <= 0) { stepT = me.fly ? 0.42 : 0.5; if (me.fly) sfx.flap(); else sfx.stomp(meScale); } } else stepT = 0.15;
+  if (power >= 1 && !powerFull) { powerFull = true; sfx.power(); } else if (power < 1) powerFull = false;
   const px = g.position.x, pz = g.position.z, R = reach();
   // stomping: buildings it walks into come down (if it's big enough)
   tooBigT -= dt;

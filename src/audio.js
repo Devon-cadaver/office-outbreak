@@ -48,7 +48,9 @@ function noise(dur, vol = 0.1, freq = 1200, q = 1) {
   const g = ctx.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
   s.connect(f).connect(g).connect(master); s.start(t); s.stop(t + dur);
 }
-let stepFlip = false;
+let stepFlip = false, coinT = 0;
+// every button in the game clicks when pressed
+if (typeof document !== 'undefined') document.addEventListener('pointerdown', (e) => { if (e.target && e.target.closest && e.target.closest('button')) sfx.click(); }, true);
 export const sfx = {
   throw: () => tone(700, 0.08, 'triangle', 0.05, -300),
   hit: () => tone(200, 0.1, 'square', 0.06, -100),
@@ -63,6 +65,15 @@ export const sfx = {
   wave: () => { tone(440, 0.12, 'square', 0.05); setTimeout(() => tone(660, 0.12, 'square', 0.05), 120); setTimeout(() => tone(880, 0.2, 'square', 0.05), 240); },
   boom: () => { noise(0.9, 0.6, 140, 0.4); tone(48, 1.1, 'sawtooth', 0.25, -20); setTimeout(() => noise(0.5, 0.25, 900, 0.8), 60); },
   whoosh: () => { noise(0.35, 0.12, 600, 0.6); },
+  // a button being pushed in: a short, soft thock
+  click: () => { tone(1500, 0.025, 'square', 0.018); tone(420, 0.06, 'triangle', 0.04, -180); },
+  // points: a two-note coin blip that climbs with the combo; throttled so a pile of rubble doesn't machine-gun it
+  coin: (chain = 0) => { if (!ctx || ctx.currentTime - coinT < 0.07) return; coinT = ctx.currentTime; const k = Math.pow(1.06, Math.min(chain, 12)); tone(988 * k, 0.05, 'square', 0.022); tone(1319 * k, 0.11, 'square', 0.022, 0, master, 0.05); },
+  // a power-up: a quick rising arpeggio
+  power: () => { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.09, 'square', 0.03, 0, master, i * 0.06)); tone(1568, 0.22, 'triangle', 0.035, 0, master, 0.24); },
+  // a giant footstep (deeper for a bigger monster) and a wing beat
+  stomp: (size = 1) => { tone(Math.max(34, 70 - size * 3), 0.2, 'sine', 0.11, -22); noise(0.09, 0.05, 160, 1); },
+  flap: () => { noise(0.16, 0.05, 420, 0.7); },
   over: () => { tone(300, 0.3, 'sawtooth', 0.08, -150); setTimeout(() => tone(200, 0.5, 'sawtooth', 0.08, -150), 250); },
 };
 

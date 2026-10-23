@@ -243,7 +243,7 @@ const maxH = (s) => 3.2 + ((s - 1) / (MAX_S - 1)) * (hMax - 3.2 + 0.1);
 let score = 0, chain = 0, lastHit = -9, tLeft = ROUND, played = 0, peopleN = 0, carsN = 0, propsN = 0, bDone = 0, tooBigT = 0;
 const mult = () => Math.min(5, 1 + Math.floor(chain / 4));
 function award(base, pos, label) {
-  if (played - lastHit < 2.5) chain++; else chain = 0; lastHit = played;
+  if (played - lastHit < 2.5) chain++; else chain = 0; lastHit = played; sfx.coin(chain);
   const pts = Math.round(base * mult()); score += pts; popup(pos, '+' + pts + (label ? ' ' + label : ''), mult() > 1 ? '#ff9a3a' : '#ffe27a'); return pts;
 }
 const pops = []; for (let i = 0; i < 14; i++) { const el = document.createElement('div'); el.className = 'pop'; el.style.display = 'none'; document.body.appendChild(el); pops.push({ el, t: 0, p: new THREE.Vector3() }); }
@@ -406,7 +406,7 @@ function goNuke(c) {
   const rid = roundId; setTimeout(() => { if (state === 'play' && rid === roundId) goNukular(); }, 900);
 }
 function goNukular() {
-  nukeT = NUKULAR_SECS; nukeTold = false; banner('☢️ NUKULAR NADO!'); boostT = Math.max(boostT, NUKULAR_SECS); sfx.whoosh();
+  nukeT = NUKULAR_SECS; nukeTold = false; banner('☢️ NUKULAR NADO!'); boostT = Math.max(boostT, NUKULAR_SECS); sfx.whoosh(); sfx.power();
   if (!nukeSave) nukeSave = tw.layers.map((L) => [L.material.color.getHex(), L.material.opacity]); for (const L of tw.layers) { L.material.color.setHex(0xffe600); L.material.opacity = Math.max(0.75, L.material.opacity); }
   if (!nukeHalo) { nukeHalo = new THREE.Mesh(new THREE.CylinderGeometry(tw.r1 * 1.3, tw.r0 * 2, tw.H, 20, 1, true), new THREE.MeshBasicMaterial({ color: 0xffe21a, transparent: true, opacity: 0.3, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending })); nukeHalo.position.y = tw.H / 2; tw.g.add(nukeHalo); }
 }
@@ -627,7 +627,7 @@ function update(dt) {
   let sx = stick.x + ((keys.d || keys.arrowright) ? 1 : 0) - ((keys.a || keys.arrowleft) ? 1 : 0), sy = stick.y + ((keys.s || keys.arrowdown) ? 1 : 0) - ((keys.w || keys.arrowup) ? 1 : 0);
   const vc = viewCam(); vc.updateMatrixWorld(); right.setFromMatrixColumn(vc.matrixWorld, 0).setY(0).normalize(); upv.setFromMatrixColumn(vc.matrixWorld, 1).setY(0).normalize();
   const mag = Math.min(1, Math.hypot(sx, sy)); boostT -= dt; const speed = (3.2 + sizeShown * 0.7) * (boostT > 0 ? 1.7 : 1);
-  { const r = rankOf(sizeShown); if (r > lastRank) { lastRank = r; boostT = 3; stormBoost(3); banner('F' + r + '! SPEED BOOST'); sfx.whoosh(); for (let i = 0; i < 6; i++) fx.puff('smoke', new THREE.Vector3(twObj.position.x + (Math.random() - 0.5) * 3, 0.4, twObj.position.z + (Math.random() - 0.5) * 3), 1.2); } }
+  { const r = rankOf(sizeShown); if (r > lastRank) { lastRank = r; boostT = 3; stormBoost(3); banner('F' + r + '! SPEED BOOST'); sfx.whoosh(); sfx.power(); for (let i = 0; i < 6; i++) fx.puff('smoke', new THREE.Vector3(twObj.position.x + (Math.random() - 0.5) * 3, 0.4, twObj.position.z + (Math.random() - 0.5) * 3), 1.2); } }
   if (mag > 0.05) moveTo = null;
   if (mag <= 0.05 && moveTo) { const dx = moveTo.x - twObj.position.x, dz = moveTo.z - twObj.position.z, dl = Math.hypot(dx, dz); if (dl < 0.5) moveTo = null; else { tmp.set(dx / dl, 0, dz / dl); twObj.position.addScaledVector(tmp, Math.min(dl, speed * dt)); if (third) { let dd = Math.atan2(tmp.x, tmp.z) - camYaw; dd = Math.atan2(Math.sin(dd), Math.cos(dd)); camYaw += dd * Math.min(1, dt * 1.6); } } }
   if (mag > 0.05) { tmp.copy(right).multiplyScalar(sx).addScaledVector(upv, -sy).normalize(); twObj.position.addScaledVector(tmp, speed * mag * dt);
