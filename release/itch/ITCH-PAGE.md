@@ -1,6 +1,6 @@
 # Dead City: Tornado Alley — itch.io page kit
 
-Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.20.3**. Upload `release/survive-dead-city-web-v1.20.3.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
+Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.21.0**. Upload `release/survive-dead-city-web-v1.21.0.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
 
 > All monsters, robots and characters in Dead City are original creations. Any resemblance to other characters is coincidental.
 
@@ -13,7 +13,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 | Short description / tagline | You are the storm. Tear through five towns, take out big targets, dodge seeding planes and outrun storm chasers. |
 | Classification | Game |
 | Kind of project | **HTML** |
-| Uploads | `survive-dead-city-web-v1.20.3.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
+| Uploads | `survive-dead-city-web-v1.21.0.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
 | Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
 | Frame options | Leave SharedArrayBuffer off. No special headers needed. |
 | Pricing | Free (or "No payments"). |
@@ -70,6 +70,7 @@ Small browser games built fast, tested on a phone, and tuned by playing. Dead Ci
 
 ## Version history
 
+- **1.21.0** (2026-10-23): New, simpler Kaiju fighting: no more locked-in mini games. Hit rivals with your normal attacks, watch for the red ring when they wind up a swing and step out to dodge, fill their daze meter, then finish them with SPIN & TOSS or a wrestling FINISH IT! move. Fixed Mike's legs flickering and his floating walk.
 - **1.20.3** (2026-10-23): Fixed Kaiju fights stalling, where the rival just kept walking into you and no moves started, especially with big or flying rivals. The points sound is now softer and plays less often.
 - **1.20.2** (2026-10-23): Kaiju fights feel better: no more teleporting. Thrown fighters stay where they land and get back up, and between moves the two square up at boxing distance like Rock 'Em Sock 'Em robots. Grabs step in instead of yanking, and knockbacks slide. Future era tanks are now hover tanks with twin glowing cannons that fire pink laser bolts.
 - **1.20.1** (2026-10-23): More arcade sounds: buttons click when you press them, kaiju stomp as they walk (deeper as they grow) and flyers flap their wings, points ping like coins and climb in pitch as your combo builds, and power-ups play a jingle.

@@ -196,6 +196,7 @@ function miniKey(e, down) { const cx = innerWidth / 2, cy = innerHeight / 2, fir
   const dir = { arrowleft: [-1, 0], arrowright: [1, 0], arrowup: [0, -1], arrowdown: [0, 1] }[e.key.toLowerCase()]; if (dir && down && !e.repeat) { fire('pointerdown', cx, cy); fire('pointerup', cx + dir[0] * 90, cy + dir[1] * 90); return true; } return !!dir; }
 function tapAt(cx, cy) {
   const p = aimAt(cx, cy); if (!p) return;
+  if (rival && rival.dazedT > 0 && !finishing && Math.hypot(p.x - rival.g.position.x, p.z - rival.g.position.z) < rival.scale * 1.2 && Math.hypot(me.g.position.x - rival.g.position.x, me.g.position.z - rival.g.position.z) < reach() + rival.scale * 1.1 + 1.5) { doFinisher(); return; }
   if (megaT > 0 && !megaUsed) { megaBlast(); return; }
   if (power >= 1 && !leap) { castAt(p); return; }
   moveTo = p;
@@ -298,12 +299,12 @@ function spawnRival(forceId) {
   const rig = buildKaiju(id); const f = (st - 0.5) / 3, sc = scaleOf(f); rig.g.scale.setScalar(sc);
   const far = []; for (const c of roadCells) { const w = toWorld(c[0], c[1], cols, rows); const d = Math.hypot(w.x - me.g.position.x, w.z - me.g.position.z); if (d > 20 && d < 34) far.push(w); }
   const w = far.length ? far[(Math.random() * far.length) | 0] : toWorld(1, 1, cols, rows); rig.g.position.set(w.x, 0, w.z); scene.add(rig.g);
-  rival = { id, rig, g: rig.g, stage: st, scale: sc, hp: 45 + 55 * st, max: 45 + 55 * st, cd: 1.5, castT: 6 + Math.random() * 3, stun: 0, koT: 0 };
+  rival = { id, rig, g: rig.g, stage: st, scale: sc, hp: 45 + 55 * st, max: 45 + 55 * st, cd: 1.5, castT: 6 + Math.random() * 3, stun: 0, koT: 0, daze: 0, dazedT: 0, atk: null };
   $('kjRivalName').textContent = KAIJU[id].name + ' · ' + STAGE[st]; rivalEl.classList.remove('hidden'); banner('👹 RIVAL: ' + KAIJU[id].name + '!'); sfx.wave(); tip('kj_rival', '👹 A rival kaiju! Walk up and your kaiju fights it on its own. Spells hit it hard. KO it and eat it for a big boost.');
 }
 function hitRival(pow, freeze) { if (!rival || rival.hp <= 0) return; if (bout && bout.buff > 0) pow *= 1.5; rival.hp -= pow; rival.rig.act('hit'); if (freeze) rival.stun = 2.5; popup(rival.g.position.clone().setY(rival.scale * 1.8), '-' + Math.round(pow), '#ffb02a'); if (rival.hp <= 0) rivalKO(); }
 function rivalKO() {
-  const r = rival; r.hp = 0; r.koT = 2.2; r.rig.act('ko'); ko++; award(2500 * r.stage, r.g.position, 'K.O.!'); sfx.boom(); flashT = 0.3; mini = null; miniEl.className = 'hidden';
+  const r = rival; if (r.ring) scene.remove(r.ring); r.atk = null; finishBtn.classList.add('hidden'); r.hp = 0; r.koT = 2.2; r.rig.act('ko'); ko++; award(2500 * r.stage, r.g.position, 'K.O.!'); sfx.boom(); flashT = 0.3; mini = null; miniEl.className = 'hidden';
   // ...and then you eat it: a monster meal is a big boost (size, full Power, a burst of speed)
   const rid = roundId; setTimeout(() => { if (state !== 'play' || rid !== roundId) return; grow(massTarget * (0.16 + 0.06 * r.stage)); power = 1; boostT = 5; me.act('cast'); banner('MONSTER MEAL!'); popup(me.g.position.clone().setY(meScale * 2), '+SIZE +POWER', '#7dff3a'); sfx.pickup(); }, 1300);
   banner('K.O.!'); stormBoost(2);
@@ -364,18 +365,47 @@ function updateRival(dt, px, pz) {
   if (mini) r.stun = Math.max(r.stun, 0.05);
   if (r.stun <= 0) {
     const want = Math.atan2(dx, dz); let dr = want - g.rotation.y; dr = Math.atan2(Math.sin(dr), Math.cos(dr)); g.rotation.y += dr * Math.min(1, dt * 4);
-    if (d > touch * 0.9 && !bout) { const sp = (3.6 + r.scale * 0.4) * KAIJU[r.id].speed * 0.8; g.position.x += dx / d * sp * dt; g.position.z += dz / d * sp * dt; r.moving = true; }
-    r.cd -= dt; if (d < touch + 0.3 && r.cd <= 0 && !mini && !bout) startBout(r);
+    if (d > touch * 0.9 && !bout && !r.atk) { const sp = (3.6 + r.scale * 0.4) * KAIJU[r.id].speed * 0.8; g.position.x += dx / d * sp * dt; g.position.z += dz / d * sp * dt; r.moving = true; }
+    r.cd -= dt; if (d < touch + 0.4 && r.cd <= 0 && !r.atk && !mini && !meToss) rivalWindUp(r, touch);
     r.castT -= dt; if (r.castT <= 0 && d < 18) { r.castT = 8 + Math.random() * 3; spells.cast(caster(r.rig, r.stage), r.stage, me.g.position.clone(), { hostile: true }); popup(g.position.clone().setY(r.scale * 2), KAIJU[r.id].spells[r.stage - 1].toUpperCase() + '!', '#ff5a5a'); }
   }
+  if (r.atk) rivalSwing(r, dt);
+  if (r.dazedT > 0) { r.dazedT -= dt; r.stun = Math.max(r.stun, 0.1); g.rotation.z = Math.sin(played * 7) * 0.12; if (Math.random() < dt * 4) popup(g.position.clone().setY(r.scale * 2.3), '💫', '#ffd24a'); if (r.dazedT <= 0) { r.daze = 0; g.rotation.z = 0; } }
+  finishBtn.classList.toggle('hidden', !(r.dazedT > 0 && d < touch + r.scale * 0.6 + 1.5 && !finishing && !mini));
   // bodies collide: you can't walk through each other (except while it's being swung or thrown)
   if (!r.toss && !(mini && (mini.type === 'spin' || mini.type === 'escape')) && !leap && !(bout && bout.anim) && !meToss) { const ex = g.position.x - me.g.position.x, ez = g.position.z - me.g.position.z, ed = Math.hypot(ex, ez) || 0.01, minD = 0.42 * (meScale + r.scale);
     if (ed < minD) { const push = (minD - ed) / 2, ux = ex / ed, uz = ez / ed; g.position.x += ux * push; g.position.z += uz * push; me.g.position.x -= ux * push; me.g.position.z -= uz * push; } }
   // its health bar floats over its head
   const v = g.position.clone().setY(r.scale * 2.2).project(cam); const on = Math.abs(v.x) < 1 && Math.abs(v.y) < 1;
-  rivalEl.classList.toggle('hidden', !on); if (on) { rivalEl.style.transform = 'translate(' + ((v.x * 0.5 + 0.5) * innerWidth) + 'px,' + ((-v.y * 0.5 + 0.5) * innerHeight) + 'px) translate(-50%,-100%)'; $('kjRivalFill').style.width = Math.max(0, r.hp / r.max * 100) + '%'; }
+  rivalEl.classList.toggle('hidden', !on); if (on) { rivalEl.style.transform = 'translate(' + ((v.x * 0.5 + 0.5) * innerWidth) + 'px,' + ((-v.y * 0.5 + 0.5) * innerHeight) + 'px) translate(-50%,-100%)'; $('kjRivalFill').style.width = Math.max(0, r.hp / r.max * 100) + '%'; $('kjDazeFill').style.width = (r.dazedT > 0 ? 100 : r.daze * 100) + '%'; $('kjDaze').classList.toggle('full', r.dazedT > 0); }
   edgeArrow(rivalArrow, g.position, true);
 }
+
+// ---------- FIGHTING, free in the world: walk into the rival and your attacks hit it like anything else, and every hit fills
+// its DAZE meter. It fights back with wind-up swings you can see coming (a red ring grows under it; step out of the ring and
+// it misses). Daze it fully and it reels: get close and hit FINISH IT! for your big finishing move. ----------
+const ringGeo = new THREE.RingGeometry(0.7, 1, 40).rotateX(-Math.PI / 2), ringMat = new THREE.MeshBasicMaterial({ color: 0xff3a3a, transparent: true, opacity: 0.6, depthWrite: false });
+// two ways to finish a dazed rival: SPIN & TOSS (circle your finger to swing it and hurl it across town) or FINISH IT! (your wrestling move)
+const finishBtn = document.createElement('div'); finishBtn.id = 'kjFinish'; finishBtn.className = 'hidden'; finishBtn.innerHTML = '<button id="kjFinSpin">🌀 SPIN &amp; TOSS</button><button id="kjFinMove">💥 FINISH IT!</button>'; document.body.appendChild(finishBtn);
+let finishing = false;
+function rivalWindUp(r, touch) { const ring = r.ring || (r.ring = new THREE.Mesh(ringGeo, ringMat)); ring.position.set(0, 0.06, 0); scene.add(ring); r.atk = { t: 0, dur: Math.max(0.6, 1.0 - 0.1 * (r.stage - 1)), reach: touch + 0.5 }; r.rig.act('cast'); popup(r.g.position.clone().setY(r.scale * 2.4), '❗', '#ff5a5a'); }
+function rivalSwing(r, dt) { const A = r.atk; A.t += dt; const k = Math.min(1, A.t / A.dur), ring = r.ring; ring.position.set(r.g.position.x, 0.06, r.g.position.z); ring.scale.setScalar(A.reach * (0.25 + 0.75 * k)); ring.material.opacity = 0.5 + 0.45 * k;
+  r.g.rotation.x = -0.25 * Math.sin(k * Math.PI * 0.5);
+  if (k < 1) return; scene.remove(ring); r.atk = null; r.g.rotation.x = 0; r.rig.act('hit'); r.cd = 0.9 + Math.random() * 0.8;
+  const dx = me.g.position.x - r.g.position.x, dz = me.g.position.z - r.g.position.z;
+  if (Math.hypot(dx, dz) < A.reach && !leap && !meToss) { hurt(5 + 2 * r.stage, true); knock(me.g, r.g.position, 1.6); fx.explode(me.g.position.clone().setY(meScale), Math.min(1.5, 0.3 * r.scale)); sfx.boom(); flashT = Math.max(flashT, 0.12); me.act('hit'); }
+  else { popup(r.g.position.clone().setY(r.scale * 2), 'MISS!', '#7dff3a'); sfx.whoosh(); } }
+// your hit on the rival: damage, a little knock back, and daze
+function strikeRival(r) { if (!r || r.hp <= 0 || r.dazedT > 0) { if (r && r.dazedT > 0) hitRival(2 + stage); return; } hitRival(4 + 2 * stage); if (!rival) return; knock(r.g, me.g.position, 0.5);
+  r.daze = Math.min(1, r.daze + 0.13 / Math.max(1, r.stage - stage + 1)); if (r.atk && r.daze >= 0.5) { scene.remove(r.ring); r.atk = null; r.g.rotation.x = 0; popup(r.g.position.clone().setY(r.scale * 2), 'INTERRUPTED!', '#7dff3a'); }
+  if (r.daze >= 1) { r.dazedT = 3.5; r.atk = null; if (r.ring) scene.remove(r.ring); banner('💫 DAZED! FINISH IT!'); sfx.power(); } }
+// the finisher: your signature wrestling move on the dazed rival, then your spell lands on it while it's down
+const FINISHERS = ['chokeslam', 'piledriver', 'suplex', 'spear', 'superkick'];
+function doFinisher() { const r = rival; if (!r || r.dazedT <= 0 || finishing) return; finishing = true; r.stun = 3; finishBtn.classList.add('hidden'); r.dazedT = 0; r.daze = 0; r.g.rotation.z = 0; moveTo = null;
+  const mv = FINISHERS[(Math.random() * FINISHERS.length) | 0]; me.g.rotation.y = faceY = Math.atan2(r.g.position.x - me.g.position.x, r.g.position.z - me.g.position.z); banner(MOVE_NAME[mv] + '!'); const dur = wrestle(mv, 'me', 'them');
+  anims.push({ wait: dur * 0.6, t: 0, dur: 0.01, go() { if (rival === r) { hitRival(22 + 10 * stage); if (rival === r) { r.stun = 2.2; followUp(me, r.g.position.clone(), false); } } }, f() {}, end() { finishing = false; } }); }
+finishBtn.querySelector('#kjFinMove').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); if (state === 'play') doFinisher(); });
+finishBtn.querySelector('#kjFinSpin').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); const r = rival; if (state !== 'play' || !r || r.dazedT <= 0 || finishing || mini) return; r.dazedT = 0; r.daze = 0; r.g.rotation.z = 0; finishBtn.classList.add('hidden'); moveTo = null; startMini(r, 'spin'); });
 
 // ---------- close combat: mini games ----------
 // Up close a fight is one of five mini games, picked at random: BRAWL (mash to win a tug of war), SWIPE COMBO (swipe each
@@ -742,7 +772,7 @@ function start() {
   fsMode.play();
   megaT = 0; megaUsed = false; megaDropT = 25 + Math.random() * 15; if (megaDrop) scene.remove(megaDrop.g); megaDrop = null; megaArrow.style.display = 'none'; megaEl.className = 'hidden'; for (const b of blasts) b.remove(); blasts.length = 0; camK = 1; roundId++;
   clearAnims();
-  unlockAudio(); buildWorld(); makeMe(); spells.clear(); score = 0; totalD = 0; camHold = false; bike = null; bout = null; meToss = null; /* a new round: the camera follows again after a ride-off; no fight carries over */ chain = 0; lastHit = -9; tLeft = L().time; played = 0; peopleN = carsN = bDone = 0; ko = 0; died = false; moveTo = null; slowT = 0; boostT = 0;
+  unlockAudio(); buildWorld(); makeMe(); spells.clear(); score = 0; totalD = 0; camHold = false; bike = null; bout = null; meToss = null; finishing = false; finishBtn.classList.add('hidden'); /* a new round: the camera follows again after a ride-off; no fight carries over */ chain = 0; lastHit = -9; tLeft = L().time; played = 0; peopleN = carsN = bDone = 0; ko = 0; died = false; moveTo = null; slowT = 0; boostT = 0;
   for (const pl of planes) { scene.remove(pl.g); pl.arrow.remove(); } planes = []; planeT = 50 + Math.random() * 10; noPlanes = false; for (const b of bombs) scene.remove(b.m); bombs.length = 0; for (const f of fires) scene.remove(f.ring); fires.length = 0;
   if (rival) scene.remove(rival.g); rival = null; mini = null; lastMini = ''; miniEl.className = 'hidden'; rivalQueue = []; rivalWait = 0; queueRivals(1); sinking.length = 0; gulps.length = 0;
   setupPoiHud(); for (const s of ['taStart', 'taEnd', 'taPaused', 'taPrize', 'kjPickScr']) $(s).classList.add('hidden'); $('ta').classList.remove('hidden');
@@ -757,7 +787,7 @@ function die() { if (died) return; died = true; me.act('ko'); banner('KAIJU DOWN
 // time's up: the monster burrows back into the ground (flyers take off into the sky) and the city goes quiet, then the
 // prizes and the score
 let outroT = 0, camHold = false, bike = null;
-function finish() { if (state !== 'play') return; state = 'outro'; outroT = 0; camHold = false; bike = null; bout = null; meToss = null; mini = null; miniEl.className = 'hidden'; stopMusic(); setPlaneEngine(0); sUp(stick.id); clearTips(); moveTo = null; megaT = 0; megaEl.className = 'hidden';
+function finish() { if (state !== 'play') return; state = 'outro'; outroT = 0; camHold = false; bike = null; bout = null; meToss = null; finishing = false; finishBtn.classList.add('hidden'); mini = null; miniEl.className = 'hidden'; stopMusic(); setPlaneEngine(0); sUp(stick.id); clearTips(); moveTo = null; megaT = 0; megaEl.className = 'hidden';
   banner('THE MADNESS HAS ENDED!'); me.act('cast'); sfx.boom(); setTimeout(() => sfx.whoosh(), 500); setTimeout(() => sfx.boom(), 1300); }
 // Mike leaves town on his chopper: it bursts up out of the street (0-0.9 s), he hops on (0.9-1.5), revs, and guns it
 function rideOff(dt) { const g = me.g, T = outroT, s = g.scale.x;
@@ -903,8 +933,9 @@ function update(dt) {
     let target = null, td = 1e9; const consider = (pos, extra, kind, ref) => { const d = Math.hypot(pos.x - px, pos.z - pz); if (d < R + extra && d < td) { td = d; target = { kind, ref, pos }; } };
 
     for (const t of tanks) consider(t.g.position, 1.2, 'tank', t); for (const s of soldiers) consider(s.position, 0.9, 'soldier', s); for (const o of drivers) consider(o.g.position, 0.8, 'car', o);
+    if (rival && rival.hp > 0 && !rival.koT && !rival.toss && !finishing) consider(rival.g.position, rival.scale * 0.55 + 0.6, 'rival', rival);
     if (target) { meleeCd = 0.55; smashAct(); faceY = Math.atan2(target.pos.x - px, target.pos.z - pz);
-      if (target.kind === 'rival') { /* close combat with a rival is the brawl mini game */ }
+      if (target.kind === 'rival') { meleeCd = 0.45; strikeRival(target.ref); }
       else if (target.kind === 'tank') { const i = tanks.indexOf(target.ref); if (i >= 0) { tanks.splice(i, 1); twisters.scatter([target.ref.g], g.position.clone(), 5); fx.explode(target.pos.clone(), 1); award(250, target.pos, 'TANK'); grow(1.5); sfx.boom(); } }
       else if (target.kind === 'soldier') { const i = soldiers.indexOf(target.ref); if (i >= 0) { soldiers.splice(i, 1); delete target.ref.updateMatrixWorld; twisters.scatter([target.ref], g.position.clone(), 6); award(40, target.pos, 'SOLDIER'); grow(0.6); sfx.hit(); } }
       else { const i = drivers.indexOf(target.ref); if (i >= 0) { drivers.splice(i, 1); blowCar(target.ref.g, target.pos.clone()); } } } }
@@ -958,4 +989,4 @@ function frame(now) {
 function showcase() { if (state !== 'start') return; makeMe(); me.g.position.set(0, 0, 0); camTarget.set(0, 2, 0); }
 buildWorld(); makeMe(); camTarget.set(0, 2, 0);
 requestAnimationFrame(frame); requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove('booting'))); // the start screen is ready now
-window.__kj = { get bout() { return bout; }, get meToss() { return meToss; }, startEscape: (r) => startEscape(r), startBout: (r) => startBout(r), wrestle, finish, get tLeft() { return tLeft; }, get camHold() { return camHold; }, get died() { return died; }, get outroT() { return outroT; }, get bike() { return bike; }, get totalD() { return totalD; }, set bDone(v) { bDone = v; }, get totalB() { return totalB; }, emote, throwHammer, endMini: (res) => endMini(res), get song() { return songState(); }, get sceneN() { return scene.children.length; }, flourish, get anims() { return anims.length; }, dropMega, goMega, megaBlast, get megaT() { return megaT; }, get megaDrop() { return megaDrop; }, THREE, get me() { return me; }, get moveTo() { return moveTo; }, get mass() { return mass; }, set mass(v) { mass = v; }, get massTarget() { return massTarget; }, get stage() { return stage; }, get power() { return power; }, set power(v) { power = v; }, get rival() { return rival; }, spawnRival, spawnPlane, get planes() { return planes; }, get state() { return state; }, get score() { return score; }, get people() { return people; }, get buildings() { return buildings; }, get pois() { return pois; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, tapAt, get cam() { return cam; }, set tLeft(v) { tLeft = v; }, set level(v) { level = v; }, start, hurt, get calls() { return renderer.info.render.calls; }, get fires() { return fires; }, get mini() { return mini && { ...mini, side: mini.side }; }, startMini, get pool() { return pool.length; }, get unlocked() { return unlockedKaiju(); }, set pick(v) { pick = v; } };
+window.__kj = { get bout() { return bout; }, strikeRival: (r) => strikeRival(r), doFinisher, get finishing() { return finishing; }, get meToss() { return meToss; }, startEscape: (r) => startEscape(r), startBout: (r) => startBout(r), wrestle, finish, get tLeft() { return tLeft; }, get camHold() { return camHold; }, get died() { return died; }, get outroT() { return outroT; }, get bike() { return bike; }, get totalD() { return totalD; }, set bDone(v) { bDone = v; }, get totalB() { return totalB; }, emote, throwHammer, endMini: (res) => endMini(res), get song() { return songState(); }, get sceneN() { return scene.children.length; }, flourish, get anims() { return anims.length; }, dropMega, goMega, megaBlast, get megaT() { return megaT; }, get megaDrop() { return megaDrop; }, THREE, get me() { return me; }, get moveTo() { return moveTo; }, get mass() { return mass; }, set mass(v) { mass = v; }, get massTarget() { return massTarget; }, get stage() { return stage; }, get power() { return power; }, set power(v) { power = v; }, get rival() { return rival; }, spawnRival, spawnPlane, get planes() { return planes; }, get state() { return state; }, get score() { return score; }, get people() { return people; }, get buildings() { return buildings; }, get pois() { return pois; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, tapAt, get cam() { return cam; }, set tLeft(v) { tLeft = v; }, set level(v) { level = v; }, start, hurt, get calls() { return renderer.info.render.calls; }, get fires() { return fires; }, get mini() { return mini && { ...mini, side: mini.side }; }, startMini, get pool() { return pool.length; }, get unlocked() { return unlockedKaiju(); }, set pick(v) { pick = v; } };

@@ -589,7 +589,7 @@ function mikeHD(body, K) {
   // motion: a heavy, natural gait (heel-to-toe feet, knees that bend on the swing, hip bob and sway, shoulders twisting
   // against the hips, a steady head), a sledgehammer that hangs and lags like real weight, and a two-handed overhead slam
   const cl = (x) => Math.max(0, Math.min(1, x)), ease = (x) => (x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2), lerp = (a, b, q) => a + (b - a) * q;
-  let mv = 0, hamA = 0, hamV = 0, prevArm = 0;
+  let mv = 0, hamA = 0, hamV = 0, prevArm = 0, walkPh = 0; /* stride phase, advanced by speed each frame (t * speed would jump when the speed changes) */
   // two-joint reach: aim the free arm so its fist lands on the handle (law of cosines for the elbow), blended in by w
   const L1 = 0.41, L2 = 0.41, NY = V(0, -1, 0), XA = V(1, 0, 0), tP = V(0, 0, 0), tD = V(0, 0, 0), tQ = new THREE.Quaternion(), tB = new THREE.Quaternion();
   function reach(w) { grip.getWorldPosition(tP); torso.worldToLocal(tP); const A = arms[1]; tD.subVectors(tP, A.a.position); const d = Math.max(0.15, Math.min(L1 + L2 - 0.01, tD.length())); tD.normalize();
@@ -597,7 +597,7 @@ function mikeHD(body, K) {
     tQ.setFromUnitVectors(NY, tD).multiply(tB.setFromAxisAngle(XA, GRIP_SIGN * alpha)); A.a.quaternion.slerp(tQ, w); A.el.rotation.x += (-bend - A.el.rotation.x) * w; }
   return { mouth, hand, chest, limbs: { arms: typeof arms !== 'undefined' ? arms : null, claws: typeof claws !== 'undefined' ? claws : null, tents: typeof tents !== 'undefined' ? tents : null, wings: typeof wings !== 'undefined' ? wings : null, vines: typeof vines !== 'undefined' ? vines : null },  hammer: ham, actSpeed: { hit: 1.35, golf: 1.55, ride: 0.02, grab: 0.02, kick: 1.5, bat: 1.15, sprawl: 0.6 },
     anim(t, dt, move, act, k) {
-      mv += (move - mv) * Math.min(1, dt * 5); const m = mv, ph = t * (3.6 + m * 2.2), s = Math.sin(ph), c = Math.cos(ph), br = Math.sin(t * 1.7);
+      mv += (move - mv) * Math.min(1, dt * 5); const m = mv; walkPh += dt * (3.6 + m * 2.2); const ph = walkPh, s = Math.sin(ph), c = Math.cos(ph), br = Math.sin(t * 1.7);
       // legs: sg flips the phase for the right leg; fwd > 0 while that leg is travelling forward (its swing)
       for (const [i, sg] of [[0, 1], [1, -1]]) { const L = legs[i], sw = s * sg, fwd = c * sg;
         L.l.rotation.x = -sw * 0.55 * m; L.k.rotation.x = (Math.max(0, fwd) * 0.72 + 0.06) * m;
@@ -709,7 +709,7 @@ function wrestlerHD(body, K) {
   // motion: a heavy, natural gait (heel-to-toe feet, knees that bend on the swing, hip bob and sway, shoulders twisting
   // against the hips, a steady head), a sledgehammer that hangs and lags like real weight, and a two-handed overhead slam
   const cl = (x) => Math.max(0, Math.min(1, x)), ease = (x) => (x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2), lerp = (a, b, q) => a + (b - a) * q;
-  let mv = 0, hamA = 0, hamV = 0, prevArm = 0;
+  let mv = 0, hamA = 0, hamV = 0, prevArm = 0, walkPh = 0; /* stride phase, advanced by speed each frame (t * speed would jump when the speed changes) */
   // two-joint reach: aim the free arm so its fist lands on the handle (law of cosines for the elbow), blended in by w
   const L1 = 0.41, L2 = 0.41, NY = V(0, -1, 0), XA = V(1, 0, 0), tP = V(0, 0, 0), tD = V(0, 0, 0), tQ = new THREE.Quaternion(), tB = new THREE.Quaternion();
   function reach(w) { grip.getWorldPosition(tP); torso.worldToLocal(tP); const A = arms[1]; tD.subVectors(tP, A.a.position); const d = Math.max(0.15, Math.min(L1 + L2 - 0.01, tD.length())); tD.normalize();
@@ -717,7 +717,7 @@ function wrestlerHD(body, K) {
     tQ.setFromUnitVectors(NY, tD).multiply(tB.setFromAxisAngle(XA, GRIP_SIGN * alpha)); A.a.quaternion.slerp(tQ, w); A.el.rotation.x += (-bend - A.el.rotation.x) * w; }
   return { mouth, hand, chest, limbs: { arms: typeof arms !== 'undefined' ? arms : null, claws: typeof claws !== 'undefined' ? claws : null, tents: typeof tents !== 'undefined' ? tents : null, wings: typeof wings !== 'undefined' ? wings : null, vines: typeof vines !== 'undefined' ? vines : null },  hammer: null, actSpeed: { hit: 1.35, golf: 1.55, ride: 0.02, grab: 0.02, kick: 1.5, bat: 1.15, sprawl: 0.6, elbow: 1.0, fly: 0.3 },
     anim(t, dt, move, act, k) {
-      mv += (move - mv) * Math.min(1, dt * 5); const m = mv, ph = t * (3.6 + m * 2.2), s = Math.sin(ph), c = Math.cos(ph), br = Math.sin(t * 1.7);
+      mv += (move - mv) * Math.min(1, dt * 5); const m = mv; walkPh += dt * (3.6 + m * 2.2); const ph = walkPh, s = Math.sin(ph), c = Math.cos(ph), br = Math.sin(t * 1.7);
       // legs: sg flips the phase for the right leg; fwd > 0 while that leg is travelling forward (its swing)
       for (const [i, sg] of [[0, 1], [1, -1]]) { const L = legs[i], sw = s * sg, fwd = c * sg;
         L.l.rotation.x = -sw * 0.55 * m; L.k.rotation.x = (Math.max(0, fwd) * 0.72 + 0.06) * m;
