@@ -67,8 +67,8 @@ export const sfx = {
   whoosh: () => { noise(0.35, 0.12, 600, 0.6); },
   // a button being pushed in: a short, soft thock
   click: () => { tone(1500, 0.025, 'square', 0.018); tone(420, 0.06, 'triangle', 0.04, -180); },
-  // points: a two-note coin blip that climbs with the combo; throttled so a pile of rubble doesn't machine-gun it
-  coin: (chain = 0) => { if (!ctx || ctx.currentTime - coinT < 0.07) return; coinT = ctx.currentTime; const k = Math.pow(1.06, Math.min(chain, 12)); tone(988 * k, 0.05, 'square', 0.022); tone(1319 * k, 0.11, 'square', 0.022, 0, master, 0.05); },
+  // points: a soft two-note coin blip that climbs with the combo; at most four a second so it stays in the background
+  coin: (chain = 0) => { if (!ctx || ctx.currentTime - coinT < 0.25) return; coinT = ctx.currentTime; const k = Math.pow(1.05, Math.min(chain, 10)); tone(988 * k, 0.04, 'triangle', 0.016); tone(1319 * k, 0.08, 'triangle', 0.014, 0, master, 0.04); },
   // a power-up: a quick rising arpeggio
   power: () => { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.09, 'square', 0.03, 0, master, i * 0.06)); tone(1568, 0.22, 'triangle', 0.035, 0, master, 0.24); },
   // a giant footstep (deeper for a bigger monster) and a wing beat

@@ -364,7 +364,7 @@ function updateRival(dt, px, pz) {
   if (mini) r.stun = Math.max(r.stun, 0.05);
   if (r.stun <= 0) {
     const want = Math.atan2(dx, dz); let dr = want - g.rotation.y; dr = Math.atan2(Math.sin(dr), Math.cos(dr)); g.rotation.y += dr * Math.min(1, dt * 4);
-    if (d > touch * 0.9) { const sp = (3.6 + r.scale * 0.4) * KAIJU[r.id].speed * 0.8; g.position.x += dx / d * sp * dt; g.position.z += dz / d * sp * dt; r.moving = true; }
+    if (d > touch * 0.9 && !bout) { const sp = (3.6 + r.scale * 0.4) * KAIJU[r.id].speed * 0.8; g.position.x += dx / d * sp * dt; g.position.z += dz / d * sp * dt; r.moving = true; }
     r.cd -= dt; if (d < touch + 0.3 && r.cd <= 0 && !mini && !bout) startBout(r);
     r.castT -= dt; if (r.castT <= 0 && d < 18) { r.castT = 8 + Math.random() * 3; spells.cast(caster(r.rig, r.stage), r.stage, me.g.position.clone(), { hostile: true }); popup(g.position.clone().setY(r.scale * 2), KAIJU[r.id].spells[r.stage - 1].toUpperCase() + '!', '#ff5a5a'); }
   }
@@ -395,7 +395,7 @@ function startBout(r) { bout = { r, n: 0, buff: 0, wait: 0, max: 4 + (Math.rando
 function endBout(why) { if (!bout) return; const r = bout.r; bout = null; if (why === 'break' && r && rival === r && r.hp > 0) { banner('BREAK!'); knock(r.g, me.g.position, 3.5); knock(me.g, r.g.position, 1.5); r.cd = 4; r.stun = 1; } }
 function boutTick(dt) { const b = bout; if (!rival || rival !== b.r || rival.hp <= 0 || died) { bout = null; return 0; } if (rival.toss) return 0;
   let walk = 0; if (!b.anim) { const P = me.g.position, Q = rival.g.position, d = new THREE.Vector3(Q.x - P.x, 0, Q.z - P.z), dist = d.length() || 1; d.divideScalar(dist);
-    const want = (meScale + rival.scale) * 0.85, err = dist - want; if (Math.abs(err) > 0.08) { const st = Math.min(Math.abs(err) / 2, dt * 2.6 * Math.max(meScale, rival.scale)) * Math.sign(err); P.addScaledVector(d, st); Q.addScaledVector(d, -st); walk = 0.7; if (b.wait < 0.25) b.wait = 0.25; }
+    const want = (meScale + rival.scale) * 0.85, err = dist - want; b.spaceT = Math.abs(err) > 0.08 ? (b.spaceT || 0) + dt : 0; if (Math.abs(err) > 0.08 && b.spaceT < 1.5) { /* gives up after 1.5 s so a fight can never stall */ const st = Math.min(Math.abs(err) / 2, dt * 2.6 * Math.max(meScale, rival.scale)) * Math.sign(err); P.addScaledVector(d, st); Q.addScaledVector(d, -st); walk = 0.7; if (b.wait < 0.25) b.wait = 0.25; }
     const turn = (g, y) => { let dr = y - g.rotation.y; dr = Math.atan2(Math.sin(dr), Math.cos(dr)); g.rotation.y += dr * Math.min(1, dt * 8); }; faceY = Math.atan2(d.x, d.z); turn(me.g, faceY); turn(rival.g, faceY + Math.PI); }
   b.wait -= dt; if (b.wait > 0) return walk; if (b.n >= b.max) { endBout('break'); return 0; }
   if (b.n >= 1 && lastMini !== 'escape' && Math.random() < 0.35 + 0.08 * (rival.stage - stage)) { startEscape(rival); return 0; }
