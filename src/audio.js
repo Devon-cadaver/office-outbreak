@@ -74,6 +74,7 @@ export const sfx = {
   // a giant footstep (deeper for a bigger monster) and a wing beat
   stomp: (size = 1) => { tone(Math.max(34, 70 - size * 3), 0.2, 'sine', 0.11, -22); noise(0.09, 0.05, 160, 1); },
   flap: () => { noise(0.16, 0.05, 420, 0.7); },
+  laser: () => { tone(1600, 0.2, 'sawtooth', 0.035, -1300); tone(800, 0.16, 'square', 0.02, -600); },
   over: () => { tone(300, 0.3, 'sawtooth', 0.08, -150); setTimeout(() => tone(200, 0.5, 'sawtooth', 0.08, -150), 250); },
 };
 

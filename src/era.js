@@ -24,6 +24,19 @@ export function hoverize(g, col = 0x3af0ff, lift = 0.32) {
   const pad = new THREE.Mesh(padGeo, padMat(col)); pad.rotation.x = -Math.PI / 2; pad.position.y = 0.05; pad.scale.set(sz.x / s * 1.1, sz.z / s * 1.1, 1); g.add(pad);
   g.userData.hover = true; return g;
 }
+// ---------- the Future's tank: a sleek silver-and-black hover tank with neon stripes and twin glowing laser cannons
+// (call before hoverize). laserBolt() is its shot: a glowing beam bolt that flies straight ----------
+const ftSilver = new THREE.MeshLambertMaterial({ color: 0xb8c0cc }), ftBlack = new THREE.MeshLambertMaterial({ color: 0x1a1c26 }), ftGlow = new THREE.MeshBasicMaterial({ color: 0xff4fd8 }), ftCyan = new THREE.MeshBasicMaterial({ color: 0x3af0ff });
+export function futureTank(g) { let n = 0; g.traverse((m) => { if (m.isMesh && m.material && m.material.isMeshLambertMaterial) m.material = n++ % 2 ? ftSilver : ftBlack; });
+  const box = new THREE.BoxGeometry(1, 1, 1), cyl = new THREE.CylinderGeometry(1, 1, 1, 10), add = (p, geo, mat, sx, sy, sz, x, y, z, rx = 0) => { const m = new THREE.Mesh(geo, mat); m.scale.set(sx, sy, sz); m.position.set(x, y, z); m.rotation.x = rx; p.add(m); return m; };
+  for (const x of [-0.44, 0.44]) add(g, box, ftCyan, 0.03, 0.04, 1.25, x, 0.42, 0); add(g, box, ftGlow, 0.5, 0.03, 0.05, 0, 0.58, 0.62);
+  const tur = g.userData.turret; if (tur) { tur.traverse((m) => { if (m.isMesh && m.geometry.type === 'CylinderGeometry') m.visible = false; });
+    for (const x of [-0.12, 0.12]) { add(tur, cyl, ftBlack, 0.06, 0.85, 0.06, x, 0.02, 0.55, Math.PI / 2); add(tur, cyl, ftGlow, 0.075, 0.1, 0.075, x, 0.02, 0.98, Math.PI / 2); for (const z of [0.4, 0.62]) add(tur, cyl, ftCyan, 0.07, 0.03, 0.07, x, 0.02, z, Math.PI / 2); }
+    add(tur, box, ftCyan, 0.4, 0.04, 0.04, 0, 0.13, 0.31); }
+  g.userData.laser = true; return g; }
+const boltGeo = new THREE.CylinderGeometry(0.07, 0.07, 1.4, 6).rotateX(Math.PI / 2), boltMat = new THREE.MeshBasicMaterial({ color: 0xff4fd8, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false });
+export function laserBolt() { const m = new THREE.Mesh(boltGeo, boltMat); const core = new THREE.Mesh(boltGeo, new THREE.MeshBasicMaterial({ color: 0xffffff })); core.scale.set(0.4, 0.4, 1); m.add(core); return m; }
+
 // the seeding plane as a sleek jet: no propellers, silver and black with neon stripes and glowing engines
 export function futurePlane(p) {
   const silver = new THREE.MeshLambertMaterial({ color: 0xc8d0dc }), black = new THREE.MeshLambertMaterial({ color: 0x1a1e2a }), neon = new THREE.MeshBasicMaterial({ color: 0x3af0ff });

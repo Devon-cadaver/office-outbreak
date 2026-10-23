@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { generateMaze, buildCity, toWorld, toCell, findPath, CELL, mulberry32 } from '../city.js';
 import { makeCharacter, animateWalk } from '../poster/characters.js';
 import { makeCar } from '../car.js';
-import { isFuture, isPast, hoverize, futurePlane, pastPlane, buildCannon, buildChaserCoach, eraPicker, unlockEra } from '../era.js';
+import { isFuture, isPast, hoverize, futurePlane, pastPlane, buildCannon, buildChaserCoach, eraPicker, unlockEra, futureTank, laserBolt } from '../era.js';
 import { createTwisters } from '../tornado.js';
 import { createFires } from '../fire.js';
 import { unlockAudio, soundToggle, sfx, stopMusic, setPlaneEngine, setStormLevel, stormBoost, playSongs, songState, gameMusic, SONGS_KAIJU } from '../audio.js';
@@ -91,6 +91,7 @@ const tracerGeo = new THREE.BoxGeometry(0.05, 0.05, 0.5), tracerMat = new THREE.
 function fireAt(from, big) {
   // the army aims at the monster; this time it hurts
   const to = me.g.position.clone().setY(0.6 + Math.random() * 2 * meScale); const dir = to.clone().sub(from); const Ld = dir.length(); dir.normalize();
+  if (big && isFuture()) { const m = laserBolt(); m.position.copy(from); m.lookAt(to); scene.add(m); shots.push({ m, vel: dir.multiplyScalar(36), life: Ld / 36, big, laser: true }); fx.puff('flame', from, 0.3); sfx.laser(); return; }
   const m = new THREE.Mesh(big ? shellGeo : tracerGeo, big ? shellMat : tracerMat); m.position.copy(from); m.lookAt(to); scene.add(m);
   shots.push({ m, vel: dir.multiplyScalar(big ? 16 : 28), life: Ld / (big ? 16 : 28), big }); fx.puff('flame', from, big ? 0.6 : 0.25); if (big) sfx.boom(); else if (Math.random() < 0.3) sfx.throw();
 }
@@ -129,7 +130,7 @@ function buildWorld() {
   const farRoad = (min) => { for (let k = 0; k < 60; k++) { const [x, y] = roads[(rng() * roads.length) | 0]; const w = toWorld(x, y, cols, rows); if (Math.hypot(w.x, w.z) > min) return [x, y]; } return roads[0]; };
   for (let i = 0; i < 9 + 3 * (level - 1); i++) { const [x, y] = farRoad(5); const c = makeCar(...skinnedCarArgs([0xc23b3b, 0x4f8fd6, 0xe8d54a, 0xd8dde0, 0x3a8a5a][(rng() * 5) | 0])); c.scale.setScalar(0.8); const w = toWorld(x, y, cols, rows); c.position.set(w.x, 0, w.z); scene.add(c); drivers.push({ g: c, cell: [x, y], path: [], speed: 3 + rng() * 1.5 }); }
   for (let sq = 0; sq < 4 + 2 * (level - 1); sq++) { const [x, y] = farRoad(14); const w = toWorld(x, y, cols, rows); for (let i = 0; i < 3; i++) { const s = makeCharacter('vest', { skin: CHAR_SKINS.hunter }); s.scale.setScalar(0.25); s.position.set(w.x + (i - 1) * 0.5, 0, w.z + (rng() - 0.5) * 0.6); const gun = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, 0.6), new THREE.MeshLambertMaterial({ color: 0x22262a })); gun.position.set(0, -0.72, 0.25); s.userData.armR.add(gun); s.userData.cd = 1 + rng() * 2; scene.add(s); soldiers.push(s); } }
-  for (let i = 0; i < 2 + (level - 1); i++) { const [x, y] = farRoad(18); const t = isPast() ? buildCannon() : makeTank(); if (isFuture()) hoverize(t, 0xff4fd8); const w = toWorld(x, y, cols, rows); t.position.set(w.x, 0, w.z); scene.add(t); tanks.push({ g: t, cell: [x, y], path: [], cd: 3 + rng() * 2, repath: 0 }); }
+  for (let i = 0; i < 2 + (level - 1); i++) { const [x, y] = farRoad(18); const t = isPast() ? buildCannon() : makeTank(); if (isFuture()) hoverize(futureTank(t), 0xff4fd8); const w = toWorld(x, y, cols, rows); t.position.set(w.x, 0, w.z); scene.add(t); tanks.push({ g: t, cell: [x, y], path: [], cd: 3 + rng() * 2, repath: 0 }); }
   massTarget = buildings.reduce((s, x) => s + x.h, 0) * 0.3 * Math.sqrt(1 / big) + 40;
 }
 
@@ -392,10 +393,13 @@ const MOVES = ['chokeslam', 'piledriver', 'suplex', 'spear', 'superkick', 'spin'
 const MOVE_NAME = { chokeslam: 'SKYSCRAPER CHOKESLAM', piledriver: 'GRAVEYARD PILEDRIVER', suplex: 'TOWER SUPLEX', spear: 'WRECKING SPEAR', superkick: 'THUNDER SUPERKICK' };
 function startBout(r) { bout = { r, n: 0, buff: 0, wait: 0, max: 4 + (Math.random() < 0.5 ? 1 : 0), anim: false }; moveTo = null; banner('🔔 FIGHT!'); sfx.wave(); startMini(r, 'roar'); }
 function endBout(why) { if (!bout) return; const r = bout.r; bout = null; if (why === 'break' && r && rival === r && r.hp > 0) { banner('BREAK!'); knock(r.g, me.g.position, 3.5); knock(me.g, r.g.position, 1.5); r.cd = 4; r.stun = 1; } }
-function boutTick(dt) { const b = bout; if (!rival || rival !== b.r || rival.hp <= 0 || died) { bout = null; return; } if (rival.toss) return;
-  b.wait -= dt; if (b.wait > 0) return; if (b.n >= b.max) return endBout('break');
-  if (b.n >= 1 && lastMini !== 'escape' && Math.random() < 0.35 + 0.08 * (rival.stage - stage)) return startEscape(rival);
-  const pool = MOVES.filter((x) => x !== lastMini && (x !== 'spin' || b.n >= 2)); startMini(rival, pool[(Math.random() * pool.length) | 0]); }
+function boutTick(dt) { const b = bout; if (!rival || rival !== b.r || rival.hp <= 0 || died) { bout = null; return 0; } if (rival.toss) return 0;
+  let walk = 0; if (!b.anim) { const P = me.g.position, Q = rival.g.position, d = new THREE.Vector3(Q.x - P.x, 0, Q.z - P.z), dist = d.length() || 1; d.divideScalar(dist);
+    const want = (meScale + rival.scale) * 0.85, err = dist - want; if (Math.abs(err) > 0.08) { const st = Math.min(Math.abs(err) / 2, dt * 2.6 * Math.max(meScale, rival.scale)) * Math.sign(err); P.addScaledVector(d, st); Q.addScaledVector(d, -st); walk = 0.7; if (b.wait < 0.25) b.wait = 0.25; }
+    const turn = (g, y) => { let dr = y - g.rotation.y; dr = Math.atan2(Math.sin(dr), Math.cos(dr)); g.rotation.y += dr * Math.min(1, dt * 8); }; faceY = Math.atan2(d.x, d.z); turn(me.g, faceY); turn(rival.g, faceY + Math.PI); }
+  b.wait -= dt; if (b.wait > 0) return walk; if (b.n >= b.max) { endBout('break'); return 0; }
+  if (b.n >= 1 && lastMini !== 'escape' && Math.random() < 0.35 + 0.08 * (rival.stage - stage)) { startEscape(rival); return 0; }
+  const pool = MOVES.filter((x) => x !== lastMini && (x !== 'spin' || b.n >= 2)); startMini(rival, pool[(Math.random() * pool.length) | 0]); return 0; }
 // a free cast of the attacker's own spell on the downed fighter (yours on the rival, or the rival's on you)
 function followUp(who, at, hostile) { const rig = who === me ? me : who, st = who === me ? stage : (rival ? rival.stage : 1); const rid = roundId;
   anims.push({ wait: 0.3, t: 0, dur: 0.01, go() { if (rid !== roundId || state !== 'play' || !rig.g.parent) return; spells.cast(caster(rig, st), st, at.clone(), hostile ? { hostile: true } : {}); popup(rig.g.position.clone().setY((who === me ? meScale : rival.scale) * 2.2), KAIJU[rig.id].spells[st - 1].toUpperCase() + '!', hostile ? '#ff5a5a' : '#7dff3a'); }, f() {}, end() {} }); }
@@ -424,18 +428,22 @@ function wrestle(type, aWho, dWho) { const A = actor(aWho), D = actor(dWho); if 
     suplex: (k) => { if (k < 0.15) { D.g.position.copy(at(grip * 0.6)); }
       else if (k < 0.8) { const u = ease((k - 0.15) / 0.65); D.g.position.copy(at(grip * 0.6 - u * (grip * 0.6 + A.s * 0.9), Math.sin(u * Math.PI) * A.s * 2.3)); D.g.rotation.x = -u * Math.PI * 1.5; A.body.rotation.x = -0.75 * Math.sin(u * Math.PI); }
       else { if (!hit) { hit = true; D.g.position.y = 0; crash(D.g.position, true); } D.g.rotation.x = -Math.PI * 1.5; A.body.rotation.x = 0; } },
-    spear: (k) => { dur = 0.95; if (k < 0.35) { const q = ease(k / 0.35); A.g.position.copy(a0.clone().addScaledVector(fwd, -A.s * 0.6 + q * (A.s * 0.6 + grip * 0.3))); A.body.rotation.x = 0.6 * q; }
-      else { const q = cl((k - 0.35) / 0.4); if (!hit) { hit = true; crash(D.g.position, false); } D.g.position.copy(at(grip + A.s * 1.6 * ease(q))); D.g.rotation.x = -Math.PI / 2 * ease(q); A.body.rotation.x = 0.6 * (1 - q); } },
+    spear: (k) => { dur = 0.95; if (k < 0.35) { const q = ease(k / 0.35); A.g.position.copy(a0.clone().addScaledVector(fwd, -A.s * 0.6 + q * (A.s * 0.6 + Math.max(0, Math.hypot(d1.x - a0.x, d1.z - a0.z) - grip * 0.75)))); A.body.rotation.x = 0.6 * q; }
+      else { const q = cl((k - 0.35) / 0.4); if (!hit) { hit = true; crash(D.g.position, false); } D.g.position.copy(d1.clone().addScaledVector(fwd, A.s * 1.6 * ease(q)).setY(0)); D.g.rotation.x = -Math.PI / 2 * ease(q); A.body.rotation.x = 0.6 * (1 - q); } },
     superkick: (k) => { dur = 0.85; if (k < 0.3) { A.body.rotation.y = Math.PI * 2 * ease(k / 0.3); if (k < 0.05) A.rig.act('hit'); }
-      else { A.body.rotation.y = 0; const q = cl((k - 0.3) / 0.35); if (!hit) { hit = true; crash(D.g.position.clone().setY(D.s), false); popup(D.g.position.clone().setY(D.s * 2.2), '💫💫', '#ffd24a'); } D.g.position.copy(at(grip + A.s * 0.9 * ease(q))); D.g.rotation.x = -0.7 * Math.sin(q * Math.PI); } },
+      else { A.body.rotation.y = 0; const q = cl((k - 0.3) / 0.35); if (!hit) { hit = true; crash(D.g.position.clone().setY(D.s), false); popup(D.g.position.clone().setY(D.s * 2.2), '💫💫', '#ffd24a'); } D.g.position.copy(d1.clone().addScaledVector(fwd, A.s * 0.9 * ease(q)).setY(0)); D.g.rotation.x = -0.7 * Math.sin(q * Math.PI); } },
   }[type];
   if (!f) { if (bout) bout.anim = false; return 0.3; }
   if (type !== 'superkick') A.rig.act(type === 'spear' ? 'clutch' : 'lift'); D.rig.act('hit');
-  anims.push({ wait: 0, t: 0, dur, go() {}, f(k) { if (A.g.parent && D.g.parent) f(k); },
-    end() { D.g.rotation.x = D.g.rotation.z = 0; D.g.position.y = 0; A.g.position.y = 0; A.body.rotation.set(0, 0, 0); if (['grab', 'cast', 'lift', 'clutch'].includes(A.rig.acting)) A.rig.act(null);
-      if (bout) bout.anim = false; if (bout && rival && rival.hp > 0) { const back = A.g.position.clone(), dir = new THREE.Vector3(D.g.position.x - back.x, 0, D.g.position.z - back.z); if (dir.lengthSq() < 1e-4) dir.set(0, 0, 1); dir.normalize(); D.g.position.copy(back.addScaledVector(dir, grip)); } } });
+  const a1 = A.g.position.clone(), d1 = D.g.position.clone(); /* where they stood: the move eases in from there (they step in and grab) instead of snapping */
+  anims.push({ wait: 0, t: 0, dur, go() {}, f(k) { if (!A.g.parent || !D.g.parent) return; f(k); if (k < 0.2) { const w = ease(k / 0.2); A.g.position.x = a1.x + (A.g.position.x - a1.x) * w; A.g.position.z = a1.z + (A.g.position.z - a1.z) * w; D.g.position.x = d1.x + (D.g.position.x - d1.x) * w; D.g.position.z = d1.z + (D.g.position.z - d1.z) * w; } },
+    end() { D.g.position.y = 0; A.g.position.y = 0; A.body.rotation.set(0, 0, 0); if (['grab', 'cast', 'lift', 'clutch'].includes(A.rig.acting)) A.rig.act(null); getUp(D.g); } });
   return dur;
 }
+// a downed fighter stays put for a moment, then rolls back up onto its feet where it landed
+function getUp(g) { const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a)), rx = wrap(g.rotation.x), rz = wrap(g.rotation.z); if (bout) { bout.anim = true; bout.wait = Math.max(bout.wait, 1.1); }
+  if (Math.abs(rx) + Math.abs(rz) < 0.05) { g.rotation.x = g.rotation.z = 0; if (bout) bout.anim = false; return; }
+  anims.push({ wait: 0.35, t: 0, dur: 0.55, go() {}, f(k) { const q = 1 - (k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2); g.rotation.x = rx * q; g.rotation.z = rz * q; g.position.y = Math.sin(k * Math.PI) * 0.25 * g.scale.x; }, end() { g.rotation.x = g.rotation.z = 0; g.position.y = 0; if (bout) bout.anim = false; } }); }
 const CLOSE = ['brawl', 'swipe', 'spots', 'dodge', 'spin'];
 const ARROWS = { L: '⬅', R: '➡', U: '⬆', D: '⬇' };
 function startMini(r, type) {
@@ -620,8 +628,8 @@ function updateMini(dt) {
     r.g.rotation.set(0, Math.PI / 2 - m.spinA, 1.35 * m.lift); me.g.rotation.y = faceY = Math.atan2(tx - P.x, tz - P.z); if (me.hammer && me.acting !== 'grab') me.act('grab'); // Mike: arms out, hauling it round
     const need = Math.PI * 2 * (2.5 + 0.5 * r.stage); $('kjMiniMark').style.left = Math.min(100, m.ang / need * 100) + '%'; if (m.ang >= need) return endMini('throw'); if (m.t > 5) return endMini('freed'); }
   else if (m.type === 'escape') { m.v = Math.max(0, m.v - dt * (0.3 + 0.06 * (r.stage - 1))); $('kjMiniMark').style.left = Math.min(100, m.v * 100) + '%'; const q = Math.min(1, m.t / m.limit), P = r.g.position;
-    if (m.move === 'spin') { m.ang += dt * (2 + q * 9); const R0 = r.scale * 0.55 + meScale * 0.4, cy = r.scale * 2.3 * Math.min(1, m.t * 2.5); me.g.position.set(P.x + Math.cos(m.ang) * R0, cy, P.z + Math.sin(m.ang) * R0); me.g.rotation.set(0, Math.PI / 2 - m.ang, 1.35 * Math.min(1, m.t * 2.5)); r.g.rotation.y = Math.atan2(me.g.position.x - P.x, me.g.position.z - P.z); }
-    else { const fw = new THREE.Vector3(Math.cos(m.ang), 0, Math.sin(m.ang)), grip = 0.5 * (r.scale + meScale); me.g.position.set(P.x + fw.x * grip * 0.8, r.scale * 1.6 * Math.min(1, q * 1.6), P.z + fw.z * grip * 0.8); if (m.move === 'piledriver') me.g.rotation.z = Math.PI * Math.min(1, q * 1.6); }
+    if (m.move === 'spin') { m.ang += dt * (2 + q * 9); const R0 = r.scale * 0.55 + meScale * 0.4, cy = r.scale * 2.3 * Math.min(1, m.t * 2.5), w = Math.min(1, m.t * 4); if (!m.p0) m.p0 = me.g.position.clone(); me.g.position.set(m.p0.x + (P.x + Math.cos(m.ang) * R0 - m.p0.x) * w, cy, m.p0.z + (P.z + Math.sin(m.ang) * R0 - m.p0.z) * w); me.g.rotation.set(0, Math.PI / 2 - m.ang, 1.35 * Math.min(1, m.t * 2.5)); r.g.rotation.y = Math.atan2(me.g.position.x - P.x, me.g.position.z - P.z); }
+    else { const fw = new THREE.Vector3(Math.cos(m.ang), 0, Math.sin(m.ang)), grip = 0.5 * (r.scale + meScale), w = Math.min(1, m.t * 4); if (!m.p0) m.p0 = me.g.position.clone(); me.g.position.set(m.p0.x + (P.x + fw.x * grip * 0.8 - m.p0.x) * w, r.scale * 1.6 * Math.min(1, q * 1.6), m.p0.z + (P.z + fw.z * grip * 0.8 - m.p0.z) * w); if (m.move === 'piledriver') me.g.rotation.z = Math.PI * Math.min(1, q * 1.6); }
     if (m.v >= 1) return endMini('escaped'); if (m.t > m.limit) return endMini('caught'); }
   else if (m.type === 'chokeslam') { if (m.hold) m.v += dt * 0.75; $('kjMiniMark').style.left = Math.min(100, m.v * 100) + '%'; if (m.v > 1) return endMini('rev'); if (m.t > 4.5 && !m.hold) return endMini('rev'); }
   else if (m.type === 'piledriver') { m.v = Math.max(0, m.v - dt * (0.32 + 0.06 * (r.stage - 1))); $('kjMiniMark').style.left = Math.min(100, m.v * 100) + '%'; if (m.v >= 1) return endMini('pin'); if (m.t > 2.8) return endMini('rev'); }
@@ -630,7 +638,8 @@ function updateMini(dt) {
   else if (m.type === 'superkick') { if (!m.flashed && m.t > m.flashAt) { m.flashed = true; m.ft = 0; miniEl.classList.add('kick'); $('kjMiniTitle').textContent = '⚡ NOW! ⚡'; } if (m.flashed) { m.ft += dt; if (m.ft > 0.55) return endMini('rev'); } }
   else if (m.type === 'roar') { if (m.hold) m.v += dt * 0.7; $('kjMiniMark').style.left = Math.min(100, m.v * 100) + '%'; if (m.v > 1) return endMini('choke'); if (m.t > 4.5 && !m.hold) return endMini('roared'); }
 }
-function knock(g, from, dist) { const dx = g.position.x - from.x, dz = g.position.z - from.z, d = Math.hypot(dx, dz) || 1; g.position.x += dx / d * dist; g.position.z += dz / d * dist; }
+function knock(g, from, dist) { const dx = g.position.x - from.x, dz = g.position.z - from.z, d = Math.hypot(dx, dz) || 1, ux = dx / d * dist, uz = dz / d * dist; let done = 0;
+  anims.push({ wait: 0, t: 0, dur: 0.28, go() {}, f(k) { const q = 1 - Math.pow(1 - k, 2), s = q - done; done = q; g.position.x += ux * s; g.position.z += uz * s; }, end() {} }); }
 function endMini(res) { if (me && me.acting === 'grab') me.act(null);
   const m0 = mini, r = mini && mini.r; mini = null; miniEl.className = 'hidden'; $('kjMiniSpots').innerHTML = '';
   if (r && r.spun) { r.spun = false; r.rig.shadow.visible = true; if (res !== 'throw' || r.hp <= 0) { r.g.rotation.x = r.g.rotation.z = 0; r.g.position.y = 0; } }
@@ -639,7 +648,7 @@ function endMini(res) { if (me && me.acting === 'grab') me.act(null);
     if (res === 'escaped') { me.g.position.y = 0; me.g.rotation.x = me.g.rotation.z = 0; banner('BROKE FREE!'); flourish(me, r, true); hitRival(10 + 4 * stage); knock(r.g, me.g.position, 1.5); sfx.boom(); if (bout) bout.wait = 0.7; return; }
     if (mv === 'spin') { // it lets go: you fly across town
       const a = m0.ang, D = 20 + 3 * r.stage, hx = cols * CELL / 2 - 3, hz = rows * CELL / 2 - 3, from = me.g.position.clone(); const to = new THREE.Vector3(Math.max(-hx, Math.min(hx, from.x - Math.sin(a) * D)), 0, Math.max(-hz, Math.min(hz, from.z + Math.cos(a) * D)));
-      meToss = { from, to, t: 0, secs: 1.3, h: 5 + r.scale * 1.5 }; banner('THROWN!'); sfx.throw(); endBout('thrown'); return; }
+      meToss = { from, to, t: 0, secs: 1.3, h: 5 + r.scale * 1.5 }; me.g.rotation.y = faceY = Math.atan2(r.g.position.x - to.x, r.g.position.z - to.z); banner('THROWN!'); sfx.throw(); endBout('thrown'); return; }
     me.g.position.y = 0; me.g.rotation.x = me.g.rotation.z = 0; banner(MOVE_NAME[mv] + '!'); const dur = wrestle(mv, 'them', 'me');
     anims.push({ wait: dur * 0.6, t: 0, dur: 0.01, go() { hurt(4 + 1.5 * r.stage, true); }, f() {}, end() {} }); if (bout) bout.wait = dur + 0.15; return; }
   if (bout && (res === 'pin' || res === 'rev')) { const name = MOVE_NAME[m0.type], good = res === 'pin'; bout.n++; r.stun = 2;
@@ -857,9 +866,9 @@ function update(dt) {
   const mag = Math.min(1, Math.hypot(sx, sy)); let moving = 0;
   updateAnims(dt);
   if (meToss) { const T = meToss; T.t += dt; const k = Math.min(1, T.t / T.secs); g.position.lerpVectors(T.from, T.to, k); g.position.y = T.from.y * (1 - k) + Math.sin(k * Math.PI) * T.h; g.rotation.x += dt * 8; moveTo = null; if (Math.random() < dt * 25) fx.puff('smoke', g.position.clone(), 0.5);
-    if (k >= 1) { meToss = null; g.position.y = 0; g.rotation.set(0, g.rotation.y, 0); const land = g.position.clone(); hitArea(land, 3.6, 14, {}); fx.explode(land.clone().setY(0.5), 2.4); flashT = 0.3; sfx.boom(); popup(land.clone().setY(meScale * 2), 'CRASH!', '#ff5a5a'); hurt(6 + 2 * (rival ? rival.stage : 1), true); if (rival) followUp(rival.rig, land, true); } }
+    if (k >= 1) { meToss = null; g.position.y = 0; g.rotation.x = -Math.PI / 2; g.rotation.z = 0; getUp(g); const land = g.position.clone(); hitArea(land, 3.6, 14, {}); fx.explode(land.clone().setY(0.5), 2.4); flashT = 0.3; sfx.boom(); popup(land.clone().setY(meScale * 2), 'CRASH!', '#ff5a5a'); hurt(6 + 2 * (rival ? rival.stage : 1), true); if (rival) followUp(rival.rig, land, true); } }
   else if (mini) { updateMini(dt); moveTo = null; }
-  else if (bout) { boutTick(dt); moveTo = null; } // locked in the fight: no walking away
+  else if (bout) { moving = boutTick(dt) || 0; moveTo = null; } // locked in the fight: no walking away
   else if (leap) { leap.t += dt; const k = Math.min(1, leap.t / leap.secs); g.position.lerpVectors(leap.from, leap.to, k); g.position.y = Math.sin(k * Math.PI) * leap.h; if (leap.step) { leap.stepT -= dt; if (leap.stepT <= 0) { leap.stepT = 0.08; leap.step(g.position.clone().setY(0)); } } if (leap.hide && Math.random() < dt * 30) fx.puff('smoke', g.position.clone().setY(0.3), 0.8); if (k >= 1) { g.position.y = 0; me.body.visible = true; const f = leap.onLand; leap = null; f(); } }
   else if (mag > 0.05) { moveTo = null; tmp.copy(right).multiplyScalar(sx).addScaledVector(upv, -sy).normalize(); g.position.addScaledVector(tmp, speed * mag * dt); faceY = Math.atan2(tmp.x, tmp.z); moving = mag; }
   else if (moveTo) { const dx = moveTo.x - g.position.x, dz = moveTo.z - g.position.z, dl = Math.hypot(dx, dz); if (dl < 0.4) moveTo = null; else { g.position.x += dx / dl * Math.min(dl, speed * dt); g.position.z += dz / dl * Math.min(dl, speed * dt); faceY = Math.atan2(dx, dz); moving = 1; } }
@@ -910,7 +919,7 @@ function update(dt) {
     t.repath -= dt; if (t.repath <= 0) { t.repath = 2; t.path = d > 10 ? roadPathTo(t.cell, px, pz, false) : d < 6 ? roadPathTo(t.cell, px, pz, true) : []; } followPath(t, 1.8, dt);
     const tur = t.g.userData.turret; const want = Math.atan2(px - p.x, pz - p.z) - t.g.rotation.y; tur.rotation.y += (Math.atan2(Math.sin(want - tur.rotation.y), Math.cos(want - tur.rotation.y))) * Math.min(1, dt * 4);
     t.cd -= dt; if (d < 20 && t.cd <= 0) { t.cd = 2.6 + Math.random() * 1.5; fireAt(new THREE.Vector3(0, 0.64, 1.25).applyMatrix4(tur.matrixWorld), true); } }
-  for (let i = shots.length - 1; i >= 0; i--) { const s = shots[i]; s.life -= dt; if (s.big) s.vel.y -= 2 * dt; s.m.position.addScaledVector(s.vel, dt);
+  for (let i = shots.length - 1; i >= 0; i--) { const s = shots[i]; s.life -= dt; if (s.big && !s.laser) s.vel.y -= 2 * dt; s.m.position.addScaledVector(s.vel, dt);
     if (s.life <= 0) { if (s.big) fx.explode(s.m.position.clone(), 0.5); else fx.puff('smoke', s.m.position.clone(), 0.25); scene.remove(s.m); shots.splice(i, 1);
       if (Math.hypot(s.m.position.x - px, s.m.position.z - pz) < R + 0.8) hurt((s.big ? 1.6 : 0.35) * ARMY_DMG[stage], s.big); } }
   updatePlanes(dt, px, pz); updateRival(dt, px, pz);
