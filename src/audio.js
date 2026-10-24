@@ -241,4 +241,4 @@ export function stormMusicState() { return { on: storm.on, level: storm.level, b
 
 // the in-game SKIP SONG button: a small round button under the zoom buttons that jumps to the next song on the radio
 export function skipSongBtn(host) { const b = document.createElement('button'); b.className = 'skipHud'; b.title = 'Skip song'; b.textContent = '⏭';
-  b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); unlockAudio(); if (musicMuted) setMusicMuted(false); nextSong(); b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); }); host.appendChild(b); return b; }
+  b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); unlockAudio(); if (musicMuted) setMusicMuted(false); nextSong(); b.classList.remove('skipBump'); void b.offsetWidth; b.classList.add('skipBump'); }); host.appendChild(b); return b; }
