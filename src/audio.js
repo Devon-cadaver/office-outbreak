@@ -1,16 +1,16 @@
 // Tiny synthesized audio via WebAudio: sound effects and a looping music track. No audio files.
 let ctx = null, master = null, musicGain = null, musicSw = null, noiseBuf = null, muted = false, musicMuted = false;
-export function setMuted(v) { muted = v; if (FRAME) FRAME.setMuted(v); if (master) master.gain.value = muted ? 0 : 0.9; if (song) song.muted = muted || musicMuted; try { localStorage.setItem("oo_mute", muted ? "1" : "0"); } catch { /* ignore */ } }
+export function setMuted(v) { muted = v; if (FRAME) FRAME.setMuted(v); if (master) master.gain.value = muted ? 0 : 0.9; try { localStorage.setItem("oo_mute", muted ? "1" : "0"); } catch { /* ignore */ } }
 export function isMuted() { return muted; }
 export function audioState() { return ctx ? ctx.state : "none"; }
 try { muted = localStorage.getItem("oo_mute") === "1"; musicMuted = localStorage.getItem("oo_music_off") === "1"; } catch { /* ignore */ }
 // music has its own switch, separate from the sound effects
-export function setMusicMuted(v) { musicMuted = v; if (FRAME) FRAME.setMusicMuted(v); if (musicSw) musicSw.gain.value = musicMuted ? 0 : 1; if (song) { song.muted = muted || musicMuted; if (!musicMuted && song.paused) song.play().catch(() => {}); } try { localStorage.setItem("oo_music_off", musicMuted ? "1" : "0"); } catch { /* ignore */ } }
+export function setMusicMuted(v) { musicMuted = v; if (FRAME) FRAME.setMusicMuted(v); if (musicSw) musicSw.gain.value = musicMuted ? 0 : 1; if (song) { song.muted = musicMuted; if (!musicMuted && song.paused) song.play().catch(() => {}); } try { localStorage.setItem("oo_music_off", musicMuted ? "1" : "0"); } catch { /* ignore */ } }
 export function unlockAudio() {
   if (!ctx) {
     try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch { ctx = null; return; }
     master = ctx.createGain(); master.gain.value = muted ? 0 : 0.9; master.connect(ctx.destination);
-    musicSw = ctx.createGain(); musicSw.gain.value = musicMuted ? 0 : 1; musicSw.connect(master);
+    musicSw = ctx.createGain(); musicSw.gain.value = musicMuted ? 0 : 1; musicSw.connect(ctx.destination); /* music has its own path: SOUND off mutes effects only */
     musicGain = ctx.createGain(); musicGain.gain.value = 0.35; musicGain.connect(musicSw);
     const len = ctx.sampleRate * 0.5; noiseBuf = ctx.createBuffer(1, len, ctx.sampleRate);
     const d = noiseBuf.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
@@ -48,7 +48,7 @@ function noise(dur, vol = 0.1, freq = 1200, q = 1) {
   const g = ctx.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
   s.connect(f).connect(g).connect(master); s.start(t); s.stop(t + dur);
 }
-let stepFlip = false, coinT = 0;
+let stepFlip = false, coinT = 0, crunchT = 0;
 // every button in the game clicks when pressed
 // any tap also wakes the radio, which lives in the outer frame, in case iOS paused it
 if (typeof document !== 'undefined') document.addEventListener('pointerdown', (e) => { if (e.target && e.target.closest && e.target.closest('button')) sfx.click(); try { if (FRAME && FRAME.wake) FRAME.wake(); } catch { /* ignore */ } }, true);
@@ -73,8 +73,11 @@ export const sfx = {
   // a power-up: a quick rising arpeggio
   power: () => { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.09, 'square', 0.03, 0, master, i * 0.06)); tone(1568, 0.22, 'triangle', 0.035, 0, master, 0.24); },
   // a giant footstep (deeper for a bigger monster) and a wing beat
-  stomp: (size = 1) => { tone(Math.max(34, 70 - size * 3), 0.2, 'sine', 0.11, -22); noise(0.09, 0.05, 160, 1); },
-  flap: () => { noise(0.16, 0.05, 420, 0.7); },
+  // a giant footstep: a mid-range thud you can hear on a phone speaker (deep bass alone doesn't play on phones), deeper as it grows
+  stomp: (size = 1) => { const f = Math.max(70, 150 - size * 8); tone(f, 0.16, 'triangle', 0.16, -f * 0.5); noise(0.12, 0.2, 260, 0.8); tone(f * 2.2, 0.05, 'square', 0.03, -f); },
+  // a building coming down: a gravelly crunch; throttled so a row of houses doesn't stack into noise
+  crunch: (big = false) => { if (!ctx || ctx.currentTime - crunchT < 0.06) return; crunchT = ctx.currentTime; noise(big ? 0.45 : 0.28, big ? 0.32 : 0.22, 380 + Math.random() * 300, 0.6); tone(big ? 90 : 130, 0.2, 'sawtooth', 0.05, -50); },
+  flap: () => { noise(0.18, 0.12, 520, 0.7); tone(180, 0.12, 'triangle', 0.05, -60); },
   laser: () => { tone(1600, 0.2, 'sawtooth', 0.035, -1300); tone(800, 0.16, 'square', 0.02, -600); },
   over: () => { tone(300, 0.3, 'sawtooth', 0.08, -150); setTimeout(() => tone(200, 0.5, 'sawtooth', 0.08, -150), 250); },
 };
@@ -203,7 +206,7 @@ export function playSongs() {
   if (!song) { if (!SONGS[songI]) songI = pickNext(); song = new Audio(); song.preload = 'auto'; song.loop = repeat || SONGS.length === 1; song.src = SONGS[songI];
     if (resumeAt > 1) { const t = resumeAt; song.addEventListener('loadedmetadata', () => { if (t < song.duration - 2) song.currentTime = t; }, { once: true }); }
     song.addEventListener('ended', () => nextSong()); applyVol(); }
-  routeSong(); song.muted = muted || musicMuted; if (song.paused && !musicMuted) song.play().catch(() => {});
+  routeSong(); song.muted = musicMuted; if (song.paused && !musicMuted) song.play().catch(() => {});
 }
 // every page: try now, and again at the first tap or key (browsers block sound until then)
 export function radio() { if (FRAME) return FRAME.playSongs(); playSongs(); const go = () => { unlockAudio(); playSongs(); }; addEventListener('pointerdown', go, true); addEventListener('keydown', go, true); }
@@ -235,3 +238,7 @@ export function setStormLevel(l) { storm.level = Math.max(0, Math.min(5, l | 0))
 // a boost: riser into a crash, and the busier layers for `secs`
 export function stormBoost(secs = 3) { if (!ctx || !storm.on) return; const t = ctx.currentTime; storm.boostUntil = t + secs; riser(t, 0.6); crash(t + 0.6); kick(t + 0.6, 1.2); crash(t + secs); }
 export function stormMusicState() { return { on: storm.on, level: storm.level, boost: ctx ? storm.boostUntil > ctx.currentTime : false }; }
+
+// the in-game SKIP SONG button: a small round button under the zoom buttons that jumps to the next song on the radio
+export function skipSongBtn(host) { const b = document.createElement('button'); b.className = 'skipHud'; b.title = 'Skip song'; b.textContent = '⏭';
+  b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); unlockAudio(); if (musicMuted) setMusicMuted(false); nextSong(); b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); }); host.appendChild(b); return b; }

@@ -195,3 +195,5 @@ button:disabled, button:disabled:active { transform: none; }
 .kjCard { display: grid; gap: 2px; padding: 6px 3px; margin: 0; text-align: center; min-height: 38px; align-items: center; border-radius: 12px; background: #1a0f2e; border: 2px solid #5a2f80; color: #fff; box-shadow: none; }
 .kjCard b { font-size: 11px; line-height: 1.15; color: #7dff3a; } .kjCard span { font-size: 9px; color: #c9e8b8; font-weight: 700; line-height: 1.25; }
 .kjCard.on { border-color: #7dff3a; box-shadow: 0 0 10px #7dff3a88; } .kjCard.locked { opacity: .5; } .kjCard.locked b { color: #aaa; }
+/* the in-game SKIP SONG button, under the zoom buttons */
+.skipHud { position: absolute; right: 16px; top: calc(184px + env(safe-area-inset-top, 0px)); width: 34px; height: 34px; padding: 0; font-size: 16px; line-height: 1; pointer-events: auto; background-color: #24133f; color: #c9a6ff; border: 2px solid #9a5fd6aa; box-shadow: 0 4px 0 #0e0618; } .skipHud.pop { animation: skipPop .3s; } @keyframes skipPop { 50% { transform: scale(1.25); } }

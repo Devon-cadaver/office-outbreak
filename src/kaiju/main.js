@@ -10,8 +10,8 @@ import { makeCar } from '../car.js';
 import { isFuture, isPast, hoverize, futurePlane, pastPlane, buildCannon, buildChaserCoach, eraPicker, unlockEra, futureTank, laserBolt } from '../era.js';
 import { createTwisters } from '../tornado.js';
 import { createFires } from '../fire.js';
-import { unlockAudio, soundToggle, sfx, stopMusic, setPlaneEngine, setStormLevel, stormBoost, playSongs, songState, gameMusic, SONGS_KAIJU } from '../audio.js';
-import { townSkin, equippedSkin, skinnedCarArgs, addCoins, CHAR_SKINS, getEquipped, totalReward, pauseSkinRow } from '../skins.js';
+import { unlockAudio, soundToggle, skipSongBtn, sfx, stopMusic, setPlaneEngine, setStormLevel, stormBoost, playSongs, songState, gameMusic, SONGS_KAIJU } from '../audio.js';
+import { armySkin, townSkin, equippedSkin, skinnedCarArgs, addCoins, CHAR_SKINS, getEquipped, totalReward, pauseSkinRow } from '../skins.js';
 import { forceSeason } from '../season.js';
 import { showPrizes } from '../prizes.js';
 import { nukeBlast } from '../nuke.js';
@@ -129,7 +129,7 @@ function buildWorld() {
   roadCells = roads; for (const o of [...drivers, ...soldiers, ...tanks]) scene.remove(o.g || o); drivers = []; soldiers = []; tanks = []; for (const s of shots) scene.remove(s.m); shots = [];
   const farRoad = (min) => { for (let k = 0; k < 60; k++) { const [x, y] = roads[(rng() * roads.length) | 0]; const w = toWorld(x, y, cols, rows); if (Math.hypot(w.x, w.z) > min) return [x, y]; } return roads[0]; };
   for (let i = 0; i < 9 + 3 * (level - 1); i++) { const [x, y] = farRoad(5); const c = makeCar(...skinnedCarArgs([0xc23b3b, 0x4f8fd6, 0xe8d54a, 0xd8dde0, 0x3a8a5a][(rng() * 5) | 0])); c.scale.setScalar(0.8); const w = toWorld(x, y, cols, rows); c.position.set(w.x, 0, w.z); scene.add(c); drivers.push({ g: c, cell: [x, y], path: [], speed: 3 + rng() * 1.5 }); }
-  for (let sq = 0; sq < 4 + 2 * (level - 1); sq++) { const [x, y] = farRoad(14); const w = toWorld(x, y, cols, rows); for (let i = 0; i < 3; i++) { const s = makeCharacter('vest', { skin: CHAR_SKINS.hunter }); s.scale.setScalar(0.25); s.position.set(w.x + (i - 1) * 0.5, 0, w.z + (rng() - 0.5) * 0.6); const gun = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, 0.6), new THREE.MeshLambertMaterial({ color: 0x22262a })); gun.position.set(0, -0.72, 0.25); s.userData.armR.add(gun); s.userData.cd = 1 + rng() * 2; scene.add(s); soldiers.push(s); } }
+  for (let sq = 0; sq < 4 + 2 * (level - 1); sq++) { const [x, y] = farRoad(14); const w = toWorld(x, y, cols, rows); for (let i = 0; i < 3; i++) { const s = makeCharacter('vest', { skin: armySkin() }); s.scale.setScalar(0.25); s.position.set(w.x + (i - 1) * 0.5, 0, w.z + (rng() - 0.5) * 0.6); const gun = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, 0.6), new THREE.MeshLambertMaterial({ color: 0x22262a })); gun.position.set(0, -0.72, 0.25); s.userData.armR.add(gun); s.userData.cd = 1 + rng() * 2; scene.add(s); soldiers.push(s); } }
   for (let i = 0; i < 2 + (level - 1); i++) { const [x, y] = farRoad(18); const t = isPast() ? buildCannon() : makeTank(); if (isFuture()) hoverize(futureTank(t), 0xff4fd8); const w = toWorld(x, y, cols, rows); t.position.set(w.x, 0, w.z); scene.add(t); tanks.push({ g: t, cell: [x, y], path: [], cd: 3 + rng() * 2, repath: 0 }); }
   massTarget = buildings.reduce((s, x) => s + x.h, 0) * 0.3 * Math.sqrt(1 / big) + 40;
 }
@@ -199,6 +199,7 @@ function tapAt(cx, cy) {
   if (rival && rival.dazedT > 0 && !finishing && Math.hypot(p.x - rival.g.position.x, p.z - rival.g.position.z) < rival.scale * 1.2 && Math.hypot(me.g.position.x - rival.g.position.x, me.g.position.z - rival.g.position.z) < reach() + rival.scale * 1.1 + 1.5) { doFinisher(); return; }
   if (megaT > 0 && !megaUsed) { megaBlast(); return; }
   if (power >= 1 && !leap) { castAt(p); return; }
+  if (nearRival() && !rival.dazedT) { playerSwing(); return; }
   moveTo = p;
 }
 const caster = (k, st) => ({ id: k.id, rig: k, g: k.g, stage: st });
@@ -215,7 +216,7 @@ function crumble(x, label, fire) {
   const bits = []; for (let i = 0; i < Math.min(12, 4 + x.h * 2); i++) { const m = new THREE.Mesh(chunkGeo, chunkMat(cols3[(Math.random() * cols3.length) | 0])); const s = 0.2 + Math.random() * 0.4; m.scale.set(s, s * 0.6, s); m.position.set(x.pos.x + (Math.random() - 0.5) * 1.5, Math.random() * x.h, x.pos.z + (Math.random() - 0.5) * 1.5); scene.add(m); bits.push(m); }
   twisters.scatter([...bits, ...loose], x.pos, 3.5); sinking.push({ obj: x.obj, t: 0, h: x.h, y0: x.obj.position.y });
   fx.puff('smoke', new THREE.Vector3(x.pos.x, 0.8, x.pos.z), 1.2 + x.h * 0.15); if (fire) fx.ignite(new THREE.Vector3(x.pos.x, 0.5, x.pos.z), 0.9, 5);
-  spill(x.pos, Math.min(6, 2 + Math.floor(x.h * 0.7))); award(x.pts, x.pos, label); grow(x.h * 0.35); power = Math.min(1, power + 0.025); if (x.h > 5) { sfx.boom(); flashT = Math.max(flashT, 0.1); } else if (Math.random() < 0.5) sfx.hit();
+  spill(x.pos, Math.min(6, 2 + Math.floor(x.h * 0.7))); award(x.pts, x.pos, label); grow(x.h * 0.35); power = Math.min(1, power + 0.025); sfx.crunch(x.h > 5); if (x.h > 5) { sfx.boom(); flashT = Math.max(flashT, 0.1); } else if (Math.random() < 0.5) sfx.hit();
 }
 const chunkGeo = new THREE.BoxGeometry(1, 1, 1), chunkMats = new Map(); const chunkMat = (c) => { if (!chunkMats.has(c)) chunkMats.set(c, new THREE.MeshLambertMaterial({ color: c })); return chunkMats.get(c); };
 function eat(c, i, bonus) { people.splice(i, 1); peopleN++; gulps.push({ c, t: 0, from: c.position.clone() }); award(bonus || 25, c.position); grow(1.2); power = Math.min(1, power + 0.01); }
@@ -301,12 +302,12 @@ function spawnRival(forceId) {
   const rig = buildKaiju(id); const f = (st - 0.5) / 3, sc = scaleOf(f); rig.g.scale.setScalar(sc);
   const far = []; for (const c of roadCells) { const w = toWorld(c[0], c[1], cols, rows); const d = Math.hypot(w.x - me.g.position.x, w.z - me.g.position.z); if (d > 20 && d < 34) far.push(w); }
   const w = far.length ? far[(Math.random() * far.length) | 0] : toWorld(1, 1, cols, rows); rig.g.position.set(w.x, 0, w.z); scene.add(rig.g);
-  rival = { id, rig, g: rig.g, stage: st, scale: sc, hp: 140 + 160 * st, max: 140 + 160 * st, cd: 1.5, castT: 6 + Math.random() * 3, stun: 0, koT: 0, daze: 0, dazedT: 0, atk: null };
+  rival = { id, rig, g: rig.g, stage: st, scale: sc, hp: 300, max: 300, cd: 1.5, castT: 6 + Math.random() * 3, stun: 0, koT: 0, daze: 0, dazedT: 0, atk: null };
   $('kjRivalName').textContent = KAIJU[id].name + ' · ' + STAGE[st]; rivalEl.classList.remove('hidden'); banner('👹 RIVAL: ' + KAIJU[id].name + '!'); sfx.wave(); tip('kj_rival', '👹 A rival kaiju! Walk up and your kaiju fights it on its own. Spells hit it hard. KO it and eat it for a big boost.');
 }
 function hitRival(pow, freeze) { if (!rival || rival.hp <= 0) return; if (bout && bout.buff > 0) pow *= 1.5; rival.hp -= pow; rival.rig.act('hit'); if (freeze) rival.stun = 2.5; popup(rival.g.position.clone().setY(rival.scale * 1.8), '-' + Math.round(pow), '#ffb02a'); if (rival.hp <= 0) rivalKO(); }
 function rivalKO() {
-  const r = rival; if (r.ring) scene.remove(r.ring); r.atk = null; finishBtn.classList.add('hidden'); r.hp = 0; r.koT = 2.2; r.rig.act('ko'); ko++; award(2500 * r.stage, r.g.position, 'K.O.!'); sfx.boom(); flashT = 0.3; mini = null; miniEl.className = 'hidden';
+  const r = rival; clearDots(); fightEdge.classList.add('hidden'); if (r.ring) scene.remove(r.ring); r.atk = null; finishBtn.classList.add('hidden'); r.hp = 0; r.koT = 2.2; r.rig.act('ko'); ko++; award(2500 * r.stage, r.g.position, 'K.O.!'); sfx.boom(); flashT = 0.3; mini = null; miniEl.className = 'hidden';
   // ...and then you eat it: a monster meal is a big boost (size, full Power, a burst of speed)
   const rid = roundId; setTimeout(() => { if (state !== 'play' || rid !== roundId) return; grow(massTarget * (0.16 + 0.06 * r.stage)); power = 1; boostT = 5; me.act('cast'); banner('MONSTER MEAL!'); popup(me.g.position.clone().setY(meScale * 2), '+SIZE +POWER', '#7dff3a'); sfx.pickup(); }, 1300);
   banner('K.O.!'); stormBoost(2);
@@ -361,7 +362,7 @@ function updateRival(dt, px, pz) {
   const r = rival, g = r.g; r.rig.anim(dt, r.koT > 0 ? 0 : r.moving ? 1 : 0.15);
   if (r.koT > 0) { r.koT -= dt; if (r.koT <= 1.0 && me) { const k = Math.min(1, dt * 3); const mth = me.mouth.getWorldPosition(tmp); g.position.lerp(mth, k); g.scale.setScalar(Math.max(0.01, r.scale * (r.koT / 1.0))); } if (r.koT <= 0) { scene.remove(g); fx.puff('smoke', g.position.clone().setY(1), 2.5); rival = null; rivalWait = 6; } rivalEl.classList.add('hidden'); rivalArrow.style.display = 'none'; return; }
   if (r.toss) { const T = r.toss; T.t += dt; const k = Math.min(1, T.t / T.secs), q = 1 - Math.pow(1 - k, 2); g.position.lerpVectors(T.from, T.to, q); g.position.y = T.from.y * Math.max(0, 1 - k * 4) + Math.sin(Math.min(1, k / 0.25) * Math.PI) * r.scale * 0.5; g.rotation.x = -Math.PI / 2; g.rotation.z += dt * 9 * (1 - k); plough(g.position, r.scale * 0.75, T.pl || (T.pl = { set: new Set([r]) })); r.stun = Math.max(r.stun, 0.5); if (Math.random() < dt * 25) fx.puff('smoke', g.position.clone(), 0.5);
-    if (k >= 1) { r.toss = null; g.position.y = 0; g.rotation.z = 0; getUp(g); r.stun = 2; const land = g.position.clone(); followUp(me, land, false); hitArea(land, 3.6, 14, {}); fx.explode(land.clone().setY(0.5), 2.4); flashT = 0.3; sfx.boom(); popup(land.clone().setY(r.scale * 2), 'CRASH!', '#ffb02a'); hitRival(30 + 10 * stage); if (!rival || r.hp <= 0) return; } }
+    if (k >= 1) { r.toss = null; g.position.y = 0; g.rotation.z = 0; getUp(g); r.stun = 2; const land = g.position.clone(); followUp(me, land, false); hitArea(land, 3.6, 14, {}); fx.explode(land.clone().setY(0.5), 2.4); flashT = 0.3; sfx.boom(); popup(land.clone().setY(r.scale * 2), 'CRASH!', '#ffb02a'); hitRival(r.max * 0.18); if (!rival || r.hp <= 0) return; } }
   const dx = px - g.position.x, dz = pz - g.position.z, d = Math.hypot(dx, dz) || 0.01, touch = reach() + r.scale * 0.45;
   r.stun -= dt; r.moving = false;
   if (mini) r.stun = Math.max(r.stun, 0.05);
@@ -393,9 +394,9 @@ let finishing = false;
 function rivalWindUp(r, touch) { const ring = r.ring || (r.ring = new THREE.Mesh(ringGeo, ringMat)); ring.position.set(0, 0.06, 0); scene.add(ring); r.atk = { t: 0, dur: Math.max(0.6, 1.0 - 0.1 * (r.stage - 1)), reach: touch + 0.5 }; r.rig.act('cast'); popup(r.g.position.clone().setY(r.scale * 2.4), '❗', '#ff5a5a'); }
 function rivalSwing(r, dt) { const A = r.atk; A.t += dt; const k = Math.min(1, A.t / A.dur), ring = r.ring; ring.position.set(r.g.position.x, 0.06, r.g.position.z); ring.scale.setScalar(A.reach * (0.25 + 0.75 * k)); ring.material.opacity = 0.5 + 0.45 * k;
   r.g.rotation.x = -0.25 * Math.sin(k * Math.PI * 0.5);
-  if (k < 1) return; scene.remove(ring); r.atk = null; r.g.rotation.x = 0; r.rig.act('hit'); r.cd = 0.9 + Math.random() * 0.8;
+  if (k < 1) return; scene.remove(ring); r.atk = null; r.g.rotation.x = 0; r.rig.act('hit'); r.cd = (0.9 + Math.random() * 0.8) * (1 - 0.07 * (level - 1));
   const dx = me.g.position.x - r.g.position.x, dz = me.g.position.z - r.g.position.z;
-  if (Math.hypot(dx, dz) < A.reach && !leap && !meToss && !grabbed) { r.hits = (r.hits || 0) + 1; if (r.hits >= 2 || Math.random() < 0.3) { r.hits = 0; return rivalGrab(r); } hurt(5 + 2 * r.stage, true); knock(me.g, r.g.position, 1.6); fx.explode(me.g.position.clone().setY(meScale), Math.min(1.5, 0.3 * r.scale)); sfx.boom(); flashT = Math.max(flashT, 0.12); me.act('hit'); }
+  if (Math.hypot(dx, dz) < A.reach && !leap && !meToss && !grabbed) { r.hits = (r.hits || 0) + 1; if (r.hits >= 2 || Math.random() < 0.3) { r.hits = 0; return rivalGrab(r); } hurt(Math.min(7, 4 + r.stage), true); knock(me.g, r.g.position, 1.6); fx.explode(me.g.position.clone().setY(meScale), Math.min(1.5, 0.3 * r.scale)); sfx.boom(); flashT = Math.max(flashT, 0.12); me.act('hit'); }
   else { popup(r.g.position.clone().setY(r.scale * 2), 'MISS!', '#7dff3a'); sfx.whoosh(); } }
 let grabbed = false;
 function rivalGrab(r) { grabbed = true; moveTo = null; finishBtn.classList.add('hidden'); r.stun = 3;
@@ -406,20 +407,45 @@ function rivalGrab(r) { grabbed = true; moveTo = null; finishBtn.classList.add('
       end() { grabbed = false; if (!rival || rival !== r) { me.g.position.y = 0; me.g.rotation.x = me.g.rotation.z = 0; return; } r.rig.act(null); const D = 20 + 3 * r.stage, hx = cols * CELL / 2 - 3, hz = rows * CELL / 2 - 3, from = me.g.position.clone();
         const to = new THREE.Vector3(Math.max(-hx, Math.min(hx, from.x - Math.sin(ang) * D)), 0, Math.max(-hz, Math.min(hz, from.z + Math.cos(ang) * D))); me.g.rotation.z = 0; meToss = { from, to, t: 0, secs: 1.6, h: 0 }; banner('THROWN!'); sfx.throw(); } }); return; }
   const mv = FINISHERS[(Math.random() * FINISHERS.length) | 0]; banner(KAIJU[r.id].name + ': ' + MOVE_NAME[mv] + '!'); me.g.position.y = 0; me.g.rotation.x = me.g.rotation.z = 0; const dur = wrestle(mv, 'them', 'me');
-  anims.push({ wait: dur * 0.6, t: 0, dur: 0.01, go() { hurt(6 + 2 * r.stage, true); }, f() {}, end() {} }); anims.push({ wait: dur + 0.9, t: 0, dur: 0.01, go() { grabbed = false; }, f() {}, end() {} }); }
+  anims.push({ wait: dur * 0.6, t: 0, dur: 0.01, go() { hurt(Math.min(9, 5 + r.stage), true); }, f() {}, end() {} }); anims.push({ wait: dur + 0.9, t: 0, dur: 0.01, go() { grabbed = false; }, f() {}, end() {} }); }
 // fighting a rival, swings alternate so it looks like a real fight: Mike mixes golf swings and overhead slams, wrestlers mix
 // two-fisted slams and big boots, each with its own short pause after it
 let fightN = 0; const SWING_ORDER = ['golf', 'hit', 'golf', 'golf', 'hit'], SWING_GAP = [0.75, 0.9, 0.7, 0.8, 0.95];
 function fightSwing() { const k = SWING_ORDER[fightN++ % SWING_ORDER.length]; if (me.hammer) me.act(k); else me.act(me.wrestler && k === 'hit' ? 'kick' : 'hit'); }
+// within striking distance of the rival, taps are swings
+const nearRival = () => rival && me && rival.hp > 0 && !rival.koT && !rival.toss && !finishing && !grabbed && !mini && !meToss && Math.hypot(rival.g.position.x - me.g.position.x, rival.g.position.z - me.g.position.z) < reach() + rival.scale * 0.6 + 1.2;
+let swingCd = 0;
+function playerSwing(crit) { if (!nearRival() || (swingCd > 0 && !crit)) return false; swingCd = SWING_GAP[fightN % SWING_GAP.length] * 0.8; const r = rival; me.g.rotation.y = faceY = Math.atan2(r.g.position.x - me.g.position.x, r.g.position.z - me.g.position.z); moveTo = null; fightSwing();
+  anims.push({ wait: 0.28, t: 0, dur: 0.01, go() { if (rival === r && r.hp > 0) { strikeRival(r, crit); sfx.hit(); if (crit) { sfx.boom(); flashT = Math.max(flashT, 0.2); fx.explode(r.g.position.clone().setY(r.scale), Math.min(1.8, 0.4 * r.scale)); } } }, f() {}, end() {} }); return true; }
+// ---- WEAK SPOTS: glowing dots pop up on the rival during a fight. GOLD = a crit (3x damage, big daze), RED = shows while it
+// winds up a swing (tap it to counter and stagger it), PURPLE (rare) = instant daze. Plain taps still chip away.
+const dotLayer = document.createElement('div'); dotLayer.id = 'kjDots'; document.body.appendChild(dotLayer); const dots = []; let dotT = 1.5;
+const fightEdge = document.createElement('div'); fightEdge.id = 'kjFightEdge'; fightEdge.className = 'hidden'; document.body.appendChild(fightEdge);
+function addDot(kind, life) { const r = rival; if (!r) return; const el = document.createElement('button'); el.className = 'fdot ' + kind; el.textContent = { gold: '★', red: '!', purple: '✦' }[kind];
+  const side = Math.random() < 0.5 ? -1 : 1, d = { el, kind, r, life, max: life, ox: kind === 'red' ? 0 : side * r.scale * (0.35 + Math.random() * 0.4), oy: kind === 'red' ? r.scale * 2.0 : r.scale * (0.4 + Math.random() * 0.9) }; /* red sits up by the head, the others spread out to the sides so they never overlap */
+  el.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); if (state !== 'play' || !rival || rival !== d.r) return; hitDot(d); }); dotLayer.appendChild(el); dots.push(d); return d; }
+function hitDot(d) { const r = d.r, i = dots.indexOf(d); if (i >= 0) dots.splice(i, 1); d.el.classList.add('pop'); setTimeout(() => d.el.remove(), 200);
+  if (d.kind === 'gold') { swingCd = 0; playerSwing(true) || strikeRival(r, true); popup(r.g.position.clone().setY(r.scale * 2.2), 'CRIT!', '#ffd24a'); }
+  else if (d.kind === 'red') { if (r.atk) { scene.remove(r.ring); r.atk = null; r.g.rotation.x = 0; } r.stun = 1.3; r.cd = Math.max(r.cd, 1.2); swingCd = 0; playerSwing(); knock(r.g, me.g.position, 1.6); popup(r.g.position.clone().setY(r.scale * 2.2), 'COUNTER!', '#7dff3a'); sfx.boom(); }
+  else { swingCd = 0; playerSwing(true); r.daze = 1; if (!r.dazedT) { r.dazedT = 3.5; r.atk = null; if (r.ring) scene.remove(r.ring); banner('💫 JACKPOT! SPIN IT OR SLAM IT!'); sfx.power(); } } }
+function clearDots() { for (const d of dots) d.el.remove(); dots.length = 0; }
+function updateDots(dt) { swingCd -= dt; const r = rival, fighting = !!(r && me && r.hp > 0 && !r.koT && state === 'play' && Math.hypot(r.g.position.x - me.g.position.x, r.g.position.z - me.g.position.z) < reach() + r.scale * 0.6 + 6);
+  fightEdge.classList.toggle('hidden', !nearRival());
+  if (!fighting) { if (dots.length) clearDots(); return; }
+  const fast = 1 - 0.08 * (level - 1); dotT -= dt;
+  if (dotT <= 0 && !r.dazedT && !mini && !grabbed && !finishing && dots.filter((d) => d.kind !== 'red').length < 2) { dotT = (1.6 + Math.random() * 0.9) * fast; addDot(Math.random() < 0.1 ? 'purple' : 'gold', Math.max(0.8, 1.6 * fast)); }
+  if (r.atk && !dots.some((d) => d.kind === 'red')) addDot('red', r.atk.dur - r.atk.t);
+  for (let i = dots.length - 1; i >= 0; i--) { const d = dots[i]; d.life -= dt; if (d.life <= 0 || d.r !== rival || (d.kind === 'red' && !r.atk) || r.dazedT > 0) { d.el.remove(); dots.splice(i, 1); continue; }
+    const v = new THREE.Vector3(r.g.position.x + d.ox, d.oy, r.g.position.z).project(cam); d.el.style.transform = 'translate(' + ((v.x * 0.5 + 0.5) * innerWidth) + 'px,' + ((-v.y * 0.5 + 0.5) * innerHeight) + 'px) translate(-50%,-50%) scale(' + (0.7 + 0.3 * Math.min(1, d.life / d.max * 2)) + ')'; } }
 // your hit on the rival: damage, a little knock back, and daze
-function strikeRival(r) { if (!r || r.hp <= 0 || r.dazedT > 0) { if (r && r.dazedT > 0) hitRival(2 + stage); return; } hitRival(3 + 1.5 * stage); if (!rival) return; knock(r.g, me.g.position, 0.5);
-  r.daze = Math.min(1, r.daze + 0.085 / Math.max(1, r.stage - stage + 1)); if (r.atk && r.daze >= 0.5) { scene.remove(r.ring); r.atk = null; r.g.rotation.x = 0; popup(r.g.position.clone().setY(r.scale * 2), 'INTERRUPTED!', '#7dff3a'); }
+function strikeRival(r, crit) { if (!r || r.hp <= 0 || r.dazedT > 0) { if (r && r.dazedT > 0) hitRival(r.max * 0.01); return; } hitRival(r.max * (crit ? 0.07 : 0.025)); if (!rival) return; knock(r.g, me.g.position, crit ? 1.2 : 0.5);
+  r.daze = Math.min(1, r.daze + (crit ? 0.34 : 0.11)); if (r.atk && r.daze >= 0.5) { scene.remove(r.ring); r.atk = null; r.g.rotation.x = 0; popup(r.g.position.clone().setY(r.scale * 2), 'INTERRUPTED!', '#7dff3a'); }
   if (r.daze >= 1) { r.dazedT = 3.5; r.atk = null; if (r.ring) scene.remove(r.ring); banner('💫 DAZED! SPIN IT OR SLAM IT!'); sfx.power(); } }
 // the finisher: your signature wrestling move on the dazed rival, then your spell lands on it while it's down
 const FINISHERS = ['chokeslam', 'piledriver', 'suplex', 'spear', 'superkick'];
 function doFinisher() { const r = rival; if (!r || r.dazedT <= 0 || finishing) return; finishing = true; r.stun = 3; finishBtn.classList.add('hidden'); r.dazedT = 0; r.daze = 0; r.g.rotation.z = 0; moveTo = null;
   const mv = FINISHERS[(Math.random() * FINISHERS.length) | 0]; me.g.rotation.y = faceY = Math.atan2(r.g.position.x - me.g.position.x, r.g.position.z - me.g.position.z); banner(MOVE_NAME[mv] + '!'); const dur = wrestle(mv, 'me', 'them');
-  anims.push({ wait: dur * 0.6, t: 0, dur: 0.01, go() { if (rival === r) { hitRival(22 + 10 * stage); if (rival === r) { r.stun = 2.2; followUp(me, r.g.position.clone(), false); } } }, f() {}, end() { finishing = false; } }); }
+  anims.push({ wait: dur * 0.6, t: 0, dur: 0.01, go() { if (rival === r) { hitRival(r.max * 0.2); if (rival === r) { r.stun = 2.2; followUp(me, r.g.position.clone(), false); } } }, f() {}, end() { finishing = false; } }); }
 finishBtn.querySelector('#kjFinMove').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); if (state === 'play') doFinisher(); });
 finishBtn.querySelector('#kjFinSpin').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); const r = rival; if (state !== 'play' || !r || r.dazedT <= 0 || finishing || mini) return; r.dazedT = 0; r.daze = 0; r.g.rotation.z = 0; finishBtn.classList.add('hidden'); moveTo = null; startMini(r, 'spin'); });
 
@@ -780,7 +806,7 @@ addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; if (mini &
 
 // ---------- flow ----------
 let state = 'start', died = false, roundId = 0; // roundId: delayed effects from an earlier round check it and stand down
-soundToggle($('taStart'), $('taPaused')); eraPicker($('taLevels')); // sound on/off on the start and pause screens
+soundToggle($('taStart'), $('taPaused')); skipSongBtn($('ta')); eraPicker($('taLevels')); // sound on/off on the start and pause screens
 // the soundtrack starts on the first tap and keeps rotating songs for as long as you're on Kaiju Madness
 gameMusic($('taPaused'), SONGS_KAIJU);
 const fsMode = initFullscreen(() => state === 'play'); // full screen on play, back in after a browser drop-out, no page scrolling mid-round
@@ -788,7 +814,7 @@ function start() {
   fsMode.play();
   megaT = 0; megaUsed = false; megaDropT = 25 + Math.random() * 15; if (megaDrop) scene.remove(megaDrop.g); megaDrop = null; megaArrow.style.display = 'none'; megaEl.className = 'hidden'; for (const b of blasts) b.remove(); blasts.length = 0; camK = 1; roundId++;
   clearAnims();
-  unlockAudio(); buildWorld(); makeMe(); spells.clear(); score = 0; totalD = 0; camHold = false; bike = null; bout = null; meToss = null; finishing = false; grabbed = false; finishBtn.classList.add('hidden'); /* a new round: the camera follows again after a ride-off; no fight carries over */ chain = 0; lastHit = -9; tLeft = L().time; played = 0; peopleN = carsN = bDone = 0; ko = 0; died = false; moveTo = null; slowT = 0; boostT = 0;
+  unlockAudio(); buildWorld(); makeMe(); spells.clear(); score = 0; totalD = 0; camHold = false; bike = null; bout = null; meToss = null; finishing = false; grabbed = false; clearDots(); fightEdge.classList.add('hidden'); finishBtn.classList.add('hidden'); /* a new round: the camera follows again after a ride-off; no fight carries over */ chain = 0; lastHit = -9; tLeft = L().time; played = 0; peopleN = carsN = bDone = 0; ko = 0; died = false; moveTo = null; slowT = 0; boostT = 0;
   for (const pl of planes) { scene.remove(pl.g); pl.arrow.remove(); } planes = []; planeT = 50 + Math.random() * 10; noPlanes = false; for (const b of bombs) scene.remove(b.m); bombs.length = 0; for (const f of fires) scene.remove(f.ring); fires.length = 0;
   if (rival) scene.remove(rival.g); rival = null; mini = null; lastMini = ''; miniEl.className = 'hidden'; rivalQueue = []; rivalWait = 0; queueRivals(1); sinking.length = 0; gulps.length = 0;
   setupPoiHud(); for (const s of ['taStart', 'taEnd', 'taPaused', 'taPrize', 'kjPickScr']) $(s).classList.add('hidden'); $('ta').classList.remove('hidden');
@@ -921,8 +947,8 @@ function update(dt) {
   else if (moveTo) { const dx = moveTo.x - g.position.x, dz = moveTo.z - g.position.z, dl = Math.hypot(dx, dz); if (dl < 0.4) moveTo = null; else { g.position.x += dx / dl * Math.min(dl, speed * dt); g.position.z += dz / dl * Math.min(dl, speed * dt); faceY = Math.atan2(dx, dz); moving = 1; } }
   const lim = toWorld(cols - 1, rows - 1, cols, rows); g.position.x = Math.max(-lim.x, Math.min(lim.x, g.position.x)); g.position.z = Math.max(-lim.z, Math.min(lim.z, g.position.z));
   { let dr = faceY - g.rotation.y; dr = Math.atan2(Math.sin(dr), Math.cos(dr)); g.rotation.y += dr * Math.min(1, dt * 6); }
-  me.anim(dt, moving);
-  if (moving > 0.3 && !leap) { stepT -= dt; if (stepT <= 0) { stepT = me.fly ? 0.42 : 0.5; if (me.fly) sfx.flap(); else sfx.stomp(meScale); } } else stepT = 0.15;
+  me.anim(dt, moving); updateDots(dt);
+  if (moving > 0.15 && !leap) { stepT -= dt; if (stepT <= 0) { stepT = me.fly ? 0.38 : 0.4; if (me.fly) sfx.flap(); else sfx.stomp(meScale); } } else stepT = 0.15;
   if (power >= 1 && !powerFull) { powerFull = true; sfx.power(); } else if (power < 1) powerFull = false;
   const px = g.position.x, pz = g.position.z, R = reach();
   // stomping: buildings it walks into come down (if it's big enough)
@@ -950,7 +976,6 @@ function update(dt) {
     let target = null, td = 1e9; const consider = (pos, extra, kind, ref) => { const d = Math.hypot(pos.x - px, pos.z - pz); if (d < R + extra && d < td) { td = d; target = { kind, ref, pos }; } };
 
     for (const t of tanks) consider(t.g.position, 1.2, 'tank', t); for (const s of soldiers) consider(s.position, 0.9, 'soldier', s); for (const o of drivers) consider(o.g.position, 0.8, 'car', o);
-    if (rival && rival.hp > 0 && !rival.koT && !rival.toss && !finishing && !grabbed) consider(rival.g.position, rival.scale * 0.55 + 0.6, 'rival', rival);
     if (target) { meleeCd = 0.55; if (target.kind === 'rival') fightSwing(); else smashAct(); faceY = Math.atan2(target.pos.x - px, target.pos.z - pz);
       if (target.kind === 'rival') { meleeCd = SWING_GAP[fightN % SWING_GAP.length]; strikeRival(target.ref); }
       else if (target.kind === 'tank') { const i = tanks.indexOf(target.ref); if (i >= 0) { tanks.splice(i, 1); twisters.scatter([target.ref.g], g.position.clone(), 5); fx.explode(target.pos.clone(), 1); award(250, target.pos, 'TANK'); grow(1.5); sfx.boom(); } }
@@ -1009,4 +1034,4 @@ function frame(now) {
 function showcase() { if (state !== 'start') return; makeMe(); me.g.position.set(0, 0, 0); camTarget.set(0, 2, 0); }
 buildWorld(); makeMe(); camTarget.set(0, 2, 0);
 requestAnimationFrame(frame); requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove('booting'))); // the start screen is ready now
-window.__kj = { get bout() { return bout; }, get grabbed() { return grabbed; }, rivalGrab: (r) => rivalGrab(r), strikeRival: (r) => strikeRival(r), doFinisher, get finishing() { return finishing; }, get meToss() { return meToss; }, startEscape: (r) => startEscape(r), startBout: (r) => startBout(r), wrestle, finish, get tLeft() { return tLeft; }, get camHold() { return camHold; }, get died() { return died; }, get outroT() { return outroT; }, get bike() { return bike; }, get totalD() { return totalD; }, set bDone(v) { bDone = v; }, get totalB() { return totalB; }, emote, throwHammer, endMini: (res) => endMini(res), get song() { return songState(); }, get sceneN() { return scene.children.length; }, flourish, get anims() { return anims.length; }, dropMega, goMega, megaBlast, get megaT() { return megaT; }, get megaDrop() { return megaDrop; }, THREE, get me() { return me; }, get moveTo() { return moveTo; }, get mass() { return mass; }, set mass(v) { mass = v; }, get massTarget() { return massTarget; }, get stage() { return stage; }, get power() { return power; }, set power(v) { power = v; }, get rival() { return rival; }, spawnRival, spawnPlane, get planes() { return planes; }, get state() { return state; }, get score() { return score; }, get people() { return people; }, get buildings() { return buildings; }, get pois() { return pois; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, tapAt, get cam() { return cam; }, set tLeft(v) { tLeft = v; }, set level(v) { level = v; }, start, hurt, get calls() { return renderer.info.render.calls; }, get fires() { return fires; }, get mini() { return mini && { ...mini, side: mini.side }; }, startMini, get pool() { return pool.length; }, get unlocked() { return unlockedKaiju(); }, set pick(v) { pick = v; } };
+window.__kj = { get bout() { return bout; }, get dots() { return dots; }, hitDot, playerSwing, get nearRival() { return nearRival(); }, get grabbed() { return grabbed; }, rivalGrab: (r) => rivalGrab(r), strikeRival: (r) => strikeRival(r), doFinisher, get finishing() { return finishing; }, get meToss() { return meToss; }, startEscape: (r) => startEscape(r), startBout: (r) => startBout(r), wrestle, finish, get tLeft() { return tLeft; }, get camHold() { return camHold; }, get died() { return died; }, get outroT() { return outroT; }, get bike() { return bike; }, get totalD() { return totalD; }, set bDone(v) { bDone = v; }, get totalB() { return totalB; }, emote, throwHammer, endMini: (res) => endMini(res), get song() { return songState(); }, get sceneN() { return scene.children.length; }, flourish, get anims() { return anims.length; }, dropMega, goMega, megaBlast, get megaT() { return megaT; }, get megaDrop() { return megaDrop; }, THREE, get me() { return me; }, get moveTo() { return moveTo; }, get mass() { return mass; }, set mass(v) { mass = v; }, get massTarget() { return massTarget; }, get stage() { return stage; }, get power() { return power; }, set power(v) { power = v; }, get rival() { return rival; }, spawnRival, spawnPlane, get planes() { return planes; }, get state() { return state; }, get score() { return score; }, get people() { return people; }, get buildings() { return buildings; }, get pois() { return pois; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, tapAt, get cam() { return cam; }, set tLeft(v) { tLeft = v; }, set level(v) { level = v; }, start, hurt, get calls() { return renderer.info.render.calls; }, get fires() { return fires; }, get mini() { return mini && { ...mini, side: mini.side }; }, startMini, get pool() { return pool.length; }, get unlocked() { return unlockedKaiju(); }, set pick(v) { pick = v; } };

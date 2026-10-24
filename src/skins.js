@@ -102,6 +102,20 @@ export const SKINS = [
   ...Object.entries(KAIJU_SKINS).flatMap(([id, looks]) => Object.values(looks).map((s) => ({ id: 'kaiju:' + id + ':' + s.look, key: id, look: s.look, cat: 'kaiju', name: s.name, price: 1, desc: (id === 'mike' && s.look === 'halloween' ? 'His Halloween costume: a frilly pink tutu and a long blond wig.' : s.look === 'gear' ? 'Alternate ring gear in new colours.' : s.look === 'skeleton' ? 'Black with bone-white plates and red eyes.' : "Glowing orange bones and a flaming jack-o'-lantern head (or a witch's hat).") }))),
   ...Object.entries(TWISTER_SKINS).map(([id, s]) => ({ id: 'tornado:' + id, key: id, cat: 'tornado', name: s.name, price: s.price, desc: s.desc, bonus: s.bonus || null })),
 ];
+// ---------- the army dresses for the era: Future troopers (white armour, glowing cyan visor, laser rifle) and Wild West
+// cavalry (blue coat, wide-brimmed hat, yellow neckerchief, long rifle); otherwise the usual camo ----------
+const glowM = (c) => new THREE.MeshBasicMaterial({ color: c });
+const ARMY = {
+  future: { outfit: { skin: 0xe9c39e, hair: 0x1a1a1a, shirt: 0xdfe5ee, pants: 0x2a3044, tie: null },
+    dress: ({ head, body, armR, part }) => { head.add(part(sphere, 0xe8eef4, 0.92, 0.6, 0.92, 0, 0.62, -0.02)); for (const sx of [-1, 1]) head.add(part(box, 0xe8eef4, 0.1, 0.5, 0.6, sx * 0.42, 0.38, 0)); const v = part(box, 0x3af0ff, 0.7, 0.12, 0.1, 0, 0.44, 0.33); v.material = glowM(0x3af0ff); head.add(v);
+      body.add(part(box, 0xf2f6fa, 0.7, 0.42, 0.7, 0, 1.38, 0)); const st = part(box, 0x3af0ff, 0.72, 0.05, 0.05, 0, 1.3, 0.36); st.material = glowM(0x3af0ff); body.add(st); for (const sx of [-1, 1]) body.add(part(sphere, 0xe8eef4, 0.36, 0.26, 0.4, sx * 0.42, 1.6, 0));
+      armR.add(part(box, 0x1c2030, 0.1, 0.12, 1.0, 0.05, -0.7, 0.2)); const tip = part(box, 0xff4fd8, 0.12, 0.12, 0.12, 0.05, -0.7, 0.72); tip.material = glowM(0xff4fd8); armR.add(tip); } },
+  past: { outfit: { skin: 0xe9c39e, hair: 0x4a2e1a, shirt: 0x2a3a7a, pants: 0x6a7ab8, tie: null },
+    dress: ({ head, body, legL, legR, armR, part }) => { head.add(part(cyl, 0x2a2a3a, 1.1, 0.05, 1.1, 0, 0.6, 0)); head.add(part(cyl, 0x2a2a3a, 0.56, 0.28, 0.56, 0, 0.76, 0)); head.add(part(cyl, 0xd8b04a, 0.58, 0.05, 0.58, 0, 0.66, 0));
+      const nk = part(cone, 0xe8c040, 0.3, 0.16, 0.14, 0, -0.06, 0.26); nk.rotation.x = Math.PI; head.add(nk); const belt = part(box, 0xeeeeea, 0.12, 0.9, 0.06, 0, 1.3, 0.34); belt.rotation.z = 0.6; body.add(belt);
+      for (const l of [legL, legR]) l.add(part(box, 0xe8c040, 0.05, 0.75, 0.03, 0, -0.5, 0.17)); armR.add(part(box, 0x5a3a22, 0.08, 0.1, 1.2, 0.05, -0.7, 0.25)); armR.add(part(box, 0x8a8e96, 0.05, 0.05, 0.6, 0.05, -0.64, 0.6)); } },
+};
+export function armySkin() { const e = getEra(); return ARMY[e] || CHAR_SKINS.hunter; }
 export function equippedTornado() { const e = getEquipped().tornado; return e ? e.split(':')[1] : null; }
 // a car in the player's equipped car skin (or plain, in the given colour)
 export function skinnedCarArgs(color) { const s = equippedSkin('car'); return s ? [s.color, s] : [color]; }
