@@ -50,7 +50,8 @@ function noise(dur, vol = 0.1, freq = 1200, q = 1) {
 }
 let stepFlip = false, coinT = 0;
 // every button in the game clicks when pressed
-if (typeof document !== 'undefined') document.addEventListener('pointerdown', (e) => { if (e.target && e.target.closest && e.target.closest('button')) sfx.click(); }, true);
+// any tap also wakes the radio, which lives in the outer frame, in case iOS paused it
+if (typeof document !== 'undefined') document.addEventListener('pointerdown', (e) => { if (e.target && e.target.closest && e.target.closest('button')) sfx.click(); try { if (FRAME && FRAME.wake) FRAME.wake(); } catch { /* ignore */ } }, true);
 export const sfx = {
   throw: () => tone(700, 0.08, 'triangle', 0.05, -300),
   hit: () => tone(200, 0.1, 'square', 0.06, -100),
@@ -213,7 +214,9 @@ export function songState() { if (FRAME) return FRAME.songState(); return song ?
 function toggleRepeat() { repeat = !repeat; if (song) song.loop = repeat || SONGS.length === 1; saveRadio(); return repeat; }
 function cycleVol() { volI = (volI + 1) % VOLS.length; applyVol(); try { localStorage.setItem('oo_music_vol', volI); } catch { /* ignore */ } return VOLS[volI][0]; }
 // the frame page shares its radio with the pages inside it
-export function frameRadio() { window.__radio = { playSongs, nextSong, songState, toggleRepeat, cycleVol, setMuted, setMusicMuted, get repeat() { return repeat; }, get volName() { return VOLS[volI][0]; } }; }
+// wake the radio after iOS paused it (Control Center, a call, another app): resume the audio engine and the song
+function wake() { unlockAudio(); if (song && song.paused && !musicMuted) song.play().catch(() => {}); }
+export function frameRadio() { window.__radio = { wake, playSongs, nextSong, songState, toggleRepeat, cycleVol, setMuted, setMusicMuted, get repeat() { return repeat; }, get volName() { return VOLS[volI][0]; } }; }
 // a game page's soundtrack: starts on the first tap and keeps going; SKIP SONG, REPEAT and VOLUME on the given screen
 export function gameMusic(host, list) {
   radio();

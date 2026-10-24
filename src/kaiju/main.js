@@ -405,6 +405,10 @@ function rivalGrab(r) { grabbed = true; moveTo = null; finishBtn.classList.add('
         const to = new THREE.Vector3(Math.max(-hx, Math.min(hx, from.x - Math.sin(ang) * D)), 0, Math.max(-hz, Math.min(hz, from.z + Math.cos(ang) * D))); me.g.rotation.z = 0; meToss = { from, to, t: 0, secs: 1.3, h: 5 + r.scale * 1.5 }; banner('THROWN!'); sfx.throw(); } }); return; }
   const mv = FINISHERS[(Math.random() * FINISHERS.length) | 0]; banner(KAIJU[r.id].name + ': ' + MOVE_NAME[mv] + '!'); me.g.position.y = 0; me.g.rotation.x = me.g.rotation.z = 0; const dur = wrestle(mv, 'them', 'me');
   anims.push({ wait: dur * 0.6, t: 0, dur: 0.01, go() { hurt(6 + 2 * r.stage, true); }, f() {}, end() {} }); anims.push({ wait: dur + 0.9, t: 0, dur: 0.01, go() { grabbed = false; }, f() {}, end() {} }); }
+// fighting a rival, swings alternate so it looks like a real fight: Mike mixes golf swings and overhead slams, wrestlers mix
+// two-fisted slams and big boots, each with its own short pause after it
+let fightN = 0; const SWING_ORDER = ['golf', 'hit', 'golf', 'golf', 'hit'], SWING_GAP = [0.75, 0.9, 0.7, 0.8, 0.95];
+function fightSwing() { const k = SWING_ORDER[fightN++ % SWING_ORDER.length]; if (me.hammer) me.act(k); else me.act(me.wrestler && k === 'hit' ? 'kick' : 'hit'); }
 // your hit on the rival: damage, a little knock back, and daze
 function strikeRival(r) { if (!r || r.hp <= 0 || r.dazedT > 0) { if (r && r.dazedT > 0) hitRival(2 + stage); return; } hitRival(3 + 1.5 * stage); if (!rival) return; knock(r.g, me.g.position, 0.5);
   r.daze = Math.min(1, r.daze + 0.085 / Math.max(1, r.stage - stage + 1)); if (r.atk && r.daze >= 0.5) { scene.remove(r.ring); r.atk = null; r.g.rotation.x = 0; popup(r.g.position.clone().setY(r.scale * 2), 'INTERRUPTED!', '#7dff3a'); }
@@ -945,8 +949,8 @@ function update(dt) {
 
     for (const t of tanks) consider(t.g.position, 1.2, 'tank', t); for (const s of soldiers) consider(s.position, 0.9, 'soldier', s); for (const o of drivers) consider(o.g.position, 0.8, 'car', o);
     if (rival && rival.hp > 0 && !rival.koT && !rival.toss && !finishing && !grabbed) consider(rival.g.position, rival.scale * 0.55 + 0.6, 'rival', rival);
-    if (target) { meleeCd = 0.55; smashAct(); faceY = Math.atan2(target.pos.x - px, target.pos.z - pz);
-      if (target.kind === 'rival') { meleeCd = 0.45; strikeRival(target.ref); }
+    if (target) { meleeCd = 0.55; if (target.kind === 'rival') fightSwing(); else smashAct(); faceY = Math.atan2(target.pos.x - px, target.pos.z - pz);
+      if (target.kind === 'rival') { meleeCd = SWING_GAP[fightN % SWING_GAP.length]; strikeRival(target.ref); }
       else if (target.kind === 'tank') { const i = tanks.indexOf(target.ref); if (i >= 0) { tanks.splice(i, 1); twisters.scatter([target.ref.g], g.position.clone(), 5); fx.explode(target.pos.clone(), 1); award(250, target.pos, 'TANK'); grow(1.5); sfx.boom(); } }
       else if (target.kind === 'soldier') { const i = soldiers.indexOf(target.ref); if (i >= 0) { soldiers.splice(i, 1); delete target.ref.updateMatrixWorld; twisters.scatter([target.ref], g.position.clone(), 6); award(40, target.pos, 'SOLDIER'); grow(0.6); sfx.hit(); } }
       else { const i = drivers.indexOf(target.ref); if (i >= 0) { drivers.splice(i, 1); blowCar(target.ref.g, target.pos.clone()); } } } }
