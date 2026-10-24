@@ -1,6 +1,6 @@
 # Dead City: Tornado Alley — itch.io page kit
 
-Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.21.2**. Upload `release/survive-dead-city-web-v1.21.2.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
+Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.21.3**. Upload `release/survive-dead-city-web-v1.21.3.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
 
 > All monsters, robots and characters in Dead City are original creations. Any resemblance to other characters is coincidental.
 
@@ -13,7 +13,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 | Short description / tagline | You are the storm. Tear through five towns, take out big targets, dodge seeding planes and outrun storm chasers. |
 | Classification | Game |
 | Kind of project | **HTML** |
-| Uploads | `survive-dead-city-web-v1.21.2.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
+| Uploads | `survive-dead-city-web-v1.21.3.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
 | Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
 | Frame options | Leave SharedArrayBuffer off. No special headers needed. |
 | Pricing | Free (or "No payments"). |
@@ -70,6 +70,7 @@ Small browser games built fast, tested on a phone, and tuned by playing. Dead Ci
 
 ## Version history
 
+- **1.21.3** (2026-10-24): The camera now zooms out to keep you and your rival on screen for the whole fight. The giant swing goes round low to the ground and ploughs through buildings and cars, and thrown monsters skid along the ground wrecking everything in their path before getting back up.
 - **1.21.2** (2026-10-23): Fights look more natural: Mike mixes golf swings and overhead slams, and wrestlers mix slams and big boots. Music on iPhone comes back with your next tap after iOS pauses it (Control Center, a call, switching apps).
 - **1.21.1** (2026-10-23): Kaiju fights last longer, with tougher rivals and a slower daze meter. When a rival is dazed, choose SPIN & TOSS or RANDOM MOVE (one of the wrestling moves). Rivals fight back the same way: they can grab you and spin and toss you across town, or hit you with a random wrestling move.
 - **1.21.0** (2026-10-23): New, simpler Kaiju fighting: no more locked-in mini games. Hit rivals with your normal attacks, watch for the red ring when they wind up a swing and step out to dodge, fill their daze meter, then finish them with SPIN & TOSS or a wrestling FINISH IT! move. Fixed Mike's legs flickering and his floating walk.
