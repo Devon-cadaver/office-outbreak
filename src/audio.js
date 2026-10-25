@@ -193,7 +193,7 @@ const FRAME = (() => { try { return window.parent !== window && window.parent.__
 export const SONGS_ALL = ['music/tornado-alley.mp3', 'music/twister-vs-army.mp3', 'music/clean-slate.mp3', 'music/feeding-ground.mp3', 'music/stomp-the-block.mp3', 'music/saving-you-the-trouble.mp3', 'music/tatsumaki-justice.mp3'];
 export const SONGS_TORNADO = SONGS_ALL, SONGS_KAIJU = SONGS_ALL;
 const VOLS = [['LOW', 0.25], ['MED', 0.55], ['FULL BLAST', 0.95]];
-let SONGS = SONGS_ALL, order = [], song = null, songGain = null, songI = -1, repeat = false, volI = 1, resumeAt = 0;
+let SONGS = SONGS_ALL, order = [], song = null, songGain = null, songI = -1, repeat = false, volI = 0, resumeAt = 0; /* the songs start at LOW until you change it */
 try { const v = +localStorage.getItem('oo_music_vol'); if (v >= 0 && v < VOLS.length && localStorage.getItem('oo_music_vol') !== null) volI = v; } catch { /* ignore */ }
 try { const st = JSON.parse(sessionStorage.getItem('oo_radio') || 'null'); if (st && SONGS[st.i]) { songI = st.i; resumeAt = st.t || 0; order = (st.order || []).filter((i) => SONGS[i]); repeat = !!st.rep; } } catch { /* ignore */ }
 function saveRadio() { if (!song) return; try { sessionStorage.setItem('oo_radio', JSON.stringify({ i: songI, t: song.readyState >= 1 ? song.currentTime : resumeAt, order, rep: repeat })); } catch { /* ignore */ } }
@@ -202,14 +202,17 @@ function applyVol() { const v = VOLS[volI][1]; if (songGain) songGain.gain.value
 // once the sound engine is running, the song goes through it (iPad/iPhone ignore an element's volume; MUSIC: OFF covers it)
 function routeSong() { if (!song || songGain || !ctx) return; try { songGain = ctx.createGain(); ctx.createMediaElementSource(song).connect(songGain).connect(musicSw); song.volume = 1; } catch { songGain = null; } applyVol(); }
 export function playSongs() {
-  if (FRAME) return FRAME.playSongs();
+  if (FRAME) return FRAME.playSongs(); if (musicOn) stopMusic(); /* a round starting hands over from the menu beat to the songs */
   if (!song) { if (!SONGS[songI]) songI = pickNext(); song = new Audio(); song.preload = 'auto'; song.loop = repeat || SONGS.length === 1; song.src = SONGS[songI];
     if (resumeAt > 1) { const t = resumeAt; song.addEventListener('loadedmetadata', () => { if (t < song.duration - 2) song.currentTime = t; }, { once: true }); }
     song.addEventListener('ended', () => nextSong()); applyVol(); }
   routeSong(); song.muted = musicMuted; if (song.paused && !musicMuted) song.play().catch(() => {});
 }
 // every page: try now, and again at the first tap or key (browsers block sound until then)
-export function radio() { if (FRAME) return FRAME.playSongs(); playSongs(); const go = () => { unlockAudio(); playSongs(); }; addEventListener('pointerdown', go, true); addEventListener('keydown', go, true); }
+// the menus (title screen, main menu, shop, a game's start screen) play the original synth beat; the songs only start once
+// you begin a round, and after that the radio keeps going everywhere
+export function menuMusic() { if (FRAME) return FRAME.menuMusic(); unlockAudio(); if (song) playSongs(); else startMusic(); }
+export function radio() { if (FRAME) return FRAME.menuMusic(); menuMusic(); const go = () => { unlockAudio(); menuMusic(); }; addEventListener('pointerdown', go, true); addEventListener('keydown', go, true); }
 // a shuffled bag: deal songs out in random order, reshuffle when it runs dry (never the same song twice in a row)
 function pickNext() { if (!order.length) { order = SONGS.map((_, i) => i); for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; } if (song && order.length > 1 && order[0] === songI) order.push(order.shift()); } return order.shift(); }
 export function nextSong() { if (FRAME) return FRAME.nextSong(); if (!song) return playSongs(); songI = pickNext(); resumeAt = 0; song.src = SONGS[songI]; if (!musicMuted) song.play().catch(() => {}); saveRadio(); }
@@ -219,7 +222,7 @@ function cycleVol() { volI = (volI + 1) % VOLS.length; applyVol(); try { localSt
 // the frame page shares its radio with the pages inside it
 // wake the radio after iOS paused it (Control Center, a call, another app): resume the audio engine and the song
 function wake() { unlockAudio(); if (song && song.paused && !musicMuted) song.play().catch(() => {}); }
-export function frameRadio() { window.__radio = { wake, playSongs, nextSong, songState, toggleRepeat, cycleVol, setMuted, setMusicMuted, get repeat() { return repeat; }, get volName() { return VOLS[volI][0]; } }; }
+export function frameRadio() { window.__radio = { wake, menuMusic, playSongs, nextSong, songState, toggleRepeat, cycleVol, setMuted, setMusicMuted, get repeat() { return repeat; }, get volName() { return VOLS[volI][0]; } }; }
 // a game page's soundtrack: starts on the first tap and keeps going; SKIP SONG, REPEAT and VOLUME on the given screen
 export function gameMusic(host, list) {
   radio();

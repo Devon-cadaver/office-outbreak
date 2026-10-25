@@ -1,6 +1,6 @@
 # Dead City: Tornado Alley — itch.io page kit
 
-Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.22.1**. Upload `release/survive-dead-city-web-v1.22.1.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
+Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.23.0**. Upload `release/survive-dead-city-web-v1.23.0.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
 
 > All monsters, robots and characters in Dead City are original creations. Any resemblance to other characters is coincidental.
 
@@ -13,7 +13,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 | Short description / tagline | You are the storm. Tear through five towns, take out big targets, dodge seeding planes and outrun storm chasers. |
 | Classification | Game |
 | Kind of project | **HTML** |
-| Uploads | `survive-dead-city-web-v1.22.1.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
+| Uploads | `survive-dead-city-web-v1.23.0.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
 | Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
 | Frame options | Leave SharedArrayBuffer off. No special headers needed. |
 | Pricing | Free (or "No payments"). |
@@ -70,6 +70,7 @@ Small browser games built fast, tested on a phone, and tuned by playing. Dead Ci
 
 ## Version history
 
+- **1.23.0** (2026-10-25): The menus now play the original synth beat, and the songs start at a low volume once you begin a round. New ranged attack in Kaiju fights: when a rival is out of reach, hurl a building or fire your special, then charge in. Mike and the wrestlers finish with a flying elbow.
 - **1.22.1** (2026-10-24): The Skip Song button now stays in place when you tap it, so you can keep skipping.
 - **1.22.0** (2026-10-24): Kaiju fights are now in your hands: near a rival, tap to swing, and hit the glowing dots (gold for a critical hit, red to counter its swing, rare purple to daze it instantly). Fights take the same effort in every town, so Megacity rivals are no longer brutal. New Skip Song button on screen in both games. Footsteps and smashed buildings are much easier to hear, and SOUND OFF now mutes only the sound effects, not the music. The army now dresses for the era: Wild West cavalry and Future troopers with laser rifles.
 - **1.21.3** (2026-10-24): The camera now zooms out to keep you and your rival on screen for the whole fight. The giant swing goes round low to the ground and ploughs through buildings and cars, and thrown monsters skid along the ground wrecking everything in their path before getting back up.
