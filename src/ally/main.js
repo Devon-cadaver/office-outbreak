@@ -590,6 +590,8 @@ function finishNow() {
   if (cleared && level === LEVELS.length && grantSkin('tornado:acid')) { equip('tornado', 'tornado:acid'); const u = document.createElement('div'); u.className = 'bonusSkin'; u.innerHTML = '🏆 BONUS SKIN UNLOCKED: <b>ACID STORM</b><br><small>Acid rain, green lightning and baby tornadoes. It\'s on now; change it in the skin shop.</small>'; $('taGoalLine').appendChild(u); }
   if (totalD) { $('taEndTitle').innerHTML = 'TOTAL<br>DESTRUCTION!'; totalReward(Object.keys(TWISTER_SKINS).filter((k) => !TWISTER_SKINS[k].bonus).map((k) => 'tornado:' + k), (id) => TWISTER_SKINS[id.split(':')[1]].name, $('taGoalLine')); }
   if (cleared && level === LEVELS.length && (unlockEra('future') | unlockEra('past'))) { const u = document.createElement('div'); u.className = 'bonusSkin'; u.innerHTML = '🤠🚀 WILD WEST AND FUTURE ERAS UNLOCKED<br><small>Pick an era under the towns to play every town back in the Wild West or in the future.</small>'; $('taGoalLine').appendChild(u); eraPicker($('taLevels')); }
+  if (cleared && level < LEVELS.length) level++; /* the next town is open and picked right away, wherever you go from here (change monster, the shop, NEXT LEVEL) */
+  drawLevels(); eraPicker($('taLevels')); /* and the start screen shows the new best score and any era you just unlocked, without a reload */
   $('taStats').innerHTML = [...(totalD ? [['💥 Total destruction', '+' + totalD]] : []), ['Buildings', bDone + ' / ' + totalB + ' (' + pct + '%)'], ['People swept up', peopleN], ['Cars thrown', carsN], ['Storm chasers', chasersCaught + ' caught, ' + chasersLost + ' got away'], ['Big targets', done.length + ' / ' + poiOrder.length + ' ' + done.map((k) => POI[k].icon).join('')], ['Peak size', 'F' + rankOf(size) + ' (' + size.toFixed(1) + 'x)'], ['Score', score], ['Score coins', '+' + scoreCoins + ' 🪙'], ['Best', best]].map(([a, b]) => '<tr><td>' + a + '</td><td>' + b + '</td></tr>').join('');
   showPrizes($('taChests'), Math.min(3, 1 + (cleared ? 1 : 0) + Math.floor(done.length / 2)) + (totalD ? 1 : 0), '1 go, +1 for clearing the level, +1 for every 2 big targets destroyed (max 3), +1 for TOTAL DESTRUCTION', () => { location.href = 'store.html?from=alley'; }, null, () => { $('taPrize').classList.add('hidden'); $('taEnd').classList.remove('hidden'); });
   $('ta').classList.add('hidden'); $('taPrize').classList.remove('hidden'); // the prize game first, then the score
@@ -604,7 +606,7 @@ const HOWTO = [
 ];
 $('taHow').addEventListener('click', () => showHowTo(HOWTO));
 $('taPlay').addEventListener('click', () => { if (tipsSeen('ta_howto')) start(); else { markSeen('ta_howto'); showHowTo(HOWTO, start); } }); // first time: the cards, then play
-$('taAgain').addEventListener('click', () => { if ($('taAgain').dataset.next) level++; start(); });
+$('taAgain').addEventListener('click', () => start());
 $('taTutBtn').addEventListener('click', () => { unlockAudio(); start(true); });
 $('taTutSkip').addEventListener('click', (e) => { e.stopPropagation(); endTutorial(); });
 $('taTutDone').addEventListener('click', (e) => { e.stopPropagation(); endTutorial(); });

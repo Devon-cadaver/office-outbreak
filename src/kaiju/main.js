@@ -52,6 +52,9 @@ const LEVELS = [
   { name: 'Megacity', size: 47, time: 270, goal: 30, pois: 10, need: 10 },
 ];
 let level = 1; const L = () => LEVELS[level - 1];
+const ramp = () => (level - 1) / (LEVELS.length - 1);
+const SIZE_GUARD = [0, 0.6, 0.8, 1]; // a rival's hits on a Hatchling do 60%, a Titan 80%: early fights in big towns stay survivable while you grow
+const RIVAL_HP = 300; // your hits do a set amount (a share of a Small Town rival), so tougher rivals in later towns really take longer // 0 in Small Town, 1 in Megacity: how much tougher fights get
 const STAGE = ['', 'HATCHLING', 'TITAN', 'COLOSSUS'];
 const stageOf = (f) => (f < 1 / 3 ? 1 : f < 2 / 3 ? 2 : 3);
 const scaleOf = (f) => 1.5 + f * 3.2; // rigs are ~2 units tall at scale 1: about 3 tall as a hatchling, 9 as a colossus
@@ -302,7 +305,7 @@ function spawnRival(forceId) {
   const rig = buildKaiju(id); const f = (st - 0.5) / 3, sc = scaleOf(f); rig.g.scale.setScalar(sc);
   const far = []; for (const c of roadCells) { const w = toWorld(c[0], c[1], cols, rows); const d = Math.hypot(w.x - me.g.position.x, w.z - me.g.position.z); if (d > 20 && d < 34) far.push(w); }
   const w = far.length ? far[(Math.random() * far.length) | 0] : toWorld(1, 1, cols, rows); rig.g.position.set(w.x, 0, w.z); scene.add(rig.g);
-  rival = { id, rig, g: rig.g, stage: st, scale: sc, hp: 300, max: 300, cd: 1.5, castT: 6 + Math.random() * 3, stun: 0, koT: 0, daze: 0, dazedT: 0, atk: null };
+  const hp0 = Math.round(RIVAL_HP * (1 + 0.6 * ramp())); rival = { id, rig, g: rig.g, stage: st, scale: sc, hp: hp0, max: hp0, cd: 1.5, castT: (6 + Math.random() * 3) * (1 - 0.3 * ramp()), stun: 0, koT: 0, daze: 0, dazedT: 0, atk: null };
   $('kjRivalName').textContent = KAIJU[id].name + ' · ' + STAGE[st]; rivalEl.classList.remove('hidden'); banner('👹 RIVAL: ' + KAIJU[id].name + '!'); sfx.wave(); tip('kj_rival', '👹 A rival kaiju! Walk up and your kaiju fights it on its own. Spells hit it hard. KO it and eat it for a big boost.');
 }
 function hitRival(pow, freeze) { if (!rival || rival.hp <= 0) return; if (bout && bout.buff > 0) pow *= 1.5; rival.hp -= pow; rival.rig.act('hit'); if (freeze) rival.stun = 2.5; popup(rival.g.position.clone().setY(rival.scale * 1.8), '-' + Math.round(pow), '#ffb02a'); if (rival.hp <= 0) rivalKO(); }
@@ -362,7 +365,7 @@ function updateRival(dt, px, pz) {
   const r = rival, g = r.g; r.rig.anim(dt, r.koT > 0 ? 0 : r.moving ? 1 : 0.15);
   if (r.koT > 0) { r.koT -= dt; if (r.koT <= 1.0 && me) { const k = Math.min(1, dt * 3); const mth = me.mouth.getWorldPosition(tmp); g.position.lerp(mth, k); g.scale.setScalar(Math.max(0.01, r.scale * (r.koT / 1.0))); } if (r.koT <= 0) { scene.remove(g); fx.puff('smoke', g.position.clone().setY(1), 2.5); rival = null; rivalWait = 6; } rivalEl.classList.add('hidden'); rivalArrow.style.display = 'none'; return; }
   if (r.toss) { const T = r.toss; T.t += dt; const k = Math.min(1, T.t / T.secs), q = 1 - Math.pow(1 - k, 2); g.position.lerpVectors(T.from, T.to, q); g.position.y = T.from.y * Math.max(0, 1 - k * 4) + Math.sin(Math.min(1, k / 0.25) * Math.PI) * r.scale * 0.5; g.rotation.x = -Math.PI / 2; g.rotation.z += dt * 9 * (1 - k); plough(g.position, r.scale * 0.75, T.pl || (T.pl = { set: new Set([r]) })); r.stun = Math.max(r.stun, 0.5); if (Math.random() < dt * 25) fx.puff('smoke', g.position.clone(), 0.5);
-    if (k >= 1) { r.toss = null; g.position.y = 0; g.rotation.z = 0; getUp(g); r.stun = 2; const land = g.position.clone(); followUp(me, land, false); hitArea(land, 3.6, 14, {}); fx.explode(land.clone().setY(0.5), 2.4); flashT = 0.3; sfx.boom(); popup(land.clone().setY(r.scale * 2), 'CRASH!', '#ffb02a'); hitRival(r.max * 0.18); if (!rival || r.hp <= 0) return; } }
+    if (k >= 1) { r.toss = null; g.position.y = 0; g.rotation.z = 0; getUp(g); r.stun = 2; const land = g.position.clone(); followUp(me, land, false); hitArea(land, 3.6, 14, {}); fx.explode(land.clone().setY(0.5), 2.4); flashT = 0.3; sfx.boom(); popup(land.clone().setY(r.scale * 2), 'CRASH!', '#ffb02a'); hitRival(RIVAL_HP * 0.18); if (!rival || r.hp <= 0) return; } }
   const dx = px - g.position.x, dz = pz - g.position.z, d = Math.hypot(dx, dz) || 0.01, touch = reach() + r.scale * 0.45;
   r.stun -= dt; r.moving = false;
   if (mini) r.stun = Math.max(r.stun, 0.05);
@@ -370,7 +373,7 @@ function updateRival(dt, px, pz) {
     const want = Math.atan2(dx, dz); let dr = want - g.rotation.y; dr = Math.atan2(Math.sin(dr), Math.cos(dr)); g.rotation.y += dr * Math.min(1, dt * 4);
     if (d > touch * 0.9 && !bout && !r.atk) { const sp = (3.6 + r.scale * 0.4) * KAIJU[r.id].speed * 0.8; g.position.x += dx / d * sp * dt; g.position.z += dz / d * sp * dt; r.moving = true; }
     r.cd -= dt; if (d < touch + 0.4 && r.cd <= 0 && !r.atk && !mini && !meToss) rivalWindUp(r, touch);
-    r.castT -= dt; if (r.castT <= 0 && d < 18) { r.castT = 8 + Math.random() * 3; spells.cast(caster(r.rig, r.stage), r.stage, me.g.position.clone(), { hostile: true }); popup(g.position.clone().setY(r.scale * 2), KAIJU[r.id].spells[r.stage - 1].toUpperCase() + '!', '#ff5a5a'); }
+    r.castT -= dt; if (r.castT <= 0 && d < 18) { r.castT = (8 + Math.random() * 3) * (1 - 0.3 * ramp()); spells.cast(caster(r.rig, r.stage), r.stage, me.g.position.clone(), { hostile: true }); popup(g.position.clone().setY(r.scale * 2), KAIJU[r.id].spells[r.stage - 1].toUpperCase() + '!', '#ff5a5a'); }
   }
   if (r.atk) rivalSwing(r, dt);
   if (r.dazedT > 0) { r.dazedT -= dt; r.stun = Math.max(r.stun, 0.1); g.rotation.z = Math.sin(played * 7) * 0.12; if (Math.random() < dt * 4) popup(g.position.clone().setY(r.scale * 2.3), '💫', '#ffd24a'); if (r.dazedT <= 0) { r.daze = 0; g.rotation.z = 0; } }
@@ -391,12 +394,12 @@ const ringGeo = new THREE.RingGeometry(0.7, 1, 40).rotateX(-Math.PI / 2), ringMa
 // two ways to punish a dazed rival: SPIN & TOSS (circle your finger to swing it and hurl it across town) or a RANDOM wrestling move
 const finishBtn = document.createElement('div'); finishBtn.id = 'kjFinish'; finishBtn.className = 'hidden'; finishBtn.innerHTML = '<button id="kjFinSpin">🌀 SPIN &amp; TOSS</button><button id="kjFinMove">🎲 RANDOM MOVE</button>'; document.body.appendChild(finishBtn);
 let finishing = false;
-function rivalWindUp(r, touch) { const ring = r.ring || (r.ring = new THREE.Mesh(ringGeo, ringMat)); ring.position.set(0, 0.06, 0); scene.add(ring); r.atk = { t: 0, dur: Math.max(0.6, 1.0 - 0.1 * (r.stage - 1)), reach: touch + 0.5 }; r.rig.act('cast'); popup(r.g.position.clone().setY(r.scale * 2.4), '❗', '#ff5a5a'); }
+function rivalWindUp(r, touch) { const ring = r.ring || (r.ring = new THREE.Mesh(ringGeo, ringMat)); ring.position.set(0, 0.06, 0); scene.add(ring); r.atk = { t: 0, dur: Math.max(0.5, 1.05 - 0.3 * ramp() - 0.06 * (r.stage - 1)), reach: touch + 0.5 }; r.rig.act('cast'); popup(r.g.position.clone().setY(r.scale * 2.4), '❗', '#ff5a5a'); }
 function rivalSwing(r, dt) { const A = r.atk; A.t += dt; const k = Math.min(1, A.t / A.dur), ring = r.ring; ring.position.set(r.g.position.x, 0.06, r.g.position.z); ring.scale.setScalar(A.reach * (0.25 + 0.75 * k)); ring.material.opacity = 0.5 + 0.45 * k;
   r.g.rotation.x = -0.25 * Math.sin(k * Math.PI * 0.5);
-  if (k < 1) return; scene.remove(ring); r.atk = null; r.g.rotation.x = 0; r.rig.act('hit'); r.cd = (0.9 + Math.random() * 0.8) * (1 - 0.07 * (level - 1));
+  if (k < 1) return; scene.remove(ring); r.atk = null; r.g.rotation.x = 0; r.rig.act('hit'); r.cd = (0.9 + Math.random() * 0.8) * (1 - 0.35 * ramp());
   const dx = me.g.position.x - r.g.position.x, dz = me.g.position.z - r.g.position.z;
-  if (Math.hypot(dx, dz) < A.reach && !leap && !meToss && !grabbed) { r.hits = (r.hits || 0) + 1; if (r.hits >= 2 || Math.random() < 0.3) { r.hits = 0; return rivalGrab(r); } hurt(Math.min(7, 4 + r.stage), true); knock(me.g, r.g.position, 1.6); fx.explode(me.g.position.clone().setY(meScale), Math.min(1.5, 0.3 * r.scale)); sfx.boom(); flashT = Math.max(flashT, 0.12); me.act('hit'); }
+  if (Math.hypot(dx, dz) < A.reach && !leap && !meToss && !grabbed) { r.hits = (r.hits || 0) + 1; if (r.hits >= 2 || Math.random() < 0.2 + 0.2 * ramp()) { r.hits = 0; return rivalGrab(r); } hurt(Math.min(4 + level, 3 + r.stage + level * 0.6) * SIZE_GUARD[stage], true); knock(me.g, r.g.position, 1.6); fx.explode(me.g.position.clone().setY(meScale), Math.min(1.5, 0.3 * r.scale)); sfx.boom(); flashT = Math.max(flashT, 0.12); me.act('hit'); }
   else { popup(r.g.position.clone().setY(r.scale * 2), 'MISS!', '#7dff3a'); sfx.whoosh(); } }
 let grabbed = false;
 function rivalGrab(r) { grabbed = true; moveTo = null; finishBtn.classList.add('hidden'); r.stun = 3;
@@ -407,7 +410,7 @@ function rivalGrab(r) { grabbed = true; moveTo = null; finishBtn.classList.add('
       end() { grabbed = false; if (!rival || rival !== r) { me.g.position.y = 0; me.g.rotation.x = me.g.rotation.z = 0; return; } r.rig.act(null); const D = 20 + 3 * r.stage, hx = cols * CELL / 2 - 3, hz = rows * CELL / 2 - 3, from = me.g.position.clone();
         const to = new THREE.Vector3(Math.max(-hx, Math.min(hx, from.x - Math.sin(ang) * D)), 0, Math.max(-hz, Math.min(hz, from.z + Math.cos(ang) * D))); me.g.rotation.z = 0; meToss = { from, to, t: 0, secs: 1.6, h: 0 }; banner('THROWN!'); sfx.throw(); } }); return; }
   const mv = FINISHERS[(Math.random() * FINISHERS.length) | 0]; banner(KAIJU[r.id].name + ': ' + MOVE_NAME[mv] + '!'); me.g.position.y = 0; me.g.rotation.x = me.g.rotation.z = 0; const dur = wrestle(mv, 'them', 'me');
-  anims.push({ wait: dur * 0.6, t: 0, dur: 0.01, go() { hurt(Math.min(9, 5 + r.stage), true); }, f() {}, end() {} }); anims.push({ wait: dur + 0.9, t: 0, dur: 0.01, go() { grabbed = false; }, f() {}, end() {} }); }
+  anims.push({ wait: dur * 0.6, t: 0, dur: 0.01, go() { hurt(Math.min(5 + level, 4 + r.stage + level * 0.7) * SIZE_GUARD[stage], true); }, f() {}, end() {} }); anims.push({ wait: dur + 0.9, t: 0, dur: 0.01, go() { grabbed = false; }, f() {}, end() {} }); }
 // fighting a rival, swings alternate so it looks like a real fight: Mike mixes golf swings and overhead slams, wrestlers mix
 // two-fisted slams and big boots, each with its own short pause after it
 let fightN = 0; const SWING_ORDER = ['golf', 'hit', 'golf', 'golf', 'hit'], SWING_GAP = [0.75, 0.9, 0.7, 0.8, 0.95];
@@ -426,14 +429,14 @@ function addDot(kind, life) { const r = rival; if (!r) return; const el = docume
   el.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); if (state !== 'play' || !rival || rival !== d.r) return; hitDot(d); }); dotLayer.appendChild(el); dots.push(d); return d; }
 function hitDot(d) { const r = d.r, i = dots.indexOf(d); if (i >= 0) dots.splice(i, 1); d.el.classList.add('pop'); setTimeout(() => d.el.remove(), 200);
   if (d.kind === 'gold') { swingCd = 0; playerSwing(true) || strikeRival(r, true); popup(r.g.position.clone().setY(r.scale * 2.2), 'CRIT!', '#ffd24a'); }
-  else if (d.kind === 'red') { if (r.atk) { scene.remove(r.ring); r.atk = null; r.g.rotation.x = 0; } r.stun = 1.3; r.cd = Math.max(r.cd, 1.2); swingCd = 0; playerSwing(); knock(r.g, me.g.position, 1.6); popup(r.g.position.clone().setY(r.scale * 2.2), 'COUNTER!', '#7dff3a'); sfx.boom(); }
+  else if (d.kind === 'red') { if (r.atk) { scene.remove(r.ring); r.atk = null; r.g.rotation.x = 0; } r.stun = 1.3 * (1 - 0.4 * ramp()); r.cd = Math.max(r.cd, 1.2 * (1 - 0.4 * ramp())); swingCd = 0; playerSwing(); knock(r.g, me.g.position, 1.6); popup(r.g.position.clone().setY(r.scale * 2.2), 'COUNTER!', '#7dff3a'); sfx.boom(); }
   else { swingCd = 0; playerSwing(true); r.daze = 1; if (!r.dazedT) { r.dazedT = 3.5; r.atk = null; if (r.ring) scene.remove(r.ring); banner('💫 JACKPOT! SPIN IT OR SLAM IT!'); sfx.power(); } } }
 function clearDots() { for (const d of dots) d.el.remove(); dots.length = 0; }
 function updateDots(dt) { swingCd -= dt; const r = rival, fighting = !!(r && me && r.hp > 0 && !r.koT && state === 'play' && Math.hypot(r.g.position.x - me.g.position.x, r.g.position.z - me.g.position.z) < reach() + r.scale * 0.6 + 6);
   fightEdge.classList.toggle('hidden', !nearRival());
   if (!fighting) { if (dots.length) clearDots(); return; }
-  const fast = 1 - 0.08 * (level - 1); dotT -= dt;
-  if (dotT <= 0 && !r.dazedT && !mini && !grabbed && !finishing && dots.filter((d) => d.kind !== 'red').length < 2) { dotT = (1.6 + Math.random() * 0.9) * fast; addDot(Math.random() < 0.1 ? 'purple' : 'gold', Math.max(0.8, 1.6 * fast)); }
+  const slow = 1 + 0.25 * ramp(), quick = 1 - 0.35 * ramp(); dotT -= dt;
+  if (dotT <= 0 && !r.dazedT && !mini && !grabbed && !finishing && dots.filter((d) => d.kind !== 'red').length < 2) { dotT = (1.6 + Math.random() * 0.9) * slow; addDot(Math.random() < 0.1 * (1 - 0.5 * ramp()) ? 'purple' : 'gold', Math.max(0.8, 1.6 * quick)); }
   if (r.atk && !dots.some((d) => d.kind === 'red')) addDot('red', r.atk.dur - r.atk.t);
   for (let i = dots.length - 1; i >= 0; i--) { const d = dots[i]; d.life -= dt; if (d.life <= 0 || d.r !== rival || (d.kind === 'red' && !r.atk) || r.dazedT > 0) { d.el.remove(); dots.splice(i, 1); continue; }
     const v = new THREE.Vector3(r.g.position.x + d.ox, d.oy, r.g.position.z).project(cam); d.el.style.transform = 'translate(' + ((v.x * 0.5 + 0.5) * innerWidth) + 'px,' + ((-v.y * 0.5 + 0.5) * innerHeight) + 'px) translate(-50%,-50%) scale(' + (0.7 + 0.3 * Math.min(1, d.life / d.max * 2)) + ')'; } }
@@ -452,7 +455,7 @@ function rangedAttack() { if (!rangedOk()) return; const r = rival, P = me.g.pos
     let mesh = grabBuilding(P); if (!mesh) { mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ color: 0x5a6a7c })); mesh.scale.set(2, 3.4, 2); scene.add(mesh); }
     me.act('cast'); banner(me.hammer ? 'WARRANT SERVED!' : 'BUILDING TOSS!'); sfx.throw(); const a0 = P.clone().setY(meScale * 2.4); mesh.position.copy(a0);
     anims.push({ wait: 0.25, t: 0, dur: 0.75, go() {}, f(k) { const to = r.g.position.clone().setY(r.scale); mesh.position.lerpVectors(a0, to, k); mesh.position.y += Math.sin(k * Math.PI) * meScale * 1.5; mesh.rotation.x += 0.2; mesh.rotation.z += 0.13; },
-      end() { scene.remove(mesh); if (rival === r && r.hp > 0) { const at = r.g.position.clone(); fx.explode(at.clone().setY(r.scale * 0.8), Math.min(2.4, 0.5 * r.scale)); sfx.boom(); flashT = Math.max(flashT, 0.2); hitRival(r.max * 0.08); if (rival === r) { r.daze = Math.min(1, r.daze + 0.15); r.stun = Math.max(r.stun, 1); popup(at.clone().setY(r.scale * 2.2), 'DIRECT HIT!', '#ffd24a'); } } } }); }
+      end() { scene.remove(mesh); if (rival === r && r.hp > 0) { const at = r.g.position.clone(); fx.explode(at.clone().setY(r.scale * 0.8), Math.min(2.4, 0.5 * r.scale)); sfx.boom(); flashT = Math.max(flashT, 0.2); hitRival(RIVAL_HP * 0.08); if (rival === r) { r.daze = Math.min(1, r.daze + 0.15); r.stun = Math.max(r.stun, 1); popup(at.clone().setY(r.scale * 2.2), 'DIRECT HIT!', '#ffd24a'); } } } }); }
   else { spells.cast(caster(me, stage), stage, r.g.position.clone()); banner(KAIJU[me.id].spells[stage - 1].toUpperCase() + '!'); if (rival === r) { r.daze = Math.min(1, r.daze + 0.1); r.stun = Math.max(r.stun, 1); } }
   // ...then charge: a run-up and a leap that lands right on it
   const elbow = me.hammer || me.wrestler;
@@ -460,18 +463,18 @@ function rangedAttack() { if (!rangedOk()) return; const r = rival, P = me.g.pos
       const Q = r.g.position, dir = new THREE.Vector3(Q.x - me.g.position.x, 0, Q.z - me.g.position.z), dist = dir.length() || 1; dir.divideScalar(dist); const to = me.g.position.clone().addScaledVector(dir, Math.max(0, dist - (meScale + r.scale) * 0.45)).setY(0);
       me.g.rotation.y = faceY = Math.atan2(dir.x, dir.z); me.act(elbow ? 'elbow' : 'cast'); banner(elbow ? 'FLYING ELBOW!' : 'CHARGE!'); sfx.whoosh();
       leap = { from: me.g.position.clone(), to, t: 0, secs: Math.min(1.2, 0.55 + dist * 0.025), h: 3 + meScale * 1.4, step: null, hide: false, stepT: 0, onLand() { rangedBusy = false; const at = me.g.position.clone(); if (elbow) me.act('sprawl'); fx.explode(at.clone().setY(0.5), Math.min(2.4, 0.5 * meScale)); sfx.boom(); flashT = Math.max(flashT, 0.25);
-        hitArea(at, 2 + meScale * 0.6, 0, { hitRival: new Set(rival ? [rival] : []) }); if (rival === r && r.hp > 0) { hitRival(r.max * 0.1); if (rival === r) { knock(r.g, at, 1.4); r.daze = Math.min(1, r.daze + 0.25); if (r.daze >= 1 && !r.dazedT) { r.dazedT = 3.5; r.atk = null; if (r.ring) scene.remove(r.ring); banner('💫 DAZED! SPIN IT OR SLAM IT!'); sfx.power(); } } } } }; }, f() {}, end() {} }); }
+        hitArea(at, 2 + meScale * 0.6, 0, { hitRival: new Set(rival ? [rival] : []) }); if (rival === r && r.hp > 0) { hitRival(RIVAL_HP * 0.1); if (rival === r) { knock(r.g, at, 1.4); r.daze = Math.min(1, r.daze + 0.25); if (r.daze >= 1 && !r.dazedT) { r.dazedT = 3.5; r.atk = null; if (r.ring) scene.remove(r.ring); banner('💫 DAZED! SPIN IT OR SLAM IT!'); sfx.power(); } } } } }; }, f() {}, end() {} }); }
 rangedBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); rangedAttack(); });
 function updateRanged(dt) { rangedCd -= dt; const ok = rangedOk(); rangedBtn.classList.toggle('hidden', !ok); if (ok && me) rangedBtn.textContent = RANGED_NAME(me); }
 // your hit on the rival: damage, a little knock back, and daze
-function strikeRival(r, crit) { if (!r || r.hp <= 0 || r.dazedT > 0) { if (r && r.dazedT > 0) hitRival(r.max * 0.01); return; } hitRival(r.max * (crit ? 0.07 : 0.025)); if (!rival) return; knock(r.g, me.g.position, crit ? 1.2 : 0.5);
-  r.daze = Math.min(1, r.daze + (crit ? 0.34 : 0.11)); if (r.atk && r.daze >= 0.5) { scene.remove(r.ring); r.atk = null; r.g.rotation.x = 0; popup(r.g.position.clone().setY(r.scale * 2), 'INTERRUPTED!', '#7dff3a'); }
+function strikeRival(r, crit) { if (!r || r.hp <= 0 || r.dazedT > 0) { if (r && r.dazedT > 0) hitRival(RIVAL_HP * 0.01); return; } hitRival(RIVAL_HP * (crit ? 0.07 : 0.025)); if (!rival) return; knock(r.g, me.g.position, crit ? 1.2 : 0.5);
+  r.daze = Math.min(1, r.daze + (crit ? 0.34 : 0.11) * (1 - 0.3 * ramp())); if (r.atk && (crit || (ramp() < 0.3 && r.daze >= 0.5))) { scene.remove(r.ring); r.atk = null; r.g.rotation.x = 0; popup(r.g.position.clone().setY(r.scale * 2), 'INTERRUPTED!', '#7dff3a'); }
   if (r.daze >= 1) { r.dazedT = 3.5; r.atk = null; if (r.ring) scene.remove(r.ring); banner('💫 DAZED! SPIN IT OR SLAM IT!'); sfx.power(); } }
 // the finisher: your signature wrestling move on the dazed rival, then your spell lands on it while it's down
 const FINISHERS = ['chokeslam', 'piledriver', 'suplex', 'spear', 'superkick'];
 function doFinisher() { const r = rival; if (!r || r.dazedT <= 0 || finishing) return; finishing = true; r.stun = 3; finishBtn.classList.add('hidden'); r.dazedT = 0; r.daze = 0; r.g.rotation.z = 0; moveTo = null;
   const mv = FINISHERS[(Math.random() * FINISHERS.length) | 0]; me.g.rotation.y = faceY = Math.atan2(r.g.position.x - me.g.position.x, r.g.position.z - me.g.position.z); banner(MOVE_NAME[mv] + '!'); const dur = wrestle(mv, 'me', 'them');
-  anims.push({ wait: dur * 0.6, t: 0, dur: 0.01, go() { if (rival === r) { hitRival(r.max * 0.2); if (rival === r) { r.stun = 2.2; followUp(me, r.g.position.clone(), false); } } }, f() {}, end() { finishing = false; } }); }
+  anims.push({ wait: dur * 0.6, t: 0, dur: 0.01, go() { if (rival === r) { hitRival(RIVAL_HP * 0.2); if (rival === r) { r.stun = 2.2; followUp(me, r.g.position.clone(), false); } } }, f() {}, end() { finishing = false; } }); }
 finishBtn.querySelector('#kjFinMove').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); if (state === 'play') doFinisher(); });
 finishBtn.querySelector('#kjFinSpin').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); const r = rival; if (state !== 'play' || !r || r.dazedT <= 0 || finishing || mini) return; r.dazedT = 0; r.daze = 0; r.g.rotation.z = 0; finishBtn.classList.add('hidden'); moveTo = null; startMini(r, 'spin'); });
 
@@ -895,6 +898,8 @@ function finishNow() {
   $('taGoalLine').textContent = died ? 'The army got you. Eat more people to grow back, and walk out of the napalm.' : cleared ? (level < LEVELS.length ? 'Level ' + (level + 1) + ' unlocked: ' + LEVELS[level].name + '.' : 'Every town crushed. Monster.') : 'Flatten ' + L().goal + '% of ' + L().name + ' and take out ' + (need >= poiOrder.length ? 'every big target' : need + ' big targets') + ' (you got ' + pct + '% and ' + done.length + ').';
   if (totalD) { $('taEndTitle').innerHTML = 'TOTAL<br>DESTRUCTION!'; totalReward(unlockedKaiju().flatMap((k) => Object.keys(KAIJU_SKINS[k]).map((lk) => 'kaiju:' + k + ':' + lk)), (id) => { const [, k, lk] = id.split(':'); return KAIJU_SKINS[k][lk].name; }, $('taGoalLine')); }
   if (cleared && level === LEVELS.length && (unlockEra('future') | unlockEra('past'))) { const u = document.createElement('div'); u.className = 'bonusSkin'; u.innerHTML = '🤠🚀 WILD WEST AND FUTURE ERAS UNLOCKED<br><small>Pick an era under the towns to play every town back in the Wild West or in the future.</small>'; $('taGoalLine').appendChild(u); eraPicker($('taLevels')); }
+  if (cleared && level < LEVELS.length) level++; /* the next town is open and picked right away, wherever you go from here (change monster, the shop, NEXT LEVEL) */
+  drawLevels(); eraPicker($('taLevels')); /* and the start screen shows the new best score and any era you just unlocked, without a reload */
   $('taStats').innerHTML = [...(totalD ? [['💥 Total destruction', '+' + totalD]] : []), ['Buildings', bDone + ' / ' + totalB + ' (' + pct + '%)'], ['People eaten', peopleN], ['Cars wrecked', carsN], ['Rivals KO\'d', ko], ['Big targets', done.length + ' / ' + poiOrder.length + ' ' + done.map((k) => POI[k].icon).join('')], ['Biggest', STAGE[topStage]], ['Score', score], ['Score coins', '+' + scoreCoins + ' 🪙'], ['Best', best]].map(([a, b]) => '<tr><td>' + a + '</td><td>' + b + '</td></tr>').join('');
   const goes = Math.min(3, 1 + (cleared ? 1 : 0) + Math.floor(done.length / 2)) + (totalD ? 1 : 0); kaijuRound(goes); showPrizes($('taChests'), goes, '1 go, +1 for clearing the level, +1 for every 2 big targets destroyed (max 3)', () => { location.href = 'store.html?from=kaiju'; }, kaijuPrize, () => { $('taPrize').classList.add('hidden'); $('taEnd').classList.remove('hidden'); });
   $('ta').classList.add('hidden'); $('taPrize').classList.remove('hidden'); drawPicker(); // the prize game first, then the score
@@ -911,7 +916,7 @@ const HOWTO = [
 ];
 $('taHow').addEventListener('click', () => showHowTo(HOWTO));
 $('taPlay').addEventListener('click', () => { if (tipsSeen('kj_howto')) start(); else { markSeen('kj_howto'); showHowTo(HOWTO, start); } });
-$('taAgain').addEventListener('click', () => { if ($('taAgain').dataset.next) level++; start(); });
+$('taAgain').addEventListener('click', () => start());
 $('taEndPick').addEventListener('click', openPicker);
 function drawLevels() { const box = $('taLevels'); box.innerHTML = ''; const un = unlockedLevel(); LEVELS.forEach((lv, i) => { const b = document.createElement('button'); const n = i + 1; let best = 0; try { best = +localStorage.getItem('kj_best_' + n) || 0; } catch { /* ignore */ }
   b.className = 'lvl' + (n === level ? ' on' : ''); b.disabled = n > un; b.innerHTML = '<b>' + (n > un ? '🔒' : n) + '</b><span>' + lv.name + '</span>' + (best ? '<i>' + best + '</i>' : ''); b.addEventListener('click', () => { level = n; drawLevels(); }); box.appendChild(b); }); }
@@ -936,7 +941,7 @@ function drawPicker() { const un = unlockedKaiju(), K = KAIJU[pick];
     b.addEventListener('click', () => { pick = id; try { localStorage.setItem('kj_pick', id); } catch { /* ignore */ } for (const o of box.children) o.classList.remove('on'); b.classList.add('on'); drawPicker(); showcase(); }); box.appendChild(b); } }
 function openPicker() { $('taStart').classList.add('hidden'); $('taEnd').classList.add('hidden'); state = 'start'; $('kjPickScr').classList.remove('hidden'); $('kjPickScr').scrollTop = 0; drawPicker(); }
 $('kjChoose').addEventListener('click', openPicker);
-$('kjPickDone').addEventListener('click', () => { $('kjPickScr').classList.add('hidden'); $('taStart').classList.remove('hidden'); drawPicker(); });
+$('kjPickDone').addEventListener('click', () => { $('kjPickScr').classList.add('hidden'); $('taStart').classList.remove('hidden'); drawPicker(); drawLevels(); });
 level = unlockedLevel(); drawLevels(); drawPicker();
 $('taPause').addEventListener('click', togglePause); $('taResume').addEventListener('click', togglePause);
 // restart the level from the pause screen; the first tap asks, a second tap within 3 seconds does it

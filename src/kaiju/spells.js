@@ -176,7 +176,7 @@ export function createSpells(env) {
     battra: [
       (c, at, o) => charge(c, at, 0.55, 1.5, 1.8, 8, 0xe8b82a, o, (p) => blast(p, 2.1, 15, 0xe8b82a, o)),
       (c, at, o) => { const m0 = mouthOf(c), to = clampTo(m0, at, 18).setY(0.4); for (const [dx, col] of [[-0.3, 0xff3a2a], [0.3, 0xe8b82a]]) beam({ from: m0.clone().add(new THREE.Vector3(dx, 0, 0)), to, color: col, width: 0.5, life: 1.0 }); line(m0, to, 9, 1.5, 6, o); fx.explode(to.clone(), 1.2); sfx.boom(); },
-      (c, at, o) => { if (env.dark) env.dark(2.6); rain(at, 7, 10, 2.2, (p) => { bolt(p, 0xb85aff); blast(p, 1.9, 11, 0x8a3aff, o); }); },
+      (c, at, o) => { if (env.flash) env.flash(0.15); /* a quick purple-white flash, no blackout: the screen stays easy to see */ rain(at, 7, 10, 2.2, (p) => { bolt(p, 0xb85aff); blast(p, 1.9, 11, 0x8a3aff, o); }); },
     ],
   };
   // robots borrow other monsters' effects under their own names
