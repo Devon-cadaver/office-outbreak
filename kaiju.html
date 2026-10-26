@@ -77,6 +77,19 @@
     #kjPowerTxt { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 900; letter-spacing: .5px; color: #fff; text-shadow: 0 1px 2px #000; white-space: nowrap; }
     #kjPower.full { border-color: #7dff3a; box-shadow: 0 0 14px #7dff3a; animation: kjPulse .7s ease-in-out infinite alternate; } #kjPower.full #kjPowerFill { background: linear-gradient(90deg, #7dff3a, #d8ff6a); } #kjPower.full #kjPowerTxt { color: #1a0f2e; text-shadow: none; }
     @keyframes kjPulse { from { transform: translateX(-50%) scale(1); } to { transform: translateX(-50%) scale(1.06); } }
+    #kjDaze { height: 5px; margin-top: 2px; border-radius: 3px; background: #000b; border: 1px solid #ffd24a88; overflow: hidden; } #kjDazeFill { height: 100%; width: 0; background: #ffd24a; } #kjDaze.full #kjDazeFill { animation: dazePulse .4s infinite alternate; } @keyframes dazePulse { to { background: #fff; } }
+    #kjFinish { position: fixed; left: 50%; bottom: calc(150px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 6; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: min(calc(100vw - 32px), 420px); } #kjFinish.hidden { display: none; }
+    #kjFinish button { margin: 0; padding: 16px 6px; font-size: 18px; white-space: nowrap; min-width: 0; background-color: #ffd24a; color: #1a0f2e; box-shadow: 0 6px 0 #a8801a, 0 0 24px #ffd24a99; animation: finPulse .5s infinite alternate; } #kjFinish #kjFinSpin { background-color: #3af0ff; box-shadow: 0 6px 0 #1a8a9a, 0 0 24px #3af0ff99; }
+    #kjFinish button:active { transform: translateY(5px); box-shadow: 0 1px 0 #a8801a; } @keyframes finPulse { to { filter: brightness(1.15); } }
+    #kjDots { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+    .fdot { position: absolute; left: 0; top: 0; width: 54px; height: 54px; padding: 0; border-radius: 50%; pointer-events: auto; font-size: 24px; font-weight: 900; line-height: 1; color: #1a0f2e; border: 3px solid #fff; box-shadow: 0 0 18px currentColor, 0 0 0 4px #0006; transition: none; }
+    .fdot.gold { background: radial-gradient(circle, #fff6b0, #ffd24a 60%, #e89a1a); color: #ffd24a; } .fdot.gold::first-line { color: #1a0f2e; }
+    .fdot.red { background: radial-gradient(circle, #ffd0d0, #ff3a3a 60%, #a01a1a); color: #ff3a3a; animation: dotBlink .25s infinite alternate; }
+    .fdot.purple { background: radial-gradient(circle, #f0d8ff, #b86aff 60%, #6a2ab0); color: #b86aff; }
+    .fdot.pop { animation: dotPop .2s forwards; } @keyframes dotPop { to { opacity: 0; transform: scale(1.8); } } @keyframes dotBlink { to { filter: brightness(1.5); } }
+    #kjFightEdge { position: fixed; inset: 0; pointer-events: none; z-index: 3; box-shadow: inset 0 0 0 4px #ff9a3a99, inset 0 0 40px #ff5a1a55; } #kjFightEdge.hidden { display: none; }
+    #kjRanged { position: fixed; left: 50%; bottom: calc(150px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 6; margin: 0; padding: 14px 22px; font-size: 18px; white-space: nowrap; background-color: #ff7a3a; color: #1a0f2e; box-shadow: 0 6px 0 #a8461a, 0 0 22px #ff7a3a88; }
+    #kjRanged:active { transform: translateX(-50%) translateY(5px); box-shadow: 0 1px 0 #a8461a; } #kjRanged.hidden { display: none; }
     #kjRival { position: fixed; left: 0; top: 0; width: 120px; pointer-events: none; z-index: 4; text-align: center; }
     #kjRivalName { display: block; font-size: 10px; font-weight: 900; color: #ff8a7a; text-shadow: 0 1px 3px #000; white-space: nowrap; margin-bottom: 2px; }
     #kjRivalBar { height: 8px; border-radius: 4px; background: #000b; border: 1px solid #ff5a5a; overflow: hidden; } #kjRivalFill { height: 100%; width: 100%; background: linear-gradient(90deg, #ff3a3a, #ff9a3a); }
@@ -124,7 +137,7 @@
     <div id="taBanner"></div>
   </div>
   <div id="kjMini" class="hidden"><div id="kjMiniSpots"></div><div class="panel"><b id="kjMiniTitle"></b><div id="kjMiniSeq"></div><div class="bar"><div id="kjMiniZone"></div><div id="kjMiniMark"></div><span class="me">YOU</span><span class="them">RIVAL</span></div></div></div>
-  <div id="kjRival" class="hidden"><span id="kjRivalName"></span><div id="kjRivalBar"><div id="kjRivalFill"></div></div></div>
+  <div id="kjRival" class="hidden"><span id="kjRivalName"></span><div id="kjRivalBar"><div id="kjRivalFill"></div></div><div id="kjDaze"><div id="kjDazeFill"></div></div></div>
 
   <div id="taStart" class="screen">
     <p class="small" style="letter-spacing:4px;color:#c9a6ff;margin-bottom:-8px">DEAD CITY</p>

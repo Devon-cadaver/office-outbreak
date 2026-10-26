@@ -26,11 +26,11 @@
   <iframe id="app" title="Dead City" allow="fullscreen; autoplay" allowfullscreen></iframe>
   <div id="start"><button>▶ TAP TO PLAY</button><small>🔊 Turn your sound on</small></div>
   <script type="module">
-    import { unlockAudio, playSongs, frameRadio } from './src/audio.js';
+    import { unlockAudio, playSongs, menuMusic, frameRadio } from './src/audio.js';
     frameRadio();
     const start = document.getElementById('start'), app = document.getElementById('app');
     app.addEventListener('load', () => { try { app.contentWindow.focus(); } catch { /* ignore */ } });
-    const go = (e) => { if (!start.isConnected) return; if (e) e.preventDefault(); unlockAudio(); playSongs(); start.remove(); app.src = 'menu.html' + location.search; };
+    const go = (e) => { if (!start.isConnected) return; if (e) e.preventDefault(); unlockAudio(); menuMusic(); start.remove(); app.src = 'menu.html' + location.search; };
     start.addEventListener('pointerdown', go); addEventListener('keydown', go);
   </script>
 </body>
