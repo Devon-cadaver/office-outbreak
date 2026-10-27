@@ -198,9 +198,9 @@ function miniKey(e, down) { const cx = innerWidth / 2, cy = innerHeight / 2, fir
   if (e.key === ' ') { if (down && !e.repeat) fire('pointerdown', cx, cy); else if (!down) fire('pointerup', cx, cy); return true; }
   const dir = { arrowleft: [-1, 0], arrowright: [1, 0], arrowup: [0, -1], arrowdown: [0, 1] }[e.key.toLowerCase()]; if (dir && down && !e.repeat) { fire('pointerdown', cx, cy); fire('pointerup', cx + dir[0] * 90, cy + dir[1] * 90); return true; } return !!dir; }
 function tapAt(cx, cy) {
+  if (!finishBtn.classList.contains('hidden')) return; // the SPIN / RANDOM choice is up: taps elsewhere do nothing until you pick one
   const p = aimAt(cx, cy); if (!p) return;
   if (rival && rival.dazedT > 0 && !finishing && Math.hypot(p.x - rival.g.position.x, p.z - rival.g.position.z) < rival.scale * 1.2 && Math.hypot(me.g.position.x - rival.g.position.x, me.g.position.z - rival.g.position.z) < reach() + rival.scale * 1.1 + 1.5) { doFinisher(); return; }
-  if (megaT > 0 && !megaUsed) { megaBlast(); return; }
   if (power >= 1 && !leap) { castAt(p); return; }
   if (nearRival() && !rival.dazedT) { playerSwing(); return; }
   moveTo = p;
@@ -323,6 +323,9 @@ const MEGA_SECS = 10;
 let megaT = 0, megaUsed = false, megaDrop = null, megaDropT = 30; const blasts = [];
 const megaArrow = document.createElement('div'); megaArrow.className = 'planeArrow megaArrow'; megaArrow.innerHTML = '<i>➤</i><em>⚡</em>'; document.body.appendChild(megaArrow);
 const megaEl = document.createElement('div'); megaEl.id = 'kjMega'; megaEl.className = 'hidden'; document.body.appendChild(megaEl);
+// the mega blast has its own button, so you can save it for the right moment (it still goes off by itself when mega runs out)
+const megaBtn = document.createElement('button'); megaBtn.id = 'kjMegaBtn'; megaBtn.className = 'hidden'; document.body.appendChild(megaBtn);
+megaBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); if (state === 'play' && megaT > 0 && !megaUsed) { megaBlast(); megaBtn.classList.add('hidden'); } });
 const NUKERS = new Set(['mike', 'godzilly', 'mecha', 'mechax', 'destroyah', 'spaceyzilla', 'smogorah', 'megalawn']);
 const megaKind = (id) => (id === 'soundwavy' ? 'wave' : KAIJU[id].kind === 'robot' || NUKERS.has(id) ? 'nuke' : 'wave');
 function dropMega() {
@@ -343,8 +346,8 @@ function updateMega(dt) {
     else if (D.life <= 0) { scene.remove(D.g); megaDrop = null; megaArrow.style.display = 'none'; megaDropT = 40 + Math.random() * 30; } }
   else if (megaT <= 0 && !mini) { megaDropT -= dt; if (megaDropT <= 0) dropMega(); }
   if (megaT > 0) { megaT -= dt; if (Math.random() < dt * 14) fx.puff('flame', me.g.position.clone().add(new THREE.Vector3((Math.random() - 0.5) * meScale, 0.3, (Math.random() - 0.5) * meScale)), 0.8);
-    megaEl.textContent = '⚡ MEGA ' + KAIJU[me.id].name + ' · ' + Math.ceil(megaT) + 's' + (megaUsed ? '' : ' · TAP FOR MEGA ' + (megaKind(me.id) === 'nuke' ? 'NUKE' : 'ROAR') + '!');
-    if (megaT <= 0) { if (!megaUsed) megaBlast(); megaT = 0; megaEl.className = 'hidden'; banner('MEGA OVER'); megaDropT = 50 + Math.random() * 30; } }
+    megaEl.textContent = '⚡ MEGA ' + KAIJU[me.id].name + ' · ' + Math.ceil(megaT) + 's' + ''; megaBtn.textContent = megaKind(me.id) === 'nuke' ? '☢️ MEGA NUKE' : '📣 MEGA ROAR'; megaBtn.classList.toggle('hidden', megaUsed || !!mini || !finishBtn.classList.contains('hidden'));
+    if (megaT <= 0) { if (!megaUsed) megaBlast(); megaT = 0; megaEl.className = 'hidden'; megaBtn.classList.add('hidden'); banner('MEGA OVER'); megaDropT = 50 + Math.random() * 30; } }
   for (let i = blasts.length - 1; i >= 0; i--) if (!blasts[i].update(dt)) blasts.splice(i, 1);
 }
 function goMega() { megaT = MEGA_SECS; megaUsed = false; power = 1; boostT = MEGA_SECS; megaEl.className = ''; banner('⚡ MEGA ' + KAIJU[me.id].name + '!'); me.act('cast'); sfx.boom(); flashT = 0.35; stormBoost(3); }
@@ -376,8 +379,8 @@ function updateRival(dt, px, pz) {
     r.castT -= dt; if (r.castT <= 0 && d < 18) { r.castT = (8 + Math.random() * 3) * (1 - 0.3 * ramp()); spells.cast(caster(r.rig, r.stage), r.stage, me.g.position.clone(), { hostile: true }); popup(g.position.clone().setY(r.scale * 2), KAIJU[r.id].spells[r.stage - 1].toUpperCase() + '!', '#ff5a5a'); }
   }
   if (r.atk) rivalSwing(r, dt);
-  if (r.dazedT > 0) { r.dazedT -= dt; r.stun = Math.max(r.stun, 0.1); g.rotation.z = Math.sin(played * 7) * 0.12; if (Math.random() < dt * 4) popup(g.position.clone().setY(r.scale * 2.3), '💫', '#ffd24a'); if (r.dazedT <= 0) { r.daze = 0; g.rotation.z = 0; } }
-  finishBtn.classList.toggle('hidden', !(r.dazedT > 0 && d < touch + r.scale * 0.6 + 1.5 && !finishing && !mini && !grabbed));
+  const choosing = !finishBtn.classList.contains('hidden'); if (r.dazedT > 0) { if (!choosing) r.dazedT -= dt; r.stun = Math.max(r.stun, 0.1); g.rotation.z = Math.sin(played * 7) * 0.12; if (Math.random() < dt * 4) popup(g.position.clone().setY(r.scale * 2.3), '💫', '#ffd24a'); if (r.dazedT <= 0) { r.daze = 0; g.rotation.z = 0; } }
+  finishBtn.classList.toggle('hidden', !(r.dazedT > 0 && (choosing || d < touch + r.scale * 0.6 + 1.5) && !finishing && !mini && !grabbed));
   // bodies collide: you can't walk through each other (except while it's being swung or thrown)
   if (!r.toss && !(mini && (mini.type === 'spin' || mini.type === 'escape')) && !leap && !(bout && bout.anim) && !meToss) { const ex = g.position.x - me.g.position.x, ez = g.position.z - me.g.position.z, ed = Math.hypot(ex, ez) || 0.01, minD = 0.42 * (meScale + r.scale);
     if (ed < minD) { const push = (minD - ed) / 2, ux = ex / ed, uz = ez / ed; g.position.x += ux * push; g.position.z += uz * push; me.g.position.x -= ux * push; me.g.position.z -= uz * push; } }
@@ -841,7 +844,7 @@ gameMusic($('taPaused'), SONGS_KAIJU);
 const fsMode = initFullscreen(() => state === 'play'); // full screen on play, back in after a browser drop-out, no page scrolling mid-round
 function start() {
   fsMode.play();
-  megaT = 0; megaUsed = false; megaDropT = 25 + Math.random() * 15; if (megaDrop) scene.remove(megaDrop.g); megaDrop = null; megaArrow.style.display = 'none'; megaEl.className = 'hidden'; for (const b of blasts) b.remove(); blasts.length = 0; camK = 1; roundId++;
+  megaT = 0; megaUsed = false; megaDropT = 25 + Math.random() * 15; if (megaDrop) scene.remove(megaDrop.g); megaDrop = null; megaArrow.style.display = 'none'; megaEl.className = 'hidden'; megaBtn.classList.add('hidden'); for (const b of blasts) b.remove(); blasts.length = 0; camK = 1; roundId++;
   clearAnims();
   unlockAudio(); buildWorld(); makeMe(); spells.clear(); score = 0; totalD = 0; camHold = false; bike = null; bout = null; meToss = null; finishing = false; grabbed = false; rangedBusy = false; rangedCd = 0; rangedBtn.classList.add('hidden'); clearDots(); fightEdge.classList.add('hidden'); finishBtn.classList.add('hidden'); /* a new round: the camera follows again after a ride-off; no fight carries over */ chain = 0; lastHit = -9; tLeft = L().time; played = 0; peopleN = carsN = bDone = 0; ko = 0; died = false; moveTo = null; slowT = 0; boostT = 0;
   for (const pl of planes) { scene.remove(pl.g); pl.arrow.remove(); } planes = []; planeT = 50 + Math.random() * 10; noPlanes = false; for (const b of bombs) scene.remove(b.m); bombs.length = 0; for (const f of fires) scene.remove(f.ring); fires.length = 0;
@@ -858,7 +861,7 @@ function die() { if (died) return; died = true; me.act('ko'); banner('KAIJU DOWN
 // time's up: the monster burrows back into the ground (flyers take off into the sky) and the city goes quiet, then the
 // prizes and the score
 let outroT = 0, camHold = false, bike = null;
-function finish() { if (state !== 'play') return; state = 'outro'; outroT = 0; camHold = false; bike = null; bout = null; meToss = null; finishing = false; rangedBtn.classList.add('hidden'); finishBtn.classList.add('hidden'); mini = null; miniEl.className = 'hidden'; stopMusic(); setPlaneEngine(0); sUp(stick.id); clearTips(); moveTo = null; megaT = 0; megaEl.className = 'hidden';
+function finish() { if (state !== 'play') return; state = 'outro'; outroT = 0; camHold = false; bike = null; bout = null; meToss = null; finishing = false; rangedBtn.classList.add('hidden'); finishBtn.classList.add('hidden'); megaBtn.classList.add('hidden'); mini = null; miniEl.className = 'hidden'; stopMusic(); setPlaneEngine(0); sUp(stick.id); clearTips(); moveTo = null; megaT = 0; megaEl.className = 'hidden';
   banner('THE MADNESS HAS ENDED!'); me.act('cast'); sfx.boom(); setTimeout(() => sfx.whoosh(), 500); setTimeout(() => sfx.boom(), 1300); }
 // Mike leaves town on his chopper: it bursts up out of the street (0-0.9 s), he hops on (0.9-1.5), revs, and guns it
 function rideOff(dt) { const g = me.g, T = outroT, s = g.scale.x;
