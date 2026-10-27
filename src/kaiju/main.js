@@ -214,7 +214,7 @@ const sinking = [];
 function crumble(x, label, fire) {
   // a building comes down: its pieces fly, the shell sinks into a cloud of dust
   free(x.obj); x.done = true; bDone++; { const i = city.obstacles.findIndex((o) => Math.abs(o.x - x.pos.x) < 0.3 && Math.abs(o.z - x.pos.z) < 0.3); if (i >= 0) city.obstacles.splice(i, 1); }
-  if (x.b.userData.edges) x.b.userData.edges.visible = false; const loose = x.obj === x.b ? (x.b.userData.extras || []).filter((m) => m.parent && (!m.userData.merged || ((m.visible = false), false))).map((m) => (free(m), m)) : [];
+  if (x.b.userData.edges) x.b.userData.edges.visible = false; const loose = x.obj === x.b ? (x.b.userData.extras || []).filter((m) => m.parent && ((!m.userData.merged && !(m.userData.deco && m.userData.owner)) || ((m.visible = false), false))).map((m) => (free(m), m)) : [];
   const cols3 = []; x.obj.traverse((m) => { if (m.isMesh && m.material && !Array.isArray(m.material) && m.material.color) cols3.push(m.material.color.getHex()); }); if (!cols3.length) cols3.push(0x8a8f96);
   const bits = []; for (let i = 0; i < Math.min(12, 4 + x.h * 2); i++) { const m = new THREE.Mesh(chunkGeo, chunkMat(cols3[(Math.random() * cols3.length) | 0])); const s = 0.2 + Math.random() * 0.4; m.scale.set(s, s * 0.6, s); m.position.set(x.pos.x + (Math.random() - 0.5) * 1.5, Math.random() * x.h, x.pos.z + (Math.random() - 0.5) * 1.5); scene.add(m); bits.push(m); }
   twisters.scatter([...bits, ...loose], x.pos, 3.5); sinking.push({ obj: x.obj, t: 0, h: x.h, y0: x.obj.position.y });
@@ -252,7 +252,7 @@ function grabCar(at) { let best = null, bd = 12, bi = -1, list = null; for (let 
   if (!best) return null; list.splice(bi, 1); free(best); scene.attach(best); carsN++; return best; }
 function grabBuilding(at) { let best = null, bd = 14; for (const x of buildings) { if (x.done) continue; const d = Math.hypot(x.pos.x - at.x, x.pos.z - at.z); if (d < bd) { bd = d; best = x; } } if (!best) return null;
   free(best.obj); best.done = true; bDone++; { const i = city.obstacles.findIndex((o) => Math.abs(o.x - best.pos.x) < 0.3 && Math.abs(o.z - best.pos.z) < 0.3); if (i >= 0) city.obstacles.splice(i, 1); } if (best.b.userData.edges) best.b.userData.edges.visible = false;
-  award(best.pts, best.pos, 'RIPPED UP'); grow(best.h * 0.35); scene.attach(best.obj); return best.obj; }
+  if (best.obj === best.b) for (const m of best.b.userData.extras || []) m.visible = false; /* its snow, lights and signs go with it instead of hanging in the air */ award(best.pts, best.pos, 'RIPPED UP'); grow(best.h * 0.35); scene.attach(best.obj); return best.obj; }
 
 // ---------- score, popups, banners ----------
 let score = 0, chain = 0, lastHit = -9, tLeft = 150, played = 0, peopleN = 0, carsN = 0, bDone = 0, tooBigT = 0, ko = 0;
