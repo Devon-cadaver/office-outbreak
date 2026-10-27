@@ -694,7 +694,7 @@ function update(dt) {
   setT('taScore', score); setT('taCombo', mult() > 1 && played - lastHit < 2.5 ? 'x' + mult() + ' COMBO' : '');
   setT('taRank', 'F' + rankOf(sizeShown)); setStormLevel(rankOf(sizeShown)); setT('taPct', Math.round((bDone / totalB) * 100) + '% destroyed'); setT('taPeople', peopleN + ' people');
   { const w = ((sizeShown - 1) / (MAX_S - 1) * 100).toFixed(1) + '%'; if (hudCache.grow !== w) { hudCache.grow = w; $('taGrowFill').style.width = w; } const r = rankOf(sizeShown); if (r !== rankShown) { rankShown = r; document.querySelectorAll('#taGrow .tick').forEach((t, i) => t.classList.toggle('got', i < r)); } }
-  if (bDone >= totalB && poiOrder.every((k) => pois[k].done)) { if (!totalD && !tut) totalWipe(twObj.position); tLeft = Math.min(tLeft, 1.5); }
+  if (Math.round((bDone / totalB) * 100) >= 100 && poiOrder.every((k) => pois[k].done)) { /* as soon as the HUD reads 100% (it rounds, so a stray building or two can't hold the round open) */ if (!totalD && !tut) totalWipe(twObj.position); tLeft = Math.min(tLeft, 1.5); }
   if (tut) tutUpdate(dt);
   // target tray, edge arrows and the minimap
   { const rk = rankOf(sizeShown); let n = 0; for (const k of poiOrder) { const P = pois[k]; if (P.done) { n++; continue; } const ready = rk >= POI[k].f; if (P.chip) P.chip.classList.toggle('ready', ready); if (ready) tipA('ta_target', '🎯 A big target is ready! Follow its glowing arrow.'); P.arrow.classList.toggle('ready', ready); edgeArrow(P.arrow, P.center, !tut || (tut.step === 4 && k === 'cemetery')); }

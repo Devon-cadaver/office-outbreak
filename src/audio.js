@@ -203,7 +203,7 @@ function applyVol() { const v = VOLS[volI][1]; if (songGain) songGain.gain.value
 function routeSong() { if (!song || songGain || !ctx) return; try { songGain = ctx.createGain(); ctx.createMediaElementSource(song).connect(songGain).connect(musicSw); song.volume = 1; } catch { songGain = null; } applyVol(); }
 export function playSongs() {
   if (FRAME) return FRAME.playSongs(); if (musicOn) stopMusic(); /* a round starting hands over from the menu beat to the songs */
-  if (!song) { if (!SONGS[songI]) songI = pickNext(); song = new Audio(); song.preload = 'auto'; song.loop = repeat || SONGS.length === 1; song.src = SONGS[songI];
+  if (!song) { if (!SONGS[songI]) { let first = false; try { first = !localStorage.getItem('oo_theme_heard'); localStorage.setItem('oo_theme_heard', '1'); } catch { /* ignore */ } songI = first ? 0 : pickNext(); if (first) order = order.filter((i) => i !== 0); } /* someone's very first round opens with the theme, Tornado Alley */ song = new Audio(); song.preload = 'auto'; song.loop = repeat || SONGS.length === 1; song.src = SONGS[songI];
     if (resumeAt > 1) { const t = resumeAt; song.addEventListener('loadedmetadata', () => { if (t < song.duration - 2) song.currentTime = t; }, { once: true }); }
     song.addEventListener('ended', () => nextSong()); applyVol(); }
   routeSong(); song.muted = musicMuted; if (song.paused && !musicMuted) song.play().catch(() => {});
