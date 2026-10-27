@@ -346,7 +346,7 @@ function updateMega(dt) {
     else if (D.life <= 0) { scene.remove(D.g); megaDrop = null; megaArrow.style.display = 'none'; megaDropT = 40 + Math.random() * 30; } }
   else if (megaT <= 0 && !mini) { megaDropT -= dt; if (megaDropT <= 0) dropMega(); }
   if (megaT > 0) { megaT -= dt; if (Math.random() < dt * 14) fx.puff('flame', me.g.position.clone().add(new THREE.Vector3((Math.random() - 0.5) * meScale, 0.3, (Math.random() - 0.5) * meScale)), 0.8);
-    megaEl.textContent = '⚡ MEGA ' + KAIJU[me.id].name + ' · ' + Math.ceil(megaT) + 's' + ''; megaBtn.textContent = megaKind(me.id) === 'nuke' ? '☢️ MEGA NUKE' : '📣 MEGA ROAR'; megaBtn.classList.toggle('hidden', megaUsed || !!mini || !finishBtn.classList.contains('hidden'));
+    megaEl.textContent = '⚡ MEGA ' + KAIJU[me.id].name + ' · ' + Math.ceil(megaT) + 's' + ''; megaBtn.textContent = megaKind(me.id) === 'nuke' ? '☢️ MEGA NUKE' : '📣 MEGA ROAR'; megaBtn.classList.toggle('hidden', megaUsed || !!mini || !finishBtn.classList.contains('hidden') || !rangedBtn.classList.contains('hidden'));
     if (megaT <= 0) { if (!megaUsed) megaBlast(); megaT = 0; megaEl.className = 'hidden'; megaBtn.classList.add('hidden'); banner('MEGA OVER'); megaDropT = 50 + Math.random() * 30; } }
   for (let i = blasts.length - 1; i >= 0; i--) if (!blasts[i].update(dt)) blasts.splice(i, 1);
 }
@@ -468,7 +468,7 @@ function rangedAttack() { if (!rangedOk()) return; const r = rival, P = me.g.pos
       leap = { from: me.g.position.clone(), to, t: 0, secs: Math.min(1.2, 0.55 + dist * 0.025), h: 3 + meScale * 1.4, step: null, hide: false, stepT: 0, onLand() { rangedBusy = false; const at = me.g.position.clone(); if (elbow) me.act('sprawl'); fx.explode(at.clone().setY(0.5), Math.min(2.4, 0.5 * meScale)); sfx.boom(); flashT = Math.max(flashT, 0.25);
         hitArea(at, 2 + meScale * 0.6, 0, { hitRival: new Set(rival ? [rival] : []) }); if (rival === r && r.hp > 0) { hitRival(RIVAL_HP * 0.1); if (rival === r) { knock(r.g, at, 1.4); r.daze = Math.min(1, r.daze + 0.25); if (r.daze >= 1 && !r.dazedT) { r.dazedT = 3.5; r.atk = null; if (r.ring) scene.remove(r.ring); banner('💫 DAZED! SPIN IT OR SLAM IT!'); sfx.power(); } } } } }; }, f() {}, end() {} }); }
 rangedBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); rangedAttack(); });
-function updateRanged(dt) { rangedCd -= dt; const ok = rangedOk(); rangedBtn.classList.toggle('hidden', !ok); if (ok && me) rangedBtn.textContent = RANGED_NAME(me); }
+function updateRanged(dt) { rangedCd -= dt; const ok = rangedOk() && finishBtn.classList.contains('hidden'); rangedBtn.classList.toggle('hidden', !ok); if (ok && me) rangedBtn.textContent = RANGED_NAME(me); }
 // your hit on the rival: damage, a little knock back, and daze
 function strikeRival(r, crit) { if (!r || r.hp <= 0 || r.dazedT > 0) { if (r && r.dazedT > 0) hitRival(RIVAL_HP * 0.01); return; } hitRival(RIVAL_HP * (crit ? 0.07 : 0.025)); if (!rival) return; knock(r.g, me.g.position, crit ? 1.2 : 0.5);
   r.daze = Math.min(1, r.daze + (crit ? 0.34 : 0.11) * (1 - 0.3 * ramp())); if (r.atk && (crit || (ramp() < 0.3 && r.daze >= 0.5))) { scene.remove(r.ring); r.atk = null; r.g.rotation.x = 0; popup(r.g.position.clone().setY(r.scale * 2), 'INTERRUPTED!', '#7dff3a'); }

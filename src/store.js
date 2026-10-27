@@ -21,7 +21,7 @@ const slotOf = (s) => (s.cat === 'kaiju' ? 'kj_' + s.key : s.cat);
 // the Kaiju tab: pick a monster first (kjSel), then its two skins
 let kjSel = null; try { kjSel = sessionStorage.getItem('shop_kj') || null; } catch { /* ignore */ }
 const pickKj = (id) => { kjSel = id; try { if (id) sessionStorage.setItem('shop_kj', id); else sessionStorage.removeItem('shop_kj'); } catch { /* ignore */ } build(); renderAll(); $('wrap').scrollTop = 0; };
-let tab = 'tornado'; try { tab = sessionStorage.getItem('shop_tab') || 'tornado'; } catch { /* ignore */ } if (!CATS.some(([c]) => c === tab)) tab = 'tornado';
+let tab = 'tornado'; try { tab = sessionStorage.getItem('shop_tab') || 'tornado'; } catch { /* ignore */ } { const f = new URLSearchParams(location.search).get('from'); if (f === 'kaiju') tab = 'kaiju'; else if (f === 'alley') tab = 'tornado'; } if (!CATS.some(([c]) => c === tab)) tab = 'tornado'; // opened from a game: start on that game's skins
 function drawTabs() { const box = $('tabs'); box.innerHTML = ''; const owned = getOwned(); for (const [cat, name] of CATS) { const all = SKINS.filter((x) => x.cat === cat), have = all.filter((x) => owned.includes(x.id)).length; const b = document.createElement('button'); b.className = cat === tab ? 'on' : ''; b.innerHTML = name + '<i>' + have + '/' + all.length + '</i>';
   b.addEventListener('click', () => { tab = cat; if (cat !== 'kaiju') kjSel = null; try { sessionStorage.setItem('shop_tab', cat); } catch { /* ignore */ } drawTabs(); build(); renderAll(); $('wrap').scrollTop = 0; }); box.appendChild(b); } }
 // purchase confirmation

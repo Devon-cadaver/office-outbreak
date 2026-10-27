@@ -74,7 +74,9 @@
       // a phone that won't play it (low power mode, data saver) goes straight to the menu on the last frame
       const blocked = () => ready();
       const start = () => { const pr = v.play(); if (pr && pr.catch) pr.catch(blocked); setTimeout(() => { if (!done && v.paused && v.currentTime === 0) blocked(); }, 2500); };
-      start(); document.getElementById('skipIntro').addEventListener('click', () => { v.pause(); ready(); }); window.__introReady = () => done;
+      // only the first visit plays the clip; coming back to the menu (from a game, the shop...) goes straight to it
+      let seen = false; try { seen = sessionStorage.getItem('intro_seen') === '1'; sessionStorage.setItem('intro_seen', '1'); } catch { /* ignore */ }
+      if (seen) { v.removeAttribute('autoplay'); v.pause(); v.style.display = 'none'; ready(); } else start(); document.getElementById('skipIntro').addEventListener('click', () => { v.pause(); ready(); }); window.__introReady = () => done;
       addEventListener('pageshow', (e) => { if (!e.persisted) return; done = false; document.body.classList.remove('ready'); v.currentTime = 0; start(); }); }</script>
   <script>
     try { if (localStorage.getItem('oo_save_dc')) document.getElementById('dcSaved').textContent = 'Saved game: night ' + (JSON.parse(localStorage.getItem('oo_save_dc')).night + 1); } catch (e) {}
