@@ -57,3 +57,19 @@ export function autoResolution(renderer, cap = 1.5) {
   };
   Object.defineProperty(fn, 'ratio', { get: () => ratio }); return fn;
 }
+
+// Bake movable-but-usually-still objects (trees, lamps, benches...) into one mesh per parent, remembering which vertices
+// came from which object. Their own meshes are hidden; unbake(obj) collapses its vertices and shows the real thing again,
+// so it can be knocked over and animate as before. Only plain solid Lambert meshes are baked; the rest stay as they are.
+export function bakeMovable(parent, objs) {
+  parent.updateMatrixWorld(true); const inv = new THREE.Matrix4().copy(parent.matrixWorld).invert(), mtx = new THREE.Matrix4();
+  const geos = [], spans = new Map(); let at = 0;
+  for (const o of objs) { const mine = []; o.traverse((m) => { if (!m.isMesh || !m.visible || m.isInstancedMesh) return; const mt = m.material; if (!mt || Array.isArray(mt) || mt.type !== 'MeshLambertMaterial' || mt.transparent || mt.map || mt.vertexColors || mt.flatShading || mt.side !== THREE.FrontSide || (mt.emissive && mt.emissive.getHex())) return;
+      const g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone(); for (const a of Object.keys(g.attributes)) if (a !== 'position' && a !== 'normal') g.deleteAttribute(a); if (!g.attributes.normal) g.computeVertexNormals();
+      g.applyMatrix4(mtx.multiplyMatrices(inv, m.matrixWorld)); const c = mt.color, n = g.attributes.position.count, arr = new Float32Array(n * 3); for (let i = 0; i < n; i++) { arr[i * 3] = c.r; arr[i * 3 + 1] = c.g; arr[i * 3 + 2] = c.b; } g.setAttribute('color', new THREE.BufferAttribute(arr, 3));
+      if ([...Object.values(g.attributes)].some((a) => a.array.some((x) => !Number.isFinite(x)))) return; mine.push([m, g]); });
+    if (!mine.length) continue; const start = at; for (const [m, g] of mine) { geos.push(g); at += g.attributes.position.count; m.visible = false; } spans.set(o, { start, count: at - start, meshes: mine.map(([m]) => m) }); }
+  if (geos.length < 2) { for (const s of spans.values()) for (const m of s.meshes) m.visible = true; return null; }
+  const merged = mergeGeometries(geos); const mesh = new THREE.Mesh(merged, vcLam(false, THREE.FrontSide)); mesh.userData.merged = true; parent.add(mesh); mesh.updateMatrixWorld(true);
+  return { mesh, unbake(o) { const s = spans.get(o); if (!s) return; spans.delete(o); const p = merged.attributes.position; for (let i = s.start; i < s.start + s.count; i++) p.setXYZ(i, 0, -50, 0); p.needsUpdate = true; for (const m of s.meshes) m.visible = true; } };
+}

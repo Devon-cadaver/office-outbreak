@@ -227,7 +227,7 @@ export function buildCity(scene, wall, level) {
       if (p.ob) { const i = obstacles.indexOf(p.ob); if (i >= 0) obstacles.splice(i, 1); } }
     return n;
   };
-  const updateProps = (dt) => { for (const p of props) { if (!p.knocked || p.t >= 1) continue; p.t = Math.min(1, p.t + dt * 2.2); const k = p.t; const lift = p.kind === 'car' ? 0.6 : 0.25;
+  const updateProps = (dt) => { for (const p of props) { if (!p.knocked) continue; if (p.t >= 1) { if (p.g.visible && (p.gone = (p.gone || 0) + dt) > 6) p.g.visible = false; continue; } /* fallen props clear away after a while (each one is several draws) */ p.t = Math.min(1, p.t + dt * 2.2); const k = p.t; const lift = p.kind === 'car' ? 0.6 : 0.25;
     p.g.position.x = p.x + p.dir.x * k * (p.kind === 'car' ? 2.2 : 1.2); p.g.position.z = p.z + p.dir.z * k * (p.kind === 'car' ? 2.2 : 1.2); p.g.position.y = Math.sin(k * Math.PI) * lift;
     const ang = k * (p.kind === 'car' ? Math.PI : 1.45); p.g.rotation.x = p.dir.z * ang; p.g.rotation.z = -p.dir.x * ang; } };
 

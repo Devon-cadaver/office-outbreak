@@ -1,6 +1,6 @@
 # Dead City: Tornado Alley — itch.io page kit
 
-Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.23.6**. Upload `release/survive-dead-city-web-v1.23.6.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
+Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.23.7**. Upload `release/survive-dead-city-web-v1.23.7.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
 
 > All monsters, robots and characters in Dead City are original creations. Any resemblance to other characters is coincidental.
 
@@ -13,7 +13,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 | Short description / tagline | You are the storm. Tear through five towns, take out big targets, dodge seeding planes and outrun storm chasers. |
 | Classification | Game |
 | Kind of project | **HTML** |
-| Uploads | `survive-dead-city-web-v1.23.6.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
+| Uploads | `survive-dead-city-web-v1.23.7.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
 | Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
 | Frame options | Leave SharedArrayBuffer off. No special headers needed. |
 | Pricing | Free (or "No payments"). |
@@ -70,6 +70,7 @@ Small browser games built fast, tested on a phone, and tuned by playing. Dead Ci
 
 ## Version history
 
+- **1.23.7** (2026-10-27): Big maps run much smoother: building debris, trees, lamps and other props now draw in batches, and fallen bits clear away sooner. The Nukular Nado lasts twice as long, the nuclear plant turns up from Downtown, Megacity has 30 more seconds, and you can zoom out further.
 - **1.23.6** (2026-10-27): Fight buttons no longer cover each other. The Skin Shop opens on the skins for the game you came from. The end-of-round screen is more compact so its buttons fit without scrolling. Going back to the main menu skips the intro clip after the first time.
 - **1.23.5** (2026-10-27): Game tips are now small and sit near the top, out of the way of buttons. The SPIN & TOSS / RANDOM MOVE choice stays up until you pick one. Mega mode has its own MEGA NUKE / MEGA ROAR button so you can save the blast for the right moment.
 - **1.23.4** (2026-10-27): The round now ends with TOTAL DESTRUCTION as soon as the screen shows 100% destroyed and every target is done, in both games. A new player's first round opens with the theme song, Tornado Alley.

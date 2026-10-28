@@ -17,7 +17,7 @@ import { stampVersion } from '../version.js';
 import { initFullscreen } from '../fullscreen.js';
 import { showHowTo, tip, tipsSeen, markSeen, clearTips } from '../howto.js';
 let tut = null; const tipA = (...a) => { if (!tut) tip(...a); }; // tut: the guided tutorial round, step by step
-import { autoResolution, mergeStatic } from '../perf.js';
+import { autoResolution, mergeStatic, bakeMovable } from '../perf.js';
 import { rides, spinners } from '../landmarks.js';
 import { makePlane, makeChaser } from './units.js';
 
@@ -51,7 +51,7 @@ const LEVELS = [
   { name: 'Suburbs', size: 27, time: 140, goal: 35, pois: 6, need: 3 },
   { name: 'Downtown', size: 33, time: 165, goal: 35, pois: 7, need: 4 },
   { name: 'Metro', size: 39, time: 190, goal: 30, pois: 8, need: 6 },
-  { name: 'Megacity', size: 47, time: 240, goal: 30, pois: 10, need: 10 },
+  { name: 'Megacity', size: 47, time: 270, goal: 30, pois: 10, need: 10 },
 ];
 let level = 1; const L = () => LEVELS[level - 1];
 const SEASON_CYCLE = ['none', 'halloween', 'christmas', 'july4'], SEASON_NAME = { none: 'Clear skies', halloween: 'Halloween', christmas: 'Christmas', july4: '4th of July' };
@@ -61,7 +61,7 @@ const seasonFor = () => (level === LEVELS.length ? 'none' : seasonNow()); // Meg
 const unlocked = () => { try { return Math.max(1, Math.min(LEVELS.length, +localStorage.getItem('ta_level') || 1)); } catch { return 1; } };
 let ROUND = LEVELS[0].time;
 // big targets: HUD icon, banner name, the Fujita rank that can take it, points. Each round has the classic three plus
-// a random pick of the others, more on bigger maps; the nuclear plant only turns up in Metro and Megacity.
+// a random pick of the others, more on bigger maps; the nuclear plant only turns up from Downtown on.
 const POI = { fair: { icon: '🎡', name: 'FAIRGROUND', f: 4, pts: 4000 }, power: { icon: '⚡', name: 'POWER PLANT', f: 3, pts: 3000 }, water: { icon: '💧', name: 'WATER STATION', f: 2, pts: 2500 },
   cemetery: { icon: '🪦', name: 'GRAVEYARD', f: 1, pts: 1500 }, weather: { icon: '📡', name: 'WEATHER STATION', f: 1, pts: 2000 }, firestation: { icon: '🚒', name: 'FIRE STATION', f: 2, pts: 2200 },
   police: { icon: '🚓', name: 'POLICE STATION', f: 2, pts: 2200 }, sewage: { icon: '💩', name: 'SEWAGE PLANT', f: 2, pts: 2200 }, radio: { icon: '📻', name: 'RADIO TOWER', f: 3, pts: 3500 },
@@ -110,7 +110,7 @@ function buildWorld() {
   const near = (tx, ty) => { let best = null, bd = 1e9; for (let y = 2; y < rows - 2; y++) for (let x = 2; x < cols - 2; x++) { if (!maze[y][x] || (y === fy && x >= fx0 && x <= fx0 + 2)) continue; if (!(maze[y - 1][x] === false || maze[y + 1][x] === false || maze[y][x - 1] === false || maze[y][x + 1] === false)) continue; const d = Math.abs(x - tx) + Math.abs(y - ty); if (d < bd) { bd = d; best = [x, y]; } } return best; };
   const extra = EXTRA_POIS.slice(); for (let i = extra.length - 1; i > 0; i--) { const j = (rng() * (i + 1)) | 0; [extra[i], extra[j]] = [extra[j], extra[i]]; }
   if (tut) { extra.splice(extra.indexOf('cemetery'), 1); extra.unshift('cemetery'); }
-  const want = ['power', 'water', ...(level >= 4 ? ['nuclear'] : []), ...extra].slice(0, L().pois - 1);
+  const want = ['power', 'water', ...(level >= 3 ? ['nuclear'] : []), ...extra].slice(0, L().pois - 1);
   const taken = [[fx0 + 1, fy]], cells = new Set([fy * cols + fx0, fy * cols + fx0 + 1, fy * cols + fx0 + 2]);
   const forced = new Map([[fy * cols + fx0, 'ferris'], [fy * cols + fx0 + 1, 'coaster'], [fy * cols + fx0 + 2, 'carousel']]);
   for (const k of want) { let at = null; // as far from the others as the map allows, never right on top of the storm's start
@@ -157,10 +157,18 @@ function freezeCity() {
   for (const o of cg.children.slice()) { if (keep.has(o) || o.isLight || o.isPoints) continue; bb.setFromObject(o); if (bb.isEmpty()) { if (!o.isLine) continue; o.getWorldPosition(ctr); bb.setFromCenterAndSize(ctr, sz.set(0.1, 0.1, 0.1)); }
     bb.getSize(sz); if (Math.max(sz.x, sz.z) > span * 1.5) continue; bb.getCenter(ctr);
     const key = Math.floor((ctr.x + ox) / span) + ',' + Math.floor((ctr.z + oz) / span); let ch = map.get(key); if (!ch) { ch = new THREE.Group(); ch.isChunk = true; ch.box = new THREE.Box3(); map.set(key, ch); cg.add(ch); } ch.add(o); ch.box.union(bb); }
+  // the scenery nothing ever moves (roads, trees, lamps, fences...) is baked into a few meshes per chunk: thousands of
+  // separate draws were what made the big maps lag on phones. Buildings, props, landmarks and animated bits stay apart.
+  const own = new Set(); for (const x of buildings) { own.add(x.obj); own.add(x.b); for (const m of x.b.userData.extras || []) own.add(m); }
+  for (const pr of city.props) own.add(pr.g); for (const hz of city.hazards) for (const p of hz.parts || []) own.add(p); for (const a of city.season.anim) own.add(a.m);
+  for (const ch of map.values()) { const list = []; for (const o of ch.children.slice()) { if (own.has(o)) continue; let skip = false; o.traverse((m) => { if (own.has(m) || m.isLine || m.isPoints || m.isInstancedMesh) skip = true; }); if (skip) continue;
+      o.traverse((m) => { if (m.isMesh) list.push(m); }); }
+    for (const m of list) if (m.parent !== ch) ch.attach(m); mergeStatic(ch, list);
+    const props = city.props.filter((pr) => pr.g.parent === ch && !pr.knocked); const bk = bakeMovable(ch, props.map((pr) => pr.g)); if (bk) for (const pr of props) pr.bake = bk; }
   chunks = [...map.values()]; for (const ch of chunks) { ch.box.expandByScalar(0.5); ch.updateMatrixWorld(true); ch.updateMatrixWorld = noop; }
 }
 function free(o) { if (o && o.parent && o.parent.isChunk) city.group.attach(o); } // back to the live group before anything moves it
-function freeKnocked() { for (const pr of city.props) if (pr.knocked && pr.g.parent && pr.g.parent.isChunk) free(pr.g); }
+function freeKnocked() { for (const pr of city.props) if (pr.knocked && pr.g.parent && pr.g.parent.isChunk) { if (pr.bake) { pr.bake.unbake(pr.g); pr.bake = null; } free(pr.g); } }
 const frus = new THREE.Frustum(), projM = new THREE.Matrix4();
 function cullChunks() { const vc = viewCam(); vc.updateMatrixWorld(); projM.multiplyMatrices(vc.projectionMatrix, vc.matrixWorldInverse); frus.setFromProjectionMatrix(projM); const far = third ? scene.fog.far + 4 : Infinity;
   for (const ch of chunks) ch.visible = frus.intersectsBox(ch.box) && (far === Infinity || ch.box.distanceToPoint(vc.position) < far);
@@ -396,7 +404,7 @@ let radarDown = false, radioDown = false, fireBoost = false, stink = false;
 // ---------- the nuclear plant goes up: a mushroom cloud and a shockwave that flattens everything in a wide ring (any
 // height), then the storm turns into the NUKULAR NADO for a few seconds: bigger, glowing bright yellow, and it wrecks
 // anything it touches ----------
-const NUKE_R = 22, NUKULAR_SECS = 15; const blasts = []; let nukeT = 0, nukeSave = null, nukeHalo = null, nukeTold = false;
+const NUKE_R = 22, NUKULAR_SECS = 30; const blasts = []; let nukeT = 0, nukeSave = null, nukeHalo = null, nukeTold = false;
 function goNuke(c) {
   const at = new THREE.Vector3(c.x, 0, c.z); let done = 0;
   blasts.push(nukeBlast(scene, at, NUKE_R, { kind: 'nuke', secs: 1.8, onRadius: (r) => { if (r - done < 1.2) return; done = r;
@@ -509,7 +517,7 @@ function updateZaps(dt) {
   for (let i = sinking.length - 1; i >= 0; i--) { const s = sinking[i]; s.t = Math.min(1, s.t + dt * 0.6); s.obj.rotation.z = s.t * 0.5; s.obj.position.y = s.y0 - s.t * s.h * 0.85; if (s.t >= 1) { s.obj.visible = false; sinking.splice(i, 1); } }
 }
 // zoom: pinch with two fingers, the mouse wheel, or the +/- buttons; remembered
-const ZOOM_MIN = 0.55, ZOOM_MAX = 1.3;
+const ZOOM_MIN = 0.55, ZOOM_MAX = 1.6;
 let zoom = 1; try { zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, +localStorage.getItem('ta_zoom') || 1)); } catch { /* ignore */ }
 function setZoom(z) { zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z)); try { localStorage.setItem('ta_zoom', String(zoom)); } catch { /* ignore */ } }
 let pinch = 0; const pinchD = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);

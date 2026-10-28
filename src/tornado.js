@@ -62,8 +62,14 @@ export function createTwisters(scene, { onBolt } = {}) {
   const junkMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
   const boltMat = new THREE.LineBasicMaterial({ color: 0xe8f4ff }), glowMat = new THREE.LineBasicMaterial({ color: 0x7ab8ff, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending });
   const JUNK = [0x7a5a3a, 0x5a3a26, 0x3a3a40, 0xd8d0c0, 0x8a8f96, 0xa04030, 0x2f6f8a, 0x6a7a40];
-  const twisters = [], chunks = [], bolts = []; const matCache = new Map();
-  const chunkMat = (hex) => { if (!matCache.has(hex)) matCache.set(hex, new THREE.MeshLambertMaterial({ color: hex })); return matCache.get(hex); };
+  const twisters = [], chunks = [], bolts = [];
+  // torn-off chunks are all drawn as ONE instanced mesh (a draw each used to bog phones down on the big maps); each chunk
+  // is a plain Object3D that's moved as before, then copied in here once a frame
+  const RUB_MAX = 700, rub = new THREE.InstancedMesh(box, new THREE.MeshLambertMaterial({ color: 0xffffff }), RUB_MAX); rub.frustumCulled = false; rub.count = 0;
+  rub.setColorAt(0, new THREE.Color()); const rubCol = new THREE.Color();
+  function drawRubble() { if (rub.parent !== scene) scene.add(rub); let n = 0;
+    for (const c of chunks) { if (!c.inst || c.t < 0 || !c.m.visible) continue; if (n >= RUB_MAX) break; c.m.updateMatrix(); rub.setMatrixAt(n, c.m.matrix); rub.setColorAt(n, rubCol.setHex(c.hex)); n++; }
+    rub.count = n; rub.instanceMatrix.needsUpdate = true; if (rub.instanceColor) rub.instanceColor.needsUpdate = true; }
 
   // funnel radius at height y (0..H)
   const radiusAt = (tw, y) => tw.r0 + Math.pow(Math.max(0, y) / tw.H, 1.7) * tw.r1;
@@ -136,9 +142,9 @@ export function createTwisters(scene, { onBolt } = {}) {
   function tear(obj, center, size, tw, loose = []) {
     const cols = []; obj.traverse((m) => { if (m.isMesh && m.material) { const mt = Array.isArray(m.material) ? m.material[0] : m.material; if (mt.color) cols.push(mt.color.getHex()); } });
     if (!cols.length) cols.push(0x8a8f96);
-    const n = Math.round(10 + Math.min(14, size.y * 3));
-    for (let i = 0; i < n; i++) { const m = new THREE.Mesh(box, chunkMat(cols[(Math.random() * cols.length) | 0])); const s = 0.15 + Math.random() * Math.min(0.55, size.x * 0.25);
-      m.scale.set(s, 0.1 + Math.random() * s * 0.6, s * (0.4 + Math.random() * 0.8)); m.position.set(center.x + (Math.random() - 0.5) * size.x, Math.random() * size.y, center.z + (Math.random() - 0.5) * size.z); scene.add(m); addChunk(m, tw, i * 0.04); }
+    const n = Math.round((10 + Math.min(14, size.y * 3)) * (chunks.length > 550 ? 0.4 : 1)); // fewer bits when the sky's already full of them
+    for (let i = 0; i < n; i++) { const m = new THREE.Object3D(), hex = cols[(Math.random() * cols.length) | 0]; const s = 0.15 + Math.random() * Math.min(0.55, size.x * 0.25);
+      m.scale.set(s, 0.1 + Math.random() * s * 0.6, s * (0.4 + Math.random() * 0.8)); m.position.set(center.x + (Math.random() - 0.5) * size.x, Math.random() * size.y, center.z + (Math.random() - 0.5) * size.z); addChunk(m, tw, i * 0.04); chunks[chunks.length - 1].inst = true; chunks[chunks.length - 1].hex = hex; }
     for (const m of loose) { if (!m.parent) continue; m.getWorldPosition(tmpP); scene.attach(m); addChunk(m, tw, Math.random() * 0.3); }
     // the shell itself lifts, spins and is gone into the cloud
     chunks.push({ shell: obj, t: 0, base: obj.position.clone(), s0: obj.scale.clone(), tw });
@@ -181,11 +187,12 @@ export function createTwisters(scene, { onBolt } = {}) {
         if (c.t > c.hold) { c.phase = 'fly'; const out = new THREE.Vector3(Math.cos(c.a), 0, Math.sin(c.a)), tan = new THREE.Vector3(-Math.sin(c.a), 0, Math.cos(c.a)); c.vel.copy(tan.multiplyScalar(9 + Math.random() * 6)).add(out.multiplyScalar(5 + Math.random() * 5)); c.vel.y = 3 + Math.random() * 5; }
       } else if (c.phase === 'fly') {
         c.vel.y -= 16 * dt; m.position.addScaledVector(c.vel, dt); m.rotation.x += c.spin.x * dt; m.rotation.y += c.spin.y * dt; m.rotation.z += c.spin.z * dt;
-        const floor = Math.max(0.03, m.scale.y * 0.5); if (m.position.y <= floor) { m.position.y = floor; c.phase = 'rest'; m.rotation.x = 0; m.rotation.z = 0; c.rest = 30; }
+        const floor = Math.max(0.03, m.scale.y * 0.5); if (m.position.y <= floor) { m.position.y = floor; c.phase = 'rest'; m.rotation.x = 0; m.rotation.z = 0; c.rest = c.inst ? 30 : 3; /* a building's own loose parts are a draw each, so they clear away soon */ }
       } else if (c.phase === 'rest') { c.rest -= dt; if (c.rest < 2) m.position.y -= dt * 0.2; if (c.rest <= 0) { scene.remove(m); chunks.splice(i, 1); } }
     }
-    // keep the rubble bounded on phones
-    let rest = 0; for (const c of chunks) if (c.phase === 'rest') rest++; if (rest > 220) { const old = chunks.find((c) => c.phase === 'rest'); if (old) old.rest = Math.min(old.rest, 1); }
+    // keep the rubble pile bounded (oldest go first), then draw every chunk in one go
+    let rest = 0; for (const c of chunks) if (c.phase === 'rest') rest++; for (const c of chunks) { if (rest <= 250) break; if (c.phase === 'rest' && c.rest > 1) { c.rest = 1; rest--; } }
+    drawRubble();
   }
 
   // per-skin effects in world space: snow, embers, spray and fireworks
@@ -211,7 +218,7 @@ export function createTwisters(scene, { onBolt } = {}) {
       else if (f.puddle) f.m.scale.setScalar(f.s0 * Math.max(0.05, f.life / f.max));
       else if (!f.keep) f.m.scale.setScalar(Math.max(0.2, f.life / f.max) * (f.m.scale.x > 0 ? 1 : 1));
       if (f.life <= 0 || f.m.position.y < 0) { scene.remove(f.m); fxParts.splice(i, 1); if (f.fizz && Math.random() < 0.5) { const q = f.m.position.clone().setY(0.05); for (let k = 0; k < 2; k++) spark(q, new THREE.Vector3((Math.random() - 0.5) * 1.6, 1 + Math.random(), (Math.random() - 0.5) * 1.6), 0xb8ff3a, 0.35, 6, 0.8); } } } }
-  function clear() { for (const b of babies) dispose(b.tw); babies.length = 0; for (const f of fxParts) scene.remove(f.m); fxParts.length = 0; for (const tw of twisters) scene.remove(tw.g); twisters.length = 0; for (const b of bolts) scene.remove(b.g); bolts.length = 0; for (const c of chunks) { if (c.m) scene.remove(c.m); } chunks.length = 0; }
+  function clear() { for (const b of babies) dispose(b.tw); babies.length = 0; for (const f of fxParts) scene.remove(f.m); fxParts.length = 0; for (const tw of twisters) scene.remove(tw.g); twisters.length = 0; for (const b of bolts) scene.remove(b.g); bolts.length = 0; for (const c of chunks) { if (c.m) scene.remove(c.m); } chunks.length = 0; rub.count = 0; }
   function suck(m, tw) { scene.attach(m); addChunk(m, tw, 0); }
   return { make, remove, tear, scatter, suck, update, clear, radiusAt, get chunks() { return chunks; }, get babies() { return babies; }, setBounds(b) { bounds = b; } };
 }
