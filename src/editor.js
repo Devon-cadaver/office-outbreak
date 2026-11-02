@@ -1,7 +1,7 @@
 // Map builder: paint a district on a grid, export it as JSON, play it as district 1.
 // Cell codes: 0 road, 1 building, 2 house, 3 park, 4 gas, 5 ferris, 6 coaster, 7 carousel, 8 school, 9 skate, 10 slime, 11 start, 12 exit
 import { GROUPS, TOOLS, ROAD_CODES, nextShape, sendMapToClaude } from './tools.js';
-import { ERAS, eraUnlocked, getEra, setEra } from './era.js';
+import { ERAS, getEra, setEra } from './era.js';
 let conn = {};
 const $ = (id) => document.getElementById(id);
 let cols = 19, rows = 29, cells = [], tool = 0, era = getEra();
@@ -9,7 +9,7 @@ let cols = 19, rows = 29, cells = [], tool = 0, era = getEra();
 const LOOK = { past: { grass: '#8a7a4a', edge: '#6a5030', road: '#a07a50', line: null }, present: { grass: '#2f5a38', edge: '#2d3c41', road: '#3a4c52', line: '#e3c84f' }, future: { grass: '#1c2638', edge: '#3af0ff', road: '#232c40', line: '#3af0ff' } };
 const KEY = 'oo_custom_map';
 function blank(c, r) { const a = []; for (let y = 0; y < r; y++) { const row = []; for (let x = 0; x < c; x++) row.push(x === 0 || y === 0 || x === c - 1 || y === r - 1 ? 1 : 3); a.push(row); } return a; }
-function load() { try { const m = JSON.parse(localStorage.getItem(KEY) || 'null'); if (m && m.cells) { cols = m.cols; rows = m.rows; cells = m.cells; conn = m.conn || {}; if (m.era && eraUnlocked(m.era)) era = m.era; return; } } catch { /* ignore */ } cells = blank(cols, rows); conn = {}; }
+function load() { try { const m = JSON.parse(localStorage.getItem(KEY) || 'null'); if (m && m.cells) { cols = m.cols; rows = m.rows; cells = m.cells; conn = m.conn || {}; if (m.era) era = m.era; return; } } catch { /* ignore */ } cells = blank(cols, rows); conn = {}; }
 function save() { try { localStorage.setItem(KEY, JSON.stringify({ cols, rows, cells, conn, era })); } catch { /* ignore */ } }
 const cv = $('grid'), g = cv.getContext('2d'); let S = 22;
 function fit() { S = Math.max(16, Math.min(34, Math.floor((Math.min(innerWidth - 16, 900)) / cols))); cv.width = cols * S; cv.height = rows * S; draw(); }
@@ -81,7 +81,7 @@ menu.addEventListener('change', () => { const v = menu.value; menu.value = ''; i
 // hidden buttons the menu drives
 for (const id of ['export', 'import', 'random', 'clear', 'resize']) { const b = document.createElement('button'); b.id = id; b.className = 'hidden'; document.body.appendChild(b); }
 $('export').addEventListener('click', () => { const s = JSON.stringify({ cols, rows, cells, era }); $('iobox').classList.remove('hidden'); $('io').value = s; $('io').select(); try { navigator.clipboard.writeText(s); } catch { /* ignore */ } });
-$('import').addEventListener('click', () => { if ($('iobox').classList.contains('hidden') || !$('io').value.trim()) { $('iobox').classList.remove('hidden'); $('io').value = ''; $('io').placeholder = 'Paste the map text here, then choose Import again.'; $('io').focus(); return; } try { const m = JSON.parse($('io').value); if (!m.cells) throw 0; if (m.era && eraUnlocked(m.era)) { era = m.era; eraSel.value = era; } cols = m.cols; rows = m.rows; cells = m.cells; $('w').value = cols; $('h').value = rows; save(); fit(); } catch { alert('That is not a map. Paste the JSON from Export.'); } });
+$('import').addEventListener('click', () => { if ($('iobox').classList.contains('hidden') || !$('io').value.trim()) { $('iobox').classList.remove('hidden'); $('io').value = ''; $('io').placeholder = 'Paste the map text here, then choose Import again.'; $('io').focus(); return; } try { const m = JSON.parse($('io').value); if (!m.cells) throw 0; if (m.era) { era = m.era; eraSel.value = era; } cols = m.cols; rows = m.rows; cells = m.cells; $('w').value = cols; $('h').value = rows; save(); fit(); } catch { alert('That is not a map. Paste the JSON from Export.'); } });
 $('clear').addEventListener('click', () => { cells = blank(cols, rows); save(); draw(); });
 $('resize').addEventListener('click', () => { const c = Math.max(9, Math.min(41, +$('w').value | 0)), r = Math.max(9, Math.min(41, +$('h').value | 0)); const nb = blank(c, r); for (let y = 1; y < Math.min(r, rows) - 1; y++) for (let x = 1; x < Math.min(c, cols) - 1; x++) nb[y][x] = cells[y][x]; cols = c; rows = r; cells = nb; save(); fit(); });
 $('random').addEventListener('click', async () => {
@@ -96,6 +96,6 @@ $('play').addEventListener('click', () => {
 });
 // era: which time the map is set in (locked eras show a padlock until you beat Megacity)
 const eraSel = document.createElement('select'); eraSel.id = 'eraSel'; eraSel.title = 'Era';
-for (const [k, name] of ERAS) { const o = document.createElement('option'); o.value = k; o.textContent = eraUnlocked(k) ? name : '🔒 ' + name; o.disabled = !eraUnlocked(k); eraSel.appendChild(o); }
+for (const [k, name] of ERAS) { const o = document.createElement('option'); o.value = k; o.textContent = name; eraSel.appendChild(o); }
 $('bar').insertBefore(eraSel, menu); eraSel.addEventListener('change', () => { era = eraSel.value; save(); draw(); });
 load(); eraSel.value = era; $('w').value = cols; $('h').value = rows; fit(); addEventListener('resize', fit);

@@ -1,17 +1,16 @@
-// Tiny synthesized audio via WebAudio: sound effects and a looping music track. No audio files.
-let ctx = null, master = null, musicGain = null, musicSw = null, noiseBuf = null, muted = false, musicMuted = false;
+// Sound effects synthesized with WebAudio, and the radio station's songs.
+let ctx = null, master = null, musicSw = null, noiseBuf = null, muted = false, musicMuted = false;
 export function setMuted(v) { muted = v; if (FRAME) FRAME.setMuted(v); if (master) master.gain.value = muted ? 0 : 0.9; try { localStorage.setItem("oo_mute", muted ? "1" : "0"); } catch { /* ignore */ } }
 export function isMuted() { return muted; }
 export function audioState() { return ctx ? ctx.state : "none"; }
 try { muted = localStorage.getItem("oo_mute") === "1"; musicMuted = localStorage.getItem("oo_music_off") === "1"; } catch { /* ignore */ }
 // music has its own switch, separate from the sound effects
-export function setMusicMuted(v) { musicMuted = v; if (FRAME) FRAME.setMusicMuted(v); if (musicSw) musicSw.gain.value = musicMuted ? 0 : 1; if (song) { song.muted = musicMuted; if (!musicMuted && song.paused) song.play().catch(() => {}); } try { localStorage.setItem("oo_music_off", musicMuted ? "1" : "0"); } catch { /* ignore */ } }
+export function setMusicMuted(v) { musicMuted = v; if (FRAME) FRAME.setMusicMuted(v); if (musicSw) musicSw.gain.value = musicMuted ? 0 : 1; if (song) { song.muted = musicMuted; if (!musicMuted && song.paused && !radioPaused) song.play().catch(() => {}); } try { localStorage.setItem("oo_music_off", musicMuted ? "1" : "0"); } catch { /* ignore */ } }
 export function unlockAudio() {
   if (!ctx) {
     try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch { ctx = null; return; }
     master = ctx.createGain(); master.gain.value = muted ? 0 : 0.9; master.connect(ctx.destination);
     musicSw = ctx.createGain(); musicSw.gain.value = musicMuted ? 0 : 1; musicSw.connect(ctx.destination); /* music has its own path: SOUND off mutes effects only */
-    musicGain = ctx.createGain(); musicGain.gain.value = 0.35; musicGain.connect(musicSw);
     const len = ctx.sampleRate * 0.5; noiseBuf = ctx.createBuffer(1, len, ctx.sampleRate);
     const d = noiseBuf.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
   }
@@ -82,37 +81,6 @@ export const sfx = {
   over: () => { tone(300, 0.3, 'sawtooth', 0.08, -150); setTimeout(() => tone(200, 0.5, 'sawtooth', 0.08, -150), 250); },
 };
 
-// ---------- music: a slow minor-key loop, scheduled a beat ahead ----------
-// calm: slow A-minor loop at 92 bpm. chase: the same tune kicked up to ~128 bpm (the example clip's pulse),
-// transposed up to C minor and raised an octave, with a driving hi-hat and a bass that hits every beat.
-const CALM = { bpm: 92, shift: 1, hat: false }, CHASE = { bpm: 128, shift: 2 * Math.pow(2, 3 / 12), hat: true };
-const BASS = [55, 55, 65.4, 65.4, 49, 49, 58.3, 58.3]; // A1 A1 C2 C2 G1 G1 Bb1 Bb1 (one note per 2 beats)
-const MELODY = [220, 0, 261.6, 220, 0, 196, 0, 233.1, 220, 0, 174.6, 0, 196, 0, 0, 0]; // per half beat
-const CHASE_MELODY = [220, 261.6, 220, 196, 233.1, 0, 220, 174.6, 220, 261.6, 293.7, 261.6, 233.1, 0, 196, 0]; // busier line for the chase
-let musicOn = false, nextBeat = 0, beatIndex = 0, timer = null, chase = false, mode = CALM;
-function hit(t, type, freq, gain, len) { const s = ctx.createBufferSource(); s.buffer = noiseBuf; const f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq; const g = ctx.createGain(); g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.001, t + len); s.connect(f).connect(g).connect(musicGain); s.start(t); s.stop(t + len + 0.02); }
-function scheduleBeat() {
-  while (nextBeat < ctx.currentTime + 0.4) {
-    const when = nextBeat - ctx.currentTime;
-    const half = beatIndex % 16;
-    if (half === 0) mode = chase ? CHASE : CALM; // switch only on the bar line so the groove stays tight
-    const BEAT = 60 / mode.bpm, sh = mode.shift;
-    if (mode.hat ? half % 2 === 0 : half % 4 === 0) tone(BASS[(beatIndex >> 2) % BASS.length] * (mode.hat ? 2 : 1) * (sh > 1 ? sh / 2 : 1), BEAT * (mode.hat ? 0.9 : 1.8), 'triangle', 0.18, 0, musicGain, when);
-    const m = (mode.hat ? CHASE_MELODY : MELODY)[half]; if (m) tone(m * sh, BEAT * 0.45, 'square', mode.hat ? 0.045 : 0.035, 0, musicGain, when);
-    if (half % 8 === 0) hit(nextBeat, 'lowpass', 180, 0.5, 0.18);
-    if (half % 8 === 4) hit(nextBeat, 'highpass', 3000, 0.12, 0.08);
-    if (mode.hat && half % 2 === 1) hit(nextBeat, 'highpass', 6000, 0.07, 0.04);
-    nextBeat += BEAT / 2; beatIndex++;
-  }
-}
-export function setMusicChase(on) { chase = !!on; }
-export function startMusic() {
-  if (!ctx || musicOn) return; musicOn = true; nextBeat = ctx.currentTime + 0.1; beatIndex = 0;
-  timer = setInterval(() => { if (ctx.state === 'running') scheduleBeat(); }, 100);
-}
-export function stopMusic() { musicOn = false; if (timer) clearInterval(timer); timer = null; if (typeof storm !== 'undefined') { storm.on = false; if (storm.timer) clearInterval(storm.timer); storm.timer = null; } }
-export function setMusicTension(level) { if (musicGain) musicGain.gain.setTargetAtTime(0.3 + Math.min(0.25, level * 0.05), ctx.currentTime, 0.5); }
-
 // ---------- seeding planes: an air-raid siren when one is on its way, and a propeller drone that swells as it closes ----------
 // siren: a wailing rise and fall, twice, through a soft low-pass so it reads as distant
 export function siren(vol = 0.06) {
@@ -136,99 +104,61 @@ export function setPlaneEngine(level, pitch = 1) {
 }
 export function planeEngineLevel() { return eng ? eng.level : 0; }
 
-// ---------- Tornado Alley's storm track: D minor, 136 bpm, built up in layers by the storm's F rank ----------
-// F0: half-time drums, a low pulsing bass. F1+: a string pad. F2+: a full backbeat, eighth-note hats. F3+: the lead
-// theme. F4+: four-on-the-floor, sixteenth hats, tom fills, the bass opens up. A boost (a new F rank) adds a riser and a
-// crash, double-time hats and a fast arpeggio for its length, then lands back on the beat.
-const SBPM = 136, STEP = 60 / SBPM / 4;
-const PROG = [ // per bar: bass root, pad triad, arpeggio notes
-  { root: 73.42, pad: [146.8, 174.6, 220.0], arp: [587.3, 698.5, 880.0, 1174.7] }, // Dm
-  { root: 58.27, pad: [116.5, 146.8, 174.6], arp: [466.2, 587.3, 698.5, 932.3] }, // Bb
-  { root: 65.41, pad: [130.8, 164.8, 196.0], arp: [523.3, 659.3, 784.0, 1046.5] }, // C
-  { root: 55.00, pad: [110.0, 138.6, 164.8], arp: [440.0, 554.4, 659.3, 880.0] }, // A
-];
-const LEAD = [ // two bars of eighths, repeated: the theme
-  [587.3, 0, 440.0, 0, 698.5, 659.3, 587.3, 0], [523.3, 0, 587.3, 659.3, 698.5, 0, 659.3, 523.3],
-  [587.3, 0, 440.0, 0, 698.5, 659.3, 587.3, 0], [554.4, 0, 659.3, 0, 880.0, 0, 830.6, 0],
-];
-let storm = { on: false, timer: null, next: 0, step: 0, level: 0, boostUntil: 0, bus: null };
-function sBus() { if (!storm.bus) { const c = ctx.createDynamicsCompressor(); c.threshold.value = -16; c.ratio.value = 4; c.attack.value = 0.005; c.release.value = 0.2; const g = ctx.createGain(); g.gain.value = 1.15; c.connect(g).connect(musicGain); storm.bus = c; } return storm.bus; }
-function env(t, node, peak, a, d) { node.gain.setValueAtTime(0.0001, t); node.gain.exponentialRampToValueAtTime(peak, t + a); node.gain.exponentialRampToValueAtTime(0.0001, t + a + d); }
-function sNoise(t, type, freq, q, peak, d) { const s = ctx.createBufferSource(); s.buffer = noiseBuf; const f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q; const g = ctx.createGain(); env(t, g, peak, 0.002, d); s.connect(f).connect(g).connect(sBus()); s.start(t); s.stop(t + d + 0.05); }
-function sOsc(t, type, f0, f1, peak, a, d, cutoff = 0) { const o = ctx.createOscillator(); o.type = type; o.frequency.setValueAtTime(f0, t); if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, t + a + d * 0.6); const g = ctx.createGain(); env(t, g, peak, a, d); let n = o; if (cutoff) { const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = cutoff; f.Q.value = 3; o.connect(f); n = f; } n.connect(g).connect(sBus()); o.start(t); o.stop(t + a + d + 0.05); }
-const kick = (t, v = 1) => sOsc(t, 'sine', 140, 42, 0.95 * v, 0.003, 0.28);
-const snare = (t, v = 1) => { sNoise(t, 'bandpass', 1900, 0.7, 0.42 * v, 0.17); sOsc(t, 'triangle', 200, 150, 0.22 * v, 0.002, 0.09); };
-const hat = (t, open, v = 1) => sNoise(t, 'highpass', 7500, 0.8, (open ? 0.1 : 0.07) * v, open ? 0.16 : 0.035);
-const crash = (t) => sNoise(t, 'highpass', 4500, 0.5, 0.22, 1.6);
-const tom = (t, f) => sOsc(t, 'sine', f, f * 0.6, 0.5, 0.003, 0.22);
-function pad(t, notes, dur, level) { for (const f of notes) for (const det of [-6, 7]) { const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; o.detune.value = det; const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 700 + level * 260; const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.022 + level * 0.004, t + 0.35); g.gain.setValueAtTime(0.022 + level * 0.004, t + dur - 0.3); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.connect(lp).connect(g).connect(sBus()); o.start(t); o.stop(t + dur + 0.05); } }
-function riser(t, dur) { const s = ctx.createBufferSource(); s.buffer = noiseBuf; s.loop = true; const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 2; f.frequency.setValueAtTime(300, t); f.frequency.exponentialRampToValueAtTime(7000, t + dur); const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.16, t + dur * 0.9); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); s.connect(f).connect(g).connect(sBus()); s.start(t); s.stop(t + dur + 0.05);
-  sOsc(t, 'sawtooth', 160, 640, 0.05, dur * 0.8, dur * 0.25, 2200); }
-function stormStep() {
-  while (storm.next < ctx.currentTime + 0.25) {
-    const t = storm.next, s = storm.step % 16, bar = Math.floor(storm.step / 16), ch = PROG[bar % 4], boost = t < storm.boostUntil, L = Math.min(5, storm.level + (boost ? 1 : 0));
-    // drums
-    const four = L >= 4, kickOn = four ? s % 4 === 0 : L >= 2 ? (s === 0 || s === 8 || (L >= 3 && (s === 6 || s === 14))) : (s === 0 || s === 10);
-    if (kickOn) kick(t); if (L >= 2 ? (s === 4 || s === 12) : s === 8) snare(t);
-    if (boost && s >= 12) snare(t, 0.45 + (s - 12) * 0.12); // a little roll into the next bar
-    if (boost || L >= 4) hat(t, s % 4 === 2); else if (L >= 1 && s % 2 === 0) hat(t, s % 8 === 6); else if (s % 4 === 2) hat(t, false, 0.7);
-    if (L >= 4 && bar % 4 === 3 && s >= 12) tom(t, [196, 165, 131, 98][s - 12]);
-    // bass: eighths (sixteenths when it's flat out), the filter opening up with the storm
-    if (L >= 4 ? true : s % 2 === 0) sOsc(t, 'sawtooth', ch.root * (s % 8 === 6 && L >= 3 ? 2 : 1), ch.root * (s % 8 === 6 && L >= 3 ? 2 : 1), 0.2, 0.004, STEP * (L >= 4 ? 0.9 : 1.7), 260 + L * 240 + (boost ? 600 : 0));
-    // pad on the bar
-    if (s === 0 && L >= 1) pad(t, ch.pad, STEP * 16, L);
-    // the theme, an octave up when it's huge
-    if (L >= 3 && s % 2 === 0) { const n = LEAD[bar % 4][s / 2]; if (n) { const f = n * (L >= 5 ? 2 : 1); sOsc(t, 'square', f, f, 0.05, 0.01, STEP * 1.6, 2600); sOsc(t, 'sawtooth', f / 2, f / 2, 0.035, 0.01, STEP * 1.6, 1800); } }
-    // boost: a fast arpeggio over everything
-    if (boost) { const f = ch.arp[s % 4] * (s >= 8 ? 2 : 1); sOsc(t, 'square', f, f, 0.04, 0.004, STEP * 0.8, 4000); }
-    storm.next += STEP; storm.step++;
-  }
-}
 // Inside the frame (index.html: START, then the menu and the games load inside it) the frame owns the one radio, so the
 // music never stops between pages; a page opened on its own runs its own radio as below
 const FRAME = (() => { try { return window.parent !== window && window.parent.__radio ? window.parent.__radio : null; } catch { return null; } })();
 // ---------- the radio: one shuffled station of every song, on every page (the menu, both games, the shop). Each page is a
 // fresh load, so the station carries over in sessionStorage: same song, same spot, same shuffle. It tries to play straight
 // away (fine on a computer once you've been on the site); phones and tablets pick it up at the first tap ----------
-export const SONGS_ALL = ['music/tornado-alley.mp3', 'music/twister-vs-army.mp3', 'music/clean-slate.mp3', 'music/feeding-ground.mp3', 'music/stomp-the-block.mp3', 'music/saving-you-the-trouble.mp3', 'music/tatsumaki-justice.mp3'];
+export const SONGS_ALL = ['music/tornado-alley.mp3', 'music/twister-vs-army.mp3', 'music/clean-slate.mp3', 'music/feeding-ground.mp3', 'music/stomp-the-block.mp3', 'music/saving-you-the-trouble.mp3', 'music/tatsumaki-justice.mp3', 'music/my-little-disaster.mp3', 'music/my-little-disaster-2.mp3'];
 export const SONGS_TORNADO = SONGS_ALL, SONGS_KAIJU = SONGS_ALL;
 const VOLS = [['LOW', 0.25], ['MED', 0.55], ['FULL BLAST', 0.95]];
-let SONGS = SONGS_ALL, order = [], song = null, songGain = null, songI = -1, repeat = false, volI = 0, resumeAt = 0; /* the songs start at LOW until you change it */
+let SONGS = SONGS_ALL, volV = null, radioPaused = false, order = [], song = null, songGain = null, songI = -1, repeat = false, volI = 0, resumeAt = 0; /* the songs start at LOW until you change it */
 try { const v = +localStorage.getItem('oo_music_vol'); if (v >= 0 && v < VOLS.length && localStorage.getItem('oo_music_vol') !== null) volI = v; } catch { /* ignore */ }
+try { const v = localStorage.getItem('oo_radio_vol'); if (v !== null && +v >= 0 && +v <= 1) volV = +v; } catch { /* ignore */ }
 try { const st = JSON.parse(sessionStorage.getItem('oo_radio') || 'null'); if (st && SONGS[st.i]) { songI = st.i; resumeAt = st.t || 0; order = (st.order || []).filter((i) => SONGS[i]); repeat = !!st.rep; } } catch { /* ignore */ }
 function saveRadio() { if (!song) return; try { sessionStorage.setItem('oo_radio', JSON.stringify({ i: songI, t: song.readyState >= 1 ? song.currentTime : resumeAt, order, rep: repeat })); } catch { /* ignore */ } }
 addEventListener('pagehide', saveRadio); setInterval(saveRadio, 1000);
-function applyVol() { const v = VOLS[volI][1]; if (songGain) songGain.gain.value = v; else if (song) song.volume = Math.min(1, v); }
+function curVol() { return volV !== null ? volV : VOLS[volI][1]; }
+function applyVol() { const v = curVol(); if (songGain) songGain.gain.value = v; else if (song) song.volume = Math.min(1, v); }
 // once the sound engine is running, the song goes through it (iPad/iPhone ignore an element's volume; MUSIC: OFF covers it)
 function routeSong() { if (!song || songGain || !ctx) return; try { songGain = ctx.createGain(); ctx.createMediaElementSource(song).connect(songGain).connect(musicSw); song.volume = 1; } catch { songGain = null; } applyVol(); }
+function startSong() { radioPaused = false; song.src = SONGS[songI]; if (!musicMuted) song.play().catch(() => {}); }
 export function playSongs() {
-  if (FRAME) return FRAME.playSongs(); if (musicOn) stopMusic(); /* a round starting hands over from the menu beat to the songs */
-  if (!song) { if (!SONGS[songI]) { let first = false; try { first = !localStorage.getItem('oo_theme_heard'); localStorage.setItem('oo_theme_heard', '1'); } catch { /* ignore */ } songI = first && onAir().includes(0) ? 0 : pickNext(); if (first) order = order.filter((i) => i !== 0); } /* someone's very first round opens with the theme, Tornado Alley */ song = new Audio(); song.preload = 'auto'; song.loop = repeat || SONGS.length === 1; song.src = SONGS[songI];
+  if (FRAME) return FRAME.playSongs();
+  if (!song) { if (!SONGS[songI]) songI = onAir()[0]; /* the game opens on the first track that's on the air */ song = new Audio(); song.preload = 'auto'; song.loop = repeat || SONGS.length === 1; song.src = SONGS[songI];
     if (resumeAt > 1) { const t = resumeAt; song.addEventListener('loadedmetadata', () => { if (t < song.duration - 2) song.currentTime = t; }, { once: true }); }
     song.addEventListener('ended', () => nextSong()); applyVol(); }
-  routeSong(); song.muted = musicMuted; if (song.paused && !musicMuted) song.play().catch(() => {});
+  routeSong(); song.muted = musicMuted; if (song.paused && !musicMuted && !radioPaused) song.play().catch(() => {});
 }
 // every page: try now, and again at the first tap or key (browsers block sound until then)
-// the menus (title screen, main menu, shop, a game's start screen) play the original synth beat; the songs only start once
-// you begin a round, and after that the radio keeps going everywhere
-export function menuMusic() { if (FRAME) return FRAME.menuMusic(); unlockAudio(); if (song) playSongs(); else startMusic(); }
+export function menuMusic() { if (FRAME) return FRAME.menuMusic(); unlockAudio(); playSongs(); }
 export function radio() { if (FRAME) return FRAME.menuMusic(); menuMusic(); const go = () => { unlockAudio(); menuMusic(); }; addEventListener('pointerdown', go, true); addEventListener('keydown', go, true); }
 // a shuffled bag: deal songs out in random order, reshuffle when it runs dry (never the same song twice in a row)
 // the radio station on the main menu can switch songs off; off songs are skipped (if all are off, everything plays)
-export const songName = (src) => src.split('/').pop().replace('.mp3', '').replace(/-/g, ' ').toUpperCase();
+export const songName = (src) => src === 'music/my-little-disaster-2.mp3' ? 'MY LITTLE DISASTER (KAWAII)' : src.split('/').pop().replace('.mp3', '').replace(/-/g, ' ').toUpperCase();
 export function songsOff() { try { return JSON.parse(localStorage.getItem('oo_radio_off') || '[]'); } catch { return []; } }
 const onAir = () => { const off = songsOff(), on = SONGS.map((_, i) => i).filter((i) => !off.includes(SONGS[i])); return on.length ? on : SONGS.map((_, i) => i); };
 function pickNext() { if (order.length && !order.every((i) => onAir().includes(i))) order = order.filter((i) => onAir().includes(i)); if (!order.length) { order = onAir(); for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; } if (song && order.length > 1 && order[0] === songI) order.push(order.shift()); } return order.shift(); }
-export function nextSong() { if (FRAME) return FRAME.nextSong(); if (!song) return playSongs(); songI = pickNext(); resumeAt = 0; song.src = SONGS[songI]; if (!musicMuted) song.play().catch(() => {}); saveRadio(); }
+export function nextSong() { if (FRAME) return FRAME.nextSong(); if (!song) return playSongs(); songI = pickNext(); resumeAt = 0; startSong(); saveRadio(); }
+// the radio station's SKIP: the next song down the list that's on the air, and from the last one back to the first
+export function skipDown() { if (FRAME) return FRAME.skipDown(); if (!song) return playSongs(); const on = onAir(); playSong(SONGS[on.find((i) => i > songI) ?? on[0]]); }
 // play one song now (the radio station's ▶): the shuffle carries on from it afterwards
-export function playSong(src) { if (FRAME) return FRAME.playSong(src); const i = SONGS.indexOf(src); if (i < 0) return; if (!song) { playSongs(); if (!song) return; } songI = i; resumeAt = 0; order = order.filter((k) => k !== i); song.src = SONGS[i]; if (!musicMuted) song.play().catch(() => {}); saveRadio(); }
+export function playSong(src) { if (FRAME) return FRAME.playSong(src); const i = SONGS.indexOf(src); if (i < 0) return; if (!song) { playSongs(); if (!song) return; } songI = i; resumeAt = 0; order = order.filter((k) => k !== i); startSong(); saveRadio(); }
 export function songState() { if (FRAME) return FRAME.songState(); return song ? { t: song.currentTime, paused: song.paused, muted: song.muted, src: SONGS[songI], loop: song.loop, vol: VOLS[volI][0], list: SONGS.length } : null; }
 function toggleRepeat() { repeat = !repeat; if (song) song.loop = repeat || SONGS.length === 1; saveRadio(); return repeat; }
-function cycleVol() { volI = (volI + 1) % VOLS.length; applyVol(); try { localStorage.setItem('oo_music_vol', volI); } catch { /* ignore */ } return VOLS[volI][0]; }
+function cycleVol() { volI = (volI + 1) % VOLS.length; volV = null; applyVol(); try { localStorage.setItem('oo_music_vol', volI); localStorage.removeItem('oo_radio_vol'); } catch { /* ignore */ } return VOLS[volI][0]; }
+// the radio station's pause button: stays paused through taps and rounds until it's pressed again, or a song is picked or skipped
+export function isRadioPaused() { return FRAME ? FRAME.isRadioPaused() : radioPaused; }
+export function toggleRadioPause() { if (FRAME) return FRAME.toggleRadioPause(); radioPaused = !radioPaused; if (radioPaused) { if (song) song.pause(); } else menuMusic(); return radioPaused; }
+// the radio station's volume slider, 0..1
+export function musicVol() { return FRAME ? FRAME.musicVol() : curVol(); }
+export function setMusicVol(v) { if (FRAME) return FRAME.setMusicVol(v); volV = v; applyVol(); try { localStorage.setItem('oo_radio_vol', v); } catch { /* ignore */ } }
+const volName = () => (volV !== null ? Math.round(volV * 100) + '%' : VOLS[volI][0]);
 // the frame page shares its radio with the pages inside it
 // wake the radio after iOS paused it (Control Center, a call, another app): resume the audio engine and the song
-function wake() { unlockAudio(); if (song && song.paused && !musicMuted) song.play().catch(() => {}); }
-export function frameRadio() { window.__radio = { wake, menuMusic, playSongs, nextSong, playSong, songState, toggleRepeat, cycleVol, setMuted, setMusicMuted, get repeat() { return repeat; }, get volName() { return VOLS[volI][0]; } }; }
+function wake() { unlockAudio(); if (song && song.paused && !musicMuted && !radioPaused) song.play().catch(() => {}); }
+export function frameRadio() { songI = -1; resumeAt = 0; order = []; /* a fresh start of the game: back to the first track */ window.__radio = { wake, menuMusic, playSongs, nextSong, skipDown, playSong, songState, toggleRepeat, cycleVol, isRadioPaused, toggleRadioPause, musicVol, setMusicVol, setMuted, setMusicMuted, get repeat() { return repeat; }, get volName() { return volName(); } }; }
 // a game page's soundtrack: starts on the first tap and keeps going; SKIP SONG, REPEAT and VOLUME on the given screen
 export function gameMusic(host, list) {
   radio();
@@ -236,18 +166,11 @@ export function gameMusic(host, list) {
   const mk = (label, fn) => { const b = document.createElement('button'); b.className = 'ghost soundBtn'; b.textContent = label; b.addEventListener('click', (e) => { e.stopPropagation(); unlockAudio(); fn(b); }); row.append(b); return b; };
   mk('⏭ SKIP SONG', () => nextSong());
   const rpt = () => (FRAME ? FRAME.repeat : repeat); mk(rpt() ? '🔂 REPEAT: ON' : '🔁 REPEAT: OFF', (b) => { const on = FRAME ? FRAME.toggleRepeat() : toggleRepeat(); b.textContent = on ? '🔂 REPEAT: ON' : '🔁 REPEAT: OFF'; });
-  mk('🔉 MUSIC VOL: ' + (FRAME ? FRAME.volName : VOLS[volI][0]), (b) => { b.textContent = '🔉 MUSIC VOL: ' + (FRAME ? FRAME.cycleVol() : cycleVol()); });
+  mk('🔉 MUSIC VOL: ' + (FRAME ? FRAME.volName : volName()), (b) => { b.textContent = '🔉 MUSIC VOL: ' + (FRAME ? FRAME.cycleVol() : cycleVol()); });
   host.insertBefore(row, host.querySelector('.soundRow'));
 }
-export function startStormMusic() {
-  if (!ctx) return; stopMusic(); storm.on = true; storm.next = ctx.currentTime + 0.1; storm.step = 0; storm.boostUntil = 0;
-  storm.timer = setInterval(() => { if (ctx.state === 'running' && storm.on) stormStep(); }, 60);
-}
-export function setStormLevel(l) { storm.level = Math.max(0, Math.min(5, l | 0)); }
-// a boost: riser into a crash, and the busier layers for `secs`
-export function stormBoost(secs = 3) { if (!ctx || !storm.on) return; const t = ctx.currentTime; storm.boostUntil = t + secs; riser(t, 0.6); crash(t + 0.6); kick(t + 0.6, 1.2); crash(t + secs); }
-export function stormMusicState() { return { on: storm.on, level: storm.level, boost: ctx ? storm.boostUntil > ctx.currentTime : false }; }
-
 // the in-game SKIP SONG button: a small round button under the zoom buttons that jumps to the next song on the radio
 export function skipSongBtn(host) { const b = document.createElement('button'); b.className = 'skipHud'; b.title = 'Skip song'; b.textContent = '⏭';
   b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); unlockAudio(); if (musicMuted) setMusicMuted(false); nextSong(); b.classList.remove('skipBump'); void b.offsetWidth; b.classList.add('skipBump'); }); host.appendChild(b); return b; }
+// the old computer-made music is gone; the games and the older pages can still call these, and nothing happens
+export const startMusic = () => {}, stopMusic = () => {}, setMusicChase = () => {}, setMusicTension = () => {}, setStormLevel = () => {}, stormBoost = () => {}, stormMusicState = () => ({ on: false, level: 0, boost: false });

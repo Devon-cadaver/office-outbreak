@@ -5,7 +5,7 @@
 import { KAIJU_IDS, FREE_KAIJU } from './kaiju/rigs.js';
 // tester code: typed into LOAD A CODE it unlocks every monster and keeps everything else as it is
 const UNLOCK_ALL = 'MONSTERMASH';
-const KEEP = /^(oo_coins|oo_coins_earned|oo_skins_owned|oo_skins_equip|oo_seen|tips_seen|prize_game|ta_level|ta_best_\d+|kj_level|kj_unlocked|kj_pick|kj_best_\d+)$/;
+const KEEP = /^(oo_coins|oo_coins_earned|oo_skins_owned|oo_skins_equip|oo_seen|tips_seen|prize_game|(?:ta|kj)_level(?:_past|_future)?|(?:ta|kj)_best_(?:past_|future_)?\d+|kj_unlocked|kj_pick)$/;
 
 const keys = () => { const out = []; try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (KEEP.test(k)) out.push(k); } } catch { /* ignore */ } return out.sort(); };
 const b64 = (bytes) => { let s = ''; for (const b of bytes) s += String.fromCharCode(b); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
@@ -75,7 +75,7 @@ export function initSaveCodes(menu, before = null) {
     try { await navigator.clipboard.writeText(code); say('saveOutMsg', '✓ Copied! Paste it somewhere safe.', 'good'); }
     catch { sel(); let ok = false; try { ok = document.execCommand('copy'); } catch { /* ignore */ } say('saveOutMsg', ok ? '✓ Copied! Paste it somewhere safe.' : 'The code is selected: press and hold it, then Copy.', ok ? 'good' : ''); } });
   $('saveLoad').addEventListener('click', async () => {
-    if ($('saveIn').value.replace(/[^a-z]/gi, '').toUpperCase() === UNLOCK_ALL) { try { localStorage.setItem('dc_era_future', '1'); localStorage.setItem('dc_era_past', '1'); localStorage.setItem('kj_unlocked', JSON.stringify(KAIJU_IDS.filter((x) => !FREE_KAIJU.includes(x)))); } catch { /* ignore */ } say('saveInMsg', '✓ All ' + KAIJU_IDS.length + ' monsters unlocked!', 'good'); return; }
+    if ($('saveIn').value.replace(/[^a-z]/gi, '').toUpperCase() === UNLOCK_ALL) { try { localStorage.setItem('kj_unlocked', JSON.stringify(KAIJU_IDS.filter((x) => !FREE_KAIJU.includes(x)))); } catch { /* ignore */ } say('saveInMsg', '✓ All ' + KAIJU_IDS.length + ' monsters unlocked!', 'good'); return; }
     if (pending && performance.now() - armT < 4000) { applyCode(pending.data); say('saveInMsg', '✓ Loaded! Restarting…', 'good'); setTimeout(() => location.reload(), 900); return; }
     try { pending = await readCode($('saveIn').value); armT = performance.now(); $('saveLoad').classList.add('armed'); $('saveLoad').textContent = '⚠️ TAP AGAIN TO REPLACE THIS DEVICE\'S PROGRESS';
       say('saveInMsg', 'This code has: ' + pending.summary, ''); setTimeout(() => { if (performance.now() - armT >= 3900) { $('saveLoad').classList.remove('armed'); $('saveLoad').textContent = '⬇️ LOAD'; } }, 4000); }

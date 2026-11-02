@@ -8,12 +8,12 @@ import * as THREE from 'three';
 import { generateMaze, buildCity, toWorld, toCell, findPath, CELL, mulberry32 } from '../city.js';
 import { makeCharacter, animateWalk } from '../poster/characters.js';
 import { makeCar } from '../car.js';
-import { isFuture, isPast, hoverize, futurePlane, pastPlane, buildCannon, buildChaserCoach, eraPicker, unlockEra, futureTank, laserBolt } from '../era.js';
+import { isFuture, isPast, hoverize, futurePlane, pastPlane, buildCannon, buildChaserCoach, eraPicker, levelKey, bestKey, futureTank, laserBolt } from '../era.js';
 import { createTwisters } from '../tornado.js';
 import { createFires } from '../fire.js';
 import { unlockAudio, soundToggle, skipSongBtn, sfx, stopMusic, setPlaneEngine, setStormLevel, stormBoost, playSongs, songState, gameMusic, SONGS_KAIJU } from '../audio.js';
 import { armySkin, townSkin, equippedSkin, skinnedCarArgs, addCoins, CHAR_SKINS, getEquipped, totalReward, pauseSkinRow } from '../skins.js';
-import { forceSeason } from '../season.js';
+import { forceSeason, seasonChoice, seasonPicker } from '../season.js';
 import { showPrizes } from '../prizes.js';
 import { nukeBlast } from '../nuke.js';
 import { stampVersion } from '../version.js';
@@ -61,7 +61,7 @@ const stageOf = (f) => (f < 1 / 3 ? 1 : f < 2 / 3 ? 2 : 3);
 const scaleOf = (f) => 1.5 + f * 3.2; // rigs are ~2 units tall at scale 1: about 3 tall as a hatchling, 9 as a colossus
 const MAX_H = [0, 3.3, 6.3, 99]; // the tallest building each stage can flatten
 const CHARGE = 9; // seconds for a full Power bar (smashing things fills it faster)
-const unlockedLevel = () => { try { return Math.max(1, Math.min(LEVELS.length, +localStorage.getItem('kj_level') || 1)); } catch { return 1; } };
+const unlockedLevel = () => { try { return Math.max(1, Math.min(LEVELS.length, +localStorage.getItem(levelKey('kj')) || 1)); } catch { return 1; } };
 const unlockedKaiju = () => { try { const u = JSON.parse(localStorage.getItem('kj_unlocked') || '[]'); return [...FREE_KAIJU, ...u.filter((x) => KAIJU[x] && !FREE_KAIJU.includes(x))]; } catch { return [...FREE_KAIJU]; } };
 const unlockKaiju = (id) => { const u = unlockedKaiju(); if (u.includes(id)) return false; u.push(id); try { localStorage.setItem('kj_unlocked', JSON.stringify(u.filter((x) => !FREE_KAIJU.includes(x)))); } catch { /* ignore */ } return true; };
 let pick = 'godzilly'; try { const p = localStorage.getItem('kj_pick'); if (unlockedKaiju().includes(p)) pick = p; } catch { /* ignore */ }
@@ -101,7 +101,7 @@ function fireAt(from, big) {
 }
 function buildWorld() {
   if (city) { scene.remove(city.group); twisters.clear(); fx.clear(); for (const p of people) scene.remove(p); }
-  cols = rows = L().size; const seed = (Math.random() * 1e6) | 0; const rng = mulberry32(seed); const big = cols / 21; forceSeason('none');
+  cols = rows = L().size; const seed = (Math.random() * 1e6) | 0; const rng = mulberry32(seed); const big = cols / 21; forceSeason(seasonChoice() !== 'random' ? seasonChoice() : level === LEVELS.length ? 'none' : ['none', 'halloween', 'christmas', 'july4'][(Math.random() * 4) | 0]); /* Random leaves Megacity plain: it's big enough already */
   maze = generateMaze(cols, rows, Math.floor(cols * rows * 0.12), rng);
   const mid = (cols - 1) / 2; for (let i = 1; i < cols - 1; i++) { maze[mid][i] = false; maze[i][mid] = false; } maze.avenues = { row: mid, col: mid };
   if (cols >= 33) for (const q of [Math.round((cols - 1) / 4) | 1, Math.round((cols - 1) * 3 / 4) | 1]) for (let i = 1; i < cols - 1; i++) { maze[q][i] = false; maze[i][q] = false; }
@@ -839,7 +839,7 @@ addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; if (mini &
 
 // ---------- flow ----------
 let state = 'start', died = false, roundId = 0; // roundId: delayed effects from an earlier round check it and stand down
-soundToggle($('taStart'), $('taPaused')); skipSongBtn($('ta')); eraPicker($('taLevels')); // sound on/off on the start and pause screens
+soundToggle($('taStart'), $('taPaused')); skipSongBtn($('ta')); eraPicker($('taLevels'), () => { level = unlockedLevel(); drawLevels(); }); seasonPicker($('eraRow')); // sound on/off on the start and pause screens
 // the soundtrack starts on the first tap and keeps rotating songs for as long as you're on Kaiju Madness
 gameMusic($('taPaused'), SONGS_KAIJU); radioButton($('taPaused'), $('taPaused').querySelector('.menuBtn'));
 const fsMode = initFullscreen(() => state === 'play'); // full screen on play, back in after a browser drop-out, no page scrolling mid-round
@@ -893,17 +893,16 @@ let totalD = 0;
 function totalWipe(at) { totalD = 5000 + Math.round(tLeft) * 250; score += totalD; banner('💥 TOTAL DESTRUCTION! 💥'); popup(at.clone().setY(4), '+' + totalD + ' TIME BONUS', '#ffd24a'); sfx.boom(); setTimeout(() => sfx.boom(), 300); flashT = 0.5; }
 function finishNow() {
   state = 'over'; mini = null; miniEl.className = 'hidden'; stopMusic(); setPlaneEngine(0); sUp(stick.id); clearTips(); const done = poiOrder.filter((k) => pois[k].done); for (const k of poiOrder) if (pois[k].arrow) pois[k].arrow.style.display = 'none'; rivalEl.classList.add('hidden'); rivalArrow.style.display = 'none'; for (const pl of planes) pl.arrow.style.display = 'none';
-  let best = 0; const bk = 'kj_best_' + level; try { best = +localStorage.getItem(bk) || 0; if (score > best) { best = score; localStorage.setItem(bk, String(score)); } } catch { /* ignore */ }
+  let best = 0; const bk = bestKey('kj', level); try { best = +localStorage.getItem(bk) || 0; if (score > best) { best = score; localStorage.setItem(bk, String(score)); } } catch { /* ignore */ }
   const pct = Math.round((bDone / totalB) * 100); const need = Math.min(L().need, poiOrder.length); const cleared = !died && pct >= L().goal && done.length >= need;
   const scoreCoins = Math.floor(score / 10000) / 100; if (scoreCoins > 0) addCoins(scoreCoins);
-  if (cleared && level < LEVELS.length && unlockedLevel() <= level) { try { localStorage.setItem('kj_level', String(level + 1)); } catch { /* ignore */ } }
+  if (cleared && level < LEVELS.length && unlockedLevel() <= level) { try { localStorage.setItem(levelKey('kj'), String(level + 1)); } catch { /* ignore */ } }
   $('taEndTitle').innerHTML = died ? 'KAIJU<br>DOWN' : cleared ? (level === LEVELS.length ? 'MEGACITY<br>CRUSHED' : 'LEVEL ' + level + '<br>CRUSHED') : "TIME'S<br>UP";
   $('taAgain').textContent = cleared && level < LEVELS.length ? 'NEXT LEVEL' : cleared ? 'PLAY AGAIN' : 'TRY AGAIN'; $('taAgain').dataset.next = cleared && level < LEVELS.length ? '1' : '';
   $('taGoalLine').textContent = died ? 'The army got you. Eat more people to grow back, and walk out of the napalm.' : cleared ? (level < LEVELS.length ? 'Level ' + (level + 1) + ' unlocked: ' + LEVELS[level].name + '.' : 'Every town crushed. Monster.') : 'Flatten ' + L().goal + '% of ' + L().name + ' and take out ' + (need >= poiOrder.length ? 'every big target' : need + ' big targets') + ' (you got ' + pct + '% and ' + done.length + ').';
   if (totalD) { $('taEndTitle').innerHTML = 'TOTAL<br>DESTRUCTION!'; totalReward(unlockedKaiju().flatMap((k) => Object.keys(KAIJU_SKINS[k]).map((lk) => 'kaiju:' + k + ':' + lk)), (id) => { const [, k, lk] = id.split(':'); return KAIJU_SKINS[k][lk].name; }, $('taGoalLine')); }
-  if (cleared && level === LEVELS.length && (unlockEra('future') | unlockEra('past'))) { const u = document.createElement('div'); u.className = 'bonusSkin'; u.innerHTML = '🤠🚀 WILD WEST AND FUTURE ERAS UNLOCKED<br><small>Pick an era under the towns to play every town back in the Wild West or in the future.</small>'; $('taGoalLine').appendChild(u); eraPicker($('taLevels')); }
   if (cleared && level < LEVELS.length) level++; /* the next town is open and picked right away, wherever you go from here (change monster, the shop, NEXT LEVEL) */
-  drawLevels(); eraPicker($('taLevels')); /* and the start screen shows the new best score and any era you just unlocked, without a reload */
+  drawLevels(); /* and the start screen shows the new best score without a reload */
   $('taStats').innerHTML = [...(totalD ? [['💥 Total destruction', '+' + totalD]] : []), ['Buildings', bDone + ' / ' + totalB + ' (' + pct + '%)'], ['People eaten', peopleN], ['Cars wrecked', carsN], ['Rivals KO\'d', ko], ['Big targets', done.length + ' / ' + poiOrder.length + ' ' + done.map((k) => POI[k].icon).join('')], ['Biggest', STAGE[topStage]], ['Score', score], ['Score coins', '+' + scoreCoins + ' 🪙'], ['Best', best]].map(([a, b]) => '<tr><td>' + a + '</td><td>' + b + '</td></tr>').join('');
   const goes = Math.min(3, 1 + (cleared ? 1 : 0) + Math.floor(done.length / 2)) + (totalD ? 1 : 0); kaijuRound(goes); showPrizes($('taChests'), goes, '1 go, +1 for clearing the level, +1 for every 2 big targets destroyed (max 3)', () => { location.href = 'store.html?from=kaiju'; }, kaijuPrize, () => { $('taPrize').classList.add('hidden'); $('taEnd').classList.remove('hidden'); });
   $('ta').classList.add('hidden'); $('taPrize').classList.remove('hidden'); drawPicker(); // the prize game first, then the score
@@ -922,7 +921,7 @@ $('taHow').addEventListener('click', () => showHowTo(HOWTO));
 $('taPlay').addEventListener('click', () => { if (tipsSeen('kj_howto')) start(); else { markSeen('kj_howto'); showHowTo(HOWTO, start); } });
 $('taAgain').addEventListener('click', () => start());
 $('taEndPick').addEventListener('click', openPicker);
-function drawLevels() { const box = $('taLevels'); box.innerHTML = ''; const un = unlockedLevel(); LEVELS.forEach((lv, i) => { const b = document.createElement('button'); const n = i + 1; let best = 0; try { best = +localStorage.getItem('kj_best_' + n) || 0; } catch { /* ignore */ }
+function drawLevels() { const box = $('taLevels'); box.innerHTML = ''; const un = unlockedLevel(); LEVELS.forEach((lv, i) => { const b = document.createElement('button'); const n = i + 1; let best = 0; try { best = +localStorage.getItem(bestKey('kj', n)) || 0; } catch { /* ignore */ }
   b.className = 'lvl' + (n === level ? ' on' : ''); b.disabled = n > un; b.innerHTML = '<b>' + (n > un ? '🔒' : n) + '</b><span>' + lv.name + '</span>' + (best ? '<i>' + best + '</i>' : ''); b.addEventListener('click', () => { level = n; drawLevels(); }); box.appendChild(b); }); }
 // ---------- the monster picker: the start screen shows your monster; CHOOSE MONSTER opens a scrolling screen with a
 // picture of every one (locked ones are dark silhouettes). Pictures are rendered once each, a few per frame ----------

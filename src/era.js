@@ -1,15 +1,14 @@
 // Eras: the same towns in a different time. 'present' is the game as it is; 'future' swaps in glass towers, neon, pod
-// houses, glowing roads, hover cars, jets and hover tanks. Future unlocks by beating Megacity in either game (or with the
-// tester code); the choice is saved on this device and applies from the next round.
+// houses, glowing roads, hover cars, jets and hover tanks. Every era is open from the start and keeps its own town
+// progress and best scores, so each one is played through in order; the choice is saved on this device.
 import * as THREE from 'three';
 
 export const ERAS = [['past', 'Wild West'], ['present', 'Present'], ['future', 'Future']];
-export function eraUnlocked(e) {
-  if (e === 'present') return true;
-  try { return localStorage.getItem('dc_era_' + e) === '1' || (JSON.parse(localStorage.getItem('oo_skins_owned') || '[]').includes('tornado:acid')); } catch { return false; }
-}
-export function unlockEra(e) { const was = eraUnlocked(e); try { localStorage.setItem('dc_era_' + e, '1'); } catch { /* ignore */ } return !was; }
-export function getEra() { try { const e = localStorage.getItem('dc_era') || 'present'; return eraUnlocked(e) ? e : 'present'; } catch { return 'present'; } }
+export function getEra() { try { const e = localStorage.getItem('dc_era'); return ERAS.some(([k]) => k === e) ? e : 'present'; } catch { return 'present'; } }
+// save keys for one game ('ta' or 'kj') in the current era; Present keeps the original keys so old saves carry over
+const eraTag = () => (getEra() === 'present' ? '' : getEra());
+export const levelKey = (game) => game + '_level' + (eraTag() && '_' + eraTag());
+export const bestKey = (game, n) => game + '_best_' + (eraTag() && eraTag() + '_') + n;
 export function setEra(e) { try { localStorage.setItem('dc_era', e); } catch { /* ignore */ } }
 export const isFuture = () => getEra() === 'future';
 
@@ -47,11 +46,11 @@ export function futurePlane(p) {
 }
 
 // the era row under the level buttons: PRESENT / FUTURE (locked until Megacity is beaten); applies from the next round
-export function eraPicker(after) { let row = document.getElementById('eraRow'); if (!row) { row = document.createElement('div'); row.id = 'eraRow'; after.after(row); }
+export function eraPicker(after, onChange) { let row = document.getElementById('eraRow'); if (!row) { row = document.createElement('div'); row.id = 'eraRow'; after.after(row); }
   const cur = getEra(); row.innerHTML = '<span class="eraLbl">ERA</span>';
-  for (const [id, name] of ERAS) { const ok = eraUnlocked(id), b = document.createElement('button'); b.className = 'ghost eraBtn' + (id === cur ? ' on' : '') + (ok ? '' : ' locked');
-    b.textContent = ({ future: '🚀 ', past: '🤠 ' }[id] || '🏙️ ') + name.toUpperCase() + (ok ? '' : ' 🔒'); b.title = ok ? '' : 'Beat Megacity to unlock';
-    b.addEventListener('click', (ev) => { ev.stopPropagation(); if (!ok) { const h = row.querySelector('.eraHint') || row.appendChild(document.createElement('div')); h.className = 'eraHint'; h.textContent = '🔒 Beat Megacity (the last town) to unlock the ' + name + '.'; return; } setEra(id); eraPicker(after); });
+  for (const [id, name] of ERAS) { const b = document.createElement('button'); b.className = 'ghost eraBtn' + (id === cur ? ' on' : '');
+    b.textContent = ({ future: '🚀 ', past: '🤠 ' }[id] || '🏙️ ') + name.toUpperCase();
+    b.addEventListener('click', (ev) => { ev.stopPropagation(); setEra(id); eraPicker(after, onChange); if (onChange) onChange(); });
     row.appendChild(b); } }
 
 // ---------- the Wild West: horses pulling buggies, wagons and a stagecoach; a cannon for the army; a biplane ----------

@@ -6,6 +6,13 @@ export const SEASONS = [['random', 'Random'], ['none', 'No season'], ['halloween
 let forced = null; export function forceSeason(s) { forced = s; } // a mode that picks its own season (Tornado Alley cycles them)
 export function getSeason() { if (forced) return forced; const q = new URLSearchParams(location.search).get('season'); if (q) return q; try { return localStorage.getItem('oo_season') || 'random'; } catch { return 'random'; } }
 export function setSeason(s) { try { localStorage.setItem('oo_season', s); } catch { /* ignore */ } }
+// the player's own choice, whatever a game has forced for this round; Random unless they've picked one
+export function seasonChoice() { try { const s = localStorage.getItem('oo_season'); return SEASONS.some(([k]) => k === s) ? s : 'random'; } catch { return 'random'; } }
+// the SEASON buttons on a game's start screen, under the ERA row
+export function seasonPicker(after) { let row = document.getElementById('seasonRow'); if (!row) { row = document.createElement('div'); row.id = 'seasonRow'; after.after(row); }
+  const cur = seasonChoice(), icon = { random: '🎲 ', none: '☀️ ', halloween: '🎃 ', christmas: '🎄 ', july4: '🎆 ' }; row.innerHTML = '<span class="eraLbl">SEASON</span>';
+  for (const [id, name] of SEASONS) { const b = document.createElement('button'); b.className = 'ghost eraBtn' + (id === cur ? ' on' : ''); b.textContent = icon[id] + name.toUpperCase();
+    b.addEventListener('click', (ev) => { ev.stopPropagation(); setSeason(id); seasonPicker(after); }); row.appendChild(b); } }
 export function bindSeasonSelect(sel) { if (!sel) return; sel.innerHTML = SEASONS.map(([k, n]) => '<option value="' + k + '">' + n + '</option>').join(''); sel.value = getSeason(); sel.addEventListener('change', () => setSeason(sel.value)); }
 
 const gem = new THREE.OctahedronGeometry(0.5); // tiny bulbs and ornaments: 8 triangles instead of 96
