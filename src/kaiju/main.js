@@ -863,7 +863,7 @@ function die() { if (died) return; died = true; me.act('ko'); banner('KAIJU DOWN
 // prizes and the score
 let outroT = 0, camHold = false, bike = null;
 function finish() { if (state !== 'play') return; state = 'outro'; outroT = 0; camHold = false; bike = null; bout = null; meToss = null; finishing = false; rangedBtn.classList.add('hidden'); finishBtn.classList.add('hidden'); megaBtn.classList.add('hidden'); mini = null; miniEl.className = 'hidden'; stopMusic(); setPlaneEngine(0); sUp(stick.id); clearTips(); moveTo = null; megaT = 0; megaEl.className = 'hidden';
-  banner('THE MADNESS HAS ENDED!'); me.act('cast'); sfx.boom(); setTimeout(() => sfx.whoosh(), 500); setTimeout(() => sfx.boom(), 1300); }
+  banner(totalD ? 'THE TOWN WAS DESTROYED' : 'THE MADNESS HAS ENDED!'); me.act('cast'); sfx.boom(); setTimeout(() => sfx.whoosh(), 500); setTimeout(() => sfx.boom(), 1300); }
 // Mike leaves town on his chopper: it bursts up out of the street (0-0.9 s), he hops on (0.9-1.5), revs, and guns it
 function rideOff(dt) { const g = me.g, T = outroT, s = g.scale.x;
   if (!bike) { bike = buildChopper(me.hammer ? undefined : me.def.pal[0]); bike.g.position.set(1.2, -1.6, 0.22); g.add(bike.g); bike.v = 0; sfx.boom(); }
@@ -890,7 +890,7 @@ function outroTick(dt) { if (me.wrestler && me.def.opt && me.def.opt.exit === 'p
 // TOTAL DESTRUCTION: every building and every big target gone before the clock runs out. Points for every second left,
 // an extra prize go, and a free skin at the end
 let totalD = 0;
-function totalWipe(at) { totalD = 5000 + Math.round(tLeft) * 250; score += totalD; banner('💥 TOTAL DESTRUCTION! 💥'); popup(at.clone().setY(4), '+' + totalD + ' TIME BONUS', '#ffd24a'); sfx.boom(); setTimeout(() => sfx.boom(), 300); flashT = 0.5; }
+function totalWipe(at) { totalD = 5000 + Math.round(tLeft) * 250; score += totalD; banner('THE TOWN WAS DESTROYED'); popup(at.clone().setY(4), '+' + totalD + ' TIME BONUS', '#ffd24a'); sfx.boom(); setTimeout(() => sfx.boom(), 300); flashT = 0.5; }
 function finishNow() {
   state = 'over'; mini = null; miniEl.className = 'hidden'; stopMusic(); setPlaneEngine(0); sUp(stick.id); clearTips(); const done = poiOrder.filter((k) => pois[k].done); for (const k of poiOrder) if (pois[k].arrow) pois[k].arrow.style.display = 'none'; rivalEl.classList.add('hidden'); rivalArrow.style.display = 'none'; for (const pl of planes) pl.arrow.style.display = 'none';
   let best = 0; const bk = bestKey('kj', level); try { best = +localStorage.getItem(bk) || 0; if (score > best) { best = score; localStorage.setItem(bk, String(score)); } } catch { /* ignore */ }
@@ -900,7 +900,7 @@ function finishNow() {
   $('taEndTitle').innerHTML = died ? 'KAIJU<br>DOWN' : cleared ? (level === LEVELS.length ? 'MEGACITY<br>CRUSHED' : 'LEVEL ' + level + '<br>CRUSHED') : "TIME'S<br>UP";
   $('taAgain').textContent = cleared && level < LEVELS.length ? 'NEXT LEVEL' : cleared ? 'PLAY AGAIN' : 'TRY AGAIN'; $('taAgain').dataset.next = cleared && level < LEVELS.length ? '1' : '';
   $('taGoalLine').textContent = died ? 'The army got you. Eat more people to grow back, and walk out of the napalm.' : cleared ? (level < LEVELS.length ? 'Level ' + (level + 1) + ' unlocked: ' + LEVELS[level].name + '.' : 'Every town crushed. Monster.') : 'Flatten ' + L().goal + '% of ' + L().name + ' and take out ' + (need >= poiOrder.length ? 'every big target' : need + ' big targets') + ' (you got ' + pct + '% and ' + done.length + ').';
-  if (totalD) { $('taEndTitle').innerHTML = 'TOTAL<br>DESTRUCTION!'; totalReward(unlockedKaiju().flatMap((k) => Object.keys(KAIJU_SKINS[k]).map((lk) => 'kaiju:' + k + ':' + lk)), (id) => { const [, k, lk] = id.split(':'); return KAIJU_SKINS[k][lk].name; }, $('taGoalLine')); }
+  if (totalD) { $('taEndTitle').innerHTML = 'THE TOWN WAS<br>DESTROYED'; totalReward(unlockedKaiju().flatMap((k) => Object.keys(KAIJU_SKINS[k]).map((lk) => 'kaiju:' + k + ':' + lk)), (id) => { const [, k, lk] = id.split(':'); return KAIJU_SKINS[k][lk].name; }, $('taGoalLine')); }
   if (cleared && level < LEVELS.length) level++; /* the next town is open and picked right away, wherever you go from here (change monster, the shop, NEXT LEVEL) */
   drawLevels(); /* and the start screen shows the new best score without a reload */
   $('taStats').innerHTML = [...(totalD ? [['💥 Total destruction', '+' + totalD]] : []), ['Buildings', bDone + ' / ' + totalB + ' (' + pct + '%)'], ['People eaten', peopleN], ['Cars wrecked', carsN], ['Rivals KO\'d', ko], ['Big targets', done.length + ' / ' + poiOrder.length + ' ' + done.map((k) => POI[k].icon).join('')], ['Biggest', STAGE[topStage]], ['Score', score], ['Score coins', '+' + scoreCoins + ' 🪙'], ['Best', best]].map(([a, b]) => '<tr><td>' + a + '</td><td>' + b + '</td></tr>').join('');
@@ -956,7 +956,7 @@ $('taPause').addEventListener('click', togglePause); $('taResume').addEventListe
 const right = new THREE.Vector3(), upv = new THREE.Vector3(), tmp = new THREE.Vector3(); let frameN = 0;
 const hudCache = {}; const setT = (id, v) => { v = String(v); if (hudCache[id] !== v) { hudCache[id] = v; $(id).textContent = v; } };
 function update(dt) {
-  played += dt; tLeft -= dt; if (tLeft <= 0) { tLeft = 0; finish(); return; }
+  played += dt; if (!(totalD && rival)) tLeft -= dt; /* town destroyed: the clock waits for a fight to finish */ if (tLeft <= 0) { tLeft = 0; finish(); return; }
   if (played > 1) tip('kj_walk', '👆 Tap a spot to walk there. Your kaiju eats people and smashes things on its own.'); if (power >= 1 && !tipsSeen('kj_cast')) tip('kj_power', '⚡ Power full! Tap an enemy or a spot to cast ' + KAIJU[me.id].spells[stage - 1] + '.');
   const g = me.g, K = KAIJU[me.id];
   // size = health: the bar, the stage, the scale
@@ -1036,7 +1036,7 @@ function update(dt) {
   setT('taScore', score); setT('taCombo', mult() > 1 && played - lastHit < 2.5 ? 'x' + mult() + ' COMBO' : ''); setT('taRank', STAGE[stage]); setT('taPct', Math.round((bDone / totalB) * 100) + '% destroyed'); setT('taPeople', peopleN + ' eaten');
   { const w = (meF * 100).toFixed(1) + '%'; if (hudCache.grow !== w) { hudCache.grow = w; $('taGrowFill').style.width = w; } const pw = Math.round(power * 100) + '%'; if (hudCache.pw !== pw) { hudCache.pw = pw; $('kjPowerFill').style.width = pw; $('kjPower').classList.toggle('full', power >= 1); setT('kjPowerTxt', power >= 1 ? '⚡ ' + K.spells[stage - 1].toUpperCase() + ' READY: TAP A TARGET' : '⚡ POWER'); } }
   setStormLevel(stage * 2 - 1 + (rival && rival.hp > 0 ? 1 : 0));
-  if (Math.round((bDone / totalB) * 100) >= 100 && poiOrder.every((k) => pois[k].done)) { /* as soon as the HUD reads 100% (it rounds, so a stray building or two can't hold the round open) */ if (!totalD && !died) totalWipe(me.g.position); tLeft = Math.min(tLeft, 1.5); }
+  if (Math.round((bDone / totalB) * 100) >= 100 && poiOrder.every((k) => pois[k].done)) { /* as soon as the HUD reads 100% (it rounds, so a stray building or two can't hold the round open) */ if (!totalD && !died) totalWipe(me.g.position); rivalQueue = []; if (!rival) tLeft = Math.min(tLeft, 1.5); }
   { let n = 0; for (const k of poiOrder) { const P = pois[k]; if (P.done) { n++; continue; } const ready = stage >= POI[k].stage; if (P.chip) P.chip.classList.toggle('ready', ready); P.arrow.classList.toggle('ready', ready); edgeArrow(P.arrow, P.center, true); }
     const need = Math.min(L().need, poiOrder.length); setT('taTargets', '🎯 ' + n + '/' + need); if (hudCache.tgtOk !== (n >= need)) { hudCache.tgtOk = n >= need; $('taTargets').style.color = n >= need ? '#7dff3a' : ''; } }
   mapT -= dt; if (mapT <= 0) { mapT = 0.08; drawMini(); }
