@@ -48,7 +48,7 @@
   </style>
 </head>
 <body>
-  <div id="intro"><img id="introEnd" src="./intro-end.jpg" alt=""><video id="introVid" src="./intro.mp4" muted autoplay playsinline webkit-playsinline preload="auto" poster="./intro-start.jpg"></video></div>
+  <div id="intro"><img id="introEnd" src="./intro-end.jpg" alt=""><video id="introVid" muted preload="none" playsinline webkit-playsinline preload="auto" poster="./intro-start.jpg"></video></div>
   <button id="skipIntro" class="ghost">SKIP ▶</button>
   <div id="menu" class="screen">
     <button class="choice" onclick="location.href='tornado.html'"><b>🌪️ PLAY TORNADO ALLEY</b><span>Five towns, ten big targets, seeding planes and storm chasers. New? Try the tutorial.</span></button>
@@ -57,6 +57,7 @@
     <button class="choice hidden" onclick="location.href='deadcity.html'"><b>DEAD CITY (SURVIVAL)</b><span>Third-person joystick. Six nights, spells, guns, vehicles, survivors and a chopper at dawn.</span><span class="saved" id="dcSaved"></span></button>
     <button class="choice hidden" onclick="location.href='zombieville.html'"><b>EXTRACT</b><span>Snake-style maze run. Gather a line of survivors and get them out by heli. Ten districts.</span><span class="saved" id="zvSaved"></span></button>
     <button class="choice" onclick="location.href='store.html'" style="margin-top:14px;border-color:#ffd24a;box-shadow:0 6px 0 #5a4a1a"><b style="color:#ffd24a">SKIN SHOP</b><span>Spend your coins on tornado skins, townsfolk outfits and the cars in town.</span><span class="saved" id="coins"></span></button>
+    <button class="choice" id="radioBtn" style="border-color:#3af0ff;box-shadow:0 6px 0 #1a4a5a"><b style="color:#3af0ff">📻 RADIO STATION</b><span>Pick which songs play while you wreck the town.</span></button>
 
     <p class="credits">All monsters, robots and characters are original creations. Any resemblance to other characters is coincidental.</p>
   </div>
@@ -75,9 +76,10 @@
       const blocked = () => ready();
       const start = () => { const pr = v.play(); if (pr && pr.catch) pr.catch(blocked); setTimeout(() => { if (!done && v.paused && v.currentTime === 0) blocked(); }, 2500); };
       // only the first visit plays the clip; coming back to the menu (from a game, the shop...) goes straight to it
-      let seen = false; try { seen = sessionStorage.getItem('intro_seen') === '1'; sessionStorage.setItem('intro_seen', '1'); } catch { /* ignore */ }
+      const seen = true; // the intro clip is off: the menu shows straight away on its final frame
       if (seen) { v.removeAttribute('autoplay'); v.pause(); v.style.display = 'none'; ready(); } else start(); document.getElementById('skipIntro').addEventListener('click', () => { v.pause(); ready(); }); window.__introReady = () => done;
-      addEventListener('pageshow', (e) => { if (!e.persisted) return; done = false; document.body.classList.remove('ready'); v.currentTime = 0; start(); }); }</script>
+      }</script>
+  <script type="module">import { openRadio } from './src/radioBox.js'; document.getElementById('radioBtn').addEventListener('click', openRadio);</script>
   <script>
     try { if (localStorage.getItem('oo_save_dc')) document.getElementById('dcSaved').textContent = 'Saved game: night ' + (JSON.parse(localStorage.getItem('oo_save_dc')).night + 1); } catch (e) {}
     try { const c = Math.round(+JSON.parse(localStorage.getItem('oo_coins') || '0') * 100) / 100; document.getElementById('coins').textContent = c ? '🪙 ' + c + (c === 1 ? ' coin' : ' coins') : ''; } catch (e) {}

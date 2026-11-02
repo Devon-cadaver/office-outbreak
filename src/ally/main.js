@@ -1,3 +1,4 @@
+import { radioButton } from '../radioBox.js';
 // Tornado Alley: you are the storm. Steer a tornado through town, rip up houses and towers, suck up the people,
 // and take out the big targets (power plant, water station, fairground and more on bigger maps). The more you wreck, the bigger you
 // grow, up to three times your starting size; tall towers only give way once you're big enough.
@@ -554,7 +555,7 @@ $('twPickDone').addEventListener('click', () => { $('twPickScr').classList.add('
 drawTwPicker();
 soundToggle($('taStart'), $('taPaused')); skipSongBtn($('ta')); eraPicker($('taLevels')); // sound on/off on the start and pause screens
 // the soundtrack starts on the first tap and keeps rotating songs for as long as you're on Tornado Alley
-gameMusic($('taPaused'), SONGS_TORNADO);
+gameMusic($('taPaused'), SONGS_TORNADO); radioButton($('taPaused'), $('taPaused').querySelector('.menuBtn'));
 const fsMode = initFullscreen(() => state === 'play'); // full screen on play, back in after a browser drop-out, no page scrolling mid-round
 function start(tutorial = false) {
   fsMode.play();

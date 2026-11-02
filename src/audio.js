@@ -203,7 +203,7 @@ function applyVol() { const v = VOLS[volI][1]; if (songGain) songGain.gain.value
 function routeSong() { if (!song || songGain || !ctx) return; try { songGain = ctx.createGain(); ctx.createMediaElementSource(song).connect(songGain).connect(musicSw); song.volume = 1; } catch { songGain = null; } applyVol(); }
 export function playSongs() {
   if (FRAME) return FRAME.playSongs(); if (musicOn) stopMusic(); /* a round starting hands over from the menu beat to the songs */
-  if (!song) { if (!SONGS[songI]) { let first = false; try { first = !localStorage.getItem('oo_theme_heard'); localStorage.setItem('oo_theme_heard', '1'); } catch { /* ignore */ } songI = first ? 0 : pickNext(); if (first) order = order.filter((i) => i !== 0); } /* someone's very first round opens with the theme, Tornado Alley */ song = new Audio(); song.preload = 'auto'; song.loop = repeat || SONGS.length === 1; song.src = SONGS[songI];
+  if (!song) { if (!SONGS[songI]) { let first = false; try { first = !localStorage.getItem('oo_theme_heard'); localStorage.setItem('oo_theme_heard', '1'); } catch { /* ignore */ } songI = first && onAir().includes(0) ? 0 : pickNext(); if (first) order = order.filter((i) => i !== 0); } /* someone's very first round opens with the theme, Tornado Alley */ song = new Audio(); song.preload = 'auto'; song.loop = repeat || SONGS.length === 1; song.src = SONGS[songI];
     if (resumeAt > 1) { const t = resumeAt; song.addEventListener('loadedmetadata', () => { if (t < song.duration - 2) song.currentTime = t; }, { once: true }); }
     song.addEventListener('ended', () => nextSong()); applyVol(); }
   routeSong(); song.muted = musicMuted; if (song.paused && !musicMuted) song.play().catch(() => {});
@@ -214,15 +214,21 @@ export function playSongs() {
 export function menuMusic() { if (FRAME) return FRAME.menuMusic(); unlockAudio(); if (song) playSongs(); else startMusic(); }
 export function radio() { if (FRAME) return FRAME.menuMusic(); menuMusic(); const go = () => { unlockAudio(); menuMusic(); }; addEventListener('pointerdown', go, true); addEventListener('keydown', go, true); }
 // a shuffled bag: deal songs out in random order, reshuffle when it runs dry (never the same song twice in a row)
-function pickNext() { if (!order.length) { order = SONGS.map((_, i) => i); for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; } if (song && order.length > 1 && order[0] === songI) order.push(order.shift()); } return order.shift(); }
+// the radio station on the main menu can switch songs off; off songs are skipped (if all are off, everything plays)
+export const songName = (src) => src.split('/').pop().replace('.mp3', '').replace(/-/g, ' ').toUpperCase();
+export function songsOff() { try { return JSON.parse(localStorage.getItem('oo_radio_off') || '[]'); } catch { return []; } }
+const onAir = () => { const off = songsOff(), on = SONGS.map((_, i) => i).filter((i) => !off.includes(SONGS[i])); return on.length ? on : SONGS.map((_, i) => i); };
+function pickNext() { if (order.length && !order.every((i) => onAir().includes(i))) order = order.filter((i) => onAir().includes(i)); if (!order.length) { order = onAir(); for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; } if (song && order.length > 1 && order[0] === songI) order.push(order.shift()); } return order.shift(); }
 export function nextSong() { if (FRAME) return FRAME.nextSong(); if (!song) return playSongs(); songI = pickNext(); resumeAt = 0; song.src = SONGS[songI]; if (!musicMuted) song.play().catch(() => {}); saveRadio(); }
+// play one song now (the radio station's ▶): the shuffle carries on from it afterwards
+export function playSong(src) { if (FRAME) return FRAME.playSong(src); const i = SONGS.indexOf(src); if (i < 0) return; if (!song) { playSongs(); if (!song) return; } songI = i; resumeAt = 0; order = order.filter((k) => k !== i); song.src = SONGS[i]; if (!musicMuted) song.play().catch(() => {}); saveRadio(); }
 export function songState() { if (FRAME) return FRAME.songState(); return song ? { t: song.currentTime, paused: song.paused, muted: song.muted, src: SONGS[songI], loop: song.loop, vol: VOLS[volI][0], list: SONGS.length } : null; }
 function toggleRepeat() { repeat = !repeat; if (song) song.loop = repeat || SONGS.length === 1; saveRadio(); return repeat; }
 function cycleVol() { volI = (volI + 1) % VOLS.length; applyVol(); try { localStorage.setItem('oo_music_vol', volI); } catch { /* ignore */ } return VOLS[volI][0]; }
 // the frame page shares its radio with the pages inside it
 // wake the radio after iOS paused it (Control Center, a call, another app): resume the audio engine and the song
 function wake() { unlockAudio(); if (song && song.paused && !musicMuted) song.play().catch(() => {}); }
-export function frameRadio() { window.__radio = { wake, menuMusic, playSongs, nextSong, songState, toggleRepeat, cycleVol, setMuted, setMusicMuted, get repeat() { return repeat; }, get volName() { return VOLS[volI][0]; } }; }
+export function frameRadio() { window.__radio = { wake, menuMusic, playSongs, nextSong, playSong, songState, toggleRepeat, cycleVol, setMuted, setMusicMuted, get repeat() { return repeat; }, get volName() { return VOLS[volI][0]; } }; }
 // a game page's soundtrack: starts on the first tap and keeps going; SKIP SONG, REPEAT and VOLUME on the given screen
 export function gameMusic(host, list) {
   radio();

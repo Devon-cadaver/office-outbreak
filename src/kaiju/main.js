@@ -1,3 +1,4 @@
+import { radioButton } from '../radioBox.js';
 // Kaiju Madness: you are the monster. It plays like Tornado Alley, but the city fights back for real. You stomp through
 // town eating people (that's how you grow), your kaiju hits whatever's closest on its own, and a tap walks you somewhere,
 // or, when your Power bar is full, casts your spell at what you tapped. One bar is your size and your health: the army,
@@ -840,7 +841,7 @@ addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; if (mini &
 let state = 'start', died = false, roundId = 0; // roundId: delayed effects from an earlier round check it and stand down
 soundToggle($('taStart'), $('taPaused')); skipSongBtn($('ta')); eraPicker($('taLevels')); // sound on/off on the start and pause screens
 // the soundtrack starts on the first tap and keeps rotating songs for as long as you're on Kaiju Madness
-gameMusic($('taPaused'), SONGS_KAIJU);
+gameMusic($('taPaused'), SONGS_KAIJU); radioButton($('taPaused'), $('taPaused').querySelector('.menuBtn'));
 const fsMode = initFullscreen(() => state === 'play'); // full screen on play, back in after a browser drop-out, no page scrolling mid-round
 function start() {
   fsMode.play();
