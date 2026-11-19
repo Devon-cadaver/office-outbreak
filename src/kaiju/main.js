@@ -229,12 +229,12 @@ const caster = (k, st) => ({ id: k.id, rig: k, g: k.g, stage: st });
 const spells = createSpells({ scene, fx, sfx, flash: (k) => { flashT = Math.max(flashT, k); }, dark: (s) => { darkT = Math.max(darkT, s); },
   hitArea, grabCar, grabBuilding, leap: (c, to, secs, onLand, h = 4, step = null, hide = false) => { if (c.rig === me) { leap = { from: me.g.position.clone(), to: to.clone(), t: 0, secs, onLand, h, step, hide, stepT: 0 }; if (hide) me.body.visible = false; } else onLand(); } });
 const sinking = [];
-function crumble(x, label, fire) {
+function crumble(x, label, fire, from, squash) { // from: where the blow came from. squash: trodden flat by something far bigger
   // a building comes down in a cloud of dust
   free(x.obj); x.done = true; bDone++; { const i = city.obstacles.findIndex((o) => Math.abs(o.x - x.pos.x) < 0.3 && Math.abs(o.z - x.pos.z) < 0.3); if (i >= 0) city.obstacles.splice(i, 1); }
   if (x.b.userData.edges) x.b.userData.edges.visible = false; const ex = x.obj === x.b ? (x.b.userData.extras || []).filter((m) => m.parent) : [];
-  // it cracks, then comes down as pieces of itself (walls with their windows, the floors inside), from the bottom up
-  twisters.tear(x.obj, x.pos, new THREE.Box3().setFromObject(x.obj).getSize(new THREE.Vector3()), null, [], ex, { collapse: true });
+  // it cracks, then bursts into pieces of itself (walls with their windows, the floors inside), thrown away from the blow
+  twisters.tear(x.obj, x.pos, new THREE.Box3().setFromObject(x.obj).getSize(new THREE.Vector3()), null, [], ex, { collapse: true, from: from || null, power: 0.8 + Math.min(1.2, meScale * 0.25), squash: !!squash });
   fx.puff('smoke', new THREE.Vector3(x.pos.x, 0.8, x.pos.z), 1.2 + x.h * 0.15); if (fire) fx.ignite(new THREE.Vector3(x.pos.x, 0.5, x.pos.z), 0.9, 5);
   for (let i = 0; i < 7; i++) { const a = (i / 7) * 6.28 + Math.random(); fx.dust({ x: x.pos.x + Math.cos(a) * 1.1, y: 0, z: x.pos.z + Math.sin(a) * 1.1 }, 0.8 + x.h * 0.12, Math.cos(a) * 2, Math.sin(a) * 2); } fx.sparks({ x: x.pos.x, y: Math.min(2, x.h * 0.5), z: x.pos.z }, 6, { speed: 4, up: 3, life: 0.45 }); jolt(Math.min(0.45, 0.1 + x.h * 0.05));
   spill(x.pos, Math.min(6, 2 + Math.floor(x.h * 0.7))); award(x.pts, x.pos, label); grow(x.h * 0.35); power = Math.min(1, power + 0.025); sfx.crunch(x.h > 5); if (x.h > 5) { sfx.boom(); flashT = Math.max(flashT, 0.1); } else if (Math.random() < 0.5) sfx.hit();
@@ -254,7 +254,7 @@ function blowCar(g, q) { free(g); twisters.scatter([g], q, 6); fx.explode(q.clon
 function hitArea(c, r, pow, o = {}) {
   if (o.hostile) { if (me && Math.hypot(me.g.position.x - c.x, me.g.position.z - c.z) < r + reach() * 0.6) hurt(pow * 0.13, true); return; }
   const cap = megaT > 0 || o.mega ? 99 : MAX_H[Math.min(3, stage + 1)];
-  for (const x of buildings) { if (x.done) continue; const d = Math.hypot(x.pos.x - c.x, x.pos.z - c.z); if (d > r) continue; if (x.h <= cap) crumble(x, o.freeze ? 'SHATTERED' : '', o.fire); else if (o.fire) fx.ignite(new THREE.Vector3(x.pos.x, 1, x.pos.z), 0.8, 4); }
+  for (const x of buildings) { if (x.done) continue; const d = Math.hypot(x.pos.x - c.x, x.pos.z - c.z); if (d > r) continue; if (x.h <= cap) crumble(x, o.freeze ? 'SHATTERED' : '', o.fire, c); else if (o.fire) fx.ignite(new THREE.Vector3(x.pos.x, 1, x.pos.z), 0.8, 4); }
   for (let i = people.length - 1; i >= 0; i--) { const p = people[i]; if (Math.hypot(p.position.x - c.x, p.position.z - c.z) < r) { people.splice(i, 1); peopleN++; award(20, p.position); grow(0.5); if (o.push) twisters.scatter([p], c, 6); else { scene.remove(p); fx.puff(o.freeze ? 'smoke' : 'flame', p.position.clone().setY(0.3), 0.4); } } }
   for (let i = drivers.length - 1; i >= 0; i--) { const q = drivers[i].g.position; if (Math.hypot(q.x - c.x, q.z - c.z) < r + 0.5) { const g = drivers[i].g; drivers.splice(i, 1); blowCar(g, q.clone()); } }
   for (let i = cars.length - 1; i >= 0; i--) { const q = cars[i].getWorldPosition(new THREE.Vector3()); if (Math.hypot(q.x - c.x, q.z - c.z) < r + 0.5) { const g = cars[i]; cars.splice(i, 1); blowCar(g, q); } }
@@ -480,7 +480,8 @@ function rangedAttack() { if (!rangedOk()) return; const r = rival, P = me.g.pos
     let mesh = grabBuilding(P); if (!mesh) { mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ color: 0x5a6a7c })); mesh.scale.set(2, 3.4, 2); scene.add(mesh); }
     me.act('cast'); banner(me.hammer ? 'WARRANT SERVED!' : 'BUILDING TOSS!'); sfx.throw(); const a0 = P.clone().setY(meScale * 2.4); mesh.position.copy(a0);
     anims.push({ wait: 0.25, t: 0, dur: 0.75, go() {}, f(k) { const to = r.g.position.clone().setY(r.scale); mesh.position.lerpVectors(a0, to, k); mesh.position.y += Math.sin(k * Math.PI) * meScale * 1.5; mesh.rotation.x += 0.2; mesh.rotation.z += 0.13; },
-      end() { scene.remove(mesh); if (rival === r && r.hp > 0) { const at = r.g.position.clone(); fx.explode(at.clone().setY(r.scale * 0.8), Math.min(2.4, 0.5 * r.scale)); sfx.boom(); flashT = Math.max(flashT, 0.2); hitRival(RIVAL_HP * 0.08); if (rival === r) { r.daze = Math.min(1, r.daze + 0.15); r.stun = Math.max(r.stun, 1); popup(at.clone().setY(r.scale * 2.2), 'DIRECT HIT!', '#ffd24a'); } } } }); }
+      end() { twisters.tear(mesh, mesh.position.clone(), new THREE.Box3().setFromObject(mesh).getSize(new THREE.Vector3()), null, [], [], { collapse: true, now: true, from: a0, power: 1.6 }); // it smashes to pieces on the rival
+        if (rival === r && r.hp > 0) { const at = r.g.position.clone(); fx.explode(at.clone().setY(r.scale * 0.8), Math.min(2.4, 0.5 * r.scale)); sfx.boom(); flashT = Math.max(flashT, 0.2); hitRival(RIVAL_HP * 0.08); if (rival === r) { r.daze = Math.min(1, r.daze + 0.15); r.stun = Math.max(r.stun, 1); popup(at.clone().setY(r.scale * 2.2), 'DIRECT HIT!', '#ffd24a'); } } } }); }
   else { spells.cast(caster(me, stage), stage, r.g.position.clone()); banner(KAIJU[me.id].spells[stage - 1].toUpperCase() + '!'); if (rival === r) { r.daze = Math.min(1, r.daze + 0.1); r.stun = Math.max(r.stun, 1); } }
   // ...then charge: a run-up and a leap that lands right on it
   const elbow = me.hammer || me.wrestler;
@@ -843,7 +844,7 @@ mapEl.addEventListener('pointerdown', (e) => { e.stopPropagation(); e.preventDef
 function wreckPoi(k) {
   const P = pois[k]; P.done = true; if (P.mark) { scene.remove(P.mark); P.mark = null; } const g = new THREE.Group(); g.position.copy(P.center); scene.add(g);
   for (const hz of P.hz) { live(hz); for (const part of hz.parts || []) if (part.parent) g.attach(part); const i = city.obstacles.findIndex((o) => Math.abs(o.x - hz.pos.x) < 0.3 && Math.abs(o.z - hz.pos.z) < 0.3); if (i >= 0) city.obstacles.splice(i, 1); }
-  const parts = g.children.slice(); twisters.scatter(parts, P.center, 5); scene.remove(g); for (const m of parts) if (!m.parent) scene.add(m);
+  twisters.tear(g, P.center, new THREE.Box3().setFromObject(g).getSize(new THREE.Vector3()), null, [], [], { collapse: true, now: true, from: me ? me.g.position : null, power: 1.5 }); jolt(1); // it bursts into pieces of itself
   award(POI[k].pts, P.center, POI[k].name); grow(massTarget * 0.04); power = Math.min(1, power + 0.3); sfx.wave(); sfx.boom(); fx.explode(new THREE.Vector3(P.center.x, 1, P.center.z), 2.2); flashT = 0.3;
   { const chip = $('poi_' + k); if (chip) { chip.classList.remove('ready'); chip.classList.add('done', 'boom'); } if (P.arrow) P.arrow.style.display = 'none'; }
   if (k === 'power') { banner('BLACKOUT!'); hemi.intensity *= 0.55; sun.intensity *= 0.6; city.group.traverse((m) => { const mt = m.material; if (mt && !Array.isArray(mt) && mt.isMeshBasicMaterial && mt.color && mt.color.getHex() === 0xf6e94a) mt.color.setHex(0x22232a); }); }
@@ -1061,7 +1062,7 @@ function update(dt) {
   // stomping: buildings it walks into come down (if it's big enough)
   tooBigT -= dt;
   for (const x of buildings) { if (x.done) continue; const d = Math.hypot(x.pos.x - px, x.pos.z - pz); if (d > R + 1.0) continue;
-    if (x.h <= (megaT > 0 ? 99 : MAX_H[stage])) { crumble(x); if (Math.random() < 0.4) smashAct(); } else if (tooBigT <= 0) { tooBigT = 2; popup(x.pos, 'TOO BIG - EAT MORE!', '#ff7a5a'); } }
+    if (x.h <= (megaT > 0 ? 99 : MAX_H[stage])) { crumble(x, undefined, false, me.g.position, meScale * 1.5 > x.h * 1.6); if (Math.random() < 0.4) smashAct(); } else if (tooBigT <= 0) { tooBigT = 2; popup(x.pos, 'TOO BIG - EAT MORE!', '#ff7a5a'); } }
   for (const k of poiOrder) { const P = pois[k]; if (P.done || !P.hz.length) continue; if (Math.hypot(P.center.x - px, P.center.z - pz) > R + P.reach) continue;
     if ((megaT > 0 ? 3 : stage) >= POI[k].stage) { smashAct(); wreckPoi(k); } else if (tooBigT <= 0) { tooBigT = 2; popup(P.center, 'NEED ' + STAGE[POI[k].stage] + '!', '#ff7a5a'); } }
   // people: they run, and the ones it reaches get eaten

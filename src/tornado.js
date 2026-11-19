@@ -87,7 +87,7 @@ export function createTwisters(scene, { onBolt } = {}) {
   function bendMesh(tw, m, rot) { const P = m.geometry.attributes.position, A = P.array, B = m.userData.base || (m.userData.base = A.slice()), ca = Math.cos(rot), sa = Math.sin(rot);
     for (let q = 0; q < A.length; q += 3) { const b = bendAt(tw, B[q + 1]); A[q] = B[q] + b.x * ca - b.z * sa; A[q + 2] = B[q + 2] + b.x * sa + b.z * ca; } P.needsUpdate = true; }
   function make(big, extras = [], skinKey = null, opts = {}) {
-    const H = big ? 11 : 4.5, r0 = big ? 0.35 : 0.18, r1 = big ? 3.6 : 1.3; const skin = TWISTER_SKINS[skinKey] || null;
+    const H = big ? 11 : 4.5, r0 = big ? 0.35 : 0.18, r1 = big ? 3.6 : 1.3; const skin = opts.skin || TWISTER_SKINS[skinKey] || null; /* opts.skin: a look of its own that isn't in the shop (the rogue twister) */
     const g = new THREE.Group(); const tw = { g, big, H, r0, r1, t: Math.random() * 10, layers: [], junk: null, items: [], boltT: 1, k: 1, skin, skinKey, fxT: 0, baby: !!opts.baby, babyT: 1.5, bx: 0, bz: 0, wob: big ? 1 : 0.45, lut: new Float32Array(66), prev: null, flash: 0, dustT: 0, capHex: skin ? skin.cloud : 0x3a3a46 };
     const mats = layerMats.map((m, i) => { const c = m.clone(); c.map = m.map.clone(); c.map.needsUpdate = true; if (skin) { c.color.setHex(skin.layers[i]); c.opacity = skin.op[i]; if (skin.glow && i > 0) c.blending = THREE.AdditiveBlending; } return c; });
     const capMat = skin ? cloudMat.clone() : cloudMat; if (skin) capMat.color.setHex(skin.cloud); const skirtMat = skin ? dustMat.clone() : dustMat; if (skin) skirtMat.color.setHex(skin.dust);
@@ -121,7 +121,7 @@ export function createTwisters(scene, { onBolt } = {}) {
     twisters.push(tw); g.userData.twister = tw; return g;
   }
 
-  function remove(g) { const i = twisters.findIndex((t) => t.g === g); if (i >= 0) twisters.splice(i, 1); scene.remove(g); }
+  function remove(g, gone) { const i = twisters.findIndex((t) => t.g === g); if (i >= 0) { if (gone) dispose(twisters[i]); twisters.splice(i, 1); } scene.remove(g); } // gone: it is never coming back, so its GPU resources go too
   // free a twister's own GPU resources (babies come and go all round)
   function dispose(tw) { for (const m of tw.own || []) { if (m.map) m.map.dispose(); m.dispose(); } for (const L of [...tw.layers, ...(tw.neon || [])]) L.geometry.dispose(); for (const m of [tw.cap, tw.dust, tw.junk, tw.lights]) if (m) m.dispose(); }
 
@@ -144,7 +144,7 @@ export function createTwisters(scene, { onBolt } = {}) {
     const toGround = Math.random() < 0.55; const reach = 3 + Math.random() * 5;
     const end = toGround ? new THREE.Vector3(g.position.x + Math.cos(a) * (r + reach), 0.05, g.position.z + Math.sin(a) * (r + reach)) : new THREE.Vector3(g.position.x + Math.cos(a + 0.8) * (r + reach * 0.6), (tw.H + 0.5) * g.scale.y, g.position.z + Math.sin(a + 0.8) * (r + reach * 0.6));
     zaps.bolt(start, end, { ...boltLook(tw), w: 0.1 + 0.09 * sc, minPx: 5, life: 0.2 + Math.random() * 0.1, jit: 0.9 * Math.max(0.6, sc), forks: 2 }); tw.flash = 1;
-    if (onBolt) onBolt(end, toGround);
+    if (onBolt) onBolt(end, toGround, tw);
   }
   // the bolt the storm throws at a spot (a tap, a plane, a chaser): out of the cloud, arcing over and down. Returns its glow colour
   function strikeAt(tw, p) { const g = tw.g, sc = g.scale.x, dx = p.x - g.position.x, dz = p.z - g.position.z, d = Math.hypot(dx, dz) || 1, r = Math.min(d * 0.5, radiusAt(tw, tw.H) * sc * 0.75), b = bendAt(tw, tw.H), look = boltLook(tw);
@@ -155,14 +155,16 @@ export function createTwisters(scene, { onBolt } = {}) {
   // sparks and glass); a small house may be plucked up whole and spun. Then it breaks along jagged cracks into real pieces
   // of itself (wreck.js: its own walls with their windows, its roof, the floors inside), which hang there trembling and are
   // torn away from the top down into the funnel, some of them on fire, before being flung out to lie in the street.
-  // parts: other meshes that belong to it (cornice, shopfront, roof clutter). o.collapse: no storm, it just comes down.
+  // parts: other meshes that belong to it (cornice, shopfront, roof clutter). o.collapse: no storm, it is knocked apart:
+  // o.from is where the blow came from (pieces burst away from it), o.power how hard, o.squash flattens it instead (trodden
+  // on by something far bigger), o.push is a velocity every piece carries on with, o.now skips the shudder.
   const CRACK = 0.26, LIFT = 0.7;
   function tear(obj, center, size, tw, loose = [], parts = [], o = {}) {
     const cols = []; obj.traverse((m) => { if (m.isMesh && m.material) { const mt = Array.isArray(m.material) ? m.material[0] : m.material; if (mt.color) cols.push(mt.color.getHex()); } });
     if (!cols.length) cols.push(0x8a8f96);
     const lift = !!tw && !obj.isMesh && size.y < 2.7 && size.x < 2.7 && size.z < 2.7 && Math.random() < 0.45;
     for (const m of loose) { if (!m.parent) continue; m.getWorldPosition(tmpP); scene.attach(m); addChunk(m, tw, (lift ? LIFT : CRACK) + Math.random() * 0.3); }
-    chunks.push({ shell: obj, t: 0, base: obj.position.clone(), s0: obj.scale.clone(), r0: obj.rotation.clone(), tw, lift, spec: { cols, size: size.clone(), center: center.clone(), parts, collapse: !!o.collapse } });
+    chunks.push({ shell: obj, t: o.now ? CRACK : 0, base: obj.position.clone(), s0: obj.scale.clone(), r0: obj.rotation.clone(), tw, lift, spec: { cols, size: size.clone(), center: center.clone(), parts, collapse: !!o.collapse, from: o.from ? o.from.clone() : null, power: o.power || 1, squash: !!o.squash, push: o.push ? o.push.clone() : null } });
     if (fx) { const n = Math.min(8, 3 + Math.round(size.x + size.z)); for (let i = 0; i < n; i++) { const a = (i / n) * 6.28 + Math.random(); fx.dust({ x: center.x + Math.cos(a) * size.x * 0.55, y: 0, z: center.z + Math.sin(a) * size.z * 0.55 }, 0.7 + size.y * 0.12, Math.cos(a) * 1.6, Math.sin(a) * 1.6); }
       for (let i = 0; i < Math.min(4, 1 + Math.round(size.y * 0.6)); i++) { const p = { x: center.x + rnd(-0.5, 0.5) * size.x, y: rnd(0.4, 1) * size.y, z: center.z + rnd(-0.5, 0.5) * size.z }; fx.sparks(p, 5, { speed: 4, up: 2, life: 0.4 }); fx.bit(p, 0.5, 0xa8dcf0, 5); } }
   }
@@ -173,14 +175,17 @@ export function createTwisters(scene, { onBolt } = {}) {
     const frags = wreck.fracture(meshes, { coarse: few, floors: S.size.y > 1.6 && S.size.x < 6 ? Math.round(S.size.y / 1.15) : 0, box: body });
     o.visible = false; for (const p of S.parts) p.visible = false;
     let burning = 0; for (const k of chunks) if (k.burn) burning++;
+    const away = S.from ? new THREE.Vector3(mid.x - S.from.x, 0, mid.z - S.from.z) : null; if (away) { if (away.lengthSq() < 0.01) away.set(Math.random() - 0.5, 0, Math.random() - 0.5); away.normalize(); }
+    // knocked apart: each piece is thrown out from the middle, up (higher pieces more) and away from the blow
+    const burst = (k, cy) => { const up = Math.max(0, Math.min(1, (cy - body.min.y) / hgt)), sp = rnd(0.8, 2.6), a = k.out == null ? Math.random() * 6.28 : k.out; k.v0 = new THREE.Vector3(Math.cos(a) * sp, S.squash ? rnd(0.3, 1.3) : rnd(1.5, 3.5) + up * 3 * S.power, Math.sin(a) * sp); if (S.squash) k.v0.multiplyScalar(1.5).setY(k.v0.y / 1.5); if (away) k.v0.addScaledVector(away, rnd(1.2, 3.4) * S.power * (0.5 + up)); if (S.push) k.v0.add(S.push); k.wait = up * 0.14 + Math.random() * 0.1; k.spin.multiplyScalar(1.5); };
     for (const f of frags) { const m = new THREE.Object3D(); m.position.copy(f.centre); m.position.x += (f.centre.x - mid.x) * 0.07; m.position.z += (f.centre.z - mid.z) * 0.07; m.position.y += (f.centre.y - mid.y) * 0.03; // eased apart a little: the cracks open
       addChunk(m, tw, 0); const k = chunks[chunks.length - 1]; k.frag = f; k.collapse = S.collapse; k.out = tmpP.set(f.centre.x - mid.x, 0, f.centre.z - mid.z).length() > 0.01 ? Math.atan2(f.centre.z - mid.z, f.centre.x - mid.x) : Math.random() * 6.28;
       k.wait = S.collapse ? ((f.centre.y - body.min.y) / hgt) * 0.25 + Math.random() * 0.1 : ((top - f.centre.y) / hgt) * (0.3 + hgt * 0.07) + Math.random() * 0.14; // a storm peels it from the top; a collapse goes from the bottom
-      k.spin.multiplyScalar(0.3 + 0.25 / (0.4 + f.r)); if (!few && burning < 12 && Math.random() < 0.14) { k.burn = true; burning++; } wreck.place(f, m); }
+      k.spin.multiplyScalar(0.3 + 0.25 / (0.4 + f.r)); if (S.collapse) burst(k, f.centre.y); if (!few && burning < 12 && Math.random() < 0.14) { k.burn = true; burning++; } wreck.place(f, m); }
     // grit: a few small loose bits as well
     const n = Math.round((frags.length ? 3 + Math.min(5, S.size.y) : 8 + Math.min(8, S.size.y * 2)) * (few ? 0.4 : 1));
     for (let i = 0; i < n; i++) { const m = new THREE.Object3D(), s = 0.09 + Math.random() * Math.min(0.26, S.size.x * 0.12);
-      m.scale.set(s, 0.06 + Math.random() * s * 0.6, s * (0.4 + Math.random() * 0.8)); m.position.set(mid.x + (Math.random() - 0.5) * S.size.x, body.min.y + Math.random() * hgt, mid.z + (Math.random() - 0.5) * S.size.z); addChunk(m, tw, i * 0.03); const k = chunks[chunks.length - 1]; k.inst = true; k.hex = S.cols[(Math.random() * S.cols.length) | 0]; k.collapse = S.collapse; }
+      m.scale.set(s, 0.06 + Math.random() * s * 0.6, s * (0.4 + Math.random() * 0.8)); m.position.set(mid.x + (Math.random() - 0.5) * S.size.x, body.min.y + Math.random() * hgt, mid.z + (Math.random() - 0.5) * S.size.z); addChunk(m, tw, i * 0.03); const k = chunks[chunks.length - 1]; k.inst = true; k.hex = S.cols[(Math.random() * S.cols.length) | 0]; k.collapse = S.collapse; if (S.collapse) burst(k, m.position.y); }
     if (fx) { for (let i = 0; i < 4; i++) fx.dust({ x: mid.x + rnd(-0.5, 0.5) * S.size.x, y: body.min.y + rnd(0, 0.6) * hgt, z: mid.z + rnd(-0.5, 0.5) * S.size.z }, 0.8 + S.size.y * 0.15);
       fx.sparks(mid, few ? 4 : 9, { speed: 5, up: 3, life: 0.5 }); if (!few && S.size.y > 4.2 && Math.random() < 0.4) fx.explode(new THREE.Vector3(mid.x, mid.y * 0.8, mid.z), 0.7); } // something inside goes up: a boiler, a gas main
   }
@@ -224,7 +229,7 @@ export function createTwisters(scene, { onBolt } = {}) {
       const m = c.m; c.t += dt; if (c.t < 0) continue;
       if (c.phase === 'suck') {
         if (c.wait > 0) { c.wait -= dt; m.rotation.z = Math.sin(c.t * 45 + c.a) * (c.frag ? 0.025 : 0.05); if (c.frag) wreck.place(c.frag, m); if (c.wait <= 0 && fx && budget-- > 0) { fx.dust(m.position, 0.5 + (c.frag ? c.frag.r * 0.5 : m.scale.x * 0.4)); if (Math.random() < 0.35) fx.sparks(m.position, 3, { speed: 3, up: 2, life: 0.35 }); } continue; } // cracked but still standing: it trembles until its turn
-        const tw = c.tw; if (!tw || !tw.g.parent) { c.phase = 'fly'; if (c.collapse) { const sp = 0.8 + Math.random() * 2.2; c.vel.set(Math.cos(c.out || 0) * sp, 0.5 + Math.random() * 2, Math.sin(c.out || 0) * sp); } else c.vel.set((Math.random() - 0.5) * 6, 4, (Math.random() - 0.5) * 6); continue; }
+        const tw = c.tw; if (!tw || !tw.g.parent) { c.phase = 'fly'; if (c.v0) c.vel.copy(c.v0); else c.vel.set((Math.random() - 0.5) * 6, 4, (Math.random() - 0.5) * 6); continue; }
         if (c.burn && fx) { c.bt = (c.bt || 0) - dt; if (c.bt <= 0) { c.bt = 0.08; fx.puff('flame', m.position, 0.5 + m.scale.x * 0.3); if (Math.random() < 0.25) fx.puff('smoke', m.position, 0.5); } }
         const cx = tw.g.position.x, cz = tw.g.position.z, sc = tw.g.scale.x; c.y = Math.min(tw.H * 0.8, c.y + dt * 2.6); c.a += dt * (5 - (c.y / tw.H) * 2.5); const r = radiusAt(tw, c.y) * sc * 1.05;
         const bb = bendAt(tw, c.y), want = tmpP.set(cx + Math.cos(c.a) * r + bb.x * sc, c.y * sc, cz + Math.sin(c.a) * r + bb.z * sc); m.position.lerp(want, Math.min(1, dt * 4)); m.rotation.x += c.spin.x * dt; m.rotation.y += c.spin.y * dt; m.rotation.z += c.spin.z * dt;

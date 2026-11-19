@@ -25,7 +25,7 @@
     #taPause:active { transform: translateY(2px); box-shadow: 0 0 8px #7dff3a99, 0 2px 0 #3a1a5a; }
     #taStick { position: absolute; width: 120px; height: 120px; border-radius: 50%; background: #ffffff1a; border: 2px solid #ffffff55; transform: translate(-50%, -50%); display: none; }
     #taKnob { position: absolute; left: 50%; top: 50%; width: 48px; height: 48px; border-radius: 50%; background: #c9a6ffcc; transform: translate(-50%, -50%); }
-    #taBanner { position: absolute; left: 50%; top: 24%; transform: translateX(-50%); width: max-content; max-width: calc(100vw - 32px); text-align: center; line-height: 1.05; font-size: clamp(20px, 6vw, 40px); font-weight: 900; color: #ffd24a; text-shadow: 0 3px 0 #5a2f80, 0 6px 14px #000; white-space: normal; text-wrap: balance; opacity: 0; transition: opacity .2s; }
+    #taBanner { position: absolute; left: 50%; top: 24%; transform: translateX(-50%); width: max-content; max-width: calc(100vw - 124px); text-align: center; line-height: 1.05; font-size: clamp(20px, 6vw, 40px); font-weight: 900; color: #ffd24a; text-shadow: 0 3px 0 #5a2f80, 0 6px 14px #000; white-space: normal; text-wrap: balance; opacity: 0; transition: opacity .2s; }
     .pop { position: fixed; left: 0; top: 0; font-weight: 900; font-size: 15px; color: #ffe27a; text-shadow: 0 2px 4px #000; pointer-events: none; white-space: nowrap; }
     #taStart .poi { font-size: 14px; max-width: 360px; }
     #taLevels { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; width: min(92vw, 420px); }
@@ -41,6 +41,12 @@
     #taView { display: none !important; } /* the chase view is hidden for now */
     #taViewOld { position: absolute; right: 52px; top: calc(54px + env(safe-area-inset-top, 0)); pointer-events: auto; font-size: 11px; padding: 4px 8px; height: 26px; }
     .planeArrow { position: fixed; left: 0; top: 0; font-size: 26px; color: #9fd6ff; text-shadow: 0 0 8px #000, 0 0 3px #2a6aa0; pointer-events: none; display: none; z-index: 4; }
+    .foeArrow { font-size: 24px; filter: drop-shadow(0 0 4px currentColor); }
+    body.paused .foeTag, body.paused .planeArrow, body.paused .poiArrow, body.paused .pop, body.paused .photoBar, body.paused #taFoe { visibility: hidden; }
+    .foeTag { position: fixed; left: 0; top: 0; padding: 3px 8px; border-radius: 9px; background: #120a1edd; border: 2px solid #ffffff66; color: #fff; font-weight: 900; font-size: 12px; letter-spacing: .3px; white-space: nowrap; pointer-events: none; display: none; z-index: 4; text-shadow: 0 1px 2px #000; }
+    .foeTag.eat { border-color: #7dff3a; color: #c8ff9a; } .foeTag.run { border-color: #ff5a4a; color: #ffb4a8; } .foeTag.even { border-color: #ffd24a; color: #ffe9a0; } .foeTag.shield { border-color: #6affd8; color: #c8fff0; }
+    .foeTag.hit { border-color: #ffd24a; color: #fff2b0; background: #4a2a00dd; animation: foePulse .45s infinite; } @keyframes foePulse { 50% { box-shadow: 0 0 12px #ffd24a; } }
+    #taFoe { position: absolute; left: 50%; bottom: calc(150px + env(safe-area-inset-bottom, 0)); transform: translateX(-50%); width: max-content; max-width: calc(100vw - 32px); padding: 6px 12px; border-radius: 8px; background: #2a0a1ccc; border: 2px solid #ff9a5a; color: #ffe6d0; font-weight: 900; font-size: 15px; opacity: 0; transition: opacity .15s; pointer-events: none; }
     #taSeeded { position: absolute; left: 50%; bottom: calc(110px + env(safe-area-inset-bottom, 0)); transform: translateX(-50%); padding: 6px 12px; border-radius: 8px; background: #0a2a44cc; border: 2px solid #9fd6ff; color: #cfeaff; font-weight: 900; font-size: 15px; opacity: 0; transition: opacity .15s; }
     .bonusSkin { margin-top: 8px; padding: 8px 10px; border-radius: 10px; border: 2px solid #7dff3a; background: #0e2a0acc; color: #7dff3a; font-weight: 900; font-size: 15px; box-shadow: 0 0 14px #7dff3a66; } .bonusSkin small { color: #cfe8c8; font-weight: 700; font-size: 11px; }
     #taEnd .howRow { flex-wrap: wrap; } #taEnd { gap: 8px; padding: 12px 16px; } #taEnd h1 { font-size: clamp(32px, 9vw, 60px); } #taEnd p { font-size: 15px; margin: 0; } #taEnd .small { font-size: 13px; } #taEnd table { font-size: 14px; } #taEnd td { padding: 1px 8px; } #taEnd button { padding-top: 10px; padding-bottom: 10px; } #taEnd .howRow button { font-size: 14px; }
@@ -49,7 +55,7 @@
 </head>
 <body class="booting">
   <div id="boot"><p class="bootKick">DEAD CITY</p><h1>TORNADO<br>ALLEY</h1><div class="bootSpin"><i></i><i></i><i></i><i></i></div><div class="bootBar"><b></b></div><p class="bootLbl">BUILDING THE TOWN</p><p id="bootTip"></p></div>
-  <script>window.__bootTip = function () { var t = ["Tap a target's icon up top and the storm heads straight for it.","The gold badges floating over town are your big targets.","A bigger storm wrecks taller buildings. Start with the small stuff.","Tap a seeding plane to zap it before its spray shrinks you.","If a storm chaser gets away with its photos, another plane joins the hunt.","Drag anywhere to steer. Tap a spot and lightning leads the way.","Wreck the power plant and the whole town goes dark."]; document.getElementById('bootTip').textContent = 'TIP: ' + t[Math.floor(Math.random() * t.length)]; }; window.__bootTip();</script>
+  <script>window.__bootTip = function () { var t = ["Tap a target's icon up top and the storm heads straight for it.","The gold badges floating over town are your big targets.","A bigger storm wrecks taller buildings. Start with the small stuff.","Tap a seeding plane to strike it down. It crashes and takes buildings with it.","If a storm chaser gets away with its photos, another plane joins the hunt.","Drag anywhere to steer. Tap a spot and lightning leads the way.","Wreck the power plant and the whole town goes dark.","A rogue twister smaller than you is lunch. A bigger one is trouble: strike it down to size.","Step off the orange line before the storm cannon fires.","The UFO drops its shield to beam people up. Strike it then."]; document.getElementById('bootTip').textContent = 'TIP: ' + t[Math.floor(Math.random() * t.length)]; }; window.__bootTip();</script>
   <canvas id="game"></canvas>
   <div id="ta" class="hidden">
     <div class="top">
@@ -64,6 +70,7 @@
     <div id="taStick"><div id="taKnob"></div></div>
     <div id="taBanner"></div>
     <div id="taSeeded">SEEDED! SHRINKING</div>
+    <div id="taFoe"></div>
   </div>
 
   <div id="taStart" class="screen">
