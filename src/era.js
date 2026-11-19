@@ -3,13 +3,8 @@
 // progress and best scores, so each one is played through in order; the choice is saved on this device.
 import * as THREE from 'three';
 
-export const ERAS = [['past', 'Wild West'], ['present', 'Present'], ['future', 'Future']];
-export function getEra() { try { const e = localStorage.getItem('dc_era'); return ERAS.some(([k]) => k === e) ? e : 'present'; } catch { return 'present'; } }
-// save keys for one game ('ta' or 'kj') in the current era; Present keeps the original keys so old saves carry over
-const eraTag = () => (getEra() === 'present' ? '' : getEra());
-export const levelKey = (game) => game + '_level' + (eraTag() && '_' + eraTag());
-export const bestKey = (game, n) => game + '_best_' + (eraTag() && eraTag() + '_') + n;
-export function setEra(e) { try { localStorage.setItem('dc_era', e); } catch { /* ignore */ } }
+import { ERAS, getEra, setEra } from './progress.js';
+export { ERAS, getEra, setEra, levelKey, bestKey } from './progress.js';
 export const isFuture = () => getEra() === 'future';
 
 // a vehicle floats instead of rolling: wheels hidden, lifted off the road over a glowing pad

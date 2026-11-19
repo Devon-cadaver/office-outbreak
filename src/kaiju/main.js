@@ -18,7 +18,9 @@ import { showPrizes } from '../prizes.js';
 import { nukeBlast } from '../nuke.js';
 import { stampVersion } from '../version.js';
 import { initFullscreen } from '../fullscreen.js';
-import { showHowTo, tip, tipsSeen, markSeen, clearTips } from '../howto.js';
+import { showHowTo, tip, clearTips } from '../howto.js';
+import { coach, coachSeen, coachIdle, coachBusy, coachFrame, coachClear } from '../coach.js';
+import { quickLevel, saveLast } from '../progress.js';
 import { autoResolution, mergeStatic } from '../perf.js';
 import { rides, spinners } from '../landmarks.js';
 import { makePlane } from '../ally/units.js';
@@ -181,7 +183,7 @@ function aimAt(cx, cy) {
   return p;
 }
 let moveTo = null, stepT = 0, powerFull = false;
-function castAt(p) { power = 0; const face = Math.atan2(p.x - me.g.position.x, p.z - me.g.position.z); me.g.rotation.y = faceY = face; spells.cast(caster(me, stage), stage, p, {}); popup(me.g.position.clone().setY(meScale * 2), KAIJU[me.id].spells[stage - 1].toUpperCase() + '!', '#7dff3a'); markSeen('kj_cast'); }
+function castAt(p) { power = 0; const face = Math.atan2(p.x - me.g.position.x, p.z - me.g.position.z); me.g.rotation.y = faceY = face; spells.cast(caster(me, stage), stage, p, {}); popup(me.g.position.clone().setY(meScale * 2), KAIJU[me.id].spells[stage - 1].toUpperCase() + '!', '#7dff3a'); }
 // SPACE (computers): cast without aiming. It goes for the nearest rival, plane or tank in range; with none about, it lands
 // a good stride ahead of the monster (further as it grows), so jumps, charges, beams and blasts all have room
 function castKey() {
@@ -272,7 +274,7 @@ function spawnPlane() {
   const g = makePlane(); if (isFuture()) futurePlane(g); else if (isPast()) pastPlane(g); g.position.set(Math.cos(a) * R0, 7 + Math.random(), Math.sin(a) * R0); scene.add(g);
   g.traverse((m) => { if (m.isMesh && m.material.color && m.material.color.getHex() === 0xf07a28) m.material = m.material.clone(), m.material.color.setHex(0x8a2a1a); }); // dark red: these ones drop napalm
   const arrow = document.createElement('div'); arrow.className = 'planeArrow'; arrow.textContent = '✈'; document.body.appendChild(arrow);
-  planes.push({ g, arrow, heading: Math.atan2(-g.position.x, -g.position.z), life: 28, cool: 0, dropT: 0 }); banner('✈ NAPALM PLANE!'); sfx.whoosh(); tip('kj_plane', '✈ Napalm plane! It drops fire that burns you. Walk out of the fire, or zap it with a spell.');
+  planes.push({ g, arrow, heading: Math.atan2(-g.position.x, -g.position.z), life: 28, cool: 0, dropT: 0 }); banner('✈ NAPALM PLANE!'); sfx.whoosh();
 }
 function downPlane(pl) { pl.life = -1; pl.dead = true; fx.explode(pl.g.position.clone(), 1.2); award(500, pl.g.position, 'PLANE DOWN'); grow(2); twisters.scatter([pl.g], pl.g.position.clone(), 5); pl.arrow.remove(); sfx.boom(); }
 function updatePlanes(dt, px, pz) {
@@ -295,8 +297,11 @@ function updatePlanes(dt, px, pz) {
   let burning = false; for (let i = fires.length - 1; i >= 0; i--) { const f = fires[i]; f.t -= dt; f.ring.material.opacity = 0.35 * Math.min(1, f.t); if (f.t <= 0) { scene.remove(f.ring); fires.splice(i, 1); continue; } if (Math.hypot(f.at.x - px, f.at.z - pz) < 1.5 + reach() * 0.4) burning = true; }
   if (burning) { hurt(3.2 * ARMY_DMG[stage] * dt); if (Math.random() < dt * 3) popup(me.g.position.clone().setY(meScale), 'BURNING!', '#ff7a3a'); }
 }
+// how far down the top bar reaches: arrows, tips and first-time cards all keep below it
+let hudH = 116; function measureHud() { const r = $('ta').querySelector('.top').getBoundingClientRect(); if (r.height) { hudH = Math.round(r.bottom); document.body.style.setProperty('--hudH', hudH + 'px'); } }
+addEventListener('resize', () => setTimeout(measureHud, 60));
 function edgeArrow(el, pos, show) { const v = pos.clone().project(cam); const off = Math.abs(v.x) > 0.95 || Math.abs(v.y) > 0.95; el.style.display = show && off ? 'block' : 'none'; if (!off) return v;
-  const a = Math.atan2(v.y, v.x), k = 0.9 / Math.max(Math.abs(Math.cos(a)), Math.abs(Math.sin(a))); el.style.transform = 'translate(' + ((Math.cos(a) * k * 0.5 + 0.5) * innerWidth) + 'px,' + ((-Math.sin(a) * k * 0.5 + 0.5) * innerHeight) + 'px) translate(-50%,-50%)'; const dir = el.firstElementChild; if (dir && dir.tagName === 'I') dir.style.transform = 'rotate(' + (-a) + 'rad)'; return v; }
+  const a = Math.atan2(v.y, v.x), k = 0.9 / Math.max(Math.abs(Math.cos(a)), Math.abs(Math.sin(a))); el.style.transform = 'translate(' + ((Math.cos(a) * k * 0.5 + 0.5) * innerWidth) + 'px,' + Math.max(hudH + 22, (-Math.sin(a) * k * 0.5 + 0.5) * innerHeight) + 'px) translate(-50%,-50%)'; /* never up under the top bar */ const dir = el.firstElementChild; if (dir && dir.tagName === 'I') dir.style.transform = 'rotate(' + (-a) + 'rad)'; return v; }
 
 // ---------- rival kaiju: two come for you at each stage you reach ----------
 let rival = null, rivalQueue = [], rivalWait = 0; const rivalEl = $('kjRival'), rivalArrow = document.createElement('div'); rivalArrow.className = 'planeArrow rivalArrow'; rivalArrow.innerHTML = '<i>➤</i><em>👹</em>'; document.body.appendChild(rivalArrow);
@@ -307,7 +312,7 @@ function spawnRival(forceId) {
   const far = []; for (const c of roadCells) { const w = toWorld(c[0], c[1], cols, rows); const d = Math.hypot(w.x - me.g.position.x, w.z - me.g.position.z); if (d > 20 && d < 34) far.push(w); }
   const w = far.length ? far[(Math.random() * far.length) | 0] : toWorld(1, 1, cols, rows); rig.g.position.set(w.x, 0, w.z); scene.add(rig.g);
   const hp0 = Math.round(RIVAL_HP * (1 + 0.6 * ramp())); rival = { id, rig, g: rig.g, stage: st, scale: sc, hp: hp0, max: hp0, cd: 1.5, castT: (6 + Math.random() * 3) * (1 - 0.3 * ramp()), stun: 0, koT: 0, daze: 0, dazedT: 0, atk: null };
-  $('kjRivalName').textContent = KAIJU[id].name + ' · ' + STAGE[st]; rivalEl.classList.remove('hidden'); banner('👹 RIVAL: ' + KAIJU[id].name + '!'); sfx.wave(); tip('kj_rival', '👹 A rival kaiju! Walk up and your kaiju fights it on its own. Spells hit it hard. KO it and eat it for a big boost.');
+  $('kjRivalName').textContent = KAIJU[id].name + ' · ' + STAGE[st]; rivalEl.classList.remove('hidden'); banner('👹 RIVAL: ' + KAIJU[id].name + '!'); sfx.wave();
 }
 function hitRival(pow, freeze) { if (!rival || rival.hp <= 0) return; if (bout && bout.buff > 0) pow *= 1.5; rival.hp -= pow; rival.rig.act('hit'); if (freeze) rival.stun = 2.5; popup(rival.g.position.clone().setY(rival.scale * 1.8), '-' + Math.round(pow), '#ffb02a'); if (rival.hp <= 0) rivalKO(); }
 function rivalKO() {
@@ -777,11 +782,27 @@ function endMini(res) { if (me && me.acting === 'grab') me.act(null);
 
 // ---------- targets, minimap (as in Tornado Alley) ----------
 let poiOrder = [], mapBase = null, mapT = 0; const mapEl = $('taMap'), mapCtx = mapEl.getContext('2d');
+// every big target still standing wears a floating badge with its icon and a ring on the ground, so the mission is in the
+// world as well as up top: grey until you're big enough for it, then bright, gold-ringed and bobbing
+const poiMarks = [];
+function addPoiMarks() { for (const g of poiMarks) scene.remove(g); poiMarks.length = 0;
+  for (const k of poiOrder) { const P = pois[k], g = new THREE.Group(), r = k === 'fair' ? 4.6 : 2.1; g.position.set(P.center.x, 0, P.center.z);
+    const ring = new THREE.Mesh(new THREE.RingGeometry(r, r + 0.32, 40), new THREE.MeshBasicMaterial({ color: 0x9fb4c8, transparent: true, opacity: 0.4, depthWrite: false, side: THREE.DoubleSide })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.12; g.add(ring);
+    const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'); x.fillStyle = '#1a0f2e'; x.beginPath(); x.arc(64, 64, 55, 0, 6.2832); x.fill(); x.lineWidth = 10; x.strokeStyle = '#ffd24a'; x.stroke(); x.font = '62px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(POI[k].icon, 64, 70);
+    const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; const badge = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true })); badge.renderOrder = 9; g.add(badge);
+    g.userData = { ring, badge }; scene.add(g); P.mark = g; poiMarks.push(g); } }
+function tickPoiMark(g, ready) { const u = g.userData, view = (cam.top - cam.bottom); // sized against the view, so a badge reads the same however far the camera has pulled back
+  u.badge.scale.setScalar(view * (ready ? 0.085 : 0.055)); u.badge.position.y = 4.4 + view * 0.03 + (ready ? Math.sin(played * 3.2) * 0.35 : 0); u.badge.material.color.setHex(ready ? 0xffffff : 0x8a96a6); u.badge.material.opacity = ready ? 1 : 0.8;
+  u.ring.material.color.setHex(ready ? 0xffd24a : 0x9fb4c8); u.ring.material.opacity = ready ? 0.6 + Math.sin(played * 5) * 0.25 : 0.35; }
+// tap a target's chip up top: the monster heads for it (if it's big enough yet) and its arrow flashes
+function goToPoi(k) { const P = pois[k]; if (state !== 'play' || !P || P.done) return; const ok = stage >= POI[k].stage; banner(ok ? '➤ ' + POI[k].icon + ' ' + POI[k].name : POI[k].icon + ' ' + POI[k].name + ' NEEDS A ' + STAGE[POI[k].stage]); if (ok) moveTo = new THREE.Vector3(P.center.x, 0, P.center.z);
+  P.arrow.classList.remove('ping'); void P.arrow.offsetWidth; P.arrow.classList.add('ping'); }
 function setupPoiHud() {
   poiOrder = Object.keys(pois).sort((a, b) => POI[a].stage - POI[b].stage || POI[a].pts - POI[b].pts);
   $('taPois').innerHTML = poiOrder.map((k) => '<span class="poiChip" id="poi_' + k + '"><em>' + POI[k].icon + '</em><b>' + 'HTC'[POI[k].stage - 1] + '</b><i></i></span>').join('');
   for (const el of document.querySelectorAll('.poiArrow')) el.remove();
-  for (const k of poiOrder) { const a = document.createElement('div'); a.className = 'poiArrow'; a.innerHTML = '<i>➤</i><em>' + POI[k].icon + '</em>'; document.body.appendChild(a); pois[k].arrow = a; pois[k].chip = $('poi_' + k); }
+  for (const k of poiOrder) { const a = document.createElement('div'); a.className = 'poiArrow'; a.innerHTML = '<i>➤</i><em>' + POI[k].icon + '</em>'; document.body.appendChild(a); pois[k].arrow = a; pois[k].chip = $('poi_' + k); pois[k].chip.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); goToPoi(k); }); }
+  addPoiMarks();
   const c = document.createElement('canvas'); c.width = cols * 4; c.height = rows * 4; const g = c.getContext('2d'); g.fillStyle = '#24403c'; g.fillRect(0, 0, c.width, c.height); g.fillStyle = '#8fb0aa';
   for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) if (!maze[y][x]) g.fillRect(x * 4, y * 4, 4, 4); mapBase = c; mapT = 0;
 }
@@ -802,7 +823,7 @@ function drawMini() {
 mapEl.addEventListener('pointerdown', (e) => { e.stopPropagation(); e.preventDefault(); if (state !== 'play') return; const r = mapEl.getBoundingClientRect(), k = mapScale(r.width); const a = (e.clientX - r.left - r.width / 2) / k, b = -(e.clientY - r.top - r.height / 2) / k;
   const lim = toWorld(cols - 1, rows - 1, cols, rows); moveTo = new THREE.Vector3(Math.max(-lim.x, Math.min(lim.x, right.x * a + upv.x * b)), 0, Math.max(-lim.z, Math.min(lim.z, right.z * a + upv.z * b))); mapT = 0; });
 function wreckPoi(k) {
-  const P = pois[k]; P.done = true; const g = new THREE.Group(); g.position.copy(P.center); scene.add(g);
+  const P = pois[k]; P.done = true; if (P.mark) { scene.remove(P.mark); P.mark = null; } const g = new THREE.Group(); g.position.copy(P.center); scene.add(g);
   for (const hz of P.hz) { for (const part of hz.parts || []) if (part.parent) g.attach(part); const i = city.obstacles.findIndex((o) => Math.abs(o.x - hz.pos.x) < 0.3 && Math.abs(o.z - hz.pos.z) < 0.3); if (i >= 0) city.obstacles.splice(i, 1); }
   const parts = g.children.slice(); twisters.scatter(parts, P.center, 5); scene.remove(g); for (const m of parts) if (!m.parent) scene.add(m);
   award(POI[k].pts, P.center, POI[k].name); grow(massTarget * 0.04); power = Math.min(1, power + 0.3); sfx.wave(); sfx.boom(); fx.explode(new THREE.Vector3(P.center.x, 1, P.center.z), 2.2); flashT = 0.3;
@@ -847,12 +868,13 @@ function start() {
   fsMode.play();
   megaT = 0; megaUsed = false; megaDropT = 25 + Math.random() * 15; if (megaDrop) scene.remove(megaDrop.g); megaDrop = null; megaArrow.style.display = 'none'; megaEl.className = 'hidden'; megaBtn.classList.add('hidden'); for (const b of blasts) b.remove(); blasts.length = 0; camK = 1; roundId++;
   clearAnims();
-  unlockAudio(); buildWorld(); makeMe(); spells.clear(); score = 0; totalD = 0; camHold = false; bike = null; bout = null; meToss = null; finishing = false; grabbed = false; rangedBusy = false; rangedCd = 0; rangedBtn.classList.add('hidden'); clearDots(); fightEdge.classList.add('hidden'); finishBtn.classList.add('hidden'); /* a new round: the camera follows again after a ride-off; no fight carries over */ chain = 0; lastHit = -9; tLeft = L().time; played = 0; peopleN = carsN = bDone = 0; ko = 0; died = false; moveTo = null; slowT = 0; boostT = 0;
+  coachClear(); saveLast('kj', level);
+  unlockAudio(); buildWorld(); makeMe(); trip = 0; tripAt.copy(me.g.position); spells.clear(); score = 0; totalD = 0; camHold = false; bike = null; bout = null; meToss = null; finishing = false; grabbed = false; rangedBusy = false; rangedCd = 0; rangedBtn.classList.add('hidden'); clearDots(); fightEdge.classList.add('hidden'); finishBtn.classList.add('hidden'); /* a new round: the camera follows again after a ride-off; no fight carries over */ chain = 0; lastHit = -9; tLeft = L().time; played = 0; peopleN = carsN = bDone = 0; ko = 0; died = false; moveTo = null; slowT = 0; boostT = 0;
   for (const pl of planes) { scene.remove(pl.g); pl.arrow.remove(); } planes = []; planeT = 50 + Math.random() * 10; noPlanes = false; for (const b of bombs) scene.remove(b.m); bombs.length = 0; for (const f of fires) scene.remove(f.ring); fires.length = 0;
   if (rival) scene.remove(rival.g); rival = null; mini = null; lastMini = ''; miniEl.className = 'hidden'; rivalQueue = []; rivalWait = 0; queueRivals(1); sinking.length = 0; gulps.length = 0;
   setupPoiHud(); for (const s of ['taStart', 'taEnd', 'taPaused', 'taPrize', 'kjPickScr']) $(s).classList.add('hidden'); $('ta').classList.remove('hidden');
   state = 'play'; playSongs(); setStormLevel(1); sfx.whoosh(); banner(KAIJU[me.id].name + ' VS ' + L().name.toUpperCase()); setTimeout(() => { if (state === 'play') banner('TAKE OUT ' + (L().need >= poiOrder.length ? 'ALL ' + poiOrder.length : L().need) + ' TARGETS'); }, 2600);
-  renderer.compile(scene, cam); $('taLevel').textContent = 'L' + level + ' · goal ' + L().goal + '%'; for (const k in hudCache) delete hudCache[k];
+  renderer.compile(scene, cam); $('taLevel').textContent = 'L' + level + ' · ' + L().name; measureHud(); for (const k in hudCache) delete hudCache[k];
 }
 // a new look from the pause menu: the same monster, size and place
 function swapMe() { if (!me) return; const old = me, nu = buildKaiju(pick, getEquipped()['kj_' + pick] || false); nu.g.position.copy(old.g.position); nu.g.rotation.copy(old.g.rotation); nu.g.scale.copy(old.g.scale); scene.remove(old.g); scene.add(nu.g); me = nu; }
@@ -901,7 +923,7 @@ function finishNow() {
   $('taAgain').textContent = cleared && level < LEVELS.length ? 'NEXT LEVEL' : cleared ? 'PLAY AGAIN' : 'TRY AGAIN'; $('taAgain').dataset.next = cleared && level < LEVELS.length ? '1' : '';
   $('taGoalLine').textContent = died ? 'The army got you. Eat more people to grow back, and walk out of the napalm.' : cleared ? (level < LEVELS.length ? 'Level ' + (level + 1) + ' unlocked: ' + LEVELS[level].name + '.' : 'Every town crushed. Monster.') : 'Flatten ' + L().goal + '% of ' + L().name + ' and take out ' + (need >= poiOrder.length ? 'every big target' : need + ' big targets') + ' (you got ' + pct + '% and ' + done.length + ').';
   if (totalD) { $('taEndTitle').innerHTML = 'THE TOWN WAS<br>DESTROYED'; totalReward(unlockedKaiju().flatMap((k) => Object.keys(KAIJU_SKINS[k]).map((lk) => 'kaiju:' + k + ':' + lk)), (id) => { const [, k, lk] = id.split(':'); return KAIJU_SKINS[k][lk].name; }, $('taGoalLine')); }
-  if (cleared && level < LEVELS.length) level++; /* the next town is open and picked right away, wherever you go from here (change monster, the shop, NEXT LEVEL) */
+  if (cleared && level < LEVELS.length) level++; saveLast('kj', level); /* the next town is open and picked right away, wherever you go from here (change monster, the shop, NEXT LEVEL) */
   drawLevels(); /* and the start screen shows the new best score without a reload */
   $('taStats').innerHTML = [...(totalD ? [['💥 Total destruction', '+' + totalD]] : []), ['Buildings', bDone + ' / ' + totalB + ' (' + pct + '%)'], ['People eaten', peopleN], ['Cars wrecked', carsN], ['Rivals KO\'d', ko], ['Big targets', done.length + ' / ' + poiOrder.length + ' ' + done.map((k) => POI[k].icon).join('')], ['Biggest', STAGE[topStage]], ['Score', score], ['Score coins', '+' + scoreCoins + ' 🪙'], ['Best', best]].map(([a, b]) => '<tr><td>' + a + '</td><td>' + b + '</td></tr>').join('');
   const goes = Math.min(3, 1 + (cleared ? 1 : 0) + Math.floor(done.length / 2)) + (totalD ? 1 : 0); kaijuRound(goes); showPrizes($('taChests'), goes, '1 go, +1 for clearing the level, +1 for every 2 big targets destroyed (max 3)', () => { location.href = 'store.html?from=kaiju'; }, kaijuPrize, () => { $('taPrize').classList.add('hidden'); $('taEnd').classList.remove('hidden'); });
@@ -913,12 +935,13 @@ const HOWTO = [
   ['⚡', 'Spells', 'Your Power bar fills over time. When it is full, tap an enemy, a tank or a spot to cast your spell (on a computer, press SPACE). Every size has a different spell.'],
   ['❤️', 'Size is health', 'The army, napalm and rivals shrink you. Drop below a size and you go back down. Shrink away as a Hatchling and it is over.'],
   ['✈️', 'Napalm planes', 'Planes drop fire on you. Walk out of the flames, or blast them with a spell. A Colossus swats them.'],
-  ['👹', 'Rival kaiju', 'Two rivals come for you at each size. Fight them up close or hit them with spells. KO one and eat it for a big boost.'],
+  ['👹', 'Rival kaiju', 'Two rivals come for you at each size. Up close, tap to swing and tap the glowing dots for big hits. KO one and eat it for a big boost.'],
   ['👹', 'Win new kaiju', 'Most rounds the prize games hand you a new kaiju or robot (sometimes two). Win one you already have and you get a whole coin.'],
+  ['🎯', 'Big targets', 'The big targets are the mission. Each one wears a badge in town; follow its arrow, or tap its icon up top to head there. Its icon glows when you are big enough.'],
   ['🏆', 'Crush the town', 'Flatten the goal % and take out enough big targets before time runs out to unlock the next town.'],
 ];
 $('taHow').addEventListener('click', () => showHowTo(HOWTO));
-$('taPlay').addEventListener('click', () => { if (tipsSeen('kj_howto')) start(); else { markSeen('kj_howto'); showHowTo(HOWTO, start); } });
+$('taPlay').addEventListener('click', () => start()); // straight in: the cards are there if you ask (HOW TO PLAY), and the round itself shows a new player each thing as it comes up
 $('taAgain').addEventListener('click', () => start());
 $('taEndPick').addEventListener('click', openPicker);
 function drawLevels() { const box = $('taLevels'); box.innerHTML = ''; const un = unlockedLevel(); LEVELS.forEach((lv, i) => { const b = document.createElement('button'); const n = i + 1; let best = 0; try { best = +localStorage.getItem(bestKey('kj', n)) || 0; } catch { /* ignore */ }
@@ -954,14 +977,39 @@ $('taPause').addEventListener('click', togglePause); $('taResume').addEventListe
 
 // ---------- update ----------
 const right = new THREE.Vector3(), upv = new THREE.Vector3(), tmp = new THREE.Vector3(); let frameN = 0;
+// ---------- first-time coaching: one new thing at a time. The round holds still while a card and an arrow show it (see
+// coach.js); it carries on when the player does it, and each one only ever shows once on this device ----------
+let trip = 0; const tripAt = new THREE.Vector3(); // how far the monster has walked since the last prompt
+const toScreen = (p, y = 0) => { const v = new THREE.Vector3(p.x, y, p.z).project(cam); return { x: (v.x * 0.5 + 0.5) * innerWidth, y: (-v.y * 0.5 + 0.5) * innerHeight, on: Math.abs(v.x) < 0.86 && v.y > -0.8 && v.y < 0.62 }; };
+const elMid = (el) => { const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; };
+function coachKJ() {
+  trip += me.g.position.distanceTo(tripAt); tripAt.copy(me.g.position); if (coachBusy() || mini || finishing || grabbed || meToss || leap) return; // never in the middle of a move
+  if (!coachSeen('kj_move')) { if (played > 0.5) coach('kj_move', { mode: 'drag', title: 'MOVE', text: 'Hold and drag anywhere on the screen to walk your monster.', done() { trip = 0; } }); return; }
+  // a rival: each part of the fight is shown as it happens
+  if (rival && rival.hp > 0 && !rival.koT && !rival.toss && !mini) { const r = rival, rAt = () => toScreen(r.g.position, r.scale);
+    if (!finishBtn.classList.contains('hidden')) { if (coach('kj_finish', { mode: 'tap', title: '💫 IT IS DAZED!', text: 'Finish it: spin it round and toss it across town, or slam it with a random move.', at: () => elMid(finishBtn) })) return; }
+    else if (nearRival()) { if (coach('kj_fight', { mode: 'tap', title: '👊 FIGHT!', text: 'Tap to swing. Tap the glowing dots for more: ★ gold is a critical hit, ! red counters its swing.', at: rAt })) return; }
+    else if (!rangedBtn.classList.contains('hidden')) { if (coach('kj_ranged', { mode: 'tap', title: 'HIT IT FROM HERE', text: 'The rival is out of reach. Press this to blast it from range and charge in.', at: () => elMid(rangedBtn) })) return; }
+    else if (coachIdle() > 1 && coach('kj_rival', { title: '👹 RIVAL KAIJU', text: 'Another monster is coming for you. Knock it out and you eat it for a big boost.', at: rAt })) return; }
+  // whatever turns up on its own is shown the moment it's on screen
+  if (!coachSeen('kj_plane')) { const pl = planes.find((p) => p.life > 0 && toScreen(p.g.position, p.g.position.y).on); if (pl && coach('kj_plane', { title: '✈ NAPALM PLANE', text: 'It drops fire that burns and shrinks your monster. Walk out of the flames, or blast the plane with your power.', at: () => toScreen(pl.g.position, pl.g.position.y) })) return; }
+  if (megaDrop && !coachSeen('kj_mega') && toScreen(megaDrop.g.position).on) { const D = megaDrop; if (coach('kj_mega', { title: '⚡ MEGA BOOSTER', text: 'Walk into it to go MEGA for a while: huge, nothing can hurt you, and you get one mega blast to fire when you like.', at: () => toScreen(D.g.position, 1) })) return; }
+  if (coachIdle() < 2) return;
+  if (!coachSeen('kj_tap')) { if (trip > 5) coach('kj_tap', { mode: 'tap', finger: true, title: 'TAP TO WALK', text: 'Tap any spot and your monster walks there.', at: () => ({ x: innerWidth * 0.72, y: innerHeight * 0.45 }) }); return; }
+  if (!coachSeen('kj_eat')) { let best = null, bd = 1e9; for (const c of people) { const d = c.position.distanceTo(me.g.position); if (d < bd && d > 1 && toScreen(c.position).on) { bd = d; best = c; } }
+    if (best) coach('kj_eat', { title: '🍖 EAT TO GROW', text: 'Walk into people to eat them: every one makes your monster bigger. It smashes cars and buildings in reach on its own.', at: () => toScreen(best.position, 0.3) }); return; }
+  if (power >= 1 && !megaT && coach('kj_power', { mode: 'tap', title: '⚡ POWER FULL', text: 'Tap an enemy or any spot to fire ' + KAIJU[me.id].spells[stage - 1] + '.', at: () => elMid($('kjPower')) })) return;
+  if (!coachSeen('kj_goal')) { if (coachIdle() > 4) coach('kj_goal', { title: '🎯 YOUR MISSION', text: 'Destroy the big targets to clear the town. Each tag shows the size you need. Tap a target up here to head for it.', at: () => elMid($('taPois')) }); return; }
+  if (!coachSeen('kj_target')) { const k = poiOrder.find((p) => !pois[p].done && stage >= POI[p].stage); if (k) coach('kj_target', { title: POI[k].icon + ' ' + POI[k].name + ' IS READY', text: 'Your monster is big enough for this target now. Follow its gold arrow and smash it.', at: () => toScreen(pois[k].center) }); }
+}
 const hudCache = {}; const setT = (id, v) => { v = String(v); if (hudCache[id] !== v) { hudCache[id] = v; $(id).textContent = v; } };
 function update(dt) {
   played += dt; if (!(totalD && rival)) tLeft -= dt; /* town destroyed: the clock waits for a fight to finish */ if (tLeft <= 0) { tLeft = 0; finish(); return; }
-  if (played > 1) tip('kj_walk', '👆 Tap a spot to walk there. Your kaiju eats people and smashes things on its own.'); if (power >= 1 && !tipsSeen('kj_cast')) tip('kj_power', '⚡ Power full! Tap an enemy or a spot to cast ' + KAIJU[me.id].spells[stage - 1] + '.');
+  coachKJ();
   const g = me.g, K = KAIJU[me.id];
   // size = health: the bar, the stage, the scale
   meF = mass / massTarget; const st = stageOf(meF);
-  if (st !== stage) { if (st > stage) { banner(STAGE[st] + '!'); stormBoost(3); boostT = 3; sfx.whoosh(); if (st > topStage) { topStage = st; queueRivals(st); } } else { banner('SHRANK TO ' + STAGE[st] + '!'); sfx.hurt(); } stage = st; }
+  if (st !== stage) { if (st > stage) { banner(STAGE[st] + '!'); { const b = $('taRank'); b.classList.remove('bump'); void b.offsetWidth; b.classList.add('bump'); } stormBoost(3); boostT = 3; sfx.whoosh(); if (st > topStage) { topStage = st; queueRivals(st); } } else { banner('SHRANK TO ' + STAGE[st] + '!'); sfx.hurt(); } stage = st; }
   meScale += ((megaT > 0 ? scaleOf(1) * 1.5 : scaleOf(meF)) - meScale) * Math.min(1, dt * 2); g.scale.setScalar(meScale);
   updateMega(dt);
   power = Math.min(1, power + dt / CHARGE);
@@ -1033,12 +1081,12 @@ function update(dt) {
   for (let i = sinking.length - 1; i >= 0; i--) { const s = sinking[i]; s.t = Math.min(1, s.t + dt * 1.1); s.obj.rotation.z = s.t * 0.4; s.obj.position.y = s.y0 - s.t * s.h * 0.95; if (s.t >= 1) { s.obj.visible = false; sinking.splice(i, 1); } }
   // HUD
   const m = Math.floor(tLeft / 60), s = Math.floor(tLeft % 60); setT('taTime', m + ':' + String(s).padStart(2, '0')); if (hudCache.red !== (tLeft < 15)) { hudCache.red = tLeft < 15; $('taTime').style.color = tLeft < 15 ? '#ff5a3a' : ''; }
-  setT('taScore', score); setT('taCombo', mult() > 1 && played - lastHit < 2.5 ? 'x' + mult() + ' COMBO' : ''); setT('taRank', STAGE[stage]); setT('taPct', Math.round((bDone / totalB) * 100) + '% destroyed'); setT('taPeople', peopleN + ' eaten');
+  setT('taScore', score); setT('taCombo', mult() > 1 && played - lastHit < 2.5 ? 'x' + mult() + ' COMBO' : ''); setT('taRank', STAGE[stage]); { const pct = Math.round((bDone / totalB) * 100); setT('taPct', '🏚️ ' + pct + '% / ' + L().goal + '%'); if (hudCache.pctOk !== (pct >= L().goal)) { hudCache.pctOk = pct >= L().goal; $('taPct').classList.toggle('ok', pct >= L().goal); } }
   { const w = (meF * 100).toFixed(1) + '%'; if (hudCache.grow !== w) { hudCache.grow = w; $('taGrowFill').style.width = w; } const pw = Math.round(power * 100) + '%'; if (hudCache.pw !== pw) { hudCache.pw = pw; $('kjPowerFill').style.width = pw; $('kjPower').classList.toggle('full', power >= 1); setT('kjPowerTxt', power >= 1 ? '⚡ ' + K.spells[stage - 1].toUpperCase() + ' READY: TAP A TARGET' : '⚡ POWER'); } }
   setStormLevel(stage * 2 - 1 + (rival && rival.hp > 0 ? 1 : 0));
   if (Math.round((bDone / totalB) * 100) >= 100 && poiOrder.every((k) => pois[k].done)) { /* as soon as the HUD reads 100% (it rounds, so a stray building or two can't hold the round open) */ if (!totalD && !died) totalWipe(me.g.position); rivalQueue = []; if (!rival) tLeft = Math.min(tLeft, 1.5); }
-  { let n = 0; for (const k of poiOrder) { const P = pois[k]; if (P.done) { n++; continue; } const ready = stage >= POI[k].stage; if (P.chip) P.chip.classList.toggle('ready', ready); P.arrow.classList.toggle('ready', ready); edgeArrow(P.arrow, P.center, true); }
-    const need = Math.min(L().need, poiOrder.length); setT('taTargets', '🎯 ' + n + '/' + need); if (hudCache.tgtOk !== (n >= need)) { hudCache.tgtOk = n >= need; $('taTargets').style.color = n >= need ? '#7dff3a' : ''; } }
+  { let n = 0; for (const k of poiOrder) { const P = pois[k]; if (P.done) { n++; continue; } const ready = stage >= POI[k].stage; if (P.chip) P.chip.classList.toggle('ready', ready); P.arrow.classList.toggle('ready', ready); edgeArrow(P.arrow, P.center, true); if (P.mark) tickPoiMark(P.mark, ready); }
+    const need = Math.min(L().need, poiOrder.length); setT('taTargets', n + '/' + need); if (hudCache.tgtOk !== (n >= need)) { hudCache.tgtOk = n >= need; $('taTargets').classList.toggle('ok', n >= need); } }
   mapT -= dt; if (mapT <= 0) { mapT = 0.08; drawMini(); }
 }
 
@@ -1046,8 +1094,9 @@ addEventListener('resize', () => renderer.setSize(innerWidth, innerHeight, false
 const camTarget = new THREE.Vector3(); let last = performance.now();
 function frame(now) {
   requestAnimationFrame(frame); const dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = now;
-  if (state === 'play') update(dt); else if (state === 'outro' && me) outroTick(dt); else if (state === 'dying' && me) { me.anim(dt, 0); if (rival) rival.rig.anim(dt, 0); } else if (me) me.anim(dt, 0.15);
-  if (city) { twisters.update(dt); fx.update(dt); city.updateRain(dt); spells.update(dt); }
+  const hold = coachFrame(state === 'play'); if (hold) $('taBanner').style.opacity = 0; // a first-time prompt is up: the round waits for the player
+  if (state === 'play') { if (!hold) update(dt); else { me.anim(dt, 0.15); if (rival) rival.rig.anim(dt, 0.15); } } else if (state === 'outro' && me) outroTick(dt); else if (state === 'dying' && me) { me.anim(dt, 0); if (rival) rival.rig.anim(dt, 0); } else if (me) me.anim(dt, 0.15);
+  if (city) { twisters.update(dt); fx.update(dt); city.updateRain(dt); if (!hold) spells.update(dt); }
   bannerT -= dt; if (bannerT <= 0) $('taBanner').style.opacity = 0;
   flashT = Math.max(0, flashT - dt); flashEl.style.opacity = Math.min(0.75, flashT * 3); hurtT = Math.max(0, hurtT - dt); darkT = Math.max(0, darkT - dt); darkEl.style.opacity = Math.min(0.72, darkT * 1.4); hurtEl.style.opacity = Math.min(0.55, hurtT * 2);
   camK += ((megaT > 0 ? 1.15 : [1, 1, 1.15, 1.32][stage]) * (bout ? 0.68 : 1) - camK) * Math.min(1, dt * 1.6); /* the fight cam: in close while you wrestle */
@@ -1066,6 +1115,9 @@ function frame(now) {
 }
 // the title screen: a calm town with your kaiju in it
 function showcase() { if (state !== 'start') return; makeMe(); me.g.position.set(0, 0, 0); camTarget.set(0, 2, 0); }
-buildWorld(); makeMe(); camTarget.set(0, 2, 0);
+// QUICK PLAY on the main menu comes in with ?quick: no title screen, straight into the town you left off in with the
+// monster you last used. Otherwise, a calm town behind the title screen
+if (new URLSearchParams(location.search).has('quick')) { level = quickLevel('kj'); drawLevels(); start(); camTarget.set(me.g.position.x, 2, me.g.position.z); }
+else { buildWorld(); makeMe(); camTarget.set(0, 2, 0); }
 requestAnimationFrame(frame); requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove('booting'))); // the start screen is ready now
-window.__kj = { get bout() { return bout; }, rangedAttack, get rangedReady() { return rangedOk(); }, get leaping() { return !!leap; }, get dots() { return dots; }, hitDot, playerSwing, get nearRival() { return nearRival(); }, get grabbed() { return grabbed; }, rivalGrab: (r) => rivalGrab(r), strikeRival: (r) => strikeRival(r), doFinisher, get finishing() { return finishing; }, get meToss() { return meToss; }, startEscape: (r) => startEscape(r), startBout: (r) => startBout(r), wrestle, finish, get tLeft() { return tLeft; }, get camHold() { return camHold; }, get died() { return died; }, get outroT() { return outroT; }, get bike() { return bike; }, get totalD() { return totalD; }, set bDone(v) { bDone = v; }, get totalB() { return totalB; }, emote, throwHammer, endMini: (res) => endMini(res), get song() { return songState(); }, get sceneN() { return scene.children.length; }, flourish, get anims() { return anims.length; }, dropMega, goMega, megaBlast, get megaT() { return megaT; }, get megaDrop() { return megaDrop; }, THREE, get me() { return me; }, get moveTo() { return moveTo; }, get mass() { return mass; }, set mass(v) { mass = v; }, get massTarget() { return massTarget; }, get stage() { return stage; }, get power() { return power; }, set power(v) { power = v; }, get rival() { return rival; }, spawnRival, spawnPlane, get planes() { return planes; }, get state() { return state; }, get score() { return score; }, get people() { return people; }, get buildings() { return buildings; }, get pois() { return pois; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, tapAt, get cam() { return cam; }, set tLeft(v) { tLeft = v; }, set level(v) { level = v; }, start, hurt, get calls() { return renderer.info.render.calls; }, get fires() { return fires; }, get mini() { return mini && { ...mini, side: mini.side }; }, startMini, get pool() { return pool.length; }, get unlocked() { return unlockedKaiju(); }, set pick(v) { pick = v; } };
+window.__kj = { get coachUp() { return coachBusy(); }, get bout() { return bout; }, rangedAttack, get rangedReady() { return rangedOk(); }, get leaping() { return !!leap; }, get dots() { return dots; }, hitDot, playerSwing, get nearRival() { return nearRival(); }, get grabbed() { return grabbed; }, rivalGrab: (r) => rivalGrab(r), strikeRival: (r) => strikeRival(r), doFinisher, get finishing() { return finishing; }, get meToss() { return meToss; }, startEscape: (r) => startEscape(r), startBout: (r) => startBout(r), wrestle, finish, get tLeft() { return tLeft; }, get camHold() { return camHold; }, get died() { return died; }, get outroT() { return outroT; }, get bike() { return bike; }, get totalD() { return totalD; }, set bDone(v) { bDone = v; }, get totalB() { return totalB; }, emote, throwHammer, endMini: (res) => endMini(res), get song() { return songState(); }, get sceneN() { return scene.children.length; }, flourish, get anims() { return anims.length; }, dropMega, goMega, megaBlast, get megaT() { return megaT; }, get megaDrop() { return megaDrop; }, THREE, get me() { return me; }, get moveTo() { return moveTo; }, get mass() { return mass; }, set mass(v) { mass = v; }, get massTarget() { return massTarget; }, get stage() { return stage; }, get power() { return power; }, set power(v) { power = v; }, get rival() { return rival; }, spawnRival, spawnPlane, get planes() { return planes; }, get state() { return state; }, get score() { return score; }, get people() { return people; }, get buildings() { return buildings; }, get pois() { return pois; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, tapAt, get cam() { return cam; }, set tLeft(v) { tLeft = v; }, set level(v) { level = v; }, start, hurt, get calls() { return renderer.info.render.calls; }, get fires() { return fires; }, get mini() { return mini && { ...mini, side: mini.side }; }, startMini, get pool() { return pool.length; }, get unlocked() { return unlockedKaiju(); }, set pick(v) { pick = v; } };

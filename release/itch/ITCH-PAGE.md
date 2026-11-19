@@ -1,6 +1,6 @@
 # Dead City: Tornado Alley — itch.io page kit
 
-Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.23.10**. Upload `release/survive-dead-city-web-v1.23.10.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
+Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.24.0**. Upload `release/survive-dead-city-web-v1.24.0.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
 
 > All monsters, robots and characters in Dead City are original creations. Any resemblance to other characters is coincidental.
 
@@ -13,7 +13,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 | Short description / tagline | You are the storm. Tear through five towns, take out big targets, dodge seeding planes and outrun storm chasers. |
 | Classification | Game |
 | Kind of project | **HTML** |
-| Uploads | `survive-dead-city-web-v1.23.10.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
+| Uploads | `survive-dead-city-web-v1.24.0.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
 | Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
 | Frame options | Leave SharedArrayBuffer off. No special headers needed. |
 | Pricing | Free (or "No payments"). |
@@ -70,6 +70,7 @@ Small browser games built fast, tested on a phone, and tuned by playing. Dead Ci
 
 ## Version history
 
+- **1.24.0** (2026-11-18): New QUICK PLAY button on the main menu: pick a game and go straight into a round, right where you left off. The tutorial is gone: the first time each new thing comes up, the round pauses and shows you how, with an arrow. The top of the screen now shows your size and the big targets first: tap a target icon to head for it, and every target wears a badge in town. How To Play only opens when you ask for it.
 - **1.23.10** (2026-11-02): Kaiju Madness: once every building and big target is gone, THE TOWN WAS DESTROYED, and your Kaiju leaves after finishing any fight. The end-of-round screens have separate MENU and MAIN MENU buttons. The main menu buttons no longer cover the subtitle.
 - **1.23.9** (2026-11-02): Pick any era from the start: each era has its own five towns to beat in order. Choose the season too, with Random as the default. The Radio Station gets volume, pause, a highlight on the playing track and two new songs, My Little Disaster and its Kawaii version. The old computer-made music is gone: the game now opens on the first radio track.
 - **1.23.8** (2026-11-01): New Radio Station on the main menu and in both pause menus: play any song now, skip, and choose which songs stay in the shuffle. The opening cut scene is gone; PLAY goes straight to the main menu.

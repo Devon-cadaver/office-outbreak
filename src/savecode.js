@@ -5,7 +5,7 @@
 import { KAIJU_IDS, FREE_KAIJU } from './kaiju/rigs.js';
 // tester code: typed into LOAD A CODE it unlocks every monster and keeps everything else as it is
 const UNLOCK_ALL = 'MONSTERMASH';
-const KEEP = /^(oo_coins|oo_coins_earned|oo_skins_owned|oo_skins_equip|oo_seen|tips_seen|prize_game|(?:ta|kj)_level(?:_past|_future)?|(?:ta|kj)_best_(?:past_|future_)?\d+|kj_unlocked|kj_pick)$/;
+const KEEP = /^(oo_coins|oo_coins_earned|oo_skins_owned|oo_skins_equip|oo_seen|tips_seen|prize_game|(?:ta|kj)_(?:level|last)(?:_past|_future)?|(?:ta|kj)_best_(?:past_|future_)?\d+|kj_unlocked|kj_pick)$/;
 
 const keys = () => { const out = []; try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (KEEP.test(k)) out.push(k); } } catch { /* ignore */ } return out.sort(); };
 const b64 = (bytes) => { let s = ''; for (const b of bytes) s += String.fromCharCode(b); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };

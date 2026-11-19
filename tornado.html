@@ -15,29 +15,11 @@
   <link rel="stylesheet" href="/src/style.css" />
   <style>
     #ta { position: fixed; inset: 0; pointer-events: none; }
-    #ta .top { position: absolute; top: env(safe-area-inset-top, 0); left: 0; right: 0; padding: 6px 10px 0; text-shadow: 0 1px 3px #000; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-weight: 800; }
-    #taScore { font-size: 22px; } #taCombo { color: #ffd24a; font-size: 16px; } #taTime { margin-left: auto; font-size: 18px; } #taRank { color: #7dff3a; font-size: 16px; }
-    #taSub { width: 100%; display: flex; gap: 10px; font-size: 12px; font-weight: 700; opacity: .92; white-space: nowrap; } #taSub > span { white-space: nowrap; }
-    #taPois { position: absolute; left: 10px; right: 66px; top: calc(86px + env(safe-area-inset-top, 0)); display: flex; flex-wrap: wrap; gap: 5px; }
-    .poiChip { position: relative; width: 28px; height: 28px; border-radius: 8px; background: #0b1416c0; border: 2px solid #ffffff33; display: flex; align-items: center; justify-content: center; font-size: 16px; }
-    .poiChip em { font-style: normal; opacity: .6; } .poiChip.ready em { opacity: 1; }
-    .poiChip b { position: absolute; bottom: -6px; right: -6px; font-size: 8px; font-weight: 900; line-height: 11px; padding: 0 3px; border-radius: 5px; background: #5a2f80; color: #fff; }
-    .poiChip.ready { border-color: #ffd24a; box-shadow: 0 0 8px #ffd24aaa; } .poiChip.ready b { background: #ffd24a; color: #1a0f2e; }
-    .poiChip.done { background: #1d5a18; border-color: #7dff3a; box-shadow: 0 0 8px #7dff3a88; } .poiChip.done em { opacity: .6; filter: grayscale(1); } .poiChip.done b { display: none; }
-    .poiChip.done::before { content: ''; position: absolute; left: 1px; right: 1px; top: 50%; height: 3px; background: #ff4a3a; transform: rotate(-35deg); box-shadow: 0 0 2px #000; }
-    .poiChip.done::after { content: ''; position: absolute; right: -6px; bottom: -6px; width: 15px; height: 15px; border-radius: 50%; background: #7dff3a radial-gradient(circle, transparent 0, transparent 0); box-shadow: 0 0 0 2px #0b1416; }
-    .poiChip.done i { position: absolute; right: -1px; bottom: -2px; width: 4px; height: 8px; border: solid #0b1416; border-width: 0 2px 2px 0; transform: rotate(40deg); z-index: 1; }
-    .poiChip.boom { animation: poiBoom .8s ease-out; } @keyframes poiBoom { 0% { transform: scale(1); } 25% { transform: scale(1.9); box-shadow: 0 0 24px #7dff3a; } 100% { transform: scale(1); } }
     .poiArrow { position: fixed; left: 0; top: 0; width: 34px; height: 34px; pointer-events: none; display: none; z-index: 4; opacity: .55; }
     .poiArrow em { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-style: normal; font-size: 17px; border-radius: 50%; background: #0b1416c0; border: 2px solid #ffffff55; }
     .poiArrow i { position: absolute; inset: -13px; display: flex; align-items: center; justify-content: flex-end; font-style: normal; font-size: 13px; color: #fff; text-shadow: 0 0 3px #000; }
     .poiArrow.ready { opacity: 1; } .poiArrow.ready em { border-color: #ffd24a; box-shadow: 0 0 10px #ffd24a; } .poiArrow.ready i { color: #ffd24a; }
     #taMap { position: absolute; left: 10px; bottom: calc(10px + env(safe-area-inset-bottom, 0)); width: 104px; height: 104px; border-radius: 50%; background: #0b1416c0; border: 2px solid #ffffff55; pointer-events: auto; touch-action: none; }
-    #taGrow { position: absolute; left: 10px; right: 66px; top: calc(62px + env(safe-area-inset-top, 0)); height: 7px; background: #ffffff22; border-radius: 3px; }
-    #taGrowFill { height: 100%; width: 0; border-radius: 3px; background: linear-gradient(90deg, #7dff3a, #ffd24a, #ff5a3a); }
-    #taGrow .tick { position: absolute; top: -2px; width: 2px; height: 11px; background: #ffffffcc; transform: translateX(-1px); }
-    #taGrow .tick b { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); font-size: 9px; font-weight: 900; color: #fff; text-shadow: 0 1px 2px #000; }
-    #taGrow .tick.got b { color: #7dff3a; }
     /* pause: big, bright green with purple bars, so nobody has to hunt for it */
     #taPause { position: absolute; right: 10px; top: calc(48px + env(safe-area-inset-top, 0)); pointer-events: auto; width: 46px; height: 46px; padding: 0; margin: 0; border-radius: 12px; background: #7dff3a; border: 3px solid #5a2f80; color: #5a2f80; font-size: 20px; font-weight: 900; line-height: 1; box-shadow: 0 0 12px #7dff3a99, 0 4px 0 #3a1a5a; }
     #taPause:active { transform: translateY(2px); box-shadow: 0 0 8px #7dff3a99, 0 2px 0 #3a1a5a; }
@@ -50,17 +32,11 @@
     #taLevels .lvl { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 2px; font-size: 10px; min-height: 58px; border-radius: 10px; }
     #taLevels .lvl b { font-size: 18px; } #taLevels .lvl i { font-style: normal; color: #1f4a12; font-weight: 800; font-size: 10px; }
     #taLevels .lvl.on { outline: 3px solid #7dff3a; } #taLevels .lvl:disabled { opacity: .45; }
-    #taLevel { color: #c9a6ff; }
     .zoomBtn { position: absolute; right: 10px; width: 34px; height: 34px; padding: 0; font-size: 20px; line-height: 1; pointer-events: auto; }
     #taZoomIn { top: calc(104px + env(safe-area-inset-top, 0)); right: 16px; } #taZoomOut { top: calc(144px + env(safe-area-inset-top, 0)); right: 16px; }
     .chaserArrow { color: #fff; font-size: 24px; }
     .photoBar { position: fixed; left: 0; top: 0; width: 64px; height: 8px; border-radius: 4px; background: #000a; border: 1px solid #fff8; overflow: hidden; display: none; pointer-events: none; z-index: 4; } .photoBar i { display: block; height: 100%; width: 0; background: #ffffff; }
     /* the tutorial prompt: a slim strip under the score bar, so the town stays in view */
-    #taTut { position: absolute; left: 10px; right: 56px; margin: 0 auto; max-width: 520px; top: calc(118px + env(safe-area-inset-top, 0)); display: flex; align-items: center; gap: 8px; padding: 5px 6px 5px 12px; border-radius: 12px; background: #1a0f2ecc; border: 1.5px solid #ffd24a; text-align: left; pointer-events: auto; box-shadow: 0 2px 10px #0008; transition: border-color .2s; box-sizing: border-box; }
-    #taTut > span { flex: 1; min-width: 0; }
-    #taTut.hidden { display: none; } #taTut.ok { border-color: #7dff3a; } #taTut.ok b { color: #7dff3a; }
-    #taTut b { display: block; font-size: 9.5px; letter-spacing: 1px; color: #ffd24a; } #taTut p { margin: 1px 0 0; font-size: 12.5px; font-weight: 700; line-height: 1.25; color: #fff; }
-    #taTut > div { display: flex; flex-shrink: 0; } #taTut button { font-size: 10px; padding: 4px 8px; margin: 0; white-space: nowrap; } #taTut button.hidden { display: none; }
     .howRow { display: flex; gap: 8px; justify-content: center; } .howRow button { margin: 0; }
     #taView { display: none !important; } /* the chase view is hidden for now */
     #taViewOld { position: absolute; right: 52px; top: calc(54px + env(safe-area-inset-top, 0)); pointer-events: auto; font-size: 11px; padding: 4px 8px; height: 26px; }
@@ -74,16 +50,17 @@
 <body class="booting">
   <canvas id="game"></canvas>
   <div id="ta" class="hidden">
-    <div class="top"><span id="taScore">0</span><span id="taCombo"></span><span id="taRank">F0</span><span id="taTime">2:00</span>
-      <div id="taSub"><span id="taLevel"></span><span id="taPct">0% destroyed</span><span id="taPeople">0 people</span><span id="taTargets"></span></div></div>
-    <div id="taPois"></div><canvas id="taMap"></canvas>
-    <div id="taGrow"><div id="taGrowFill"></div><i class="tick" style="left:20%"><b>F1</b></i><i class="tick" style="left:40%"><b>F2</b></i><i class="tick" style="left:60%"><b>F3</b></i><i class="tick" style="left:80%"><b>F4</b></i><i class="tick" style="left:100%"><b>F5</b></i></div>
+    <div class="top">
+      <div id="hudSize"><b id="taRank">F0</b><div id="taGrow"><div id="taGrowFill"></div><i class="tick" style="left:20%"><b>F1</b></i><i class="tick" style="left:40%"><b>F2</b></i><i class="tick" style="left:60%"><b>F3</b></i><i class="tick" style="left:80%"><b>F4</b></i><i class="tick" style="left:100%"><b>F5</b></i></div><span id="taTime">2:00</span></div>
+      <div id="hudGoal"><span class="goalLbl">🎯 TARGETS<b id="taTargets"></b></span><div id="taPois"></div></div>
+      <div id="taSub"><span id="taLevel"></span><span id="taPct"></span><span id="taScore">0</span><span id="taCombo"></span></div>
+    </div>
+    <canvas id="taMap"></canvas>
     <button id="taView" class="ghost">ISO</button>
     <button id="taZoomIn" class="ghost zoomBtn">+</button><button id="taZoomOut" class="ghost zoomBtn">−</button>
     <button id="taPause" aria-label="Pause">❚❚</button>
     <div id="taStick"><div id="taKnob"></div></div>
     <div id="taBanner"></div>
-    <div id="taTut" class="hidden"><span><b id="taTutStep"></b><p id="taTutText"></p></span><div><button id="taTutSkip" class="ghost">SKIP</button><button id="taTutDone" class="hidden">PLAY ▶</button></div></div>
     <div id="taSeeded">SEEDED! SHRINKING</div>
   </div>
 
@@ -94,8 +71,7 @@
     <div id="twChosen" class="chosenCard"><canvas id="twChosenCv" width="150" height="150"></canvas><div><small>YOUR TORNADO</small><b id="twChosenName"></b><span id="twChosenDesc"></span><button id="twChoose" class="ghost">🌪️ CHOOSE TORNADO</button></div></div>
     <div id="taLevels"></div>
     <button id="taPlay">PLAY</button>
-    <div class="howRow"><button id="taTutBtn" class="ghost">🎓 TUTORIAL</button><button id="taHow" class="ghost">HOW TO PLAY</button></div>
-    <button class="ghost menuBtn" onclick="location.href='menu.html'">MAIN MENU</button>
+    <div class="howRow"><button id="taHow" class="ghost">HOW TO PLAY</button><button class="ghost menuBtn" onclick="location.href='menu.html'">MAIN MENU</button></div>
   </div>
   <div id="twPickScr" class="screen hidden pickScr"><h1>CHOOSE YOUR TORNADO</h1><p id="twPickInfo" class="pickInfo"></p><div id="twPick" class="pickGrid"></div><button id="twPickDone" class="pickDone">✔ DONE</button></div>
   <div id="taPaused" class="screen hidden"><h1>PAUSED</h1><button id="taResume">RESUME</button><button id="taRestart" class="ghost">↺ RESTART LEVEL</button><button class="ghost menuBtn" onclick="location.href='menu.html'">MAIN MENU</button></div>

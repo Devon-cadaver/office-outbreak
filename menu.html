@@ -42,6 +42,18 @@
     body.ready #menu > :nth-child(1) { transition-delay: 0.07s; } body.ready #menu > :nth-child(2) { transition-delay: 0.14s; } body.ready #menu > :nth-child(3) { transition-delay: 0.21s; } body.ready #menu > :nth-child(4) { transition-delay: 0.28s; } body.ready #menu > :nth-child(5) { transition-delay: 0.35s; } body.ready #menu > :nth-child(6) { transition-delay: 0.42s; } body.ready #menu > :nth-child(7) { transition-delay: 0.49s; } body.ready #menu > :nth-child(8) { transition-delay: 0.56s; }
     .choice { padding: 9px 14px !important; gap: 1px !important; box-shadow: 0 4px 0 #3a1f5a !important; }
     .choice b { font-size: 17px !important; } .choice span { font-size: 11.5px !important; }
+    /* QUICK PLAY is the one big button; under it the rest sit in pairs so a new player sees one obvious thing to press */
+    .choice.quick { text-align: center; padding: 13px 14px !important; gap: 2px !important; border: 0; background-color: #7dff3a; color: #120a1f; box-shadow: 0 6px 0 #3f9a1f, 0 8px 12px #0007 !important; }
+    .choice.quick b { font-size: 26px !important; letter-spacing: 2px; color: #120a1f; } .choice.quick span { font-size: 12px !important; font-weight: 700; opacity: .75; }
+    .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: min(88vw, 360px); }
+    .pair .choice { width: auto; min-width: 0; margin: 0; padding: 9px 10px !important; } .pair .choice b { font-size: 13.5px !important; letter-spacing: .3px; white-space: nowrap; } .pair .choice span { font-size: 10.5px !important; }
+    #menu > .choice:not(.quick) { padding: 8px 14px !important; } #menu > .choice:not(.quick) b { font-size: 14px !important; } #menu > .choice:not(.quick) span { display: none; } /* SAVE CODE: one small line */
+    /* QUICK PLAY's own screen: pick a game and you're in */
+    #quickBox { position: fixed; inset: 0; z-index: 30; display: flex; flex-direction: column; align-items: center; justify-content: safe center; gap: 12px; padding: 16px; background: #1a0f2ef4; text-align: center; overflow-y: auto; }
+    #quickBox.hidden { display: none; } #quickBox h2 { margin: 0; font-size: 30px; letter-spacing: 2px; color: #7dff3a; text-shadow: 0 2px 0 #5a2f80; } #quickBox p { margin: 0; font-size: 14px; color: #c9a6ff; }
+    #quickBox .game { width: min(88vw, 360px); margin: 0; padding: 16px 14px; display: grid; gap: 3px; text-align: center; border: 3px solid #7dff3a; background-color: #24133f; color: #fff; border-radius: 16px; box-shadow: 0 6px 0 #0e0618, 0 8px 12px #0007; }
+    #quickBox .game i { font-style: normal; font-size: 44px; line-height: 1.1; } #quickBox .game b { font-size: 22px; letter-spacing: 1px; color: #7dff3a; } #quickBox .game span { font-size: 13px; font-weight: 700; color: #ffd24a; }
+    #quickBox .game.kj { border-color: #ff7a3a; } #quickBox .game.kj b { color: #ff9a5a; }
     .credits { order: 99; margin: auto 0 0 !important; max-width: min(88vw, 360px); font-size: 9.5px !important; line-height: 1.3; color: #a898c8; opacity: .8; text-align: center; }
     #skipIntro { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 3; font-size: 12px; padding: 5px 12px; margin: 0; opacity: .8; }
     body.ready #skipIntro { display: none; }
@@ -51,20 +63,25 @@
   <div id="intro"><img id="introEnd" src="./intro-end.jpg" alt=""><video id="introVid" muted preload="none" playsinline webkit-playsinline preload="auto" poster="./intro-start.jpg"></video></div>
   <button id="skipIntro" class="ghost">SKIP ▶</button>
   <div id="menu" class="screen">
-    <button class="choice" onclick="location.href='tornado.html'"><b>🌪️ PLAY TORNADO ALLEY</b><span>Five towns, ten big targets, seeding planes and storm chasers. New? Try the tutorial.</span></button>
-    <button class="choice" onclick="location.href='kaiju.html'" style="border-color:#ff7a3a;box-shadow:0 6px 0 #5a2a1a"><b style="color:#ff9a5a">🦖 PLAY KAIJU BATTLE</b><span>Be the monster. Eat people to grow, smash the town, fight rival kaiju and unlock them.</span></button>
+    <button class="choice quick" id="quickBtn"><b>▶ QUICK PLAY</b><span>Straight into a round, right where you left off.</span></button>
+    <div class="pair">
+      <button class="choice" onclick="location.href='tornado.html'"><b>🌪️ TORNADO ALLEY</b><span>Towns, eras and storms</span></button>
+      <button class="choice" onclick="location.href='kaiju.html'" style="border-color:#ff7a3a;box-shadow:0 4px 0 #5a2a1a !important"><b style="color:#ff9a5a">🦖 KAIJU MADNESS</b><span>Towns, eras and monsters</span></button>
+    </div>
+    <div class="pair">
+      <button class="choice" onclick="location.href='store.html'" style="border-color:#ffd24a;box-shadow:0 4px 0 #5a4a1a !important"><b style="color:#ffd24a">🎨 SKIN SHOP</b><span class="saved" id="coins">Spend your coins</span></button>
+      <button class="choice" id="radioBtn" style="border-color:#3af0ff;box-shadow:0 4px 0 #1a4a5a !important"><b style="color:#3af0ff">📻 RADIO</b><span>Pick your songs</span></button>
+    </div>
     <!-- Survival and Extract are hidden for now; the pages still work and can come back by removing hidden -->
     <button class="choice hidden" onclick="location.href='deadcity.html'"><b>DEAD CITY (SURVIVAL)</b><span>Third-person joystick. Six nights, spells, guns, vehicles, survivors and a chopper at dawn.</span><span class="saved" id="dcSaved"></span></button>
     <button class="choice hidden" onclick="location.href='zombieville.html'"><b>EXTRACT</b><span>Snake-style maze run. Gather a line of survivors and get them out by heli. Ten districts.</span><span class="saved" id="zvSaved"></span></button>
-    <button class="choice" onclick="location.href='store.html'" style="margin-top:14px;border-color:#ffd24a;box-shadow:0 6px 0 #5a4a1a"><b style="color:#ffd24a">SKIN SHOP</b><span>Spend your coins on tornado skins, townsfolk outfits and the cars in town.</span><span class="saved" id="coins"></span></button>
-    <button class="choice" id="radioBtn" style="border-color:#3af0ff;box-shadow:0 6px 0 #1a4a5a"><b style="color:#3af0ff">📻 RADIO STATION</b><span>Pick which songs play while you wreck the town.</span></button>
 
     <p class="credits">All monsters, robots and characters are original creations. Any resemblance to other characters is coincidental.</p>
   </div>
   <script type="module">import { stampVersion } from './src/version.js'; import { initSaveCodes } from './src/savecode.js'; import { soundToggle, radio } from './src/audio.js';
     // the radio: same song and spot as the last page, from the first tap if the browser needs one
     radio();
-    soundToggle(document.getElementById('menu')); stampVersion(); initSaveCodes(document.getElementById('menu'));
+    initSaveCodes(document.getElementById('menu'), document.querySelector('#menu .credits')); soundToggle(document.getElementById('menu')); stampVersion();
     // the intro clip plays once (muted, as browsers require), stays on its last frame, then the menu pops up. It plays every time the
     // menu opens; if the browser won't play it, the menu shows straight away on the final frame.
     { const v = document.getElementById('introVid'); v.muted = true; v.defaultMuted = true; let done = false, timer = 0;
@@ -80,9 +97,27 @@
       if (seen) { v.removeAttribute('autoplay'); v.pause(); v.style.display = 'none'; ready(); } else start(); document.getElementById('skipIntro').addEventListener('click', () => { v.pause(); ready(); }); window.__introReady = () => done;
       }</script>
   <script type="module">import { openRadio } from './src/radioBox.js'; document.getElementById('radioBtn').addEventListener('click', openRadio);</script>
+  <script type="module">
+    // QUICK PLAY: pick a game and go straight into a round with the storm or monster you last used, in the town you
+    // left off in (someone new starts in town 1). The game pages read ?quick and skip their own menu
+    import { TOWNS, quickLevel } from './src/progress.js';
+    let box = null;
+    function open() {
+      if (!box) { box = document.createElement('div'); box.id = 'quickBox';
+        box.innerHTML = '<h2>▶ QUICK PLAY</h2><p>Pick a game. You go straight in.</p>'
+          + '<button class="game" data-go="tornado.html"><i>🌪️</i><b>TORNADO ALLEY</b><span data-g="ta"></span></button>'
+          + '<button class="game kj" data-go="kaiju.html"><i>🦖</i><b>KAIJU MADNESS</b><span data-g="kj"></span></button><button class="ghost back">◀ BACK</button>';
+        document.body.appendChild(box);
+        for (const b of box.querySelectorAll('.game')) b.addEventListener('click', () => { location.href = b.dataset.go + '?quick=1'; });
+        box.querySelector('.back').addEventListener('click', () => box.classList.add('hidden')); }
+      for (const el of box.querySelectorAll('[data-g]')) { const n = quickLevel(el.dataset.g); el.textContent = 'LEVEL ' + n + ' · ' + TOWNS[n - 1].toUpperCase(); }
+      box.classList.remove('hidden');
+    }
+    document.getElementById('quickBtn').addEventListener('click', open);
+  </script>
   <script>
     try { if (localStorage.getItem('oo_save_dc')) document.getElementById('dcSaved').textContent = 'Saved game: night ' + (JSON.parse(localStorage.getItem('oo_save_dc')).night + 1); } catch (e) {}
-    try { const c = Math.round(+JSON.parse(localStorage.getItem('oo_coins') || '0') * 100) / 100; document.getElementById('coins').textContent = c ? '🪙 ' + c + (c === 1 ? ' coin' : ' coins') : ''; } catch (e) {}
+    try { const c = Math.round(+JSON.parse(localStorage.getItem('oo_coins') || '0') * 100) / 100; if (c) document.getElementById('coins').textContent = '🪙 ' + c + (c === 1 ? ' coin' : ' coins'); } catch (e) {}
     try { if (localStorage.getItem('oo_save_zv')) document.getElementById('zvSaved').textContent = 'Saved game: district ' + JSON.parse(localStorage.getItem('oo_save_zv')).level; } catch (e) {}
   </script>
 </body>

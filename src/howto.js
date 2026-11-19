@@ -9,7 +9,7 @@ const css = `
 #howto p { margin: 0 0 14px; font-size: 16px; line-height: 1.35; color: #e8dcff; min-height: 66px; }
 #howto .dots { font-size: 12px; color: #c9a6ff; letter-spacing: 4px; margin-bottom: 10px; }
 #howto .row { display: flex; gap: 8px; } #howto .row button { flex: 1; margin: 0; }
-.gameTip { position: fixed; left: 50%; top: calc(124px + env(safe-area-inset-top, 0)); transform: translate(-50%, -6px); z-index: 6; max-width: min(250px, 66vw); padding: 3px 8px; border-radius: 8px;
+.gameTip { position: fixed; left: 50%; top: calc(var(--hudH, 116px) + 8px); transform: translate(-50%, -6px); z-index: 6; max-width: min(250px, 66vw); padding: 3px 8px; border-radius: 8px;
   background: #1a0f2eb0; border: 1px solid #ffd24a88; color: #fff; font-weight: 700; font-size: 10.5px; line-height: 1.2; text-align: center; pointer-events: none; opacity: 0; transition: opacity .25s, transform .25s; box-shadow: none; }
 .gameTip.show { opacity: 1; transform: translate(-50%, 0); }
 `;
