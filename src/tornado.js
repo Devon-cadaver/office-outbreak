@@ -239,6 +239,7 @@ export function createTwisters(scene, { onBolt } = {}) {
         if (c.burn && fx) { c.bt = (c.bt || 0) - dt; if (c.bt <= 0) { c.bt = 0.09; fx.puff('flame', m.position, 0.5 + m.scale.x * 0.3); } }
         c.vel.y -= 16 * dt; m.position.addScaledVector(c.vel, dt); m.rotation.x += c.spin.x * dt; m.rotation.y += c.spin.y * dt; m.rotation.z += c.spin.z * dt;
         const floor = c.frag ? 0.1 : Math.max(0.03, m.scale.y * 0.5); if (c.frag && m.position.y > floor) wreck.place(c.frag, m);
+        if (m.position.y <= floor && c.onLand) { m.position.y = floor; const f = c.onLand; chunks.splice(i, 1); f(m); continue; }
         if (m.position.y <= floor) { m.position.y = floor; c.phase = 'rest'; m.rotation.x = 0; m.rotation.z = 0; c.rest = c.frag ? 9 + Math.random() * 5 : c.inst ? 30 : 3; /* a building's own loose parts are a draw each, so they clear away soon */
           if (c.frag) { m.quaternion.setFromUnitVectors(c.frag.n, Math.random() < 0.7 ? UPV : DOWN); m.rotateY(Math.random() * 6.28); m.position.y = 0.07 + Math.random() * 0.1; wreck.place(c.frag, m); } // a wall piece lands flat: face up, mostly
           if (fx && c.inst && m.scale.x > 0.3 && budget-- > 0) { fx.dust({ x: m.position.x, y: 0, z: m.position.z }, 0.5 + m.scale.x * 0.5); if (c.burn) { fx.scorch(m.position, 0.45, 9); fx.ignite(new THREE.Vector3(m.position.x, 0.1, m.position.z), 0.45, 2.5); } } c.burn = false; }
@@ -273,6 +274,6 @@ export function createTwisters(scene, { onBolt } = {}) {
       else if (!f.keep) f.m.scale.setScalar(Math.max(0.2, f.life / f.max) * (f.m.scale.x > 0 ? 1 : 1));
       if (f.life <= 0 || f.m.position.y < 0) { scene.remove(f.m); fxParts.splice(i, 1); if (f.fizz && Math.random() < 0.5) { const q = f.m.position.clone().setY(0.05); for (let k = 0; k < 2; k++) spark(q, new THREE.Vector3((Math.random() - 0.5) * 1.6, 1 + Math.random(), (Math.random() - 0.5) * 1.6), 0xb8ff3a, 0.35, 6, 0.8); } } } }
   function clear() { for (const b of babies) dispose(b.tw); babies.length = 0; for (const f of fxParts) scene.remove(f.m); fxParts.length = 0; for (const tw of twisters) scene.remove(tw.g); twisters.length = 0; zaps.clear(); wreck.clear(); for (const c of chunks) { if (c.m) scene.remove(c.m); } chunks.length = 0; rub.count = 0; }
-  function suck(m, tw) { scene.attach(m); addChunk(m, tw, 0); }
+  function suck(m, tw, o) { scene.attach(m); addChunk(m, tw, 0); if (o && o.onLand) chunks[chunks.length - 1].onLand = o.onLand; } // o.onLand(m): called where it comes down, instead of it lying there (the storm chaser blows up)
   return { make, remove, tear, scatter, suck, update, clear, radiusAt, strikeAt, setFx(f) { fx = f; }, get wreck() { return wreck; }, get chunks() { return chunks; }, get babies() { return babies; }, setBounds(b) { bounds = b; } };
 }

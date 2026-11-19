@@ -15,10 +15,10 @@
   <link rel="stylesheet" href="/src/style.css" />
   <style>
     #ta { position: fixed; inset: 0; pointer-events: none; }
-    .poiArrow { position: fixed; left: 0; top: 0; width: 34px; height: 34px; pointer-events: none; display: none; z-index: 4; opacity: .55; }
-    .poiArrow em { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-style: normal; font-size: 17px; border-radius: 50%; background: #0b1416c0; border: 2px solid #ffffff55; }
+    .poiArrow { position: fixed; left: 0; top: 0; width: 34px; height: 34px; pointer-events: none; display: none; z-index: 4; opacity: .42; }
+    .poiArrow em { filter: grayscale(1); position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-style: normal; font-size: 17px; border-radius: 50%; background: #0b1416c0; border: 2px solid #ffffff55; }
     .poiArrow i { position: absolute; inset: -13px; display: flex; align-items: center; justify-content: flex-end; font-style: normal; font-size: 13px; color: #fff; text-shadow: 0 0 3px #000; }
-    .poiArrow.ready { opacity: 1; } .poiArrow.ready em { border-color: #ffd24a; box-shadow: 0 0 10px #ffd24a; } .poiArrow.ready i { color: #ffd24a; }
+    .poiArrow.ready { opacity: 1; } .poiArrow.ready em { filter: none; border-color: #ffd24a; box-shadow: 0 0 10px #ffd24a; } .poiArrow.ready i { color: #ffd24a; }
     #taMap { position: absolute; left: 10px; bottom: calc(10px + env(safe-area-inset-bottom, 0)); width: 104px; height: 104px; border-radius: 50%; background: #0b1416c0; border: 2px solid #ffffff55; pointer-events: auto; touch-action: none; }
     /* pause: big, bright green with purple bars, so nobody has to hunt for it */
     #taPause { position: absolute; right: 10px; top: calc(48px + env(safe-area-inset-top, 0)); pointer-events: auto; width: 46px; height: 46px; padding: 0; margin: 0; border-radius: 12px; background: #7dff3a; border: 3px solid #5a2f80; color: #5a2f80; font-size: 20px; font-weight: 900; line-height: 1; box-shadow: 0 0 12px #7dff3a99, 0 4px 0 #3a1a5a; }

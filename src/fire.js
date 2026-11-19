@@ -43,7 +43,7 @@ function makeBatch(max, flat, add, order) {
   const mk = (n) => { const a = new THREE.InstancedBufferAttribute(new Float32Array(max * n), n); a.setUsage(THREE.DynamicDrawUsage); return a; };
   const B = { max, n: 0, st: new Float32Array(max * N), pos: mk(3), col: mk(4), arg: mk(4), vel: mk(3), geo };
   geo.setAttribute('iPos', B.pos); geo.setAttribute('iCol', B.col); geo.setAttribute('iArg', B.arg); geo.setAttribute('iVel', B.vel); geo.instanceCount = 0;
-  B.mesh = new THREE.Mesh(geo, new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, uniforms: { uFlat: { value: flat ? 1 : 0 } }, transparent: true, depthWrite: false, blending: add ? THREE.AdditiveBlending : THREE.NormalBlending }));
+  B.mesh = new THREE.Mesh(geo, new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, uniforms: { uFlat: { value: flat ? 1 : 0 } }, transparent: true, depthWrite: false, blending: add ? THREE.AdditiveBlending : THREE.NormalBlending, side: flat ? THREE.DoubleSide : THREE.FrontSide })); // the flat batches lie on the ground and are looked at from above, which is their back: without this they are never drawn
   B.mesh.frustumCulled = false; B.mesh.renderOrder = order; return B;
 }
 // one particle: o = { x, y, z, vx, vy, vz, life, s (size, or [from, to]), c (colour, or [from, to]), a, shape, grav, drag, rot, spin, stretch, fin }
@@ -88,6 +88,11 @@ export function createFires(scene) {
   function shock(p, r, c = 0xffe2b0, life = 0.38) { emit(light, { x: p.x, y: 0.14, z: p.z, life, s: [r * 0.3, r * 2], c, a: 0.75, shape: 2, rot: 0 }); }
   function scorch(p, r, life = 16) { emit(marks, { x: p.x, y: 0.11, z: p.z, life, s: r * 2 * rnd(0.85, 1.15), c: 0x0a0806, a: 0.62, shape: 1, fin: 0.02 }); }
   function flash(p, size, c = 0xffe2a0) { emit(hot, { x: p.x, y: p.y, z: p.z, life: 0.2, s: [0.8 * size, 5 * size], c, a: 0.8, shape: 0 }); }
+  // a burst of droplets, confetti or stars, thrown up and out. o = { c (a colour, [from, to], or with pick: a list to choose from), speed, up: [min, max], life, size, grav, drag, shape, stretch, spread, vx, vz, soft, a }
+  function spray(p, n = 20, o = {}) { const up = o.up || [2, 6], sp = o.spread || 0, B = o.soft ? smoke : hot; // soft: solid-looking blobs (mud, muck) rather than glowing ones
+    for (let i = 0; i < n; i++) { const a = Math.random() * 6.28, v = (o.speed == null ? 5 : o.speed) * rnd(0.3, 1); emit(B, { x: p.x + rnd(-sp, sp), y: p.y, z: p.z + rnd(-sp, sp), vx: Math.cos(a) * v + (o.vx || 0), vy: rnd(up[0], up[1]), vz: Math.sin(a) * v + (o.vz || 0), life: (o.life || 1) * rnd(0.6, 1.2), s: (o.size || 0.15) * rnd(0.7, 1.3), c: o.pick ? pick(o.c) : o.c || 0xffffff, a: o.a == null ? 1 : o.a, shape: o.shape == null ? 3 : o.shape, stretch: o.stretch == null ? 3 : o.stretch, grav: o.grav == null ? 13 : o.grav, drag: o.drag == null ? 0.8 : o.drag }); } }
+  // a patch on the ground that fades away: a puddle, a stain
+  function pool(p, r, c, life = 10, a = 0.5) { emit(marks, { x: p.x, y: 0.115, z: p.z, life, s: r * 2, c, a, shape: 1, fin: 0.05 }); }
   // a solid bit thrown out: bounces once, lies there a moment, shrinks away
   function bit(p, size, col, speed = 9) { if (bitList.length >= BITS) return; const a = Math.random() * 6.28, v = speed * rnd(0.25, 1); bitList.push({ x: p.x, y: p.y, z: p.z, vx: Math.cos(a) * v, vy: rnd(3, 9), vz: Math.sin(a) * v, s: rnd(0.1, 0.24) * size, rx: Math.random() * 6, rz: Math.random() * 6, sp: rnd(4, 11), life: rnd(1.6, 2.8), hex: col == null ? pick(BIT_COLS) : col, bounced: false }); }
 
@@ -125,5 +130,5 @@ export function createFires(scene) {
     bits.count = n; if (n || bits.was) { bits.instanceMatrix.needsUpdate = true; bits.instanceColor.needsUpdate = true; } bits.was = n > 0;
   }
   function clear() { fires.length = 0; bitList.length = 0; bits.count = 0; for (const B of [hot, smoke, light, marks]) { B.n = 0; B.geo.instanceCount = 0; } }
-  return { fires, ignite, explode, update, clear, puff: spawn, sparks, dust, zap, glow, shock, scorch, flash, ember, bit, get count() { return hot.n + smoke.n + light.n + marks.n + bitList.length; } };
+  return { fires, ignite, explode, update, clear, puff: spawn, sparks, spray, pool, dust, zap, glow, shock, scorch, flash, ember, bit, get count() { return hot.n + smoke.n + light.n + marks.n + bitList.length; } };
 }

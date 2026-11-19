@@ -78,6 +78,19 @@ export const sfx = {
   crunch: (big = false) => { if (!ctx || ctx.currentTime - crunchT < 0.06) return; crunchT = ctx.currentTime; noise(big ? 0.45 : 0.28, big ? 0.32 : 0.22, 380 + Math.random() * 300, 0.6); tone(big ? 90 : 130, 0.2, 'sawtooth', 0.05, -50); },
   flap: () => { noise(0.18, 0.12, 520, 0.7); tone(180, 0.12, 'triangle', 0.05, -60); },
   laser: () => { tone(1600, 0.2, 'sawtooth', 0.035, -1300); tone(800, 0.16, 'square', 0.02, -600); },
+  // the big targets going up, each in its own way: a burst tank, a fire engine's two-tone horn, a police whoop, a firework, a balloon
+  splash: () => { noise(1.1, 0.4, 700, 0.5); noise(1.6, 0.22, 2600, 0.6); tone(90, 0.5, 'sine', 0.12, -40); },
+  neenaw: () => { for (let i = 0; i < 6; i++) tone(i % 2 ? 520 : 660, 0.26, 'square', 0.045, 0, master, i * 0.27); },
+  whoop: () => { for (let i = 0; i < 4; i++) tone(520, 0.3, 'sawtooth', 0.04, 900, master, i * 0.32); },
+  firework: () => { noise(0.25, 0.3, 1800, 0.8); tone(160, 0.3, 'triangle', 0.08, -90); setTimeout(() => noise(0.5, 0.1, 5200, 2), 90); },
+  pop: () => noise(0.06, 0.12, 2400, 1.5),
+  // a ghost's wail, a radar ping, muck landing, a short circuit, the power winding down, a radio's dying static
+  ghost: () => { tone(880, 1.4, 'sine', 0.05, -520); tone(660, 1.6, 'sine', 0.04, -380, master, 0.15); noise(1.2, 0.05, 500, 3); },
+  ping: (i = 0) => tone(1500 - i * 60, 0.22, 'sine', 0.05, -250),
+  splat: () => { noise(0.5, 0.35, 300, 0.6); tone(70, 0.4, 'sawtooth', 0.1, -30); },
+  zap: () => { noise(0.14, 0.22, 3200, 3); tone(110, 0.16, 'square', 0.05, 60); },
+  powerdown: () => tone(420, 1.3, 'sawtooth', 0.06, -370),
+  static: () => { noise(1.3, 0.28, 3400, 0.4); tone(1900, 0.9, 'sawtooth', 0.03, -1600); },
   over: () => { tone(300, 0.3, 'sawtooth', 0.08, -150); setTimeout(() => tone(200, 0.5, 'sawtooth', 0.08, -150), 250); },
 };
 

@@ -22,6 +22,7 @@ import { showHowTo, tip, clearTips } from '../howto.js';
 import { coach, coachSeen, coachIdle, coachBusy, coachFrame, coachClear } from '../coach.js';
 import { quickLevel, saveLast } from '../progress.js';
 import { createCrowd } from '../crowd.js';
+import { buildOutskirts } from '../outskirts.js';
 import { autoResolution, mergeStatic, bakeMovable, bakeUnits, setBakedGlow } from '../perf.js';
 import { rides, spinners } from '../landmarks.js';
 import { makePlane, makeTank } from '../ally/units.js';
@@ -115,7 +116,7 @@ function buildWorld() {
     if (!at) continue; taken.push(at); cells.add(at[1] * cols + at[0]); forced.set(at[1] * cols + at[0], k); }
   maze.forcedLandmarks = forced;
   twisters.setBounds(toWorld(cols - 1, rows - 1, cols, rows));
-  hemi.intensity = 1.75; sun.intensity = 0.95; city = buildCity(scene, maze, 3 + (seed % 9973)); city.season.light(hemi, sun, scene); city.detail.clouds.visible = false; city.detail.clouds.material.opacity = 0;
+  hemi.intensity = 1.75; sun.intensity = 0.95; city = buildCity(scene, maze, 3 + (seed % 9973)); buildOutskirts(scene, cols, rows, seed); city.season.light(hemi, sun, scene); city.detail.clouds.visible = false; city.detail.clouds.material.opacity = 0;
   pois = {}; for (const hz of city.hazards) { const k = ['ferris', 'coaster', 'carousel'].includes(hz.type) ? 'fair' : POI[hz.type] ? hz.type : null; if (k) (pois[k] = pois[k] || { hz: [], done: false }).hz.push(hz); }
   for (const k in pois) { const c = new THREE.Vector3(); for (const hz of pois[k].hz) c.add(hz.pos); pois[k].center = c.divideScalar(Math.max(1, pois[k].hz.length)); pois[k].reach = k === 'fair' ? 4.2 : 1.6; }
   buildings = city.buildings.map((b) => { const obj = b.parent !== city.group ? b.parent : b; const wp = b.getWorldPosition(new THREE.Vector3()); const h = b.userData.h || 2; return { b, obj, pos: wp, h, pts: Math.round((obj === b ? 70 : 55) * h), done: false }; });
@@ -811,8 +812,8 @@ function addPoiMarks() { for (const g of poiMarks) scene.remove(g); poiMarks.len
     const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; const badge = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true })); badge.renderOrder = 9; g.add(badge);
     g.userData = { ring, badge }; scene.add(g); P.mark = g; poiMarks.push(g); } }
 function tickPoiMark(g, ready) { const u = g.userData, view = (cam.top - cam.bottom); // sized against the view, so a badge reads the same however far the camera has pulled back
-  u.badge.scale.setScalar(view * (ready ? 0.085 : 0.055)); u.badge.position.y = 4.4 + view * 0.03 + (ready ? Math.sin(played * 3.2) * 0.35 : 0); u.badge.material.color.setHex(ready ? 0xffffff : 0x8a96a6); u.badge.material.opacity = ready ? 1 : 0.8;
-  u.ring.material.color.setHex(ready ? 0xffd24a : 0x9fb4c8); u.ring.material.opacity = ready ? 0.6 + Math.sin(played * 5) * 0.25 : 0.35; }
+  u.badge.scale.setScalar(view * (ready ? 0.085 : 0.055)); u.badge.position.y = 4.4 + view * 0.03 + (ready ? Math.sin(played * 3.2) * 0.35 : 0); u.badge.material.color.setHex(ready ? 0xffffff : 0x66707c); u.badge.material.opacity = ready ? 1 : 0.5;
+  u.ring.material.color.setHex(ready ? 0xffd24a : 0x9fb4c8); u.ring.material.opacity = ready ? 0.6 + Math.sin(played * 5) * 0.25 : 0.2; }
 // tap a target's chip up top: the monster heads for it (if it's big enough yet) and its arrow flashes
 function goToPoi(k) { const P = pois[k]; if (state !== 'play' || !P || P.done) return; const ok = stage >= POI[k].stage; banner(ok ? '➤ ' + POI[k].icon + ' ' + POI[k].name : POI[k].icon + ' ' + POI[k].name + ' NEEDS A ' + STAGE[POI[k].stage]); if (ok) moveTo = new THREE.Vector3(P.center.x, 0, P.center.z);
   P.arrow.classList.remove('ping'); void P.arrow.offsetWidth; P.arrow.classList.add('ping'); }
@@ -956,7 +957,7 @@ const HOWTO = [
   ['✈️', 'Napalm planes', 'Planes drop fire on you. Walk out of the flames, or blast them with a spell. A Colossus swats them.'],
   ['👹', 'Rival kaiju', 'Two rivals come for you at each size. Up close, tap to swing and tap the glowing dots for big hits. KO one and eat it for a big boost.'],
   ['👹', 'Win new kaiju', 'Most rounds the prize games hand you a new kaiju or robot (sometimes two). Win one you already have and you get a whole coin.'],
-  ['🎯', 'Big targets', 'The big targets are the mission. Each one wears a badge in town; follow its arrow, or tap its icon up top to head there. Its icon glows when you are big enough.'],
+  ['🎯', 'Big targets', 'The big targets are the mission. Each one wears a badge in town, with an arrow to it at the edge of the screen: dim while you are too small for it, bright gold once you are big enough. Follow the arrow, or tap its icon up top to head there.'],
   ['🏆', 'Crush the town', 'Flatten the goal % and take out enough big targets before time runs out to unlock the next town.'],
 ];
 $('taHow').addEventListener('click', () => showHowTo(HOWTO));
@@ -1112,7 +1113,7 @@ function update(dt) {
   { const w = (meF * 100).toFixed(1) + '%'; if (hudCache.grow !== w) { hudCache.grow = w; $('taGrowFill').style.width = w; } const pw = Math.round(power * 100) + '%'; if (hudCache.pw !== pw) { hudCache.pw = pw; $('kjPowerFill').style.width = pw; $('kjPower').classList.toggle('full', power >= 1); setT('kjPowerTxt', power >= 1 ? '⚡ ' + K.spells[stage - 1].toUpperCase() + ' READY: TAP A TARGET' : '⚡ POWER'); } }
   setStormLevel(stage * 2 - 1 + (rival && rival.hp > 0 ? 1 : 0));
   if (Math.round((bDone / totalB) * 100) >= 100 && poiOrder.every((k) => pois[k].done)) { /* as soon as the HUD reads 100% (it rounds, so a stray building or two can't hold the round open) */ if (!totalD && !died) totalWipe(me.g.position); rivalQueue = []; if (!rival) tLeft = Math.min(tLeft, 1.5); }
-  { let n = 0; for (const k of poiOrder) { const P = pois[k]; if (P.done) { n++; continue; } const ready = stage >= POI[k].stage; if (P.chip) P.chip.classList.toggle('ready', ready); P.arrow.classList.toggle('ready', ready); edgeArrow(P.arrow, P.center, true); if (P.mark) tickPoiMark(P.mark, ready); }
+  { let n = 0; for (const k of poiOrder) { const P = pois[k]; if (P.done) { n++; continue; } const ready = stage >= POI[k].stage; if (P.chip) P.chip.classList.toggle('ready', ready); P.arrow.classList.toggle('ready', ready); edgeArrow(P.arrow, P.center, true); if (P.mark) tickPoiMark(P.mark, ready); } // too small for it yet: its badge and arrow stay, but dim and grey
     const need = Math.min(L().need, poiOrder.length); setT('taTargets', n + '/' + need); if (hudCache.tgtOk !== (n >= need)) { hudCache.tgtOk = n >= need; $('taTargets').classList.toggle('ok', n >= need); } }
   mapT -= dt; if (mapT <= 0) { mapT = 0.08; drawMini(); }
 }

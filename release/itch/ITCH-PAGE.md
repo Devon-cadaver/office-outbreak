@@ -1,6 +1,6 @@
 # Dead City: Tornado Alley — itch.io page kit
 
-Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.26.0**. Upload `release/survive-dead-city-web-v1.26.0.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
+Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.27.0**. Upload `release/survive-dead-city-web-v1.27.0.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
 
 > All monsters, robots and characters in Dead City are original creations. Any resemblance to other characters is coincidental.
 
@@ -13,7 +13,7 @@ Everything needed to set up https://devs66.itch.io/ for the game. Current versio
 | Short description / tagline | You are the storm. Tear through five towns, take out big targets, dodge seeding planes and outrun storm chasers. |
 | Classification | Game |
 | Kind of project | **HTML** |
-| Uploads | `survive-dead-city-web-v1.26.0.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
+| Uploads | `survive-dead-city-web-v1.27.0.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
 | Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
 | Frame options | Leave SharedArrayBuffer off. No special headers needed. |
 | Pricing | Free (or "No payments"). |
@@ -70,6 +70,7 @@ Small browser games built fast, tested on a phone, and tuned by playing. Dead Ci
 
 ## Version history
 
+- **1.27.0** (2026-11-19): Every big target in Tornado Alley now goes up in its own way: the water station bursts, the fire and police stations throw siren lights in every direction, the fairground lets go of its balloons and fireworks, ghosts rise from the graveyard, the weather station dish flies off, the sewage plant spouts, the power plant throws lightning and the radio tower topples. Storm chasers explode when struck by lightning, and again where your storm hurls them. The camera pulls back further with each F level past F1. Targets you are too small for stay on screen dimmed, then turn gold. There is countryside round every town in both games: fields, roads, woods, farms and hills. Fixed: shockwave rings, firelight on the ground and scorch marks were never being drawn.
 - **1.26.0** (2026-11-19): Four new enemies in Tornado Alley. A rogue twister eats your town from the Suburbs on: swallow it while it is smaller than you, strike it down to size when it is bigger. A storm cannon guards big targets from Downtown on and blasts you back along its orange line. Gunships circle from Metro on, firing freeze rockets that slow you. A shielded UFO with a shrink ray hunts you in Megacity and The Sprawl: strike it when it drops low to beam people up. Seeding planes hit by lightning now crash in flames and take a strip of town with them. In Kaiju Madness, buildings burst apart when they are hit or stepped on.
 - **1.25.0** (2026-11-19): A big visual and speed upgrade. Buildings now crack and break into real pieces of themselves as the storm tears them away. Lightning, explosions, smoke and dust are all new, and the tornado bends as it moves. The city has brick, concrete and glass buildings with shopfronts and rooftop detail. A proper tank, dressed soldiers, and townsfolk who run with their arms up. Kaiju fights get a close-up camera, a weightier walk and slow-motion knockouts. Everything draws much faster, and there is a sixth, bigger town: The Sprawl. New loading screen.
 - **1.24.0** (2026-11-18): New QUICK PLAY button on the main menu: pick a game and go straight into a round, right where you left off. The tutorial is gone: the first time each new thing comes up, the round pauses and shows you how, with an arrow. The top of the screen now shows your size and the big targets first: tap a target icon to head for it, and every target wears a badge in town. How To Play only opens when you ask for it.
