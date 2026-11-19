@@ -19,9 +19,10 @@ import { initFullscreen } from '../fullscreen.js';
 import { showHowTo, tip, clearTips } from '../howto.js';
 import { coach, coachSeen, coachIdle, coachBusy, coachFrame, coachClear } from '../coach.js';
 import { quickLevel, saveLast } from '../progress.js';
-import { autoResolution, mergeStatic, bakeMovable } from '../perf.js';
+import { createCrowd } from '../crowd.js';
+import { autoResolution, mergeStatic, bakeMovable, bakeUnits, setBakedGlow } from '../perf.js';
 import { rides, spinners } from '../landmarks.js';
-import { makePlane, makeChaser } from './units.js';
+import { makePlane, makeChaser, makeTank } from './units.js';
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('game');
@@ -40,8 +41,10 @@ const viewCam = () => (third ? cam3 : cam);
 const ISO_YAW = Math.PI / 4, ISO_ELEV = 0.72;
 const isoDir = new THREE.Vector3(Math.sin(ISO_YAW) * Math.cos(ISO_ELEV), Math.sin(ISO_ELEV), Math.cos(ISO_YAW) * Math.cos(ISO_ELEV)).normalize();
 const fx = createFires(scene);
+const crowd = createCrowd(scene, 640), crowdLists = [[null, 0], [null, 1]]; // townsfolk and soldiers away from the storm: one draw call for the lot
+let shake = 0; const jolt = (v) => { shake = Math.max(shake, v); }; // camera shake (0..1): a short jolt when something big comes down
 let flashT = 0; const flashEl = document.createElement('div'); flashEl.style.cssText = 'position:fixed;inset:0;background:#dfeaff;opacity:0;pointer-events:none;z-index:5'; document.body.appendChild(flashEl);
-const twisters = createTwisters(scene, { onBolt: (p, ground) => { flashT = Math.max(flashT, ground ? 0.18 : 0.1); if (ground && Math.random() < 0.3) sfx.boom(); if (ground) fx.puff('smoke', new THREE.Vector3(p.x, 0.3, p.z), 0.6); } });
+const twisters = createTwisters(scene, { onBolt: (p, ground) => { flashT = Math.max(flashT, ground ? 0.1 : 0.05); if (ground && Math.random() < 0.3) sfx.boom(); if (ground) fx.zap(p, tw && tw.skin && tw.skin.boltGlow ? tw.skin.boltGlow : 0x9fd0ff); } }); twisters.setFx(fx);
 stampVersion($('taStart'));
 
 // ---------- tuning ----------
@@ -54,12 +57,13 @@ const LEVELS = [
   { name: 'Downtown', size: 33, time: 165, goal: 35, pois: 7, need: 4 },
   { name: 'Metro', size: 39, time: 190, goal: 30, pois: 8, need: 6 },
   { name: 'Megacity', size: 47, time: 270, goal: 30, pois: 10, need: 10 },
+  { name: 'The Sprawl', size: 57, time: 320, goal: 30, pois: 10, need: 10 }, // half as big again as Megacity: only possible now the city is drawn in batches
 ];
 let level = 1; const L = () => LEVELS[level - 1];
 const SEASON_CYCLE = ['none', 'halloween', 'christmas', 'july4'], SEASON_NAME = { none: 'Clear skies', halloween: 'Halloween', christmas: 'Christmas', july4: '4th of July' };
 let seasonI = 0; { let last = -1; try { last = +(localStorage.getItem('ta_season_start') ?? -1); } catch { /* ignore */ } seasonI = (Math.max(0, last) + 1 + ((Math.random() * (SEASON_CYCLE.length - 1)) | 0)) % SEASON_CYCLE.length; if (seasonI === last) seasonI = (seasonI + 1) % SEASON_CYCLE.length; try { localStorage.setItem('ta_season_start', String(seasonI)); } catch { /* ignore */ } }
 let roundN = 0; const seasonNow = () => SEASON_CYCLE[(seasonI + roundN) % SEASON_CYCLE.length];
-const seasonFor = () => (seasonChoice() !== 'random' ? seasonChoice() : level === LEVELS.length ? 'none' : seasonNow()); // Megacity: no decorations, it's big enough already
+const seasonFor = () => (seasonChoice() !== 'random' ? seasonChoice() : level >= 5 ? 'none' : seasonNow()); // Megacity and The Sprawl: no decorations, they're big enough already
 const unlocked = () => { try { return Math.max(1, Math.min(LEVELS.length, +localStorage.getItem(levelKey('ta')) || 1)); } catch { return 1; } };
 let ROUND = LEVELS[0].time;
 // big targets: HUD icon, banner name, the Fujita rank that can take it, points. Each round has the classic three plus
@@ -74,13 +78,6 @@ const rankOf = (s) => Math.min(5, Math.floor(((s - 1) / (MAX_S - 1)) * 5 + 0.02)
 // ---------- world ----------
 let cols, rows, maze, city, buildings = [], people = [], cars = [], pois = {}, hMax = 3, massTarget = 1, totalB = 1;
 let roadCells = [], drivers = [], soldiers = [], tanks = [], shots = [];
-function makeTank() {
-  const g = new THREE.Group(); const olive = new THREE.MeshLambertMaterial({ color: 0x4a5a32 }), dark = new THREE.MeshLambertMaterial({ color: 0x2a3020 });
-  const part = (geo, mat, sx, sy, sz, x, y, z, parent = g) => { const m = new THREE.Mesh(geo, mat); m.scale.set(sx, sy, sz); m.position.set(x, y, z); parent.add(m); return m; };
-  const bx = new THREE.BoxGeometry(1, 1, 1); part(bx, dark, 0.95, 0.28, 1.5, 0, 0.16, 0); part(bx, olive, 0.85, 0.3, 1.3, 0, 0.42, 0);
-  const turret = new THREE.Group(); turret.position.set(0, 0.62, -0.05); g.add(turret); part(bx, olive, 0.55, 0.24, 0.6, 0, 0, 0, turret); part(new THREE.CylinderGeometry(0.05, 0.05, 1, 8), dark, 1, 0.8, 1, 0, 0.02, 0.62, turret).rotation.x = Math.PI / 2;
-  g.userData.turret = turret; return g;
-}
 function roadPathTo(cell, wx, wz, away) {
   // a route along the streets toward (or away from) a point
   let target = toCell(wx, wz, cols, rows); if (away) { let best = null, bd = -1; for (let k = 0; k < 12; k++) { const c = roadCells[(Math.random() * roadCells.length) | 0]; const w = toWorld(c[0], c[1], cols, rows); const d = Math.hypot(w.x - wx, w.z - wz); if (d > bd) { bd = d; best = c; } } target = { cx: best[0], cy: best[1] }; }
@@ -134,14 +131,14 @@ function buildWorld() {
   people = []; const roads = []; for (let y = 1; y < rows - 1; y++) for (let x = 1; x < cols - 1; x++) if (!maze[y][x]) roads.push([x, y]);
   const groups = Math.min(80, Math.round(44 * Math.pow(big, 1.3)));
   for (let g = 0; g < groups; g++) { const [x, y] = roads[(rng() * roads.length) | 0]; const w = toWorld(x, y, cols, rows); if (Math.hypot(w.x, w.z) < 6) continue; const n = 2 + ((rng() * 3) | 0);
-    for (let i = 0; i < n; i++) { const c = makeCharacter(['worker', 'pink', 'plaid', 'hivis', 'suit', 'hoodie', 'punk', 'vest'][(rng() * 8) | 0], { skin: townSkin() }); c.scale.setScalar(0.25); c.position.set(w.x + (rng() - 0.5) * 1.6, 0, w.z + (rng() - 0.5) * 1.6); c.rotation.y = rng() * 6.28; c.userData.home = c.position.clone(); c.userData.goal = null; c.userData.wait = rng() * 3; scene.add(c); people.push(c); } }
+    for (let i = 0; i < n; i++) { const c = makeCharacter(['worker', 'pink', 'plaid', 'hivis', 'suit', 'hoodie', 'punk', 'vest'][(rng() * 8) | 0], { skin: townSkin(), look: Math.random() }); c.scale.setScalar(0.25); c.position.set(w.x + (rng() - 0.5) * 1.6, 0, w.z + (rng() - 0.5) * 1.6); c.rotation.y = rng() * 6.28; c.userData.home = c.position.clone(); c.userData.goal = null; c.userData.wait = rng() * 3; scene.add(c); people.push(c); } }
   cars = city.cars.slice();
   // traffic, army squads and tanks
   roadCells = roads; for (const o of [...drivers, ...soldiers, ...tanks]) scene.remove(o.g || o); drivers = []; soldiers = []; tanks = []; for (const s of shots) scene.remove(s.m); shots = [];
   const farRoad = (min) => { for (let k = 0; k < 60; k++) { const [x, y] = roads[(rng() * roads.length) | 0]; const w = toWorld(x, y, cols, rows); if (Math.hypot(w.x, w.z) > min) return [x, y]; } return roads[0]; };
   for (let i = 0; i < 9 + 3 * (level - 1); i++) { const [x, y] = farRoad(5); const c = makeCar(...skinnedCarArgs([0xc23b3b, 0x4f8fd6, 0xe8d54a, 0xd8dde0, 0x3a8a5a][(rng() * 5) | 0])); c.scale.setScalar(0.8); const w = toWorld(x, y, cols, rows); c.position.set(w.x, 0, w.z); scene.add(c); drivers.push({ g: c, cell: [x, y], path: [], speed: 3 + rng() * 1.5 }); }
   for (let sq = 0; sq < 5 + 2 * (level - 1); sq++) { const [x, y] = farRoad(12); const w = toWorld(x, y, cols, rows); for (let i = 0; i < 3; i++) { const s = makeCharacter('vest', { skin: armySkin() }); s.scale.setScalar(0.25); s.position.set(w.x + (i - 1) * 0.5, 0, w.z + (rng() - 0.5) * 0.6); const gun = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, 0.6), new THREE.MeshLambertMaterial({ color: 0x22262a })); gun.position.set(0, -0.72, 0.25); s.userData.armR.add(gun); s.userData.cd = rng() * 2; scene.add(s); soldiers.push(s); } }
-  for (let i = 0; i < 3 + (level - 1); i++) { const [x, y] = farRoad(16); const t = isPast() ? buildCannon() : makeTank(); if (isFuture()) hoverize(futureTank(t), 0xff4fd8); const w = toWorld(x, y, cols, rows); t.position.set(w.x, 0, w.z); scene.add(t); tanks.push({ g: t, cell: [x, y], path: [], cd: 2 + rng() * 2, repath: 0 }); }
+  for (let i = 0; i < 3 + (level - 1); i++) { const [x, y] = farRoad(16); const t = isPast() ? buildCannon() : makeTank(isFuture()); if (isFuture()) hoverize(futureTank(t), 0xff4fd8); const w = toWorld(x, y, cols, rows); t.position.set(w.x, 0, w.z); scene.add(t); tanks.push({ g: t, cell: [x, y], path: [], cd: 2 + rng() * 2, repath: 0 }); }
   massTarget = buildings.reduce((s, x) => s + x.h, 0) * 0.42 * Math.sqrt(1 / big) + 12; // bigger towns: a smaller share grows you to full size
 }
 
@@ -166,9 +163,18 @@ function freezeCity() {
       o.traverse((m) => { if (m.isMesh) list.push(m); }); }
     for (const m of list) if (m.parent !== ch) ch.attach(m); mergeStatic(ch, list);
     const props = city.props.filter((pr) => pr.g.parent === ch && !pr.knocked); const bk = bakeMovable(ch, props.map((pr) => pr.g)); if (bk) for (const pr of props) pr.bake = bk; }
+  // whole buildings and landmarks are baked too, a few meshes per chunk for the lot (each used to be six or more draws
+  // of its own). One is lifted back out, exactly as it was, the moment anything touches it: see live()
+  setBakedGlow(1); baked.clear(); keyOf.clear(); const skipM = new Set(); for (const a of city.season.anim) a.m.traverse((m) => skipM.add(m));
+  const unitsOf = new Map(), put = (ch, key, o) => { if (!ch || !ch.isChunk) return; let U = unitsOf.get(ch); if (!U) unitsOf.set(ch, (U = new Map())); let u = U.get(key); if (!u) U.set(key, (u = { key, objs: [] })); u.objs.push(o); keyOf.set(o, key); };
+  for (const x of buildings) { put(x.obj.parent, x, x.obj); if (x.obj === x.b) for (const m of x.b.userData.extras || []) if (m.parent === x.obj.parent) put(m.parent, x, m); }
+  for (const hz of city.hazards) for (const p of hz.parts || []) put(p.parent, hz, p);
+  for (const [ch, U] of unitsOf) { const bk = bakeUnits(ch, [...U.values()], skipM); for (const key of U.keys()) { let l = baked.get(key); if (!l) baked.set(key, (l = [])); l.push(bk); } }
   chunks = [...map.values()]; for (const ch of chunks) { ch.box.expandByScalar(0.5); ch.updateMatrixWorld(true); ch.updateMatrixWorld = noop; }
 }
-function free(o) { if (o && o.parent && o.parent.isChunk) city.group.attach(o); } // back to the live group before anything moves it
+const baked = new Map(), keyOf = new Map(); // which bakes hold each building or landmark, and which of those each object belongs to
+function live(key) { const l = baked.get(key); if (!l) return; baked.delete(key); for (const bk of l) bk.unbake(key); } // out of the bake: its own meshes show again
+function free(o) { const k = keyOf.get(o); if (k) live(k); if (o && o.parent && o.parent.isChunk) city.group.attach(o); } // back to the live group before anything moves it
 function freeKnocked() { for (const pr of city.props) if (pr.knocked && pr.g.parent && pr.g.parent.isChunk) { if (pr.bake) { pr.bake.unbake(pr.g); pr.bake = null; } free(pr.g); } }
 const frus = new THREE.Frustum(), projM = new THREE.Matrix4();
 function cullChunks() { const vc = viewCam(); vc.updateMatrixWorld(); projM.multiplyMatrices(vc.projectionMatrix, vc.matrixWorldInverse); frus.setFromProjectionMatrix(projM); const far = third ? scene.fog.far + 4 : Infinity;
@@ -218,6 +224,7 @@ function award(base, pos, label) {
   const pts = Math.round(base * mult()); score += pts; popup(pos, '+' + pts + (label ? ' ' + label : ''), mult() > 1 ? '#ff9a3a' : '#ffe27a'); return pts;
 }
 const pops = []; for (let i = 0; i < 14; i++) { const el = document.createElement('div'); el.className = 'pop'; el.style.display = 'none'; document.body.appendChild(el); pops.push({ el, t: 0, p: new THREE.Vector3() }); }
+const SHOUTS = ['RUN!', 'AAAH!', 'TWISTER!', 'NOPE!', 'GET INSIDE!', 'MY CAR!', 'HELP!']; // what people yell as they leg it
 let popI = 0; function popup(pos, text, color) { const o = pops[popI++ % pops.length]; o.t = 1; o.p.set(pos.x, (pos.y || 0) + 1.5, pos.z); o.el.textContent = text; o.el.style.color = color; o.el.style.display = 'block'; }
 function updatePops(dt) { for (const o of pops) { if (o.t <= 0) continue; o.t -= dt * 0.9; o.p.y += dt * 1.6; const v = o.p.clone().project(viewCam()); o.el.style.transform = 'translate(' + ((v.x * 0.5 + 0.5) * innerWidth) + 'px,' + ((-v.y * 0.5 + 0.5) * innerHeight) + 'px) translate(-50%,-50%)'; o.el.style.opacity = Math.min(1, o.t * 2); if (o.t <= 0) o.el.style.display = 'none'; } }
 let bannerT = 0; function banner(text) { $('taBanner').textContent = text; $('taBanner').style.opacity = 1; bannerT = 2.2; }
@@ -358,15 +365,16 @@ function updateChaser(dt, px, pz, R) {
 }
 function clearPlanes() { setPlaneEngine(0); removeChaser(); chaserT = 25; extraSeeders = 0; chasersCaught = 0; chasersLost = 0; for (const pl of planes) { scene.remove(pl.g); scene.remove(pl.zone); pl.arrow.remove(); } planes = []; for (const s of sprayDrops) scene.remove(s.m); sprayDrops.length = 0; seedT = SEED().first; seededT = 0; }
 function wreckBuilding(x, quiet = false, into = tw) {
-  free(x.obj); x.done = true; bDone++; { const i = city.obstacles.findIndex((o) => Math.abs(o.x - x.pos.x) < 0.3 && Math.abs(o.z - x.pos.z) < 0.3); if (i >= 0) city.obstacles.splice(i, 1); } const size3 = new THREE.Box3().setFromObject(x.obj).getSize(new THREE.Vector3()); const loose = x.obj === x.b ? (x.b.userData.extras || []).filter((m) => m.parent && ((!m.userData.merged && !(m.userData.deco && m.userData.owner)) || ((m.visible = false), false))).map((m) => (free(m), m)) : [];
-  if (x.b.userData.edges) x.b.userData.edges.visible = false; twisters.tear(x.obj, x.pos, size3, into, loose); award(x.pts, x.pos); grow(x.h); sfx.crunch(x.h > 5); if (!quiet) sfx.boom();
-  if (x.h > 5 && !quiet) { fx.explode(new THREE.Vector3(x.pos.x, 1, x.pos.z), 1.4); flashT = 0.12; }
+  free(x.obj); x.done = true; bDone++; { const i = city.obstacles.findIndex((o) => Math.abs(o.x - x.pos.x) < 0.3 && Math.abs(o.z - x.pos.z) < 0.3); if (i >= 0) city.obstacles.splice(i, 1); } const size3 = new THREE.Box3().setFromObject(x.obj).getSize(new THREE.Vector3()); const ex = x.obj === x.b ? (x.b.userData.extras || []).filter((m) => m.parent) : []; // its cornice, shopfront, whatever is on the roof: broken up along with it
+  if (x.b.userData.edges) x.b.userData.edges.visible = false; twisters.tear(x.obj, x.pos, size3, into, [], ex); award(x.pts, x.pos); grow(x.h); sfx.crunch(x.h > 5); if (!quiet) sfx.boom();
+  if (!quiet) jolt(Math.min(0.5, 0.12 + x.h * 0.05));
+  if (x.h > 5 && !quiet) { fx.explode(new THREE.Vector3(x.pos.x, 1, x.pos.z), 1.4); flashT = 0.12; jolt(0.7); }
 }
 function wreckPoi(k) {
   const P = pois[k]; P.done = true; if (P.mark) { scene.remove(P.mark); P.mark = null; } const g = new THREE.Group(); g.position.copy(P.center); scene.add(g);
-  for (const hz of P.hz) { for (const part of hz.parts || []) if (part.parent) g.attach(part); const i = city.obstacles.findIndex((o) => Math.abs(o.x - hz.pos.x) < 0.3 && Math.abs(o.z - hz.pos.z) < 0.3); if (i >= 0) city.obstacles.splice(i, 1); }
+  for (const hz of P.hz) { live(hz); for (const part of hz.parts || []) if (part.parent) g.attach(part); const i = city.obstacles.findIndex((o) => Math.abs(o.x - hz.pos.x) < 0.3 && Math.abs(o.z - hz.pos.z) < 0.3); if (i >= 0) city.obstacles.splice(i, 1); }
   twisters.tear(g, P.center, new THREE.Box3().setFromObject(g).getSize(new THREE.Vector3()), tw, []); grow(6);
-  award(POI[k].pts, P.center, POI[k].name); sfx.wave(); sfx.boom(); fx.explode(new THREE.Vector3(P.center.x, 1, P.center.z), 2.2); flashT = 0.3;
+  award(POI[k].pts, P.center, POI[k].name); sfx.wave(); sfx.boom(); fx.explode(new THREE.Vector3(P.center.x, 1, P.center.z), 2.2); flashT = 0.3; jolt(1);
   { const chip = $('poi_' + k); if (chip) { chip.classList.remove('ready'); chip.classList.add('done', 'boom'); } if (P.arrow) P.arrow.style.display = 'none'; }
   const c = P.center, tint = (hex) => { for (const L of tw.layers) L.material.color.setHex(hex); };
   if (k === 'power') { banner('BLACKOUT!'); blackout(); }
@@ -414,7 +422,7 @@ function spawnWalker(c, zombie) {
 }
 function blackout() {
   hemi.intensity *= 0.55; sun.intensity *= 0.6;
-  for (const x of buildings) for (const m of x.b.userData.fade || []) if (m.emissiveIntensity != null) m.emissiveIntensity = 0.04;
+  for (const x of buildings) for (const m of x.b.userData.fade || []) if (m.emissiveIntensity != null) m.emissiveIntensity = 0.04; setBakedGlow(0.04);
   city.group.traverse((m) => { const mt = m.material; if (mt && !Array.isArray(mt) && mt.isMeshBasicMaterial && mt.color && mt.color.getHex() === 0xf6e94a) mt.color.setHex(0x22232a); });
 }
 
@@ -424,8 +432,7 @@ function sDown(id, x, y) { if (stick.id !== null || state !== 'play') return; st
 function sMove(id, x, y) { if (id !== stick.id) return; const dx = x - stick.cx, dy = y - stick.cy, d = Math.hypot(dx, dy) || 1, m = Math.min(d, 55); stick.moved = Math.max(stick.moved, d); if (stick.moved < 10) return; stickEl.style.display = 'block'; moveTo = null; stick.x = dx / d * m / 55; stick.y = dy / d * m / 55; knobEl.style.transform = 'translate(calc(-50% + ' + stick.x * 36 + 'px), calc(-50% + ' + stick.y * 36 + 'px))'; }
 function sUp(id, x, y) { if (id !== stick.id) return; const tap = stick.moved < 10 && performance.now() - stick.t0 < 300; stick.id = null; stick.x = stick.y = 0; stickEl.style.display = 'none'; if (tap && x != null && state === 'play') tapAt(stick.cx, stick.cy); }
 // ---------- tap to move: the storm heads for the spot, and a bolt of lightning lands there first and sets it alight ----------
-let moveTo = null, zapCd = 0; const bolts = []; const zapRay = new THREE.Raycaster(), zapPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-const boltMatA = new THREE.LineBasicMaterial({ color: 0xffffff }), boltMatB = new THREE.LineBasicMaterial({ color: 0x9fd6ff, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending });
+let moveTo = null, zapCd = 0; const zapRay = new THREE.Raycaster(), zapPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 function tapAt(cx, cy) {
   const vc = viewCam(); vc.updateMatrixWorld(); zapRay.setFromCamera(new THREE.Vector2((cx / innerWidth) * 2 - 1, -(cy / innerHeight) * 2 + 1), vc); const p = new THREE.Vector3(); if (!zapRay.ray.intersectPlane(zapPlane, p)) return;
   const lim = toWorld(cols - 1, rows - 1, cols, rows); p.x = Math.max(-lim.x, Math.min(lim.x, p.x)); p.z = Math.max(-lim.z, Math.min(lim.z, p.z));
@@ -454,13 +461,8 @@ function zapKey() {
   const bu = nearest(buildings, (o) => (o.done || o.burnT != null ? null : o.pos)); if (bu) { strike(new THREE.Vector3(bu.pos.x, 0, bu.pos.z)); return; }
   const d = 3 + sizeShown * 1.6, lim = toWorld(cols - 1, rows - 1, cols, rows); strike(new THREE.Vector3(Math.max(-lim.x, Math.min(lim.x, P.x + fx0 * d)), 0, Math.max(-lim.z, Math.min(lim.z, P.z + fz0 * d))));
 }
-// tap bolts take the storm skin's lightning colours
-const boltMats = () => { const s = tw && tw.skin; if (!s || !s.bolts) return [boltMatA, boltMatB]; const bc = s.bolts[(Math.random() * s.bolts.length) | 0], k = bc + ':' + s.boltGlow; if (!boltMats.c[k]) boltMats.c[k] = [new THREE.LineBasicMaterial({ color: bc }), s.boltEdge ? new THREE.LineBasicMaterial({ color: s.boltGlow }) : new THREE.LineBasicMaterial({ color: s.boltGlow, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending })]; return boltMats.c[k]; }; boltMats.c = {};
-function boltTo(p) { // a jagged bolt from the clouds down to p (which can be in the air)
-  const pts = []; let x = p.x + (Math.random() - 0.5) * 4, z = p.z + (Math.random() - 0.5) * 4; for (let y = 24; y > p.y + 0.5; y -= 2) { pts.push(new THREE.Vector3(x, y, z)); x += (p.x - x) * 0.25 + (Math.random() - 0.5) * 1.2; z += (p.z - z) * 0.25 + (Math.random() - 0.5) * 1.2; } pts.push(p.clone());
-  const [bmA, bmB] = boltMats(); const g = new THREE.Group(); g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), bmA)); for (const o of [0.12, -0.12]) g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts.map((q) => q.clone().add(new THREE.Vector3(o, 0, -o)))), bmB));
-  scene.add(g); bolts.push({ g, t: 0.22 }); flashT = Math.max(flashT, 0.16); sfx.boom();
-}
+// the storm throws a bolt at p (which can be in the air): out of its cloud, in its skin's lightning colours
+function boltTo(p) { const c = twisters.strikeAt(tw, p); flashT = Math.max(flashT, 0.12); sfx.boom(); fx.zap(p, c || 0x9fd0ff); }
 function zapPlane2(pl) { // struck: the plane turns round and flies off the other way, spray off for a while
   boltTo(pl.g.position.clone()); fx.explode(pl.g.position.clone(), 0.5); pl.heading += Math.PI; pl.cool = 5; pl.near = false; pl.spraying = false; popup(pl.g.position, 'TURNED BACK!', '#9fd6ff'); award(150, pl.g.position);
 }
@@ -468,9 +470,7 @@ function zapChaser() { // struck: the chaser's photos are fried and it turns tai
   const c = chaser, p = c.g.position; boltTo(p.clone().setY(0.9)); fx.explode(p.clone().setY(0.6), 0.5); c.shots = 0; c.mode = 'flee'; c.fleeT = 0; c.path = []; c.repath = 0; c.bar.style.display = 'none'; popup(p, 'PHOTOS FRIED!', '#ffffff'); award(150, p); banner('📷 CHASER TURNED BACK!');
 }
 function strike(p) {
-  const pts = []; let x = p.x + (Math.random() - 0.5) * 4, z = p.z + (Math.random() - 0.5) * 4; for (let y = 24; y > 0; y -= 2) { pts.push(new THREE.Vector3(x, y, z)); x += (p.x - x) * 0.25 + (Math.random() - 0.5) * 1.2; z += (p.z - z) * 0.25 + (Math.random() - 0.5) * 1.2; } pts.push(p.clone().setY(0.05));
-  const [bmA, bmB] = boltMats(); const g = new THREE.Group(); g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), bmA)); for (const o of [0.12, -0.12]) g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts.map((q) => q.clone().add(new THREE.Vector3(o, 0, -o)))), bmB));
-  scene.add(g); bolts.push({ g, t: 0.22 }); flashT = Math.max(flashT, 0.16); sfx.boom(); fx.explode(p.clone().setY(0.3), 0.5);
+  boltTo(p.clone().setY(0.05));
   // tanks it lands on blow up, soldiers are flung
   for (let i = tanks.length - 1; i >= 0; i--) { const t = tanks[i], q = t.g.position; if (Math.hypot(q.x - p.x, q.z - p.z) < 2) { tanks.splice(i, 1); free(t.g); twisters.scatter([t.g], q.clone(), 4); fx.explode(q.clone().setY(0.6), 1); award(200, q, 'TANK'); grow(1); } }
   for (let i = soldiers.length - 1; i >= 0; i--) { const s = soldiers[i]; if (Math.hypot(s.position.x - p.x, s.position.z - p.z) < 1.8) { soldiers.splice(i, 1); delete s.updateMatrixWorld; twisters.scatter([s], p, 5); award(40, s.position, 'SOLDIER'); grow(0.15); } }
@@ -487,7 +487,6 @@ function blowCar(g, q) { free(g); twisters.scatter([g], q, 6); fx.explode(q.clon
 const sinking = [];
 function updateZaps(dt) {
   zapCd -= dt;
-  for (let i = bolts.length - 1; i >= 0; i--) { const b = bolts[i]; b.t -= dt; b.g.visible = Math.random() < 0.85; if (b.t <= 0) { scene.remove(b.g); b.g.traverse((m) => m.geometry && m.geometry.dispose()); bolts.splice(i, 1); } }
   // burning buildings collapse when the fire's done with them (half points, half growth)
   for (const x of buildings) { if (x.done || x.burnT == null) continue; x.burnT -= dt; if (x.burnT > 0) continue; free(x.obj); x.done = true; bDone++; { const i = city.obstacles.findIndex((o) => Math.abs(o.x - x.pos.x) < 0.3 && Math.abs(o.z - x.pos.z) < 0.3); if (i >= 0) city.obstacles.splice(i, 1); }
     if (x.b.userData.edges) x.b.userData.edges.visible = false; const loose = x.obj === x.b ? (x.b.userData.extras || []).filter((m) => m.parent && ((!m.userData.merged && !(m.userData.deco && m.userData.owner)) || ((m.visible = false), false))).map((m) => (free(m), m)) : []; twisters.scatter(loose, x.pos, 2); sinking.push({ obj: x.obj, t: 0, h: x.h, y0: x.obj.position.y }); award(Math.round(x.pts * 0.5), x.pos, 'BURNED'); grow(x.h * 0.5); fx.puff('smoke', new THREE.Vector3(x.pos.x, 1, x.pos.z), 1.6);
@@ -536,8 +535,8 @@ gameMusic($('taPaused'), SONGS_TORNADO); radioButton($('taPaused'), $('taPaused'
 const fsMode = initFullscreen(() => state === 'play'); // full screen on play, back in after a browser drop-out, no page scrolling mid-round
 function start() {
   fsMode.play();
-  coachClear(); saveLast('ta', level);
-  if (state !== 'start' || roundN > 0) roundN++; ROUND = L().time; unlockAudio(); buildWorld(); makeStorm(); trip = 0; tripAt.copy(twObj.position); score = 0; totalD = 0; chain = 0; lastHit = -9; tLeft = ROUND; played = 0; boostT = 0; lastRank = 0; moveTo = null; for (const b of bolts) scene.remove(b.g); bolts.length = 0; sinking.length = 0; peopleN = carsN = propsN = bDone = 0; clearPlanes();
+  coachClear(); saveLast('ta', level); crowd.clear();
+  if (state !== 'start' || roundN > 0) roundN++; ROUND = L().time; unlockAudio(); buildWorld(); makeStorm(); trip = 0; tripAt.copy(twObj.position); score = 0; totalD = 0; chain = 0; lastHit = -9; tLeft = ROUND; played = 0; boostT = 0; lastRank = 0; moveTo = null; sinking.length = 0; peopleN = carsN = propsN = bDone = 0; clearPlanes();
   radarDown = radioDown = fireBoost = stink = false; setupPoiHud();
   for (const s of ['taStart', 'taEnd', 'taPaused', 'taPrize', 'twPickScr']) $(s).classList.add('hidden'); $('ta').classList.remove('hidden');
   state = 'play'; playSongs(); setStormLevel(0); sfx.whoosh(); banner('LEVEL ' + level + ': ' + L().name.toUpperCase()); setTimeout(() => { if (state === 'play') banner(SEASON_NAME[seasonFor()].toUpperCase()); }, 2300);
@@ -569,11 +568,11 @@ function finishNow() {
   const pct = Math.round((bDone / totalB) * 100); const need = Math.min(L().need, poiOrder.length); const cleared = pct >= L().goal && done.length >= need;
   const scoreCoins = Math.floor(score / 10000) / 100; if (scoreCoins > 0) addCoins(scoreCoins); // one coin per million points
   if (cleared && level < LEVELS.length && unlocked() <= level) { try { localStorage.setItem(levelKey('ta'), String(level + 1)); } catch { /* ignore */ } }
-  $('taEndTitle').innerHTML = cleared ? (level === LEVELS.length ? 'MEGACITY<br>FLATTENED' : 'LEVEL ' + level + '<br>CLEARED') : "STORM'S<br>OVER";
+  $('taEndTitle').innerHTML = cleared ? (level >= 5 ? L().name.toUpperCase().replace('THE ', '') + '<br>FLATTENED' : 'LEVEL ' + level + '<br>CLEARED') : "STORM'S<br>OVER";
   $('taAgain').textContent = cleared && level < LEVELS.length ? 'NEXT LEVEL' : cleared ? 'PLAY AGAIN' : 'TRY AGAIN';
   $('taAgain').dataset.next = cleared && level < LEVELS.length ? '1' : '';
   $('taGoalLine').textContent = cleared ? (level < LEVELS.length ? 'Level ' + (level + 1) + ' unlocked: ' + LEVELS[level].name + '.' : 'You flattened every town. Legend.') : 'Flatten ' + L().goal + '% of ' + L().name + ' and take out ' + (need >= poiOrder.length ? 'every big target' : need + ' big targets') + ' to clear it (you got ' + pct + '% and ' + done.length + ').';
-  if (cleared && level === LEVELS.length && grantSkin('tornado:acid')) { equip('tornado', 'tornado:acid'); const u = document.createElement('div'); u.className = 'bonusSkin'; u.innerHTML = '🏆 BONUS SKIN UNLOCKED: <b>ACID STORM</b><br><small>Acid rain, green lightning and baby tornadoes. It\'s on now; change it in the skin shop.</small>'; $('taGoalLine').appendChild(u); }
+  if (cleared && level >= 5 && grantSkin('tornado:acid')) { equip('tornado', 'tornado:acid'); const u = document.createElement('div'); u.className = 'bonusSkin'; u.innerHTML = '🏆 BONUS SKIN UNLOCKED: <b>ACID STORM</b><br><small>Acid rain, green lightning and baby tornadoes. It\'s on now; change it in the skin shop.</small>'; $('taGoalLine').appendChild(u); }
   if (totalD) { $('taEndTitle').innerHTML = 'TOTAL<br>DESTRUCTION!'; totalReward(Object.keys(TWISTER_SKINS).filter((k) => !TWISTER_SKINS[k].bonus).map((k) => 'tornado:' + k), (id) => TWISTER_SKINS[id.split(':')[1]].name, $('taGoalLine')); }
   if (cleared && level < LEVELS.length) level++; saveLast('ta', level); /* the next town is open and picked right away, wherever you go from here (change monster, the shop, NEXT LEVEL) */
   drawLevels(); /* and the start screen shows the new best score without a reload */
@@ -590,8 +589,11 @@ const HOWTO = [
   ['🏆', 'Clear the town', 'Flatten the goal % and take out enough targets before time runs out to unlock the next town.'],
 ];
 $('taHow').addEventListener('click', () => showHowTo(HOWTO));
-$('taPlay').addEventListener('click', () => start()); // straight in: the cards are there if you ask (HOW TO PLAY), and the round itself shows a new player each thing as it comes up
-$('taAgain').addEventListener('click', () => start());
+// building a town takes a moment: put the loading screen up first, then do the work once it has been drawn
+function loadThen(fn) { if (window.__bootTip) window.__bootTip(); document.body.classList.add('booting'); requestAnimationFrame(() => requestAnimationFrame(() => { try { fn(); } finally { document.body.classList.remove('booting'); } })); }
+const playNow = () => { fsMode.play(); unlockAudio(); loadThen(start); }; // full screen and sound have to be asked for in the tap itself
+$('taPlay').addEventListener('click', playNow); // straight in: the cards are there if you ask (HOW TO PLAY), and the round itself shows a new player each thing as it comes up
+$('taAgain').addEventListener('click', playNow);
 function drawLevels() { const box = $('taLevels'); box.innerHTML = ''; const un = unlocked(); LEVELS.forEach((lv, i) => { const b = document.createElement('button'); const n = i + 1; let best = 0; try { best = +localStorage.getItem(bestKey('ta', n)) || 0; } catch { /* ignore */ }
   b.className = 'lvl' + (n === level ? ' on' : ''); b.disabled = n > un; b.innerHTML = '<b>' + (n > un ? '🔒' : n) + '</b><span>' + lv.name + '</span>' + (best ? '<i>' + best + '</i>' : ''); b.addEventListener('click', () => { level = n; drawLevels(); }); box.appendChild(b); }); }
 level = unlocked(); if (import.meta.env.DEV) { const q = +new URLSearchParams(location.search).get('level'); if (q >= 1 && q <= LEVELS.length) level = q; } drawLevels();
@@ -599,7 +601,7 @@ $('taPause').addEventListener('click', togglePause); $('taResume').addEventListe
 // restart the level from the pause screen; the first tap asks, a second tap within 3 seconds does it
 { const rb = $('taRestart'); let armT = 0; const reset = () => { armT = 0; rb.textContent = '↺ RESTART LEVEL'; rb.classList.remove('armed'); };
   rb.addEventListener('click', () => { if (!armT || performance.now() - armT > 3000) { armT = performance.now(); rb.textContent = '↺ SURE? TAP AGAIN TO RESTART'; rb.classList.add('armed'); setTimeout(() => { if (armT && performance.now() - armT >= 2900) reset(); }, 3000); return; }
-    reset(); $('taPaused').classList.add('hidden'); start(); }); }
+    reset(); $('taPaused').classList.add('hidden'); playNow(); }); }
 
 
 // ---------- update ----------
@@ -633,13 +635,13 @@ function update(dt) {
     if (rankOf(sizeShown) >= POI[k].f) wreckPoi(k); else if (tooBigT <= 0) { tooBigT = 2; popup(P.center, 'NEED F' + POI[k].f + '!', '#ff7a5a'); } }
   // people flee, then get swept up
   frameN++;
-  for (let i = people.length - 1; i >= 0; i--) { const c = people[i], u = c.userData; const dx = c.position.x - px, dz = c.position.z - pz, d = Math.hypot(dx, dz) || 0.01;
+  for (let i = people.length - 1; i >= 0; i--) { const c = people[i], u = c.userData; u.panic = false; const dx = c.position.x - px, dz = c.position.z - pz, d = Math.hypot(dx, dz) || 0.01;
     if (u.frz && (d <= 34 || u.burnT > 0)) { u.frz = false; delete c.updateMatrixWorld; }
     if (d < R + 0.35) { people.splice(i, 1); twisters.suck(c, tw); peopleN++; award(u.zombie ? 40 : u.convict ? 50 : 25, c.position, u.zombie ? 'ZOMBIE' : u.convict ? 'CONVICT' : ''); grow(0.12); continue; }
     if (u.burnT > 0) { u.burnT -= dt; u.ph -= dt; if (u.ph <= 0) { u.ph = 0.3 + Math.random() * 0.4; u.dir = Math.random() * 6.28; } c.position.y = 0; c.position.x += Math.sin(u.dir) * 2.6 * dt; c.position.z += Math.cos(u.dir) * 2.6 * dt; c.rotation.y = u.dir; animateWalk(c, dt, 1.8); collidePerson(c);
       if (Math.random() < dt * 14) fx.puff('flame', new THREE.Vector3(c.position.x, 0.25, c.position.z), 0.32); u.goal = null; if (u.burnT <= 0) u.home = c.position.clone(); continue; }
     const pull = R * 2.6; if (d < pull) { const k = 1 - d / pull; const sp = (2.8 * k - 1.2 * (1 - k)) * dt; c.position.x -= dx / d * sp; c.position.z -= dz / d * sp; c.position.y = k * k * 0.6; c.rotation.y += dt * 8 * k; animateWalk(c, dt, 1.5); collidePerson(c); u.goal = null; }
-    else if (d < 9 + sizeShown * 2) { const sp = (u.zombie ? -0.9 : stink ? 0.55 : 1.7) * dt; c.position.y = 0; c.position.x += dx / d * sp; c.position.z += dz / d * sp; c.rotation.y = Math.atan2(dx, dz) + (u.zombie ? Math.PI : 0); animateWalk(c, dt, 1.3); collidePerson(c); u.goal = null; }
+    else if (d < 9 + sizeShown * 2) { const sp = (u.zombie ? -0.9 : stink ? 0.55 : 1.7) * dt; u.panic = !u.zombie && !stink; if (u.panic && Math.random() < dt * 0.05) popup(c.position, SHOUTS[(Math.random() * SHOUTS.length) | 0], '#ffffff'); c.position.y = 0; c.position.x += dx / d * sp; c.position.z += dz / d * sp; c.rotation.y = Math.atan2(dx, dz) + (u.zombie ? Math.PI : 0); animateWalk(c, dt, 1.3); collidePerson(c); u.goal = null; }
     else if (d > 34) { if (!u.frz) { u.frz = true; c.updateMatrixWorld(true); c.updateMatrixWorld = noop; } } // out of sight: hold still, matrices frozen
     else if ((i + frameN) & 1) { /* every other frame */ } else { const dw = dt * 2; u.wait -= dw; if (!u.goal && u.wait <= 0) { u.goal = new THREE.Vector3(u.home.x + (Math.random() - 0.5) * 2, 0, u.home.z + (Math.random() - 0.5) * 2); }
       if (u.goal) { const gx = u.goal.x - c.position.x, gz = u.goal.z - c.position.z, gl = Math.hypot(gx, gz); if (gl < 0.1) { u.goal = null; u.wait = 1 + Math.random() * 3; animateWalk(c, dw, 0); } else { c.position.x += gx / gl * 0.6 * dw; c.position.z += gz / gl * 0.6 * dw; c.rotation.y = Math.atan2(gx, gz); animateWalk(c, dw, 0.5); } } else animateWalk(c, dw, 0); } }
@@ -677,6 +679,7 @@ function update(dt) {
   setT('taRank', 'F' + rankOf(sizeShown)); setStormLevel(rankOf(sizeShown)); { const pct = Math.round((bDone / totalB) * 100); setT('taPct', '🏚️ ' + pct + '% / ' + L().goal + '%'); if (hudCache.pctOk !== (pct >= L().goal)) { hudCache.pctOk = pct >= L().goal; $('taPct').classList.toggle('ok', pct >= L().goal); } }
   { const w = ((sizeShown - 1) / (MAX_S - 1) * 100).toFixed(1) + '%'; if (hudCache.grow !== w) { hudCache.grow = w; $('taGrowFill').style.width = w; } const r = rankOf(sizeShown); if (r !== rankShown) { if (rankShown >= 0 && r > rankShown) { const b = $('taRank'); b.classList.remove('bump'); void b.offsetWidth; b.classList.add('bump'); } rankShown = r; document.querySelectorAll('#taGrow .tick').forEach((t, i) => t.classList.toggle('got', i < r)); } }
   if (Math.round((bDone / totalB) * 100) >= 100 && poiOrder.every((k) => pois[k].done)) { /* as soon as the HUD reads 100% (it rounds, so a stray building or two can't hold the round open) */ if (!totalD) totalWipe(twObj.position); tLeft = Math.min(tLeft, 1.5); }
+  crowdLists[0][0] = people; crowdLists[1][0] = soldiers; crowd.sync(crowdLists, px, pz, 7 + R);
   // target tray, edge arrows and the minimap
   { const rk = rankOf(sizeShown); let n = 0; for (const k of poiOrder) { const P = pois[k]; if (P.done) { n++; continue; } const ready = rk >= POI[k].f; if (P.chip) P.chip.classList.toggle('ready', ready); P.arrow.classList.toggle('ready', ready); edgeArrow(P.arrow, P.center, true); if (P.mark) tickPoiMark(P.mark, ready); }
     const need = Math.min(L().need, poiOrder.length); setT('taTargets', n + '/' + need); if (hudCache.tgtOk !== (n >= need)) { hudCache.tgtOk = n >= need; $('taTargets').classList.toggle('ok', n >= need); } }
@@ -699,6 +702,7 @@ function frame(now) {
   const a = innerWidth / innerHeight, s = twObj ? sizeShown : 1, half = (a < 1 ? (6.5 + s * 2.6) / a * 0.8 : 6.5 + s * 2.6) * zoom;
   cam.left = -half * a; cam.right = half * a; cam.top = half; cam.bottom = -half; cam.updateProjectionMatrix();
   if (twObj) camTarget.lerp(tmp.set(twObj.position.x, 1.2 * s, twObj.position.z), Math.min(1, dt * 3)); cam.position.copy(camTarget).addScaledVector(isoDir, 80); cam.lookAt(camTarget);
+  if (shake > 0) { shake = Math.max(0, shake - dt * 2.2); const k = shake * shake * 0.55 * Math.min(2, half / 14); cam.position.x += (Math.random() - 0.5) * k; cam.position.y += (Math.random() - 0.5) * k; cam.position.z += (Math.random() - 0.5) * k; }
   if (third && twObj) { const fx = Math.sin(camYaw), fz = Math.cos(camYaw), back = (6 + s * 7.5) * zoom, up = (2.5 + s * 4.5) * zoom; const want = tmp.set(twObj.position.x - fx * back, up, twObj.position.z - fz * back); cam3.position.lerp(want, Math.min(1, dt * 2.5)); cam3.lookAt(twObj.position.x + fx * 5, 1.4 * s, twObj.position.z + fz * 5); }
   if (CINE && twObj) { const a = 0.5 + played * 0.05, d = 9 + s * 8, P = twObj.position; cam3.position.set(P.x + Math.cos(a) * d, 1.6 + s * 1.6, P.z + Math.sin(a) * d); cam3.lookAt(P.x, 2.6 * s, P.z); }
   scene.fog.near = third ? 24 : 60; scene.fog.far = third ? 72 : 120;
@@ -710,4 +714,4 @@ function frame(now) {
 if (new URLSearchParams(location.search).has('quick')) { level = quickLevel('ta'); drawLevels(); start(); camTarget.set(twObj.position.x, 1.2, twObj.position.z); }
 else { buildWorld(); makeStorm(); twObj.position.set(-12, 0, -12); camTarget.set(0, 1, 0); }
 requestAnimationFrame(frame); requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove('booting'))); // the start screen is ready now
-window.__ta = { get sceneN() { return scene.children.length; }, get tLeft() { return tLeft; }, get totalD() { return totalD; }, get nukeOn() { return nukeT > 0; }, get stormHead() { return stormHead; }, set moveToSet(v) { moveTo = v; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, get people() { return people; }, start, finish, goNuke, grow, get massTarget() { return massTarget; }, get nukeT() { return nukeT; }, get stormPos() { return twObj.position; }, THREE, get cam() { return viewCam(); }, get px() { return perfTick.ratio; }, get poiOrder() { return poiOrder; }, get coachUp() { return coachBusy(); }, get zapCd() { return zapCd; }, get engine() { return planeEngineLevel(); }, get music() { return stormMusicState(); }, get song() { return songState(); }, get chunks() { return chunks; }, get flags() { return { radarDown, radioDown, fireBoost, stink }; }, get moveToV() { return moveTo; }, get city() { return city; }, tapAt, get moveTo() { return moveTo; }, get boostT() { return boostT; }, bench(n = 20) { const vc = viewCam(); renderer.render(scene, vc); const t0 = performance.now(); for (let i = 0; i < n; i++) renderer.render(scene, vc); renderer.getContext().finish(); return (performance.now() - t0) / n; }, get animN() { return city.season.anim.length; }, setSeason(s) { seasonI = SEASON_CYCLE.indexOf(s); roundN = 0; }, get season() { return seasonNow(); }, get calls() { return renderer.info.render.calls; }, get tris() { return renderer.info.render.triangles; }, spawnChaser, get chaser() { return chaser; }, get zoom() { return zoom; }, setZoom, get extraSeeders() { return extraSeeders; }, setView, get third() { return third; }, spawnPlane, get planes() { return planes; }, get mass() { return mass; }, get level() { return level; }, set level(v) { level = v; }, get bDone() { return bDone; }, set bDone(n) { bDone = n; }, get babies() { return twisters.babies; }, get totalB() { return totalB; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, get drivers() { return drivers; }, get state() { return state; }, get score() { return score; }, get size() { return sizeShown; }, get storm() { return twObj; }, get pois() { return pois; }, get buildings() { return buildings; }, get people() { return people; }, set tLeft(v) { tLeft = v; }, grow, start };
+window.__ta = { get fx() { return fx; }, get crowd() { return crowd; }, get sceneN() { return scene.children.length; }, get tLeft() { return tLeft; }, get totalD() { return totalD; }, get nukeOn() { return nukeT > 0; }, get stormHead() { return stormHead; }, set moveToSet(v) { moveTo = v; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, get people() { return people; }, start, finish, goNuke, grow, get massTarget() { return massTarget; }, get nukeT() { return nukeT; }, get stormPos() { return twObj.position; }, THREE, get cam() { return viewCam(); }, get px() { return perfTick.ratio; }, get poiOrder() { return poiOrder; }, get coachUp() { return coachBusy(); }, get zapCd() { return zapCd; }, get engine() { return planeEngineLevel(); }, get music() { return stormMusicState(); }, get song() { return songState(); }, get chunks() { return chunks; }, get flags() { return { radarDown, radioDown, fireBoost, stink }; }, get moveToV() { return moveTo; }, get city() { return city; }, tapAt, get moveTo() { return moveTo; }, get boostT() { return boostT; }, bench(n = 20) { const vc = viewCam(); renderer.render(scene, vc); const t0 = performance.now(); for (let i = 0; i < n; i++) renderer.render(scene, vc); renderer.getContext().finish(); return (performance.now() - t0) / n; }, get animN() { return city.season.anim.length; }, setSeason(s) { seasonI = SEASON_CYCLE.indexOf(s); roundN = 0; }, get season() { return seasonNow(); }, get calls() { return renderer.info.render.calls; }, get tris() { return renderer.info.render.triangles; }, spawnChaser, get chaser() { return chaser; }, get zoom() { return zoom; }, setZoom, get extraSeeders() { return extraSeeders; }, setView, get third() { return third; }, spawnPlane, get planes() { return planes; }, get mass() { return mass; }, get level() { return level; }, set level(v) { level = v; }, get bDone() { return bDone; }, set bDone(n) { bDone = n; }, get babies() { return twisters.babies; }, get totalB() { return totalB; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, get drivers() { return drivers; }, get state() { return state; }, get score() { return score; }, get size() { return sizeShown; }, get storm() { return twObj; }, get pois() { return pois; }, get buildings() { return buildings; }, get people() { return people; }, set tLeft(v) { tLeft = v; }, grow, start };

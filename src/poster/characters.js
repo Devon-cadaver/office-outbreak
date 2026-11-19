@@ -33,7 +33,7 @@ const CLOWNS = [
   { skin: 0xe8e86a, hair: 0x3a5fd6, shirt: 0x2ad6e0, pants: 0x3a2fd0 },
   { skin: 0xd6e86a, hair: 0xe03a3a, shirt: 0xe84aa0, pants: 0xd6d6e0 },
 ];
-export function makeCharacter(outfitName, { zombie = false, clown = null, skin = null } = {}) {
+export function makeCharacter(outfitName, { zombie = false, clown = null, skin = null, look = null } = {}) {
   let o = OUTFITS[outfitName] || OUTFITS.worker; if (skin && !zombie) o = { ...o, ...skin.outfit }; if (zombie) o = zombify(o);
   if (clown) o = { ...CLOWNS[clown === 'hammer' ? 0 : 1], skin: CLOWNS[clown === 'hammer' ? 0 : 1].skin };
   const g = new THREE.Group(); const body = new THREE.Group(); g.add(body);
@@ -73,13 +73,22 @@ export function makeCharacter(outfitName, { zombie = false, clown = null, skin =
     bal.userData.sway = true;
   }
   if (skin && !zombie && skin.dress) skin.dress({ g, body, head, armL, armR, legL, legR, part });
-  g.userData = { body, legL, legR, armL, armR, head, zombie, clown, phase: Math.random() * 6, idle: Math.random() * 6, lean: zombie ? 0.12 : 0, limp: 0.5 + Math.random() * 0.5 };
+  else if (look != null && !zombie && !clown) { // townsfolk: one number picks a hat or a hairdo, a bag, a longer coat
+    const r = (look * 97) % 1, r2 = (look * 389) % 1, r3 = (look * 1543) % 1, BAGS = [0x3a2a4a, 0x8a3a2a, 0x2a4a5a, 0x5a4a2a, 0x222228];
+    if (r < 0.22) { head.add(part(sphere, o.shirt, 0.72, 0.4, 0.72, 0, 0.5, -0.02)); head.add(part(box, o.shirt, 0.5, 0.05, 0.3, 0, 0.42, 0.42)); } // a cap with a peak
+    else if (r < 0.42 && o.hair) head.add(part(sphere, o.hair, 0.52, 0.66, 0.42, 0, 0.16, -0.26)); // long hair down the back
+    else if (r < 0.52 && o.hair) head.add(part(sphere, o.hair, 0.3, 0.3, 0.3, 0, 0.74, -0.12)); // a bun
+    else if (r < 0.6) { head.add(part(sphere, 0x2a2a30, 0.74, 0.3, 0.74, 0, 0.56, 0)); head.add(part(sphere, 0x2a2a30, 1.0, 0.06, 1.0, 0, 0.47, 0)); } // a brimmed hat
+    if (r2 < 0.2) body.add(part(box, BAGS[(r2 * 25) | 0], 0.5, 0.52, 0.24, 0, 1.36, -0.38)); // a backpack
+    else if (r2 < 0.34) armL.add(part(box, BAGS[((r2 - 0.2) * 35) | 0], 0.3, 0.26, 0.12, -0.04, -0.9, 0)); // a bag in one hand
+    if (r3 < 0.2) body.add(part(capsule, o.shirt, 0.84, 0.22, 0.66, 0, 0.98, 0)); } // a long coat or a skirt
+  g.userData = { cols: [o.shirt, o.pants, o.skin, o.hair == null ? o.skin : o.hair], body, legL, legR, armL, armR, head, zombie, clown, phase: Math.random() * 6, idle: Math.random() * 6, lean: zombie ? 0.12 : 0, limp: 0.5 + Math.random() * 0.5 };
   mergeParts(g); // ~25 pieces become ~7 (one per limb group), same look, same animation
   return g;
 }
 
 export function animateWalk(g, dt, speed) {
-  const u = g.userData; u.idle = (u.idle || 0) + dt; const sp = Math.max(speed, 0);
+  const u = g.userData; u.sp = speed; if (u.far) { u.phase = (u.phase || 0) + dt * (speed > 1.05 ? 13 : 10) * Math.min(Math.max(speed, 0), 1.5); return; } /* far off, the crowd draws a stand-in (crowd.js): only keep the step going */ u.idle = (u.idle || 0) + dt; const sp = Math.max(speed, 0);
   if (u.zombie) {
     const runner = (u.lean || 0) > 0.3; u.phase += dt * (runner ? 9 : 5.5) * Math.max(sp, 0.001); const ph = u.phase, s = Math.sin(ph), lim = u.limp || 0.7;
     // shamble: one leg strides, the other drags; the body rolls side to side and the head lolls
@@ -103,4 +112,5 @@ export function animateWalk(g, dt, speed) {
   u.body.position.y = Math.abs(s) * (run ? 0.13 : 0.07) * Math.min(sp, 1.2);
   u.body.rotation.x = (run ? 0.22 : 0.06) * Math.min(sp, 1.2); u.body.rotation.y = s * (run ? 0.12 : 0.07); u.body.rotation.z = 0;
   u.head.rotation.y = -s * 0.06; u.head.rotation.x = -u.body.rotation.x * 0.6 + Math.abs(s) * 0.03;
+  if (u.panic) { u.armL.rotation.x = -2.7 + Math.sin(u.phase * 1.7) * 0.4; u.armR.rotation.x = -2.7 + Math.sin(u.phase * 1.7 + 1.3) * 0.4; u.armL.rotation.z = 0.35; u.armR.rotation.z = -0.35; u.head.rotation.x = -0.25; } // running for it, arms in the air
 }

@@ -1,7 +1,7 @@
 // Where the player is: which era they play in and how far they've got in each game. No 3D code in here, so the main
 // menu can use it too.
 export const ERAS = [['past', 'Wild West'], ['present', 'Present'], ['future', 'Future']];
-export const TOWNS = ['Small Town', 'Suburbs', 'Downtown', 'Metro', 'Megacity'];
+export const TOWNS = ['Small Town', 'Suburbs', 'Downtown', 'Metro', 'Megacity', 'The Sprawl'];
 export function getEra() { try { const e = localStorage.getItem('dc_era'); return ERAS.some(([k]) => k === e) ? e : 'present'; } catch { return 'present'; } }
 export function setEra(e) { try { localStorage.setItem('dc_era', e); } catch { /* ignore */ } }
 // save keys for one game ('ta' or 'kj') in the current era; Present keeps the original keys so old saves carry over

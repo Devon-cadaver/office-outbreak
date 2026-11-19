@@ -1,5 +1,6 @@
 // Models shared by Tornado Alley and the menu scene: the cloud-seeding plane and the storm chaser's armoured truck.
 import * as THREE from 'three';
+import { mergeParts } from '../perf.js';
 
 export function makePlane() {
   const g = new THREE.Group(); const white = new THREE.MeshLambertMaterial({ color: 0xf2f2f2 }), orange = new THREE.MeshLambertMaterial({ color: 0xf07a28 }), dark = new THREE.MeshLambertMaterial({ color: 0x2a2e33 }), glass = new THREE.MeshLambertMaterial({ color: 0x5a86a8 });
@@ -25,4 +26,23 @@ export function makeChaser() {
   const cup = new THREE.SphereGeometry(0.05, 6, 4); for (const a of [0, 2.1, 4.2]) { const c = new THREE.Mesh(cup, steel); c.position.set(-0.28 + Math.cos(a) * 0.07, 0.6, Math.sin(a) * 0.07); mast.add(c); } g.userData.mast = mast;
   const flash = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending })); flash.position.set(0, 1.0, 0.4); g.add(flash); g.userData.flash = flash;
   g.scale.setScalar(1.15); return g;
+}
+
+// The army's tank: tracks with road wheels under fenders, a hull with a sloped nose and an engine deck, and a turret that
+// turns (userData.turret) with a cupola, a stowage box, an aerial and a long gun. hover: no tracks (the Future's version
+// floats; era.js dresses it). Its pieces merge into three draws: hull, turret, gun.
+export function makeTank(hover = false) {
+  const g = new THREE.Group(), L = (c) => new THREE.MeshLambertMaterial({ color: c }), olive = L(0x4a5a32), light = L(0x5e6e40), dark = L(0x2a3020), steel = L(0x1c2018), lamp = L(0xffe9a0);
+  const bx = new THREE.BoxGeometry(1, 1, 1), cy = new THREE.CylinderGeometry(0.5, 0.5, 1, 10);
+  const part = (geo, mat, sx, sy, sz, x, y, z, parent = g) => { const m = new THREE.Mesh(geo, mat); m.scale.set(sx, sy, sz); m.position.set(x, y, z); parent.add(m); return m; };
+  if (!hover) for (const s of [-1, 1]) { part(bx, steel, 0.24, 0.24, 1.42, s * 0.42, 0.14, 0); for (const z of [-0.71, 0.71]) part(cy, steel, 0.24, 0.24, 0.24, s * 0.42, 0.14, z).rotation.z = Math.PI / 2; // a track, rounded at each end
+    for (const z of [-0.5, -0.17, 0.17, 0.5]) part(cy, dark, 0.2, 0.05, 0.2, s * 0.555, 0.13, z).rotation.z = Math.PI / 2; part(bx, olive, 0.3, 0.03, 1.66, s * 0.42, 0.285, 0); } // road wheels, and a fender over them
+  part(bx, dark, 0.6, 0.2, 1.4, 0, 0.2, 0); part(bx, olive, 0.98, 0.2, 1.22, 0, 0.4, -0.06);
+  const nose = part(bx, light, 0.98, 0.06, 0.5, 0, 0.4, 0.66); nose.rotation.x = 0.5; part(bx, olive, 0.98, 0.12, 0.2, 0, 0.3, 0.72); // a sloped nose plate
+  part(bx, dark, 0.7, 0.07, 0.42, 0, 0.53, -0.42); for (const s of [-1, 1]) { part(cy, steel, 0.07, 0.3, 0.07, s * 0.3, 0.5, -0.74).rotation.x = Math.PI / 2; part(bx, lamp, 0.09, 0.06, 0.04, s * 0.36, 0.4, 0.86); } // engine deck, exhausts, headlights
+  const turret = new THREE.Group(); turret.position.set(0, 0.62, -0.05); g.add(turret);
+  part(bx, olive, 0.6, 0.22, 0.66, 0, 0, 0, turret); part(bx, light, 0.46, 0.18, 0.2, 0, -0.01, 0.4, turret); part(bx, dark, 0.5, 0.14, 0.2, 0, 0, -0.42, turret); // body, mantlet, stowage box
+  part(cy, light, 0.24, 0.08, 0.24, -0.13, 0.15, -0.08, turret); part(cy, dark, 0.2, 0.02, 0.2, -0.13, 0.2, -0.08, turret); part(bx, steel, 0.04, 0.06, 0.3, 0.14, 0.15, 0.06, turret); part(bx, steel, 0.012, 0.62, 0.012, 0.24, 0.42, -0.26, turret); // cupola, hatch, machine gun, aerial
+  const gun = new THREE.Group(); turret.add(gun); part(cy, dark, 0.09, 0.95, 0.09, 0, 0.0, 0.92, gun).rotation.x = Math.PI / 2;
+  mergeParts(g); g.userData.turret = turret; return g;
 }

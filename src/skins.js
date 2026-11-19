@@ -106,6 +106,10 @@ export const SKINS = [
 // cavalry (blue coat, wide-brimmed hat, yellow neckerchief, long rifle); otherwise the usual camo ----------
 const glowM = (c) => new THREE.MeshBasicMaterial({ color: c });
 const ARMY = {
+  present: { outfit: { skin: 0xe2bf98, hair: 0x2a1a10, shirt: 0x4a5a32, pants: 0x3a4a28, tie: null },
+    dress: ({ head, body, armR, part }) => { head.add(part(sphere, 0x3a4a28, 0.86, 0.56, 0.86, 0, 0.56, -0.02)); head.add(part(box, 0x2a3620, 0.9, 0.06, 0.96, 0, 0.42, 0.02)); // helmet and its rim
+      body.add(part(box, 0x35452a, 0.6, 0.5, 0.26, 0, 1.36, -0.38)); body.add(part(box, 0x2a3620, 0.82, 0.1, 0.64, 0, 1.12, 0)); body.add(part(box, 0x2a3620, 0.12, 0.5, 0.62, 0.2, 1.36, 0)); // pack, belt, webbing strap
+      armR.add(part(box, 0x1c1c1c, 0.08, 0.1, 0.95, 0.05, -0.68, 0.22)); armR.add(part(box, 0x4a3a2a, 0.09, 0.14, 0.3, 0.05, -0.66, -0.12)); } },
   future: { outfit: { skin: 0xe9c39e, hair: 0x1a1a1a, shirt: 0xdfe5ee, pants: 0x2a3044, tie: null },
     dress: ({ head, body, armR, part }) => { head.add(part(sphere, 0xe8eef4, 0.92, 0.6, 0.92, 0, 0.62, -0.02)); for (const sx of [-1, 1]) head.add(part(box, 0xe8eef4, 0.1, 0.5, 0.6, sx * 0.42, 0.38, 0)); const v = part(box, 0x3af0ff, 0.7, 0.12, 0.1, 0, 0.44, 0.33); v.material = glowM(0x3af0ff); head.add(v);
       body.add(part(box, 0xf2f6fa, 0.7, 0.42, 0.7, 0, 1.38, 0)); const st = part(box, 0x3af0ff, 0.72, 0.05, 0.05, 0, 1.3, 0.36); st.material = glowM(0x3af0ff); body.add(st); for (const sx of [-1, 1]) body.add(part(sphere, 0xe8eef4, 0.36, 0.26, 0.4, sx * 0.42, 1.6, 0));

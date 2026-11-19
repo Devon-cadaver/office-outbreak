@@ -1,6 +1,8 @@
 // Tornado visuals and wreckage: a swirling streaked funnel under a dark cloud cap with a dust skirt, junk tumbling up
 // the vortex, lightning crackling out of it, and buildings it hits lifted, torn into chunks, spun round and flung as rubble.
 import * as THREE from 'three';
+import { createBolts } from './bolt.js';
+import { createWreckage } from './wreck.js';
 
 const box = new THREE.BoxGeometry(1, 1, 1), puffGeo = new THREE.IcosahedronGeometry(1, 1);
 const tmpM = new THREE.Matrix4(), tmpQ = new THREE.Quaternion(), tmpE = new THREE.Euler(), tmpS = new THREE.Vector3(), tmpP = new THREE.Vector3(), tmpC = new THREE.Color();
@@ -42,6 +44,9 @@ export const TWISTER_SKINS = {
   acid: { name: 'Acid Storm', price: 0, bonus: 'Beat Megacity in Tornado Alley', desc: 'Toxic green funnel, acid rain, bright green lightning, and baby tornadoes that spin off, circle you and roam the town.', layers: [0x1f6a0a, 0x7dff3a, 0xd8ff6a], op: [0.85, 0.5, 0.32], cloud: 0x14300c, dust: 0x5aff2a, junk: [0x3a5a1a, 0x7dff3a, 0x2a2a20, 0xd8c81a], bolts: [0x7dff3a, 0xb8ff3a, 0x3aff8a], boltGlow: 0x7dff3a, boltRate: 2, lights: [0x7dff3a, 0xd8ff3a, 0x3aff8a], fx: 'acid', glow: true, babies: true, items: () => rep(5, drum) },
   july4: { name: 'Liberty Twister', price: 2, desc: 'A dark funnel wrapped in spinning neon red and blue rings, flags flying, fireworks bursting out.', layers: [0x2a2a3a, 0x5a3a52, 0x2a3a6a], op: [0.8, 0.45, 0.3], neon: [0xff2a4a, 0x2ad8ff], cloud: 0x1e2440, dust: 0xd8dde0, junk: [0xc23b3b, 0xf2f2f2, 0x2f5fbf], bolts: [0xff3a3a, 0xffffff, 0x3a7aff, 0xffd24a], lights: [0xff3a3a, 0xffffff, 0x3a7aff], fx: 'fireworks', items: () => rep(4, flag) },
 };
+// the soft shadow a storm throws on the ground under it
+let shadowTex = null; function shadowTexture() { if (shadowTex) return shadowTex; const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 2, 32, 32, 32); gr.addColorStop(0, 'rgba(0,0,0,0.55)'); gr.addColorStop(0.6, 'rgba(0,0,0,0.3)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); shadowTex = new THREE.CanvasTexture(c); return shadowTex; }
+const shadowGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
 // lightning matches the skin (its own bolts and the tap-to-move bolts in Tornado Alley); boltEdge draws a dark outline
 // instead of a glow (Hallowstorm: orange bolts edged in black)
 const BOLTS = { halloween: { bolts: [0xff7a1a, 0xff9a2a], boltGlow: 0x000000, boltEdge: true }, christmas: { bolts: [0xff3a3a, 0x3aff6a], boltGlow: 0xffffff }, fire: { bolts: [0xff2a1a, 0xff5a1a], boltGlow: 0xff3a0a }, shark: { bolts: [0xbfe6ff, 0x6ac8ff], boltGlow: 0x3a9aff }, easter: { bolts: [0xff8ad8, 0xffb4e8], boltGlow: 0xff6ac8 }, acid: { bolts: [0x7dff3a, 0xb8ff3a, 0x3aff8a], boltGlow: 0x7dff3a }, july4: { bolts: [0xff3a3a, 0xffffff, 0x3a6aff], boltGlow: 0xb8c8ff } };
@@ -60,9 +65,9 @@ export function createTwisters(scene, { onBolt } = {}) {
   const cloudMat = new THREE.MeshLambertMaterial({ color: 0x3a3a46, transparent: true, opacity: 0.62, depthWrite: false });
   const dustMat = new THREE.MeshBasicMaterial({ color: 0x9c8c70, transparent: true, opacity: 0.32, depthWrite: false });
   const junkMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
-  const boltMat = new THREE.LineBasicMaterial({ color: 0xe8f4ff }), glowMat = new THREE.LineBasicMaterial({ color: 0x7ab8ff, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending });
   const JUNK = [0x7a5a3a, 0x5a3a26, 0x3a3a40, 0xd8d0c0, 0x8a8f96, 0xa04030, 0x2f6f8a, 0x6a7a40];
-  const twisters = [], chunks = [], bolts = [];
+  const twisters = [], chunks = [], zaps = createBolts(scene), wreck = createWreckage(scene), UPV = new THREE.Vector3(0, 1, 0), DOWN = new THREE.Vector3(0, -1, 0); let fx = null; // fx: the game's fire and smoke (set with setFx), for dust, sparks and burning wreckage
+  const rnd = (a, b) => a + Math.random() * (b - a), WHITE = new THREE.Color(0xdfe8ff), bo = { x: 0, z: 0 };
   // torn-off chunks are all drawn as ONE instanced mesh (a draw each used to bog phones down on the big maps); each chunk
   // is a plain Object3D that's moved as before, then copied in here once a frame
   const RUB_MAX = 700, rub = new THREE.InstancedMesh(box, new THREE.MeshLambertMaterial({ color: 0xffffff }), RUB_MAX); rub.frustumCulled = false; rub.count = 0;
@@ -74,18 +79,25 @@ export function createTwisters(scene, { onBolt } = {}) {
   // funnel radius at height y (0..H)
   const radiusAt = (tw, y) => tw.r0 + Math.pow(Math.max(0, y) / tw.H, 1.7) * tw.r1;
 
-  const lineCache = new Map(); const lineMat = (c) => { if (!lineCache.has(c)) lineCache.set(c, new THREE.LineBasicMaterial({ color: c })); return lineCache.get(c); };
+  // the funnel bends: its top trails behind the way it's moving and a slow S-wave runs up it. The offset at each height is
+  // worked out once a frame (33 steps) and everything riding the funnel reads it from there
+  function bendLut(tw) { const L = tw.lut; for (let i = 0; i <= 32; i++) { const k = i / 32, kk = Math.pow(k, 1.6), y = k * tw.H; L[i * 2] = tw.bx * kk + Math.sin(tw.t * 1.6 + y * 0.55) * 0.32 * k * tw.wob; L[i * 2 + 1] = tw.bz * kk + Math.cos(tw.t * 1.3 + y * 0.5) * 0.32 * k * tw.wob; } }
+  const bendAt = (tw, y) => { const i = Math.max(0, Math.min(32, Math.round((y / tw.H) * 32))) * 2; bo.x = tw.lut[i]; bo.z = tw.lut[i + 1]; return bo; };
+  // shift a mesh's vertices by the bend at their height (rot: how far the mesh itself has spun round, so the bend stays put)
+  function bendMesh(tw, m, rot) { const P = m.geometry.attributes.position, A = P.array, B = m.userData.base || (m.userData.base = A.slice()), ca = Math.cos(rot), sa = Math.sin(rot);
+    for (let q = 0; q < A.length; q += 3) { const b = bendAt(tw, B[q + 1]); A[q] = B[q] + b.x * ca - b.z * sa; A[q + 2] = B[q + 2] + b.x * sa + b.z * ca; } P.needsUpdate = true; }
   function make(big, extras = [], skinKey = null, opts = {}) {
     const H = big ? 11 : 4.5, r0 = big ? 0.35 : 0.18, r1 = big ? 3.6 : 1.3; const skin = TWISTER_SKINS[skinKey] || null;
-    const g = new THREE.Group(); const tw = { g, big, H, r0, r1, t: Math.random() * 10, layers: [], junk: null, items: [], boltT: 1, k: 1, skin, skinKey, fxT: 0, baby: !!opts.baby, babyT: 1.5 };
+    const g = new THREE.Group(); const tw = { g, big, H, r0, r1, t: Math.random() * 10, layers: [], junk: null, items: [], boltT: 1, k: 1, skin, skinKey, fxT: 0, baby: !!opts.baby, babyT: 1.5, bx: 0, bz: 0, wob: big ? 1 : 0.45, lut: new Float32Array(66), prev: null, flash: 0, dustT: 0, capHex: skin ? skin.cloud : 0x3a3a46 };
     const mats = layerMats.map((m, i) => { const c = m.clone(); c.map = m.map.clone(); c.map.needsUpdate = true; if (skin) { c.color.setHex(skin.layers[i]); c.opacity = skin.op[i]; if (skin.glow && i > 0) c.blending = THREE.AdditiveBlending; } return c; });
     const capMat = skin ? cloudMat.clone() : cloudMat; if (skin) capMat.color.setHex(skin.cloud); const skirtMat = skin ? dustMat.clone() : dustMat; if (skin) skirtMat.color.setHex(skin.dust);
     const junkCols = skin ? skin.junk : JUNK; tw.own = [...mats, ...(skin ? [capMat, skirtMat] : [])]; if (skin && skin.items && !opts.baby) extras = [...extras, ...skin.items().map((o) => { o.scale.multiplyScalar(big ? 1.9 : 1.2); return o; })];
     // three nested funnel layers, each a lathe with streaks scrolling round it
-    [1, 1.12, 1.3].forEach((s, i) => { const pts = []; for (let j = 0; j <= 14; j++) { const y = (j / 14) * H; pts.push(new THREE.Vector2(radiusAt(tw, y) * s, y)); } const m = new THREE.Mesh(new THREE.LatheGeometry(pts, 28), mats[i]); m.renderOrder = 2; g.add(m); tw.layers.push(m); });
+    [1, 1.12, 1.3].forEach((s, i) => { const pts = []; for (let j = 0; j <= 14; j++) { const y = (j / 14) * H; pts.push(new THREE.Vector2(radiusAt(tw, y) * s, y)); } const m = new THREE.Mesh(new THREE.LatheGeometry(pts, 28), mats[i]); m.renderOrder = 2; m.frustumCulled = false; g.add(m); tw.layers.push(m); });
     // dark cloud cap and a dust skirt, as instanced puffs
-    const capN = big ? 16 : 6; const cap = new THREE.InstancedMesh(puffGeo, capMat, capN); tw.cap = cap; tw.capP = [];
-    for (let i = 0; i < capN; i++) { const a = (i / capN) * Math.PI * 2, rr = (big ? 2 : 0.8) + Math.random() * (big ? 3 : 1.2); tw.capP.push({ a, rr, y: H + Math.random() * 0.8, s: (big ? 1.2 : 0.6) + Math.random() * (big ? 1 : 0.4) }); }
+    // (the big storm's cap is two rings: the thick wall cloud round the funnel's mouth, and a wider, flatter shelf above it)
+    const capIn = big ? 16 : 6, capN = big ? 24 : 6; const cap = new THREE.InstancedMesh(puffGeo, capMat, capN); tw.cap = cap; tw.capP = [];
+    for (let i = 0; i < capN; i++) { const out = i >= capIn, a = (i / (out ? capN - capIn : capIn)) * Math.PI * 2 + (out ? 0.3 : 0), rr = out ? 4.2 + Math.random() * 1.4 : (big ? 2 : 0.8) + Math.random() * (big ? 3 : 1.2); tw.capP.push({ a, rr, y: H + (out ? 0.9 + Math.random() * 0.7 : Math.random() * 0.8), s: out ? 1.3 + Math.random() * 0.7 : (big ? 1.2 : 0.6) + Math.random() * (big ? 1 : 0.4) }); }
     cap.frustumCulled = false; g.add(cap);
     const dustN = big ? 14 : 6; const dust = new THREE.InstancedMesh(puffGeo, skirtMat, dustN); tw.dust = dust; tw.dustP = []; for (let i = 0; i < dustN; i++) tw.dustP.push({ a: Math.random() * 6.28, rr: (big ? 1 : 0.4) + Math.random() * (big ? 1.6 : 0.6), s: (big ? 0.5 : 0.25) + Math.random() * 0.4, v: 3 + Math.random() * 3 });
     dust.frustumCulled = false; g.add(dust);
@@ -105,6 +117,7 @@ export function createTwisters(scene, { onBolt } = {}) {
           const m = new THREE.Mesh(geo, mat); m.renderOrder = 3; ng.add(m); tw.neon.push(m); tw.own.push(mat); } }
       g.add(ng); }
     for (const it of extras) { g.add(it); tw.items.push({ o: it, a: Math.random() * 6.28, y: H * (0.25 + Math.random() * 0.5), spin: 1 + Math.random() * 2 }); }
+    if (!opts.baby) { const sh = new THREE.Mesh(shadowGeo, new THREE.MeshBasicMaterial({ map: shadowTexture(), transparent: true, depthWrite: false, opacity: 0.85 })); sh.scale.set(r1 * 3.4, 1, r1 * 3.4); sh.position.y = 0.16 / 0.42; sh.renderOrder = 1; g.add(sh); tw.shadow = sh; tw.own.push(sh.material); }
     twisters.push(tw); g.userData.twister = tw; return g;
   }
 
@@ -113,7 +126,7 @@ export function createTwisters(scene, { onBolt } = {}) {
   function dispose(tw) { for (const m of tw.own || []) { if (m.map) m.map.dispose(); m.dispose(); } for (const L of [...tw.layers, ...(tw.neon || [])]) L.geometry.dispose(); for (const m of [tw.cap, tw.dust, tw.junk, tw.lights]) if (m) m.dispose(); }
 
   // baby tornadoes (Acid Storm): spin off the storm, circle it, wander out across town and fade away
-  const babies = []; let bounds = null; const glowCache = new Map();
+  const babies = []; let bounds = null;
   function spawnBaby(p) { const g = make(false, [], p.skinKey, { baby: true }); g.position.copy(p.g.position); g.scale.setScalar(0.001); scene.add(g); babies.push({ g, tw: g.userData.twister, parent: p, t: 0, a: Math.random() * 6.28, life: 6 + Math.random() * 3, heading: 0, reach: 0 }); }
   function updateBabies(dt) {
     for (let i = babies.length - 1; i >= 0; i--) { const b = babies[i], g = b.g, P = b.parent.g, k = Math.max(0.6, P.scale.x / 0.42); b.t += dt;
@@ -124,30 +137,52 @@ export function createTwisters(scene, { onBolt } = {}) {
       if (b.t >= b.life) { remove(g); dispose(b.tw); babies.splice(i, 1); } }
   }
 
+  const boltLook = (tw) => ({ color: tw.skin && tw.skin.bolts ? tw.skin.bolts[(Math.random() * tw.skin.bolts.length) | 0] : 0xe8f4ff, glow: tw.skin && tw.skin.boltGlow != null ? tw.skin.boltGlow : 0x7ab8ff, edge: !!(tw.skin && tw.skin.boltEdge) });
   function bolt(tw) {
-    const g = tw.g, y0 = tw.H * (0.25 + Math.random() * 0.7), a = Math.random() * 6.28, r = radiusAt(tw, y0) * g.scale.x;
-    const start = new THREE.Vector3(g.position.x + Math.cos(a) * r, y0 * g.scale.y, g.position.z + Math.sin(a) * r);
+    const g = tw.g, sc = g.scale.x, y0 = tw.H * (0.25 + Math.random() * 0.7), a = Math.random() * 6.28, r = radiusAt(tw, y0) * sc, b = bendAt(tw, y0);
+    const start = new THREE.Vector3(g.position.x + Math.cos(a) * r + b.x * sc, y0 * g.scale.y, g.position.z + Math.sin(a) * r + b.z * sc);
     const toGround = Math.random() < 0.55; const reach = 3 + Math.random() * 5;
-    const end = toGround ? new THREE.Vector3(g.position.x + Math.cos(a) * (r + reach), 0, g.position.z + Math.sin(a) * (r + reach)) : new THREE.Vector3(g.position.x + Math.cos(a + 0.8) * (r + reach * 0.6), (tw.H + 0.5) * g.scale.y, g.position.z + Math.sin(a + 0.8) * (r + reach * 0.6));
-    const pts = []; const n = 9; for (let i = 0; i <= n; i++) { const p = start.clone().lerp(end, i / n); if (i > 0 && i < n) { p.x += (Math.random() - 0.5) * 0.9; p.y += (Math.random() - 0.5) * 0.7; p.z += (Math.random() - 0.5) * 0.9; } pts.push(p); }
-    const bc = tw.skin ? tw.skin.bolts[(Math.random() * tw.skin.bolts.length) | 0] : null; const gc = tw.skin && tw.skin.boltGlow; if (gc != null && !glowCache.has(gc)) glowCache.set(gc, tw.skin.boltEdge ? new THREE.LineBasicMaterial({ color: gc }) : new THREE.LineBasicMaterial({ color: gc, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending })); const gm = gc != null ? glowCache.get(gc) : glowMat; const grp = new THREE.Group(); grp.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), bc ? lineMat(bc) : boltMat));
-    for (const o of [[0.07, 0], [-0.07, 0], [0, 0.07]]) grp.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts.map((q) => new THREE.Vector3(q.x + o[0], q.y, q.z + o[1]))), gm));
-    // a fork or two
-    for (let f = 0; f < 2; f++) { const from = pts[2 + ((Math.random() * (n - 4)) | 0)]; const fp = [from.clone()]; let q = from.clone(); for (let k = 0; k < 3; k++) { q = q.clone().add(new THREE.Vector3((Math.random() - 0.5) * 1.6, (Math.random() - 0.6) * 1.2, (Math.random() - 0.5) * 1.6)); fp.push(q); } grp.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(fp), gm)); }
-    scene.add(grp); bolts.push({ g: grp, t: 0.16 + Math.random() * 0.1 });
+    const end = toGround ? new THREE.Vector3(g.position.x + Math.cos(a) * (r + reach), 0.05, g.position.z + Math.sin(a) * (r + reach)) : new THREE.Vector3(g.position.x + Math.cos(a + 0.8) * (r + reach * 0.6), (tw.H + 0.5) * g.scale.y, g.position.z + Math.sin(a + 0.8) * (r + reach * 0.6));
+    zaps.bolt(start, end, { ...boltLook(tw), w: 0.1 + 0.09 * sc, minPx: 5, life: 0.2 + Math.random() * 0.1, jit: 0.9 * Math.max(0.6, sc), forks: 2 }); tw.flash = 1;
     if (onBolt) onBolt(end, toGround);
   }
+  // the bolt the storm throws at a spot (a tap, a plane, a chaser): out of the cloud, arcing over and down. Returns its glow colour
+  function strikeAt(tw, p) { const g = tw.g, sc = g.scale.x, dx = p.x - g.position.x, dz = p.z - g.position.z, d = Math.hypot(dx, dz) || 1, r = Math.min(d * 0.5, radiusAt(tw, tw.H) * sc * 0.75), b = bendAt(tw, tw.H), look = boltLook(tw);
+    const from = new THREE.Vector3(g.position.x + (dx / d) * r + b.x * sc, Math.max(p.y + 2, tw.H * g.scale.y * 0.95), g.position.z + (dz / d) * r + b.z * sc);
+    zaps.bolt(from, p.clone(), { ...look, w: 0.22 + 0.16 * sc, minPx: 11, life: 0.4, arc: Math.min(2.5, d * 0.1), forks: 3 }); tw.flash = 1; return look.edge ? look.color : look.glow; }
 
-  // rip a building apart: chunks in its colours (plus its loose parts) get sucked into the funnel, then flung
-  function tear(obj, center, size, tw, loose = []) {
+  // rip a building apart, in stages. First it shudders and bursts (dust kicked out round the walls, windows blowing out in
+  // sparks and glass); a small house may be plucked up whole and spun. Then it breaks along jagged cracks into real pieces
+  // of itself (wreck.js: its own walls with their windows, its roof, the floors inside), which hang there trembling and are
+  // torn away from the top down into the funnel, some of them on fire, before being flung out to lie in the street.
+  // parts: other meshes that belong to it (cornice, shopfront, roof clutter). o.collapse: no storm, it just comes down.
+  const CRACK = 0.26, LIFT = 0.7;
+  function tear(obj, center, size, tw, loose = [], parts = [], o = {}) {
     const cols = []; obj.traverse((m) => { if (m.isMesh && m.material) { const mt = Array.isArray(m.material) ? m.material[0] : m.material; if (mt.color) cols.push(mt.color.getHex()); } });
     if (!cols.length) cols.push(0x8a8f96);
-    const n = Math.round((10 + Math.min(14, size.y * 3)) * (chunks.length > 550 ? 0.4 : 1)); // fewer bits when the sky's already full of them
-    for (let i = 0; i < n; i++) { const m = new THREE.Object3D(), hex = cols[(Math.random() * cols.length) | 0]; const s = 0.15 + Math.random() * Math.min(0.55, size.x * 0.25);
-      m.scale.set(s, 0.1 + Math.random() * s * 0.6, s * (0.4 + Math.random() * 0.8)); m.position.set(center.x + (Math.random() - 0.5) * size.x, Math.random() * size.y, center.z + (Math.random() - 0.5) * size.z); addChunk(m, tw, i * 0.04); chunks[chunks.length - 1].inst = true; chunks[chunks.length - 1].hex = hex; }
-    for (const m of loose) { if (!m.parent) continue; m.getWorldPosition(tmpP); scene.attach(m); addChunk(m, tw, Math.random() * 0.3); }
-    // the shell itself lifts, spins and is gone into the cloud
-    chunks.push({ shell: obj, t: 0, base: obj.position.clone(), s0: obj.scale.clone(), tw });
+    const lift = !!tw && !obj.isMesh && size.y < 2.7 && size.x < 2.7 && size.z < 2.7 && Math.random() < 0.45;
+    for (const m of loose) { if (!m.parent) continue; m.getWorldPosition(tmpP); scene.attach(m); addChunk(m, tw, (lift ? LIFT : CRACK) + Math.random() * 0.3); }
+    chunks.push({ shell: obj, t: 0, base: obj.position.clone(), s0: obj.scale.clone(), r0: obj.rotation.clone(), tw, lift, spec: { cols, size: size.clone(), center: center.clone(), parts, collapse: !!o.collapse } });
+    if (fx) { const n = Math.min(8, 3 + Math.round(size.x + size.z)); for (let i = 0; i < n; i++) { const a = (i / n) * 6.28 + Math.random(); fx.dust({ x: center.x + Math.cos(a) * size.x * 0.55, y: 0, z: center.z + Math.sin(a) * size.z * 0.55 }, 0.7 + size.y * 0.12, Math.cos(a) * 1.6, Math.sin(a) * 1.6); }
+      for (let i = 0; i < Math.min(4, 1 + Math.round(size.y * 0.6)); i++) { const p = { x: center.x + rnd(-0.5, 0.5) * size.x, y: rnd(0.4, 1) * size.y, z: center.z + rnd(-0.5, 0.5) * size.z }; fx.sparks(p, 5, { speed: 4, up: 2, life: 0.4 }); fx.bit(p, 0.5, 0xa8dcf0, 5); } }
+  }
+  // the shell has had its moment: cut the real thing up where it stands (or hangs, if it was plucked up) and let the pieces go
+  function shatter(c) { const o = c.shell, S = c.spec, tw = c.tw, few = chunks.length > 520, meshes = [];
+    const take = (r) => r.traverse((m) => { if (m.isMesh && m.visible && !m.isInstancedMesh) meshes.push(m); }); o.updateMatrixWorld(true); take(o); for (const p of S.parts) if (p.parent && p.visible) { p.updateMatrixWorld(true); take(p); }
+    const body = new THREE.Box3().setFromObject(o), mid = body.getCenter(new THREE.Vector3()), top = body.max.y, hgt = Math.max(0.5, top - body.min.y);
+    const frags = wreck.fracture(meshes, { coarse: few, floors: S.size.y > 1.6 && S.size.x < 6 ? Math.round(S.size.y / 1.15) : 0, box: body });
+    o.visible = false; for (const p of S.parts) p.visible = false;
+    let burning = 0; for (const k of chunks) if (k.burn) burning++;
+    for (const f of frags) { const m = new THREE.Object3D(); m.position.copy(f.centre); m.position.x += (f.centre.x - mid.x) * 0.07; m.position.z += (f.centre.z - mid.z) * 0.07; m.position.y += (f.centre.y - mid.y) * 0.03; // eased apart a little: the cracks open
+      addChunk(m, tw, 0); const k = chunks[chunks.length - 1]; k.frag = f; k.collapse = S.collapse; k.out = tmpP.set(f.centre.x - mid.x, 0, f.centre.z - mid.z).length() > 0.01 ? Math.atan2(f.centre.z - mid.z, f.centre.x - mid.x) : Math.random() * 6.28;
+      k.wait = S.collapse ? ((f.centre.y - body.min.y) / hgt) * 0.25 + Math.random() * 0.1 : ((top - f.centre.y) / hgt) * (0.3 + hgt * 0.07) + Math.random() * 0.14; // a storm peels it from the top; a collapse goes from the bottom
+      k.spin.multiplyScalar(0.3 + 0.25 / (0.4 + f.r)); if (!few && burning < 12 && Math.random() < 0.14) { k.burn = true; burning++; } wreck.place(f, m); }
+    // grit: a few small loose bits as well
+    const n = Math.round((frags.length ? 3 + Math.min(5, S.size.y) : 8 + Math.min(8, S.size.y * 2)) * (few ? 0.4 : 1));
+    for (let i = 0; i < n; i++) { const m = new THREE.Object3D(), s = 0.09 + Math.random() * Math.min(0.26, S.size.x * 0.12);
+      m.scale.set(s, 0.06 + Math.random() * s * 0.6, s * (0.4 + Math.random() * 0.8)); m.position.set(mid.x + (Math.random() - 0.5) * S.size.x, body.min.y + Math.random() * hgt, mid.z + (Math.random() - 0.5) * S.size.z); addChunk(m, tw, i * 0.03); const k = chunks[chunks.length - 1]; k.inst = true; k.hex = S.cols[(Math.random() * S.cols.length) | 0]; k.collapse = S.collapse; }
+    if (fx) { for (let i = 0; i < 4; i++) fx.dust({ x: mid.x + rnd(-0.5, 0.5) * S.size.x, y: body.min.y + rnd(0, 0.6) * hgt, z: mid.z + rnd(-0.5, 0.5) * S.size.z }, 0.8 + S.size.y * 0.15);
+      fx.sparks(mid, few ? 4 : 9, { speed: 5, up: 3, life: 0.5 }); if (!few && S.size.y > 4.2 && Math.random() < 0.4) fx.explode(new THREE.Vector3(mid.x, mid.y * 0.8, mid.z), 0.7); } // something inside goes up: a boiler, a gas main
   }
   // knocked loose without a tornado (a crash): pieces just fly outward and land
   function scatter(meshes, center, power = 5) {
@@ -157,42 +192,56 @@ export function createTwisters(scene, { onBolt } = {}) {
 
   function update(dt) { updateFx(dt); updateBabies(dt);
     for (const tw of twisters) {
-      tw.t += dt; const g = tw.g, t = tw.t;
-      tw.layers.forEach((L, i) => { L.material.map.offset.x -= dt * (1.4 + i * 0.5); L.material.map.offset.y += dt * 0.25; L.rotation.y += dt * (2.5 - i * 0.6); L.position.x = Math.sin(t * 1.3 + i) * 0.12 * (tw.big ? 1 : 0.5); L.position.z = Math.cos(t * 1.1 + i) * 0.12 * (tw.big ? 1 : 0.5); });
-      g.rotation.z = Math.sin(t * 0.7) * 0.06; g.rotation.x = Math.cos(t * 0.53) * 0.05;
-      tw.capP.forEach((p, i) => { p.a += dt * 0.35; tmpP.set(Math.cos(p.a) * p.rr, p.y + Math.sin(t + i) * 0.15, Math.sin(p.a) * p.rr); tmpS.set(p.s * 1.6, p.s * 0.55, p.s); tmpM.compose(tmpP, tmpQ.identity(), tmpS); tw.cap.setMatrixAt(i, tmpM); }); tw.cap.instanceMatrix.needsUpdate = true;
+      tw.t += dt; const g = tw.g, t = tw.t, sc0 = Math.max(0.05, g.scale.x); if (tw.shadow) tw.shadow.position.y = 0.16 / sc0; // the shadow stays on the ground however big the storm gets
+      { if (!tw.prev) tw.prev = g.position.clone(); let vx = (g.position.x - tw.prev.x) / Math.max(dt, 0.001), vz = (g.position.z - tw.prev.z) / Math.max(dt, 0.001); if (Math.hypot(g.position.x - tw.prev.x, g.position.z - tw.prev.z) > 4) vx = vz = 0; /* put somewhere new, not moved */ tw.prev.copy(g.position);
+        const sp = Math.hypot(vx, vz), B = sp > 0.01 ? Math.min(3, (sp * 0.3) / sc0) / sp : 0, e = Math.min(1, dt * 2.5); tw.bx += (-vx * B - tw.bx) * e; tw.bz += (-vz * B - tw.bz) * e; bendLut(tw); }
+      tw.layers.forEach((L, i) => { L.material.map.offset.x -= dt * (1.4 + i * 0.5); L.material.map.offset.y += dt * 0.25; L.rotation.y += dt * (2.5 - i * 0.6); L.position.x = Math.sin(t * 1.3 + i) * 0.12 * (tw.big ? 1 : 0.5); L.position.z = Math.cos(t * 1.1 + i) * 0.12 * (tw.big ? 1 : 0.5); bendMesh(tw, L, L.rotation.y); });
+      g.rotation.z = Math.sin(t * 0.7) * 0.03; g.rotation.x = Math.cos(t * 0.53) * 0.025;
+      if (tw.flash > 0 || tw.capLit) { tw.flash = Math.max(0, tw.flash - dt * 5); tw.capLit = tw.flash > 0; tw.cap.material.color.setHex(tw.capHex).lerp(WHITE, tw.flash * 0.75); } // lightning lights the cloud up from inside
+      tw.capP.forEach((p, i) => { p.a += dt * 0.35; { const b = bendAt(tw, tw.H); tmpP.set(Math.cos(p.a) * p.rr + b.x, p.y + Math.sin(t + i) * 0.15, Math.sin(p.a) * p.rr + b.z); } tmpS.set(p.s * 1.6, p.s * 0.55, p.s); tmpM.compose(tmpP, tmpQ.identity(), tmpS); tw.cap.setMatrixAt(i, tmpM); }); tw.cap.instanceMatrix.needsUpdate = true;
       tw.dustP.forEach((p, i) => { p.a += dt * p.v; const pulse = 1 + Math.sin(t * 3 + i) * 0.25; tmpP.set(Math.cos(p.a) * p.rr, p.s * 0.6, Math.sin(p.a) * p.rr); tmpS.setScalar(p.s * pulse); tmpM.compose(tmpP, tmpQ.identity(), tmpS); tw.dust.setMatrixAt(i, tmpM); }); tw.dust.instanceMatrix.needsUpdate = true;
       tw.junkP.forEach((p, i) => { p.y += dt * (1.2 + p.jit); if (p.y > tw.H * 0.95) p.y = 0.1; p.a += dt * (5.5 - (p.y / tw.H) * 3); const r = radiusAt(tw, p.y) * (0.95 + p.jit * 0.5);
-        tmpP.set(Math.cos(p.a) * r, p.y, Math.sin(p.a) * r); tmpE.set(t * p.spin[0], t * p.spin[1], t * p.spin[2]); tmpQ.setFromEuler(tmpE); tmpS.set(p.sz[0], p.sz[1], p.sz[2]); tmpM.compose(tmpP, tmpQ, tmpS); tw.junk.setMatrixAt(i, tmpM); }); tw.junk.instanceMatrix.needsUpdate = true;
-      for (const it of tw.items) { it.a += dt * 2.2; it.y += dt * 0.6; if (it.y > tw.H * 0.85) it.y = tw.H * 0.2; const r = radiusAt(tw, it.y) * 1.05; const o = it.o, u = o.userData; o.position.set(Math.cos(it.a) * r, it.y, Math.sin(it.a) * r);
+        { const b = bendAt(tw, p.y); tmpP.set(Math.cos(p.a) * r + b.x, p.y, Math.sin(p.a) * r + b.z); } tmpE.set(t * p.spin[0], t * p.spin[1], t * p.spin[2]); tmpQ.setFromEuler(tmpE); tmpS.set(p.sz[0], p.sz[1], p.sz[2]); tmpM.compose(tmpP, tmpQ, tmpS); tw.junk.setMatrixAt(i, tmpM); }); tw.junk.instanceMatrix.needsUpdate = true;
+      for (const it of tw.items) { it.a += dt * 2.2; it.y += dt * 0.6; if (it.y > tw.H * 0.85) it.y = tw.H * 0.2; const r = radiusAt(tw, it.y) * 1.05; const o = it.o, u = o.userData; { const b = bendAt(tw, it.y); o.position.set(Math.cos(it.a) * r + b.x, it.y, Math.sin(it.a) * r + b.z); }
         if (u.fly) { o.rotation.set(0, Math.atan2(-Math.sin(it.a), Math.cos(it.a)), 0); o.rotateZ(-0.4); o.position.y += Math.sin(t * 3 + it.a) * 0.2; if (u.wings) { const f = Math.sin(t * 16 + it.a * 3) * 0.7; u.wings[0].rotation.z = f; u.wings[1].rotation.z = -f; } if (u.tail) u.tail.rotation.y = Math.sin(t * 9 + it.a) * 0.5; }
         else { o.rotation.x += dt * it.spin; o.rotation.z += dt * it.spin * 0.7; if (u.cloth) u.cloth.rotation.y = Math.sin(t * 8 + it.a) * 0.4; } }
-      if (tw.lights) { tw.lightP.forEach((p, i) => { p.a += dt * p.v; p.y += dt * 0.8; if (p.y > tw.H) p.y = 0.2; const r = radiusAt(tw, p.y) * 0.8; tmpP.set(Math.cos(p.a) * r, p.y, Math.sin(p.a) * r); tmpS.setScalar(p.s * (1 + Math.sin(t * 6 + i) * 0.35)); tmpM.compose(tmpP, tmpQ.identity(), tmpS); tw.lights.setMatrixAt(i, tmpM); }); tw.lights.instanceMatrix.needsUpdate = true; }
-      if (tw.neonG) { tw.neonG.rotation.y += dt * 4.5; const pulse = 0.22 + Math.sin(t * 7) * 0.08; for (let i = 0; i < tw.neon.length; i += 3) tw.neon[i].material.opacity = pulse; }
+      if (tw.lights) { tw.lightP.forEach((p, i) => { p.a += dt * p.v; p.y += dt * 0.8; if (p.y > tw.H) p.y = 0.2; const r = radiusAt(tw, p.y) * 0.8; { const b = bendAt(tw, p.y); tmpP.set(Math.cos(p.a) * r + b.x, p.y, Math.sin(p.a) * r + b.z); } tmpS.setScalar(p.s * (1 + Math.sin(t * 6 + i) * 0.35)); tmpM.compose(tmpP, tmpQ.identity(), tmpS); tw.lights.setMatrixAt(i, tmpM); }); tw.lights.instanceMatrix.needsUpdate = true; }
+      if (tw.neonG) { tw.neonG.rotation.y += dt * 4.5; for (const m of tw.neon) bendMesh(tw, m, tw.neonG.rotation.y); const pulse = 0.22 + Math.sin(t * 7) * 0.08; for (let i = 0; i < tw.neon.length; i += 3) tw.neon[i].material.opacity = pulse; }
       if (tw.skin && tw.skin.fx && g.parent === scene) skinFx(tw, dt);
+      // a wall of dust dragged round the foot of the funnel
+      if (fx && tw.big && !tw.baby && g.parent === scene && g.visible && sc0 > 0.1) { tw.dustT -= dt; if (tw.dustT <= 0) { tw.dustT = 0.075; const a = Math.random() * 6.28, rr = (tw.r0 + 1.1) * sc0 * 1.5; fx.dust({ x: g.position.x + Math.cos(a) * rr, y: 0, z: g.position.z + Math.sin(a) * rr }, 0.6 + sc0 * 1.1, -Math.sin(a) * 2.4 * sc0, Math.cos(a) * 2.4 * sc0, tw.skin ? tw.skin.dust : 0x9c8c70); } }
       if (tw.big) { tw.boltT -= dt; if (tw.boltT <= 0 && g.scale.x > 0.5) { tw.boltT = (0.35 + Math.random() * 1.3) / ((tw.skin && tw.skin.boltRate) || 1); bolt(tw); } }
       if (tw.skin && tw.skin.babies && tw.big && !tw.baby && g.parent === scene && g.scale.x > 0.2) { tw.babyT -= dt; if (tw.babyT <= 0) { tw.babyT = 3 + Math.random() * 3; if (babies.length < 4) spawnBaby(tw); } }
     }
-    for (let i = bolts.length - 1; i >= 0; i--) { const b = bolts[i]; b.t -= dt; b.g.visible = Math.random() < 0.8; if (b.t <= 0) { scene.remove(b.g); b.g.traverse((m) => m.geometry && m.geometry.dispose()); bolts.splice(i, 1); } }
+    zaps.update(dt); let budget = 10, cuts = 2; // dust and spark puffs the wreckage may throw this frame; buildings that may be cut up this frame
     for (let i = chunks.length - 1; i >= 0; i--) {
       const c = chunks[i];
-      if (c.shell) { c.t += dt; const k = Math.min(1, c.t / 1.6); const o = c.shell; o.position.y = c.base.y + k * k * 9; o.rotation.y += dt * (2 + k * 10); o.rotation.z = Math.sin(c.t * 7) * 0.25 * k; const sc = 1 - k * 0.92; o.scale.set(c.s0.x * sc, c.s0.y * sc, c.s0.z * sc);
-        if (c.tw && c.tw.g.parent) { o.position.x += (c.tw.g.position.x - o.position.x) * Math.min(1, dt * 1.5); o.position.z += (c.tw.g.position.z - o.position.z) * Math.min(1, dt * 1.5); }
-        if (k >= 1) { o.visible = false; chunks.splice(i, 1); } continue; }
+      if (c.shell) { c.t += dt; const o = c.shell, t = c.t;
+        if (c.lift) { const k = Math.min(1, t / LIFT); o.position.y = c.base.y + k * k * 3.4; o.rotation.y = c.r0.y + k * k * 5; o.rotation.z = c.r0.z + Math.sin(t * 9) * 0.2 * k; o.rotation.x = c.r0.x + Math.cos(t * 7) * 0.14 * k;
+          if (c.tw && c.tw.g.parent) { o.position.x += (c.tw.g.position.x - o.position.x) * Math.min(1, dt * 1.2); o.position.z += (c.tw.g.position.z - o.position.z) * Math.min(1, dt * 1.2); } }
+        else { o.rotation.z = c.r0.z + Math.sin(t * 95) * 0.035; o.rotation.x = c.r0.x + Math.cos(t * 78) * 0.03; o.position.y = c.base.y + t * 0.9; o.position.x = c.base.x + Math.sin(t * 120) * 0.04; }
+        if (t >= (c.lift ? LIFT : CRACK) && cuts-- > 0) { shatter(c); chunks.splice(chunks.indexOf(c), 1); } continue; }
       const m = c.m; c.t += dt; if (c.t < 0) continue;
       if (c.phase === 'suck') {
-        const tw = c.tw; if (!tw || !tw.g.parent) { c.phase = 'fly'; c.vel.set((Math.random() - 0.5) * 6, 4, (Math.random() - 0.5) * 6); continue; }
+        if (c.wait > 0) { c.wait -= dt; m.rotation.z = Math.sin(c.t * 45 + c.a) * (c.frag ? 0.025 : 0.05); if (c.frag) wreck.place(c.frag, m); if (c.wait <= 0 && fx && budget-- > 0) { fx.dust(m.position, 0.5 + (c.frag ? c.frag.r * 0.5 : m.scale.x * 0.4)); if (Math.random() < 0.35) fx.sparks(m.position, 3, { speed: 3, up: 2, life: 0.35 }); } continue; } // cracked but still standing: it trembles until its turn
+        const tw = c.tw; if (!tw || !tw.g.parent) { c.phase = 'fly'; if (c.collapse) { const sp = 0.8 + Math.random() * 2.2; c.vel.set(Math.cos(c.out || 0) * sp, 0.5 + Math.random() * 2, Math.sin(c.out || 0) * sp); } else c.vel.set((Math.random() - 0.5) * 6, 4, (Math.random() - 0.5) * 6); continue; }
+        if (c.burn && fx) { c.bt = (c.bt || 0) - dt; if (c.bt <= 0) { c.bt = 0.08; fx.puff('flame', m.position, 0.5 + m.scale.x * 0.3); if (Math.random() < 0.25) fx.puff('smoke', m.position, 0.5); } }
         const cx = tw.g.position.x, cz = tw.g.position.z, sc = tw.g.scale.x; c.y = Math.min(tw.H * 0.8, c.y + dt * 2.6); c.a += dt * (5 - (c.y / tw.H) * 2.5); const r = radiusAt(tw, c.y) * sc * 1.05;
-        const want = tmpP.set(cx + Math.cos(c.a) * r, c.y * sc, cz + Math.sin(c.a) * r); m.position.lerp(want, Math.min(1, dt * 4)); m.rotation.x += c.spin.x * dt; m.rotation.y += c.spin.y * dt; m.rotation.z += c.spin.z * dt;
+        const bb = bendAt(tw, c.y), want = tmpP.set(cx + Math.cos(c.a) * r + bb.x * sc, c.y * sc, cz + Math.sin(c.a) * r + bb.z * sc); m.position.lerp(want, Math.min(1, dt * 4)); m.rotation.x += c.spin.x * dt; m.rotation.y += c.spin.y * dt; m.rotation.z += c.spin.z * dt;
+        if (c.frag) wreck.place(c.frag, m);
         if (c.t > c.hold) { c.phase = 'fly'; const out = new THREE.Vector3(Math.cos(c.a), 0, Math.sin(c.a)), tan = new THREE.Vector3(-Math.sin(c.a), 0, Math.cos(c.a)); c.vel.copy(tan.multiplyScalar(9 + Math.random() * 6)).add(out.multiplyScalar(5 + Math.random() * 5)); c.vel.y = 3 + Math.random() * 5; }
       } else if (c.phase === 'fly') {
+        if (c.burn && fx) { c.bt = (c.bt || 0) - dt; if (c.bt <= 0) { c.bt = 0.09; fx.puff('flame', m.position, 0.5 + m.scale.x * 0.3); } }
         c.vel.y -= 16 * dt; m.position.addScaledVector(c.vel, dt); m.rotation.x += c.spin.x * dt; m.rotation.y += c.spin.y * dt; m.rotation.z += c.spin.z * dt;
-        const floor = Math.max(0.03, m.scale.y * 0.5); if (m.position.y <= floor) { m.position.y = floor; c.phase = 'rest'; m.rotation.x = 0; m.rotation.z = 0; c.rest = c.inst ? 30 : 3; /* a building's own loose parts are a draw each, so they clear away soon */ }
-      } else if (c.phase === 'rest') { c.rest -= dt; if (c.rest < 2) m.position.y -= dt * 0.2; if (c.rest <= 0) { scene.remove(m); chunks.splice(i, 1); } }
+        const floor = c.frag ? 0.1 : Math.max(0.03, m.scale.y * 0.5); if (c.frag && m.position.y > floor) wreck.place(c.frag, m);
+        if (m.position.y <= floor) { m.position.y = floor; c.phase = 'rest'; m.rotation.x = 0; m.rotation.z = 0; c.rest = c.frag ? 9 + Math.random() * 5 : c.inst ? 30 : 3; /* a building's own loose parts are a draw each, so they clear away soon */
+          if (c.frag) { m.quaternion.setFromUnitVectors(c.frag.n, Math.random() < 0.7 ? UPV : DOWN); m.rotateY(Math.random() * 6.28); m.position.y = 0.07 + Math.random() * 0.1; wreck.place(c.frag, m); } // a wall piece lands flat: face up, mostly
+          if (fx && c.inst && m.scale.x > 0.3 && budget-- > 0) { fx.dust({ x: m.position.x, y: 0, z: m.position.z }, 0.5 + m.scale.x * 0.5); if (c.burn) { fx.scorch(m.position, 0.45, 9); fx.ignite(new THREE.Vector3(m.position.x, 0.1, m.position.z), 0.45, 2.5); } } c.burn = false; }
+      } else if (c.phase === 'rest') { c.rest -= dt; if (c.rest < 2) { m.position.y -= dt * 0.2; if (c.frag) wreck.place(c.frag, m); } if (c.rest <= 0) { if (c.frag) wreck.free(c.frag); scene.remove(m); chunks.splice(i, 1); } }
     }
     // keep the rubble pile bounded (oldest go first), then draw every chunk in one go
     let rest = 0; for (const c of chunks) if (c.phase === 'rest') rest++; for (const c of chunks) { if (rest <= 250) break; if (c.phase === 'rest' && c.rest > 1) { c.rest = 1; rest--; } }
-    drawRubble();
+    drawRubble(); wreck.flush();
   }
 
   // per-skin effects in world space: snow, embers, spray and fireworks
@@ -218,7 +267,7 @@ export function createTwisters(scene, { onBolt } = {}) {
       else if (f.puddle) f.m.scale.setScalar(f.s0 * Math.max(0.05, f.life / f.max));
       else if (!f.keep) f.m.scale.setScalar(Math.max(0.2, f.life / f.max) * (f.m.scale.x > 0 ? 1 : 1));
       if (f.life <= 0 || f.m.position.y < 0) { scene.remove(f.m); fxParts.splice(i, 1); if (f.fizz && Math.random() < 0.5) { const q = f.m.position.clone().setY(0.05); for (let k = 0; k < 2; k++) spark(q, new THREE.Vector3((Math.random() - 0.5) * 1.6, 1 + Math.random(), (Math.random() - 0.5) * 1.6), 0xb8ff3a, 0.35, 6, 0.8); } } } }
-  function clear() { for (const b of babies) dispose(b.tw); babies.length = 0; for (const f of fxParts) scene.remove(f.m); fxParts.length = 0; for (const tw of twisters) scene.remove(tw.g); twisters.length = 0; for (const b of bolts) scene.remove(b.g); bolts.length = 0; for (const c of chunks) { if (c.m) scene.remove(c.m); } chunks.length = 0; rub.count = 0; }
+  function clear() { for (const b of babies) dispose(b.tw); babies.length = 0; for (const f of fxParts) scene.remove(f.m); fxParts.length = 0; for (const tw of twisters) scene.remove(tw.g); twisters.length = 0; zaps.clear(); wreck.clear(); for (const c of chunks) { if (c.m) scene.remove(c.m); } chunks.length = 0; rub.count = 0; }
   function suck(m, tw) { scene.attach(m); addChunk(m, tw, 0); }
-  return { make, remove, tear, scatter, suck, update, clear, radiusAt, get chunks() { return chunks; }, get babies() { return babies; }, setBounds(b) { bounds = b; } };
+  return { make, remove, tear, scatter, suck, update, clear, radiusAt, strikeAt, setFx(f) { fx = f; }, get wreck() { return wreck; }, get chunks() { return chunks; }, get babies() { return babies; }, setBounds(b) { bounds = b; } };
 }
