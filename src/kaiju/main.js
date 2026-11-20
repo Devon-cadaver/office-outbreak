@@ -23,6 +23,7 @@ import { coach, coachSeen, coachIdle, coachBusy, coachFrame, coachClear } from '
 import { quickLevel, saveLast } from '../progress.js';
 import { createCrowd } from '../crowd.js';
 import { buildOutskirts } from '../outskirts.js';
+import { createPreviews } from '../livePreview.js';
 import { autoResolution, mergeStatic, bakeMovable, bakeUnits, setBakedGlow } from '../perf.js';
 import { rides, spinners } from '../landmarks.js';
 import { makePlane, makeTank } from '../ally/units.js';
@@ -971,23 +972,19 @@ function drawLevels() { const box = $('taLevels'); box.innerHTML = ''; const un 
   b.className = 'lvl' + (n === level ? ' on' : ''); b.disabled = n > un; b.innerHTML = '<b>' + (n > un ? '🔒' : n) + '</b><span>' + lv.name + '</span>' + (best ? '<i>' + best + '</i>' : ''); b.addEventListener('click', () => { level = n; drawLevels(); }); box.appendChild(b); }); }
 // ---------- the monster picker: the start screen shows your monster; CHOOSE MONSTER opens a scrolling screen with a
 // picture of every one (locked ones are dark silhouettes). Pictures are rendered once each, a few per frame ----------
-const thumbR = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true }); thumbR.setSize(150, 150); thumbR.setPixelRatio(1);
-const thumbS = new THREE.Scene(); thumbS.add(new THREE.HemisphereLight(0xe0e8ff, 0x3a2a4a, 1.6)); { const l = new THREE.DirectionalLight(0xffffff, 0.9); l.position.set(3, 6, 5); thumbS.add(l); }
-const thumbC = new THREE.PerspectiveCamera(30, 1, 0.1, 50); thumbC.position.set(2.1, 1.8, 4.3); thumbC.lookAt(0, 1.15, 0);
-const thumbCache = new Map(), thumbQ = [];
-function thumb(id, cv) { const skin = getEquipped()['kj_' + id] || false, key = id + '+' + skin; const g2 = cv.getContext('2d');
-  if (thumbCache.has(key)) { g2.clearRect(0, 0, cv.width, cv.height); g2.drawImage(thumbCache.get(key), 0, 0, cv.width, cv.height); return; }
-  thumbQ.push(() => { const rig = buildKaiju(id, skin); rig.anim(0.4, 0); const g = rig.g; g.rotation.y = -0.5; const bb = new THREE.Box3().setFromObject(g), sz = bb.getSize(new THREE.Vector3()); const k = 2.5 / Math.max(sz.x, sz.y, sz.z); g.scale.setScalar(k); bb.setFromObject(g); g.position.y -= bb.min.y; g.position.x -= (bb.min.x + bb.max.x) / 2; g.position.z -= (bb.min.z + bb.max.z) / 2;
-    thumbS.add(g); thumbR.render(thumbS, thumbC); thumbS.remove(g); const img = document.createElement('canvas'); img.width = img.height = 150; img.getContext('2d').drawImage(thumbR.domElement, 0, 0); thumbCache.set(key, img); g2.clearRect(0, 0, cv.width, cv.height); g2.drawImage(img, 0, 0, cv.width, cv.height); }); }
-(function thumbPump() { requestAnimationFrame(thumbPump); for (let i = 0; i < 3 && thumbQ.length; i++) thumbQ.shift()(); })();
+// the monsters on the menu are live: each card shows its monster walking on the spot and turning (livePreview.js)
+const kjPV = createPreviews({ perFrame: 4, cam: [2.1, 1.8, 4.3], look: [0, 1.15, 0], fov: 30 }), kjLive = new Map();
+function thumb(id, cv, slot = 'card') { const skin = getEquipped()['kj_' + id] || false, key = slot + ':' + id + '+' + skin; // one monster per card, built when the card is first seen, then kept
+  kjPV.add(cv, () => { let e = kjLive.get(key); if (e) return e; const rig = buildKaiju(id, skin); rig.anim(0.4, 0); const g = rig.g, bb = new THREE.Box3().setFromObject(g), sz = bb.getSize(new THREE.Vector3()), k = 2.5 / Math.max(sz.x, sz.y, sz.z); g.scale.setScalar(k); bb.setFromObject(g); g.position.y -= bb.min.y; g.position.x -= (bb.min.x + bb.max.x) / 2; g.position.z -= (bb.min.z + bb.max.z) / 2;
+    e = new THREE.Group(); e.add(g); e.userData.rig = rig; kjLive.set(key, e); return e; }, (dt, t, e) => { e.userData.rig.anim(dt, 0.5); e.rotation.y = -0.5 + Math.sin(t * 0.5) * 0.6; }); }
 function drawPicker() { const un = unlockedKaiju(), K = KAIJU[pick];
-  $('kjChosenName').textContent = K.name; $('kjChosenSpells').textContent = K.spells.join(' → '); thumb(pick, $('kjChosenCv'));
+  $('kjChosenName').textContent = K.name; $('kjChosenSpells').textContent = K.spells.join(' → '); kjPV.clear(); thumb(pick, $('kjChosenCv'), 'chosen');
   $('kjPickInfo').innerHTML = un.length + ' of ' + KAIJU_IDS.length + ' unlocked. Win more in the prize games after each round.';
   if ($('kjPickScr').classList.contains('hidden')) return;
   const box = $('kjPick'); box.innerHTML = '';
-  for (const id of [...KAIJU_IDS.filter((x) => un.includes(x)), ...KAIJU_IDS.filter((x) => !un.includes(x))]) { const KK = KAIJU[id], open = un.includes(id); /* yours first */ const b = document.createElement('button'); b.className = 'kjCard' + (id === pick ? ' on' : '') + (open ? '' : ' locked'); b.disabled = !open;
-    b.innerHTML = '<canvas width="150" height="150"></canvas><b>' + (open ? '' : '🔒 ') + KK.name + '</b>'; thumb(id, b.querySelector('canvas'));
-    b.addEventListener('click', () => { pick = id; try { localStorage.setItem('kj_pick', id); } catch { /* ignore */ } for (const o of box.children) o.classList.remove('on'); b.classList.add('on'); drawPicker(); showcase(); }); box.appendChild(b); } }
+  for (const id of [...KAIJU_IDS.filter((x) => un.includes(x)), ...KAIJU_IDS.filter((x) => !un.includes(x))]) { const KK = KAIJU[id], open = un.includes(id); /* yours first */ const b = document.createElement('button'); b.className = 'kjCard' + (id === pick ? ' on' : '') + (open ? '' : ' locked');
+    b.innerHTML = '<canvas width="150" height="150"></canvas><b>' + KK.name + '</b>'; thumb(id, b.querySelector('canvas'));
+    b.addEventListener('click', () => { if (!open) { $('kjPickInfo').textContent = KK.name + ' is locked. Win monsters in the prize games after each round.'; for (const c of box.children) c.classList.remove('want'); b.classList.add('want'); return; } /* a locked monster still shows, moving, in full colour */ pick = id; try { localStorage.setItem('kj_pick', id); } catch { /* ignore */ } for (const o of box.children) o.classList.remove('on'); b.classList.add('on'); drawPicker(); showcase(); }); box.appendChild(b); } }
 function openPicker() { $('taStart').classList.add('hidden'); $('taEnd').classList.add('hidden'); state = 'start'; $('kjPickScr').classList.remove('hidden'); $('kjPickScr').scrollTop = 0; drawPicker(); }
 $('kjChoose').addEventListener('click', openPicker);
 $('kjPickDone').addEventListener('click', () => { $('kjPickScr').classList.add('hidden'); $('taStart').classList.remove('hidden'); drawPicker(); drawLevels(); });

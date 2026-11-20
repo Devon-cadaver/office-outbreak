@@ -1,6 +1,6 @@
 # Tornado Time! — itch.io page kit
 
-Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.28.0**. Upload `release/tornado-time-web-v1.28.0.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to. All the images below are in `release/itch/tornado-time/`.
+Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.29.0**. Upload `release/tornado-time-web-v1.29.0.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to. All the images below are in `release/itch/tornado-time/`.
 
 The game used to be called Dead City: Tornado Alley. From 1.28.0 it is **Tornado Time!**, with Kaiju Madness as its bonus game. Older zips keep their old `survive-dead-city-web` names.
 
@@ -15,7 +15,7 @@ The game used to be called Dead City: Tornado Alley. From 1.28.0 it is **Tornado
 | Short description / tagline | You are the tornado. Wreck six towns, swallow rival twisters, zap UFOs and blow up everything worth blowing up. |
 | Classification | Game |
 | Kind of project | **HTML** |
-| Uploads | `tornado-time-web-v1.28.0.zip` (about 32 MB, mostly the nine songs). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
+| Uploads | `tornado-time-web-v1.29.0.zip` (about 32 MB, mostly the nine songs). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
 | Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
 | Frame options | Leave SharedArrayBuffer off. No special headers needed. |
 | Pricing | Free (or "No payments"). |
@@ -33,7 +33,8 @@ The game used to be called Dead City: Tornado Alley. From 1.28.0 it is **Tornado
 |---|---|---|---|
 | Cover image | `cover-630x500.png` | 630 × 500 | itch asks for at least 315 × 250 and recommends 630 × 500. |
 | Banner (Theme → Banner) | `banner-960x200.png` | 960 × 200 | The thin one. `banner-960x400.png` is there if you want it taller. Both replace the title text at the top of the page. |
-| Page background (Theme → Background image) | `key-art-1920x1080.png` | 1920 × 1080 | Don't repeat, top centre, tick **Fixed**, background colour #120a1f. It is busy in the middle, so if the page text is hard to read over it, use a plain #120a1f background instead. |
+| Page background (Theme → Background image) | `background-1920x1080.gif` (animated, 2.4 MB) or `background-1920x1080.png` (still) | 1920 × 1080 | The Acid Storm spinning on the left, the saucer beaming people up on the right, and a still skyline between them, where the page column sits. Don't repeat, top centre, tick **Fixed**, background colour #120a1f. It loops every 2.8 seconds and its edges fade into that colour. Drawn in `background-scene.html`; keep any new GIF under about 3 MB. |
+| Key art (social posts, devlogs) | `key-art-1920x1080.png` | 1920 × 1080 | A still of the game's opening, no logo. |
 | Logo (devlogs, social posts) | `logo-1200x700.png` | 1200 × 700 | Transparent background. Drawn in `logo.html`. |
 | Screenshots: Tornado Time! | `shot-01-title.png` … `shot-13-choose-your-tornado.png` | 1280 × 720 | Upload in order. See the list below. Remove every older screenshot. |
 | Screenshots: Kaiju Madness | `kaiju-01-roster.png` … `kaiju-05-fight-wrestler.png` | 1280 × 720 | Put these after the tornado ones: it is the bonus game. |
@@ -53,7 +54,7 @@ What each screenshot shows:
 10. `shot-10-f5-countryside`: an F5 at the edge of town: the wide view, gunships inbound, fields beyond.
 11. `shot-11-future-sharknado`: the Future era with the Sharknado.
 12. `shot-12-wild-west-firenado`: the Wild West with the Firenado.
-13. `shot-13-choose-your-tornado`: all nine storms.
+13. `shot-13-choose-your-tornado`: all eighteen storms.
 
 Kaiju Madness: `kaiju-01-roster` and `kaiju-02-roster-robots` (the monster picker, 60 of them), `kaiju-03-rampage` (Scorchback flattening Downtown), `kaiju-04-fight-robot` (Scorchback against Triple Decker), `kaiju-05-fight-wrestler` (Big Bruno Boulderbeard against Grumblegorilla, with a weak-spot marker up).
 
@@ -88,7 +89,7 @@ Kaiju Madness: `kaiju-01-roster` and `kaiju-02-roster-robots` (the monster picke
 
 🏙️ **Six towns, three eras.** From Small Town to The Sprawl, in the Present, the Wild West or the Future, with Halloween, Christmas and 4th of July seasons. Every round is a new map, with countryside rolling out past the last street.
 
-🎨 **Nine storms to play as.** Classic Twister, Poonado, Hallowstorm, Blizzard, Firenado, Sharknado, Bunnynado, the neon Liberty Twister, and the Acid Storm for beating Megacity. Win them in the prize games after each round or buy them with coins in the skin shop.
+🎨 **Eighteen storms to play as, and each one throws something.** The Sharknado flings sharks, the Hallowstorm lobs pumpkins, the Blizzard hurls lumps of ice and the Liberty Twister sets off fireworks. The Zombienado drops the dead into the streets to chase the living. The Ghostnado possesses people so they walk into the storm. The Planetnado calls down meteors, the Mallownado glues people to the spot, and The Void is a hole in the sky that nobody sees coming. Plus the Clownado, Wormhole, Gridnado, Glitchnado, Firenado, Bunnynado, Poonado, the Classic Twister, and the Acid Storm for beating Megacity. Every storm is on show in the shop, spinning, before you own it. Win them in the prize games after each round or buy them with coins.
 
 ▶ **Straight in.** Hit QUICK PLAY and you are in a round. No tutorial: the first time something new turns up, the round pauses and shows you what to do.
 
@@ -122,6 +123,7 @@ Small browser games built fast, tested on a phone, and tuned by playing. Tornado
 
 ## Version history
 
+- **1.29.0** (2026-11-19): Nine new storms: Clownado, Zombienado, Ghostnado, Mallownado, Planetnado, Wormhole, Gridnado, The Void and Glitchnado. Storms now throw things: the Sharknado flings sharks, the Hallowstorm lobs pumpkins, the Blizzard hurls lumps of ice, the Firenado throws fireballs, and more. The Liberty Twister's fireworks are bigger and the Hallowstorm's bats have real wings. In the skin shop and on both CHOOSE screens every storm and monster is now shown moving, and locked ones appear in full colour with a padlock so you can see what there is to win or buy.
 - **1.28.0** (2026-11-19): The game is now called Tornado Time!, with a new logo. A new opening plays when the game starts: the Liberty Twister tears into the graveyard, a burning plane comes down in the distance and a UFO beams people up, then TAP TO PLAY. The same scene carries on behind the main menu. Kaiju Madness is now listed as the bonus game.
 - **1.27.0** (2026-11-19): Every big target in Tornado Alley now goes up in its own way: the water station bursts, the fire and police stations throw siren lights in every direction, the fairground lets go of its balloons and fireworks, ghosts rise from the graveyard, the weather station dish flies off, the sewage plant spouts, the power plant throws lightning and the radio tower topples. Storm chasers explode when struck by lightning, and again where your storm hurls them. The camera pulls back further with each F level past F1. Targets you are too small for stay on screen dimmed, then turn gold. There is countryside round every town in both games: fields, roads, woods, farms and hills. Fixed: shockwave rings, firelight on the ground and scorch marks were never being drawn.
 - **1.26.0** (2026-11-19): Four new enemies in Tornado Alley. A rogue twister eats your town from the Suburbs on: swallow it while it is smaller than you, strike it down to size when it is bigger. A storm cannon guards big targets from Downtown on and blasts you back along its orange line. Gunships circle from Metro on, firing freeze rockets that slow you. A shielded UFO with a shrink ray hunts you in Megacity and The Sprawl: strike it when it drops low to beam people up. Seeding planes hit by lightning now crash in flames and take a strip of town with them. In Kaiju Madness, buildings burst apart when they are hit or stepped on.
@@ -238,7 +240,7 @@ Design: Sean Duvall. Built with Three.js and Vite.
 
 1. Edit the project → Title **Tornado Time!**, Kind **HTML**, upload the newest `tornado-time-web` zip, tick "played in the browser", set viewport and Mobile friendly. Hide or delete the old upload.
 2. Paste the short description, the description and the controls.
-3. Under Edit theme: cover `cover-630x500.png`, banner `banner-960x200.png`, background `key-art-1920x1080.png` (don't repeat, top centre, Fixed) or plain #120a1f, page background #1a0f2e, text #e9e4f5, links and buttons #7dff3a.
+3. Under Edit theme: cover `cover-630x500.png`, banner `banner-960x200.png`, background `background-1920x1080.gif` (don't repeat, top centre, Fixed; use the still `.png` if you would rather it did not move), page background #1a0f2e, text #e9e4f5, links and buttons #7dff3a.
 4. Remove every old screenshot, then upload `shot-01` to `shot-13` in order, then the five `kaiju-` ones.
 5. Tags, genre, status, pricing as above. Save.
 6. Test the embed on your phone: the opening should play, then TAP TO PLAY, then the menu.

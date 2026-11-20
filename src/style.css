@@ -203,14 +203,14 @@ button:disabled, button:disabled:active { transform: none; }
 .pickScr { gap: 10px; } .pickScr h1 { font-size: 28px; margin: 4px 0 0; }
 .pickDone { position: static; transform: none; margin-top: 4px; left: 50%; transform: translateX(-50%); z-index: 3; min-width: 180px; box-shadow: 0 4px 18px #000c; }
 .kjCard canvas { width: 100%; aspect-ratio: 1; border-radius: 8px; background: radial-gradient(circle at 50% 40%, #2e2450, #120a1f 75%); }
-.kjCard.locked canvas { filter: brightness(.18) saturate(0); }
+.kjCard.locked::after { content: '🔒'; position: absolute; top: 9px; right: 9px; font-size: 19px; line-height: 1; filter: drop-shadow(0 1px 3px #000); pointer-events: none; } /* locked: still shown in full colour and moving, so you can see what there is to win or buy */
 .chosenCard { display: flex; align-items: center; gap: 12px; padding: 8px 14px 8px 8px; border-radius: 16px; background: #1a0f2ecc; border: 2px solid #5a2f80; text-align: left; }
 .chosenCard canvas { width: 110px; height: 110px; border-radius: 12px; background: radial-gradient(circle at 50% 40%, #2e2450, #120a1f 75%); }
 .chosenCard > div { display: grid; gap: 4px; } .chosenCard small { color: #c9a6ff; font-size: 11px; letter-spacing: 2px; } .chosenCard b { color: #7dff3a; font-size: 18px; } .chosenCard span { color: #c9e8b8; font-size: 11px; max-width: 190px; }
 .pickInfo { font-size: 12px; color: #c9e8b8; max-width: 420px; margin: 2px 0 0; } .pickInfo b { color: #7dff3a; } .pickInfo small { color: #c9a6ff; }
 .kjCard { display: grid; gap: 2px; padding: 6px 3px; margin: 0; text-align: center; min-height: 38px; align-items: center; border-radius: 12px; background: #1a0f2e; border: 2px solid #5a2f80; color: #fff; box-shadow: none; }
 .kjCard b { font-size: 11px; line-height: 1.15; color: #7dff3a; } .kjCard span { font-size: 9px; color: #c9e8b8; font-weight: 700; line-height: 1.25; }
-.kjCard.on { border-color: #7dff3a; box-shadow: 0 0 10px #7dff3a88; } .kjCard.locked { opacity: .5; } .kjCard.locked b { color: #aaa; }
+.kjCard.on { border-color: #7dff3a; box-shadow: 0 0 10px #7dff3a88; } .kjCard { position: relative; } .kjCard.locked b { color: #d8c8f0; } .kjCard.locked span { color: #ffd24a; } .kjCard.want { border-color: #ffd24a; }
 /* the in-game SKIP SONG button, under the zoom buttons */
 .skipHud { position: absolute; right: 16px; top: calc(184px + env(safe-area-inset-top, 0px)); width: 34px; height: 34px; padding: 0; font-size: 16px; line-height: 1; pointer-events: auto; background-color: #24133f; color: #c9a6ff; border: 2px solid #9a5fd6aa; box-shadow: 0 4px 0 #0e0618; } .skipHud.skipBump { animation: skipPop .3s; } @keyframes skipPop { 50% { transform: scale(1.25); } }
 /* ---------- the top of the screen in a round (both games): your size, then the mission (the big targets), then the small print ---------- */

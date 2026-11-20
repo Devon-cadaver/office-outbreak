@@ -26,6 +26,7 @@ import { makePlane, makeChaser, makeTank } from './units.js';
 import { createFoes } from './foes.js';
 import { createPoiFx } from './poiFx.js';
 import { buildOutskirts } from '../outskirts.js';
+import { createPreviews } from '../livePreview.js';
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('game');
@@ -47,7 +48,7 @@ const fx = createFires(scene);
 const crowd = createCrowd(scene, 640), crowdLists = [[null, 0], [null, 1]]; // townsfolk and soldiers away from the storm: one draw call for the lot
 let shake = 0; const jolt = (v) => { shake = Math.max(shake, v); }; // camera shake (0..1): a short jolt when something big comes down
 let flashT = 0; const flashEl = document.createElement('div'); flashEl.style.cssText = 'position:fixed;inset:0;background:#dfeaff;opacity:0;pointer-events:none;z-index:5'; document.body.appendChild(flashEl);
-const twisters = createTwisters(scene, { onBolt: (p, ground, who) => { const mine = !who || who === tw, sk = (who || tw || {}).skin; if (mine) { flashT = Math.max(flashT, ground ? 0.1 : 0.05); if (ground && Math.random() < 0.3) sfx.boom(); } if (ground) fx.zap(p, sk && sk.boltGlow ? sk.boltGlow : 0x9fd0ff); } }); twisters.setFx(fx); // another storm's bolts (the rogue twister) don't flash the screen
+const twisters = createTwisters(scene, { onToss: (kind, p, who, vel) => stormToss(kind, p, who, vel), onBolt: (p, ground, who) => { const mine = !who || who === tw, sk = (who || tw || {}).skin; if (mine) { flashT = Math.max(flashT, ground ? 0.1 : 0.05); if (ground && Math.random() < 0.3) sfx.boom(); } if (ground) fx.zap(p, sk && sk.boltGlow ? sk.boltGlow : 0x9fd0ff); } }); twisters.setFx(fx); // another storm's bolts (the rogue twister) don't flash the screen
 stampVersion($('taStart'));
 const poiFx = createPoiFx(scene, fx, { jolt, popup, flash: (v) => { flashT = Math.max(flashT, v); },
   // the nearest buildings still standing, for the power plant's lightning to jump to (some of them catch fire)
@@ -371,7 +372,7 @@ function updateChaser(dt, px, pz, R) {
   const v = edgeArrow(c.arrow, p, true);
   if (v && c.mode === 'shoot') { c.bar.style.display = 'block'; c.bar.style.transform = 'translate(' + ((v.x * 0.5 + 0.5) * innerWidth) + 'px,' + ((-v.y * 0.5 + 0.5) * innerHeight - 38) + 'px) translate(-50%,-50%)'; c.bar.firstChild.style.width = Math.min(100, c.shots / 3 * 100) + '%'; } else c.bar.style.display = 'none';
 }
-function clearPlanes() { foes.clear(); setPlaneEngine(0); removeChaser(); chaserT = 25; extraSeeders = 0; chasersCaught = 0; chasersLost = 0; for (const pl of planes) { scene.remove(pl.g); scene.remove(pl.zone); pl.arrow.remove(); } planes = []; for (const s of sprayDrops) scene.remove(s.m); sprayDrops.length = 0; seedT = SEED().first; seededT = 0; }
+function clearPlanes() { foes.clear(); clearHunters(); setPlaneEngine(0); removeChaser(); chaserT = 25; extraSeeders = 0; chasersCaught = 0; chasersLost = 0; for (const pl of planes) { scene.remove(pl.g); scene.remove(pl.zone); pl.arrow.remove(); } planes = []; for (const s of sprayDrops) scene.remove(s.m); sprayDrops.length = 0; seedT = SEED().first; seededT = 0; }
 function wreckBuilding(x, quiet = false, into = tw, how = undefined) { // how: for a building knocked apart with no storm (see tear() in tornado.js)
   free(x.obj); x.done = true; bDone++; { const i = city.obstacles.findIndex((o) => Math.abs(o.x - x.pos.x) < 0.3 && Math.abs(o.z - x.pos.z) < 0.3); if (i >= 0) city.obstacles.splice(i, 1); } const size3 = new THREE.Box3().setFromObject(x.obj).getSize(new THREE.Vector3()); const ex = x.obj === x.b ? (x.b.userData.extras || []).filter((m) => m.parent) : []; // its cornice, shopfront, whatever is on the roof: broken up along with it
   if (x.b.userData.edges) x.b.userData.edges.visible = false; twisters.tear(x.obj, x.pos, size3, into, [], ex, how); award(x.pts, x.pos); grow(x.h); sfx.crunch(x.h > 5); if (!quiet) sfx.boom();
@@ -558,19 +559,19 @@ addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
 // ---------- flow ----------
 let state = 'start', roundId = 0; // roundId: delayed effects from an earlier round check it and stand down
 // ---------- YOUR TORNADO: the storm you play as. Default and the Poonado are free; the rest come from prizes and the shop ----------
-const twThumbS = new THREE.Scene(), twThumbR = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true }); twThumbR.setSize(150, 150); twThumbR.setPixelRatio(1);
-twThumbS.add(new THREE.HemisphereLight(0xe0e8ff, 0x3a2a4a, 1.6)); const twThumbC = new THREE.PerspectiveCamera(32, 1, 0.1, 100); twThumbC.position.set(0, 6.5, 19); twThumbC.lookAt(0, 5.2, 0);
-const twThumbT = createTwisters(twThumbS), twThumbs = new Map();
-function twThumb(key, cv) { const k = key || 'default', g2 = cv.getContext('2d'); if (!twThumbs.has(k)) { const o = twThumbT.make(true, [], key); twThumbS.add(o); for (let i = 0; i < 40; i++) twThumbT.update(1 / 30, o.position); twThumbR.render(twThumbS, twThumbC); const img = document.createElement('canvas'); img.width = img.height = 150; img.getContext('2d').drawImage(twThumbR.domElement, 0, 0); twThumbs.set(k, img); twThumbT.remove && twThumbT.remove(o); twThumbS.remove(o); }
-  g2.clearRect(0, 0, cv.width, cv.height); g2.drawImage(twThumbs.get(k), 0, 0, cv.width, cv.height); }
+// the storms on the menu are live: each card shows its storm turning, and throwing whatever it throws (livePreview.js)
+const twPV = createPreviews({ perFrame: 4, cam: [0, 6.4, 25], look: [0, 5.7, 0], fov: 32 }), twPVT = createTwisters(twPV.scene), twLive = new Map(); twPV.onTick = (dt, n) => { if (n) twPVT.update(dt); };
+function twThumb(key, cv, slot = 'card') { const id = slot + ':' + (key || 'default'); // one storm per card, built when the card is first seen, then kept
+  twPV.add(cv, () => { let s = twLive.get(id); if (!s) twLive.set(id, (s = twPVT.make(true, [], key))); return s; }, null, (v, s) => { s.userData.twister.asleep = !v; }); }
 const twName = (k) => (k ? TWISTER_SKINS[k].name : 'Classic Twister'), twDesc = (k) => (k ? TWISTER_SKINS[k].desc : 'Free! The classic grey funnel with blue-white lightning.');
-function drawTwPicker() { const cur = equippedTornado(); $('twChosenName').textContent = twName(cur).toUpperCase(); $('twChosenDesc').textContent = twDesc(cur); twThumb(cur, $('twChosenCv'));
+function drawTwPicker() { const cur = equippedTornado(); $('twChosenName').textContent = twName(cur).toUpperCase(); $('twChosenDesc').textContent = twDesc(cur); twPV.clear(); twThumb(cur, $('twChosenCv'), 'chosen');
   if ($('twPickScr').classList.contains('hidden')) return; const owned = getOwned(), all = [null, ...Object.keys(TWISTER_SKINS)], mine = (k) => !k || owned.includes('tornado:' + k);
   $('twPickInfo').textContent = all.filter(mine).length + ' of ' + all.length + ' storms are yours. Win more in TOTAL DESTRUCTION and the prize games, or buy them in the skin shop.';
   const box = $('twPick'); box.innerHTML = '';
-  for (const k of [...all.filter(mine), ...all.filter((x) => !mine(x))]) { const open = mine(k), b = document.createElement('button'); b.className = 'kjCard' + (k === cur ? ' on' : '') + (open ? '' : ' locked'); b.disabled = !open;
-    b.innerHTML = '<canvas width="150" height="150"></canvas><b>' + (open ? '' : '🔒 ') + twName(k) + '</b>'; twThumb(k, b.querySelector('canvas'));
-    b.addEventListener('click', () => { equip('tornado', k ? 'tornado:' + k : null); drawTwPicker(); }); box.appendChild(b); } }
+  for (const k of [...all.filter(mine), ...all.filter((x) => !mine(x))]) { const open = mine(k), b = document.createElement('button'); b.className = 'kjCard' + (k === cur ? ' on' : '') + (open ? '' : ' locked'); const S = k ? TWISTER_SKINS[k] : null;
+    b.innerHTML = '<canvas width="150" height="150"></canvas><b>' + twName(k) + '</b>' + (open ? '' : '<span>' + (S.bonus ? '🏆 bonus' : '🪙 ' + S.price + ' in the shop') + '</span>'); twThumb(k, b.querySelector('canvas'));
+    b.addEventListener('click', () => { if (!open) { $('twPickInfo').textContent = S.bonus ? twName(k) + ': ' + S.bonus + ' to unlock it.' : twName(k) + ' costs ' + S.price + ' coins in the skin shop. You can also win it in the prize games.'; for (const c of box.children) c.classList.remove('want'); b.classList.add('want'); return; } equip('tornado', k ? 'tornado:' + k : null); drawTwPicker(); }); box.appendChild(b); } } // a locked storm still shows, turning, in full colour: tapping it says how to get it
+
 $('twChoose').addEventListener('click', () => { $('taStart').classList.add('hidden'); $('twPickScr').classList.remove('hidden'); $('twPickScr').scrollTop = 0; drawTwPicker(); });
 $('twPickDone').addEventListener('click', () => { $('twPickScr').classList.add('hidden'); $('taStart').classList.remove('hidden'); drawTwPicker(); });
 drawTwPicker();
@@ -662,6 +663,55 @@ const foes = createFoes({ scene, fx, twisters, S0, MAX_S, maxH, rankOf, popup, b
   get twObj() { return twObj; }, get tw() { return tw; }, get size() { return sizeShown; }, get level() { return level; }, get played() { return played; }, get cols() { return cols; }, get massTarget() { return massTarget; },
   get buildings() { return buildings; }, get people() { return people; }, get roadCells() { return roadCells; }, get pois() { return pois; }, get poiOrder() { return poiOrder; }, get radarDown() { return radarDown; } });
 
+// ---------- what the storm's skin throws out, where it lands (tornado.js throws them: see `toss` in TWISTER_SKINS) ----------
+let tossSfx = 0; const hunters = [];
+function stormToss(kind, p, who, vel) {
+  if (who !== tw || state !== 'play') return false; const at = new THREE.Vector3(p.x, 0, p.z), near = toScreen(at).on;
+  const hit = (r, label) => { let n = 0; // people there are knocked flying, cars go up, street furniture goes over
+    for (let i = people.length - 1; i >= 0; i--) { const c = people[i]; if (c.userData.zombie || Math.hypot(c.position.x - p.x, c.position.z - p.z) > r) continue; people.splice(i, 1); delete c.updateMatrixWorld; twisters.scatter([c], at, 5); peopleN++; award(25, c.position, n++ ? '' : label); grow(0.12); }
+    for (let i = drivers.length - 1; i >= 0; i--) { const q = drivers[i].g.position; if (Math.hypot(q.x - p.x, q.z - p.z) < r) { const d = drivers[i]; drivers.splice(i, 1); blowCar(d.g, q.clone()); } }
+    if (city.knock(p.x, p.z, r, 0, 0)) freeKnocked(); return n; };
+  const light = (r) => { let nb = null, nd = r; for (const x of buildings) { if (x.done || x.burnT != null) continue; const d = Math.hypot(x.pos.x - p.x, x.pos.z - p.z); if (d < nd) { nd = d; nb = x; } } if (nb) ignite(nb); };
+  const up = (y) => at.clone().setY(y), splat = (cols, soft = true, n = 16) => fx.spray(up(0.2), n, { soft, a: 0.95, c: cols, speed: 4, up: [2, 6], life: 0.9, size: soft ? 0.5 : 0.22, grav: 13, shape: soft ? 1 : 3, stretch: soft ? 0 : 3 });
+  const thud = () => { if (near && played - tossSfx > 0.25) { tossSfx = played; sfx.hit(); } };
+  switch (kind) {
+    case 'firework': if (near && played - tossSfx > 0.3) { tossSfx = played; sfx.firework(); } return true;
+    case 'shark': hit(1.3, 'CHOMP!'); splat([0xffffff, 0x4fa8ff], false, 22); fx.pool(at, 1.1, 0x2a6a9a, 6, 0.5); thud(); break;
+    case 'pumpkin': hit(1.2, 'SPLAT!'); fx.explode(up(0.3), 0.7); splat([0xffb02a, 0xf07a1a]); light(1.9); break;
+    case 'fireball': fx.explode(up(0.3), 0.8); fx.ignite(up(0.1), 0.7, 5); light(2.1); hit(1, 'TOAST!'); break;
+    case 'ice': hit(1.5, 'ICED!'); splat([0xffffff, 0xbfe6ff], false, 26); for (let i = 0; i < 4; i++) fx.dust(at, 1.3, 0, 0, 0xe8f6ff); for (let i = 0; i < 8; i++) fx.bit(up(0.4), 1.3, 0xcfeaff, 6); jolt(0.2); if (near) sfx.crunch(); break;
+    case 'egg': hit(1.1, 'EGGED!'); fx.spray(up(0.3), 20, { c: [0xff9ad8, 0x9ad8ff, 0xfff09a, 0xb4f0dc, 0xd8b4ff], pick: true, speed: 4, up: [2, 6], life: 1, size: 0.16, grav: 10, stretch: 1.6 }); thud(); break;
+    case 'poo': hit(1.2, 'EW!'); splat([0x7a5a2a, 0x4a3018]); fx.pool(at, 1, 0x4a3612, 10, 0.65); thud(); break;
+    case 'drum': hit(1.4, 'MELTED!'); splat([0xd8ff6a, 0x3aff3a], false, 24); fx.pool(at, 1.4, 0x3a8a1a, 10, 0.6); fx.glow(at, 2.4, 0x7dff3a, 0.6, 0.6); thud(); break;
+    case 'pie': hit(1.2, 'PIED!'); splat([0xffffff, 0xffd0e0]); fx.pool(at, 0.9, 0xf4ece0, 8, 0.6); if (near) sfx.pop(); break;
+    case 'chicken': hit(1, 'SQUAWK!'); splat([0xfff09a, 0xf4d43a], true, 10); thud(); break;
+    case 'chair': hit(1.2, 'BONK!'); for (let i = 0; i < 8; i++) fx.bit(up(0.3), 1, 0x7a5a3a, 5); fx.dust(at, 1); thud(); break;
+    case 'cube': hit(1.1, 'DELETED'); fx.sparks(up(0.3), 18, { c: [0xffffff, 0x3af0ff], speed: 6, up: 5 }); fx.glow(at, 2, 0x3af0ff, 0.4, 0.7); thud(); break;
+    case 'star': hit(1, 'ZAP!'); fx.sparks(up(0.3), 16, { c: [0xffffff, 0x7ab8ff], speed: 6, up: 5 }); fx.glow(at, 2.2, 0xffb05a, 0.4, 0.7); break;
+    case 'error': hit(1.2, ['ERROR', '404', 'NaN', 'CRASH'][(Math.random() * 4) | 0]); for (const c of [0xff2a4a, 0x2aff6a, 0x2a6aff]) fx.sparks(up(0.3), 7, { c: [0xffffff, c], speed: 6, up: 5 }); thud(); break;
+    case 'meteor': { fx.explode(up(0.4), 1.3); fx.scorch(at, 1.6, 22); jolt(0.5); if (near) sfx.boom(); hit(1.6, 'SMASH!'); light(2.4); // the building under it is flattened (it counts as yours)
+      const from = at.clone().addScaledVector(new THREE.Vector3(vel.x, 0, vel.z).normalize(), -2); let nb = null, nd = 1.9; for (const x of buildings) { if (x.done || x.h > maxH(sizeShown)) continue; const d = Math.hypot(x.pos.x - p.x, x.pos.z - p.z); if (d < nd) { nd = d; nb = x; } } if (nb) wreckBuilding(nb, true, null, { collapse: true, from, power: 1.4 }); break; }
+    case 'mallow': { splat([0xffffff, 0xffe8f0]); fx.pool(at, 1.5, 0xf4ece0, 9, 0.7); let n = 0; for (const c of people) if (!c.userData.zombie && Math.hypot(c.position.x - p.x, c.position.z - p.z) < 2.2) { c.userData.stuck = played + 7; n++; } if (n) popup(at, 'STUCK!', '#ffe8f0'); thud(); break; }
+    case 'ghost': { fx.glow(at, 3, 0x7dffb0, 0.8, 0.7); fx.spray(up(0.4), 14, { c: [0xffffff, 0x7dffb0], speed: 2, up: [1, 4], life: 1, size: 0.5, grav: -1, shape: 0, stretch: 0 }); let n = 0; for (const c of people) if (!c.userData.zombie && Math.hypot(c.position.x - p.x, c.position.z - p.z) < 3) { c.userData.lure = played + 8; n++; } if (n) popup(at, 'POSSESSED!', '#b8ffd8'); if (near && played - tossSfx > 1.5) { tossSfx = played; sfx.ghost(); } break; }
+    case 'zombie': { for (let i = 0; i < 3; i++) fx.dust(at, 1.1, 0, 0, 0x6a7a4a); if (hunters.length < 12) spawnHunter(at); thud(); break; }
+    default: return false;
+  }
+  return true;
+}
+// Zombienado: the dead it drops go after the living. A bite turns the victim, who hunts too (a dozen at most)
+function spawnHunter(at) { const z = makeCharacter(['worker', 'suit', 'hoodie', 'plaid'][(Math.random() * 4) | 0], { zombie: true }); z.scale.setScalar(0.25); z.position.set(at.x, 0, at.z); collidePerson(z); scene.add(z); hunters.push({ c: z, prey: null, pickT: 0, life: 26 }); }
+function updateHunters(dt, px, pz, R) {
+  for (let i = hunters.length - 1; i >= 0; i--) { const h = hunters[i], c = h.c, P = c.position; h.life -= dt; h.pickT -= dt;
+    if (Math.hypot(P.x - px, P.z - pz) < R + 0.35) { hunters.splice(i, 1); twisters.suck(c, tw); award(40, P, 'ZOMBIE'); grow(0.12); continue; } // the storm takes its own back
+    if (h.life <= 0) { hunters.splice(i, 1); Object.assign(c.userData, { home: P.clone(), goal: null, wait: 0 }); people.push(c); continue; } // it loses interest: an ordinary zombie now
+    if (h.pickT <= 0 || (h.prey && !people.includes(h.prey))) { h.pickT = 0.6; h.prey = null; let bd = 11; for (const q of people) { if (q.userData.zombie || q.userData.burnT > 0) continue; const d = Math.hypot(q.position.x - P.x, q.position.z - P.z); if (d < bd) { bd = d; h.prey = q; } } }
+    if (!h.prey) { animateWalk(c, dt, 0); continue; }
+    const q = h.prey.position, dx = q.x - P.x, dz = q.z - P.z, d = Math.hypot(dx, dz) || 0.01;
+    if (d < 0.4) { const j = people.indexOf(h.prey); if (j >= 0) people.splice(j, 1); scene.remove(h.prey); award(30, q, 'BITTEN'); peopleN++; fx.sparks(new THREE.Vector3(q.x, 0.4, q.z), 6, { c: [0xff4a3a, 0x7a1a14], speed: 3, up: 3, life: 0.4 }); if (hunters.length < 12) spawnHunter(q); h.prey = null; h.pickT = 0; continue; }
+    P.x += dx / d * 2.1 * dt; P.z += dz / d * 2.1 * dt; c.rotation.y = Math.atan2(dx, dz); animateWalk(c, dt, 1.6); collidePerson(c); }
+}
+function clearHunters() { for (const h of hunters) scene.remove(h.c); hunters.length = 0; }
+
 // ---------- update ----------
 const right = new THREE.Vector3(), upv = new THREE.Vector3(), tmp = new THREE.Vector3(); let frameN = 0;
 const hudCache = {}; const setT = (id, v) => { v = String(v); if (hudCache[id] !== v) { hudCache[id] = v; $(id).textContent = v; } }; let rankShown = -1;
@@ -699,7 +749,7 @@ function update(dt) {
     if (u.burnT > 0) { u.burnT -= dt; u.ph -= dt; if (u.ph <= 0) { u.ph = 0.3 + Math.random() * 0.4; u.dir = Math.random() * 6.28; } c.position.y = 0; c.position.x += Math.sin(u.dir) * 2.6 * dt; c.position.z += Math.cos(u.dir) * 2.6 * dt; c.rotation.y = u.dir; animateWalk(c, dt, 1.8); collidePerson(c);
       if (Math.random() < dt * 14) fx.puff('flame', new THREE.Vector3(c.position.x, 0.25, c.position.z), 0.32); u.goal = null; if (u.burnT <= 0) u.home = c.position.clone(); continue; }
     const pull = R * 2.6; if (d < pull) { const k = 1 - d / pull; const sp = (2.8 * k - 1.2 * (1 - k)) * dt; c.position.x -= dx / d * sp; c.position.z -= dz / d * sp; c.position.y = k * k * 0.6; c.rotation.y += dt * 8 * k; animateWalk(c, dt, 1.5); collidePerson(c); u.goal = null; }
-    else if (d < 9 + sizeShown * 2) { const sp = (u.zombie ? -0.9 : stink ? 0.55 : 1.7) * dt; u.panic = !u.zombie && !stink; if (u.panic && Math.random() < dt * 0.05) popup(c.position, SHOUTS[(Math.random() * SHOUTS.length) | 0], '#ffffff'); c.position.y = 0; c.position.x += dx / d * sp; c.position.z += dz / d * sp; c.rotation.y = Math.atan2(dx, dz) + (u.zombie ? Math.PI : 0); animateWalk(c, dt, 1.3); collidePerson(c); u.goal = null; }
+    else if (d < (9 + sizeShown * 2) * (tw.skin && tw.skin.stealth ? 0.45 : 1) || u.lure > played) { const lured = u.lure > played, sp = (u.zombie ? -0.9 : lured ? -1.5 : u.stuck > played ? 0.12 : stink ? 0.55 : 1.7) * dt; u.panic = !u.zombie && !stink && !lured; /* possessed (Ghostnado): they walk into the storm. Stuck (Mallownado): they barely move. The Void: nobody sees it until it is close */ if (u.panic && Math.random() < dt * 0.05) popup(c.position, SHOUTS[(Math.random() * SHOUTS.length) | 0], '#ffffff'); c.position.y = 0; c.position.x += dx / d * sp; c.position.z += dz / d * sp; c.rotation.y = Math.atan2(dx, dz) + (u.zombie || lured ? Math.PI : 0); animateWalk(c, dt, 1.3); collidePerson(c); u.goal = null; }
     else if (d > 34) { if (!u.frz) { u.frz = true; c.updateMatrixWorld(true); c.updateMatrixWorld = noop; } } // out of sight: hold still, matrices frozen
     else if ((i + frameN) & 1) { /* every other frame */ } else { const dw = dt * 2; u.wait -= dw; if (!u.goal && u.wait <= 0) { u.goal = new THREE.Vector3(u.home.x + (Math.random() - 0.5) * 2, 0, u.home.z + (Math.random() - 0.5) * 2); }
       if (u.goal) { const gx = u.goal.x - c.position.x, gz = u.goal.z - c.position.z, gl = Math.hypot(gx, gz); if (gl < 0.1) { u.goal = null; u.wait = 1 + Math.random() * 3; animateWalk(c, dw, 0); } else { c.position.x += gx / gl * 0.6 * dw; c.position.z += gz / gl * 0.6 * dw; c.rotation.y = Math.atan2(gx, gz); animateWalk(c, dw, 0.5); } } else animateWalk(c, dw, 0); } }
@@ -729,7 +779,7 @@ function update(dt) {
     for (let i = cars.length - 1; i >= 0; i--) { const wp = cars[i].getWorldPosition(tmp); if (Math.hypot(wp.x - bp.x, wp.z - bp.z) < br + 0.6) { twisters.suck(cars[i], bb.tw); cars.splice(i, 1); carsN++; award(60, wp); grow(0.4); } }
     if (city.knock(bp.x, bp.z, br, 0, 0)) { propsN++; freeKnocked(); }
     for (const x of buildings) if (!x.done && x.h <= 2.2 && Math.hypot(x.pos.x - bp.x, x.pos.z - bp.z) < br + 0.9) wreckBuilding(x, true, bb.tw); }
-  updatePlanes(dt, px, pz, R); updateChaser(dt, px, pz, R); updateZaps(dt); foes.update(dt, px, pz, R);
+  updatePlanes(dt, px, pz, R); updateChaser(dt, px, pz, R); updateZaps(dt); foes.update(dt, px, pz, R); updateHunters(dt, px, pz, R);
   // HUD
   const m = Math.floor(tLeft / 60), s = Math.floor(tLeft % 60);
   setT('taTime', m + ':' + String(s).padStart(2, '0')); if (hudCache.red !== (tLeft < 15)) { hudCache.red = tLeft < 15; $('taTime').style.color = tLeft < 15 ? '#ff5a3a' : ''; }
@@ -773,4 +823,4 @@ function frame(now) {
 if (new URLSearchParams(location.search).has('quick')) { level = quickLevel('ta'); drawLevels(); start(); camTarget.set(twObj.position.x, 1.2, twObj.position.z); }
 else { buildWorld(); makeStorm(); twObj.position.set(-12, 0, -12); camTarget.set(0, 1, 0); }
 requestAnimationFrame(frame); requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove('booting'))); // the start screen is ready now
-window.__ta = { get foes() { return foes; }, get poiFx() { return poiFx; }, wreckPoi, get fx() { return fx; }, get crowd() { return crowd; }, get sceneN() { return scene.children.length; }, get tLeft() { return tLeft; }, get totalD() { return totalD; }, get nukeOn() { return nukeT > 0; }, get stormHead() { return stormHead; }, set moveToSet(v) { moveTo = v; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, get people() { return people; }, start, finish, goNuke, grow, get massTarget() { return massTarget; }, get nukeT() { return nukeT; }, get stormPos() { return twObj.position; }, THREE, get cam() { return viewCam(); }, get px() { return perfTick.ratio; }, get poiOrder() { return poiOrder; }, get coachUp() { return coachBusy(); }, get zapCd() { return zapCd; }, get engine() { return planeEngineLevel(); }, get music() { return stormMusicState(); }, get song() { return songState(); }, get chunks() { return chunks; }, get flags() { return { radarDown, radioDown, fireBoost, stink }; }, get moveToV() { return moveTo; }, get city() { return city; }, tapAt, get moveTo() { return moveTo; }, get boostT() { return boostT; }, bench(n = 20) { const vc = viewCam(); renderer.render(scene, vc); const t0 = performance.now(); for (let i = 0; i < n; i++) renderer.render(scene, vc); renderer.getContext().finish(); return (performance.now() - t0) / n; }, get animN() { return city.season.anim.length; }, setSeason(s) { seasonI = SEASON_CYCLE.indexOf(s); roundN = 0; }, get season() { return seasonNow(); }, get calls() { return renderer.info.render.calls; }, get tris() { return renderer.info.render.triangles; }, spawnChaser, get chaser() { return chaser; }, get zoom() { return zoom; }, setZoom, get extraSeeders() { return extraSeeders; }, setView, get third() { return third; }, spawnPlane, get planes() { return planes; }, get mass() { return mass; }, get level() { return level; }, set level(v) { level = v; }, get bDone() { return bDone; }, set bDone(n) { bDone = n; }, get babies() { return twisters.babies; }, get totalB() { return totalB; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, get drivers() { return drivers; }, get state() { return state; }, get score() { return score; }, get size() { return sizeShown; }, get storm() { return twObj; }, get pois() { return pois; }, get buildings() { return buildings; }, get people() { return people; }, set tLeft(v) { tLeft = v; }, grow, start };
+window.__ta = { get twisters() { return twisters; }, get hunters() { return hunters; }, stormToss, swapStorm, get foes() { return foes; }, get poiFx() { return poiFx; }, wreckPoi, get fx() { return fx; }, get crowd() { return crowd; }, get sceneN() { return scene.children.length; }, get tLeft() { return tLeft; }, get totalD() { return totalD; }, get nukeOn() { return nukeT > 0; }, get stormHead() { return stormHead; }, set moveToSet(v) { moveTo = v; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, get people() { return people; }, start, finish, goNuke, grow, get massTarget() { return massTarget; }, get nukeT() { return nukeT; }, get stormPos() { return twObj.position; }, THREE, get cam() { return viewCam(); }, get px() { return perfTick.ratio; }, get poiOrder() { return poiOrder; }, get coachUp() { return coachBusy(); }, get zapCd() { return zapCd; }, get engine() { return planeEngineLevel(); }, get music() { return stormMusicState(); }, get song() { return songState(); }, get chunks() { return chunks; }, get flags() { return { radarDown, radioDown, fireBoost, stink }; }, get moveToV() { return moveTo; }, get city() { return city; }, tapAt, get moveTo() { return moveTo; }, get boostT() { return boostT; }, bench(n = 20) { const vc = viewCam(); renderer.render(scene, vc); const t0 = performance.now(); for (let i = 0; i < n; i++) renderer.render(scene, vc); renderer.getContext().finish(); return (performance.now() - t0) / n; }, get animN() { return city.season.anim.length; }, setSeason(s) { seasonI = SEASON_CYCLE.indexOf(s); roundN = 0; }, get season() { return seasonNow(); }, get calls() { return renderer.info.render.calls; }, get tris() { return renderer.info.render.triangles; }, spawnChaser, get chaser() { return chaser; }, get zoom() { return zoom; }, setZoom, get extraSeeders() { return extraSeeders; }, setView, get third() { return third; }, spawnPlane, get planes() { return planes; }, get mass() { return mass; }, get level() { return level; }, set level(v) { level = v; }, get bDone() { return bDone; }, set bDone(n) { bDone = n; }, get babies() { return twisters.babies; }, get totalB() { return totalB; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, get drivers() { return drivers; }, get state() { return state; }, get score() { return score; }, get size() { return sizeShown; }, get storm() { return twObj; }, get pois() { return pois; }, get buildings() { return buildings; }, get people() { return people; }, set tLeft(v) { tLeft = v; }, grow, start };
