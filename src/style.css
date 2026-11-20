@@ -242,3 +242,4 @@ button:disabled, button:disabled:active { transform: none; }
 /* the small print: which town, how much of it is wrecked against the goal, the score */
 #taSub { margin-right: 56px; max-width: 460px; display: flex; align-items: baseline; gap: 10px; font-size: 11.5px; font-weight: 700; white-space: nowrap; opacity: .92; } #taSub > span { white-space: nowrap; }
 #taLevel { color: #c9a6ff; overflow: hidden; text-overflow: ellipsis; min-width: 0; } #taPct.ok { color: #7dff3a; } #taScore { margin-left: auto; font-size: 13px; } #taCombo { color: #ffd24a; }
+.prizeWin.storm { border-color: #3af0ff; color: #b8f8ff; box-shadow: 0 0 14px #3af0ff; } /* a new storm won in the prize game */

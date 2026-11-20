@@ -117,6 +117,22 @@ export function setPlaneEngine(level, pitch = 1) {
   eng.lfo.frequency.setTargetAtTime(24 * pitch, t, 0.15); eng.f.frequency.setTargetAtTime(380 + lv * 500, t, 0.15);
 }
 export function planeEngineLevel() { return eng ? eng.level : 0; }
+// the storm's wind: a faint, steady rush of soft noise that swells and thins in slow gusts while its whistle wanders.
+// level 0..1 is how loud (0 = silent); size 0..1 lowers its note as the storm grows
+let wind = null;
+export function setWind(level, size = 0) {
+  if (!ctx) return; const lv = Math.max(0, Math.min(1, level)), sz = Math.max(0, Math.min(1, size));
+  if (!wind) { if (!lv) return; const len = ctx.sampleRate * 4, fade = (ctx.sampleRate * 0.25) | 0, raw = new Float32Array(len + fade), buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0); let b = 0;
+    for (let i = 0; i < raw.length; i++) { const w = Math.random() * 2 - 1; b = (b + 0.04 * w) / 1.04; raw[i] = b * 3 + w * 0.1; } // mostly low rumble with a little hiss on top
+    for (let i = 0; i < len; i++) d[i] = i < fade ? raw[i] * (i / fade) + raw[len + i] * (1 - i / fade) : raw[i]; // the start is blended with what would have come after the end, so the loop has no seam
+    const src = ctx.createBufferSource(), band = ctx.createBiquadFilter(), lo = ctx.createBiquadFilter(), out = ctx.createGain(), gust = ctx.createOscillator(), gustAmt = ctx.createGain(), sweep = ctx.createOscillator(), sweepAmt = ctx.createGain();
+    src.buffer = buf; src.loop = true; band.type = 'bandpass'; band.frequency.value = 600; band.Q.value = 0.6; lo.type = 'lowpass'; lo.frequency.value = 1800; out.gain.value = 0;
+    gust.frequency.value = 0.21; gustAmt.gain.value = 0; gust.connect(gustAmt).connect(out.gain); sweep.frequency.value = 0.13; sweepAmt.gain.value = 150; sweep.connect(sweepAmt).connect(band.frequency);
+    src.connect(band).connect(lo).connect(out).connect(master); src.start(); gust.start(); sweep.start(); wind = { out, band, gustAmt, level: -1, size: -1 }; }
+  if (Math.abs(lv - wind.level) < 0.004 && Math.abs(sz - wind.size) < 0.01) return; wind.level = lv; wind.size = sz;
+  const t = ctx.currentTime, v = lv * 0.085; wind.out.gain.setTargetAtTime(v, t, 0.45); wind.gustAmt.gain.setTargetAtTime(v * 0.4, t, 0.45); wind.band.frequency.setTargetAtTime(640 - sz * 240, t, 0.6);
+}
+export function windLevel() { return wind ? Math.max(0, wind.level) : 0; }
 
 // Inside the frame (index.html: START, then the menu and the games load inside it) the frame owns the one radio, so the
 // music never stops between pages; a page opened on its own runs its own radio as below

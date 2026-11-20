@@ -7,13 +7,19 @@
 const GAME_AREA = '#game, #taMap, #kjMini'; // touches here are the game's; buttons and menus keep their normal taps
 
 export function initFullscreen(isPlaying) {
-  const el = document.documentElement;
+  // The game runs in a frame of its own page (index.html keeps the radio playing and loads the menu, the games and the shop
+  // inside an iframe). Full screen is asked of that outer page: asked of this one, it ended the moment the frame moved on to
+  // another page (the skin shop, the main menu), because the page that held it was gone
+  const doc = (() => { try { const p = window.parent; if (p && p !== window && p.document && p.document.documentElement) return p.document; } catch { /* the page above is another site's (itch): our own page it is */ } return document; })();
+  const el = doc.documentElement;
   const app = (() => { try { return navigator.standalone === true || matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches; } catch { return false; } })();
   const can = !app && !!(el.requestFullscreen || el.webkitRequestFullscreen);
   let want = true; try { want = localStorage.getItem('fs_pref') !== 'off'; } catch { /* ignore */ }
-  const isFs = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
-  const enter = () => { if (!can || isFs()) return; try { const r = el.requestFullscreen ? el.requestFullscreen({ navigationUI: 'hide' }) : el.webkitRequestFullscreen(); if (r && r.catch) r.catch(() => {}); } catch { /* ignore */ } };
-  const leave = () => { if (!isFs()) return; try { const r = document.exitFullscreen ? document.exitFullscreen() : document.webkitExitFullscreen(); if (r && r.catch) r.catch(() => {}); } catch { /* ignore */ } };
+  const isFs = () => !!(doc.fullscreenElement || doc.webkitFullscreenElement);
+  const ask = (e) => (e.requestFullscreen ? e.requestFullscreen({ navigationUI: 'hide' }) : e.webkitRequestFullscreen());
+  // if the outer page says no, ask this page instead (full screen as it used to be: better than none)
+  const enter = () => { if (!can || isFs()) return; const own = document.documentElement, again = () => { if (el === own) return; try { const r2 = ask(own); if (r2 && r2.catch) r2.catch(() => {}); } catch { /* ignore */ } }; try { const r = ask(el); if (r && r.catch) r.catch(again); } catch { again(); } };
+  const leave = () => { if (!isFs()) return; try { const r = doc.exitFullscreen ? doc.exitFullscreen() : doc.webkitExitFullscreen(); if (r && r.catch) r.catch(() => {}); } catch { /* ignore */ } };
   // the browser dropped us out mid-round: the next tap goes back in. Different browsers accept a different event as
   // "the user did something" (Chrome: pointerdown; Safari: touchend / pointerup), so try on all of them
   // iPad Safari lets any downward swipe close full screen and a page cannot stop it, so after it has thrown us out twice
@@ -41,7 +47,8 @@ export function initFullscreen(isPlaying) {
     const b = document.createElement('button'); b.className = 'ghost fsBtn'; b.setAttribute('aria-label', 'Full screen');
     const draw = () => { b.textContent = isFs() ? '⛶ EXIT FULL SCREEN' : '⛶ FULL SCREEN'; };
     b.addEventListener('click', (e) => { e.stopPropagation(); if (isFs()) { want = false; leave(); } else { want = true; enter(); } try { localStorage.setItem('fs_pref', want ? 'on' : 'off'); } catch { /* ignore */ } });
-    for (const ev of ['fullscreenchange', 'webkitfullscreenchange']) { document.addEventListener(ev, draw); document.addEventListener(ev, onChange); }
+    for (const ev of ['fullscreenchange', 'webkitfullscreenchange']) { doc.addEventListener(ev, draw); doc.addEventListener(ev, onChange); }
+    if (doc !== document) addEventListener('pagehide', () => { for (const ev of ['fullscreenchange', 'webkitfullscreenchange']) { doc.removeEventListener(ev, draw); doc.removeEventListener(ev, onChange); } }); // this page is going; the outer one stays, so take our listeners off it
     draw(); document.body.appendChild(b);
     setInterval(() => { b.style.display = isPlaying() ? 'none' : ''; }, 300);
   }
