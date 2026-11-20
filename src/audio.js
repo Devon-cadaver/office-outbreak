@@ -16,10 +16,15 @@ export function unlockAudio() {
   }
   // iPad/iPhone: play as a game ('playback'), not as page sound that the silent setting mutes; the in-game toggle is the mute
   try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch { /* ignore */ }
-  if (ctx.state !== 'running') ctx.resume().catch(() => {});
+  if (ctx.state !== 'running' && !sfxPaused) ctx.resume().catch(() => {});
 }
 // Safari can pause the sound mid-game ('suspended' or 'interrupted', e.g. around full screen changes); any tap wakes it
-for (const ev of ['pointerup', 'touchend', 'click']) addEventListener(ev, () => { if (ctx && ctx.state !== 'running') ctx.resume().catch(() => {}); }, true);
+for (const ev of ['pointerup', 'touchend', 'click']) addEventListener(ev, () => { if (ctx && ctx.state !== 'running' && !sfxPaused) ctx.resume().catch(() => {}); }, true);
+// a paused game is silent: every sound in flight (explosions, wind, engines) freezes where it is and carries on when the game does,
+// and nothing new starts meanwhile
+let sfxPaused = false;
+export function setSfxPaused(on) { on = !!on; if (on === sfxPaused) return; sfxPaused = on; if (!ctx) return; if (on) ctx.suspend().catch(() => {}); else ctx.resume().catch(() => {}); }
+export function quietWhilePaused(o) { for (const k of Object.keys(o)) { const f = o[k]; if (typeof f === 'function') o[k] = (...a) => (sfxPaused ? undefined : f(...a)); } }
 // 🔊 / 🔇 button on the given screens (placed above their tutorial / menu buttons), all kept in step
 export function soundToggle(...hosts) {
   const btns = [];
@@ -208,3 +213,4 @@ export function skipSongBtn(host) { const b = document.createElement('button'); 
   b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); unlockAudio(); if (musicMuted) setMusicMuted(false); nextSong(); b.classList.remove('skipBump'); void b.offsetWidth; b.classList.add('skipBump'); }); host.appendChild(b); return b; }
 // the old computer-made music is gone; the games and the older pages can still call these, and nothing happens
 export const startMusic = () => {}, stopMusic = () => {}, setMusicChase = () => {}, setMusicTension = () => {}, setStormLevel = () => {}, stormBoost = () => {}, stormMusicState = () => ({ on: false, level: 0, boost: false });
+quietWhilePaused(sfx);

@@ -225,11 +225,11 @@ button:disabled, button:disabled:active { transform: none; }
 #taGrow .tick.got b { color: #7dff3a; }
 #taTime { flex: none; min-width: 46px; text-align: right; font-size: 20px; }
 /* the mission: the big targets. Gold box, one chip per target; a chip glows once you're big enough and you can tap it to head there */
-#hudGoal { align-self: flex-start; box-sizing: border-box; max-width: min(460px, calc(100% - 56px)); display: flex; align-items: center; gap: 10px; padding: 5px 9px 7px; border-radius: 12px; background: #0b1416c4; border: 2px solid #ffd24aaa; box-shadow: 0 0 10px #ffd24a33; }
+#hudGoal { align-self: flex-start; box-sizing: border-box; max-width: min(560px, calc(100% - 56px)); display: flex; align-items: center; gap: 10px; padding: 5px 9px 7px; border-radius: 12px; background: #0b1416c4; border: 2px solid #ffd24aaa; box-shadow: 0 0 10px #ffd24a33; }
 #hudGoal .goalLbl { flex: none; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 9.5px; font-weight: 900; letter-spacing: .5px; line-height: 1; color: #ffd24a; white-space: nowrap; }
 #taTargets { font-size: 20px; letter-spacing: 0; line-height: 1; color: #fff; } #taTargets.ok { color: #7dff3a; }
-#taPois { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 7px 5px; }
-.poiChip { position: relative; width: 29px; height: 29px; border-radius: 8px; background: #1c2a2e; border: 2px solid #ffffff3a; display: flex; align-items: center; justify-content: center; font-size: 16px; pointer-events: auto; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+#taPois { flex: none; display: flex; flex-wrap: nowrap; gap: 5px; --n: 6; --cw: min(29px, calc((min(560px, 100vw - 56px) - 116px - (var(--n) - 1) * 5px) / var(--n))); } /* always one line: the chips shrink to share it */
+.poiChip { position: relative; flex: none; width: var(--cw); height: var(--cw); box-sizing: border-box; font-size: calc(var(--cw) * 0.55) !important; border-radius: 8px; background: #1c2a2e; border: 2px solid #ffffff3a; display: flex; align-items: center; justify-content: center; font-size: 16px; pointer-events: auto; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .poiChip em { font-style: normal; opacity: .55; } .poiChip.ready em { opacity: 1; }
 .poiChip b { position: absolute; bottom: -6px; right: -6px; font-size: 8px; font-weight: 900; line-height: 11px; padding: 0 3px; border-radius: 5px; background: #5a2f80; color: #fff; text-shadow: none; }
 .poiChip.ready { border-color: #ffd24a; animation: chipReady .7s infinite alternate; } .poiChip.ready b { background: #ffd24a; color: #1a0f2e; } @keyframes chipReady { from { box-shadow: 0 0 4px #ffd24a88; } to { box-shadow: 0 0 13px #ffd24a; } }

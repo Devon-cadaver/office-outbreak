@@ -19,9 +19,10 @@
     .poiArrow em { filter: grayscale(1); position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-style: normal; font-size: 17px; border-radius: 50%; background: #0b1416c0; border: 2px solid #ffffff55; }
     .poiArrow i { position: absolute; inset: -13px; display: flex; align-items: center; justify-content: flex-end; font-style: normal; font-size: 13px; color: #fff; text-shadow: 0 0 3px #000; }
     .poiArrow.ready { opacity: 1; } .poiArrow.ready em { filter: none; border-color: #ffd24a; box-shadow: 0 0 10px #ffd24a; } .poiArrow.ready i { color: #ffd24a; }
-    #taMap { position: absolute; left: 10px; bottom: calc(10px + env(safe-area-inset-bottom, 0)); width: 104px; height: 104px; border-radius: 50%; background: #0b1416c0; border: 2px solid #ffffff55; pointer-events: auto; touch-action: none; }
+    #taPct { position: absolute; left: 10px; bottom: calc(146px + env(safe-area-inset-bottom, 0)); width: 128px; box-sizing: border-box; text-align: center; padding: 3px 7px; border-radius: 9px; background: #0b1416c4; border: 2px solid #ffffff55; font-size: 12px; font-weight: 900; white-space: nowrap; color: #fff; } #taPct.ok { color: #7dff3a; border-color: #7dff3a; }
+    #taMap { position: absolute; left: 10px; bottom: calc(10px + env(safe-area-inset-bottom, 0)); width: 128px; height: 128px; border-radius: 50%; background: #0b1416c0; border: 2px solid #ffffff55; pointer-events: auto; touch-action: none; }
     /* pause: big, bright green with purple bars, so nobody has to hunt for it */
-    #taPause { position: absolute; right: 10px; top: calc(48px + env(safe-area-inset-top, 0)); pointer-events: auto; width: 46px; height: 46px; padding: 0; margin: 0; border-radius: 12px; background: #7dff3a; border: 3px solid #5a2f80; color: #5a2f80; font-size: 20px; font-weight: 900; line-height: 1; box-shadow: 0 0 12px #7dff3a99, 0 4px 0 #3a1a5a; }
+    #taPause { position: absolute; right: 10px; top: calc(48px + env(safe-area-inset-top, 0)); pointer-events: auto; width: 46px; height: 46px; box-sizing: border-box; padding: 0; margin: 0; border-radius: 12px; background: #7dff3a; border: 3px solid #5a2f80; color: #5a2f80; font-size: 20px; font-weight: 900; line-height: 1; box-shadow: 0 0 12px #7dff3a99, 0 4px 0 #3a1a5a; }
     #taPause:active { transform: translateY(2px); box-shadow: 0 0 8px #7dff3a99, 0 2px 0 #3a1a5a; }
     #taStick { position: absolute; width: 120px; height: 120px; border-radius: 50%; background: #ffffff1a; border: 2px solid #ffffff55; transform: translate(-50%, -50%); display: none; }
     #taKnob { position: absolute; left: 50%; top: 50%; width: 48px; height: 48px; border-radius: 50%; background: #c9a6ffcc; transform: translate(-50%, -50%); }
@@ -32,8 +33,13 @@
     #taLevels .lvl { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 1px; font-size: 9px; min-width: 0; min-height: 58px; border-radius: 10px; }
     #taLevels .lvl b { font-size: 18px; } #taLevels .lvl i { font-style: normal; color: #1f4a12; font-weight: 800; font-size: 10px; }
     #taLevels .lvl.on { outline: 3px solid #7dff3a; } #taLevels .lvl:disabled { opacity: .45; }
-    .zoomBtn { position: absolute; right: 10px; width: 34px; height: 34px; padding: 0; font-size: 20px; line-height: 1; pointer-events: auto; }
-    #taZoomIn { top: calc(104px + env(safe-area-inset-top, 0)); right: 16px; } #taZoomOut { top: calc(144px + env(safe-area-inset-top, 0)); right: 16px; }
+    /* the button column on the right: pause, zoom in, zoom out, skip song. All one size, one edge, evenly spaced */
+    .zoomBtn, #ta .skipHud { position: absolute; right: 10px !important; width: 46px !important; height: 46px !important; box-sizing: border-box; padding: 0; margin: 0; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 900; line-height: 1; pointer-events: auto; border: 3px solid #5a2f80 !important; color: #5a2f80 !important; background-image: none !important; }
+    .zoomBtn { background-color: #ffd24a !important; font-size: 28px; font-family: Arial, sans-serif; box-shadow: 0 0 10px #ffd24a88, 0 4px 0 #3a1a5a !important; } .zoomBtn:active { transform: translateY(2px); }
+    #ta .skipHud { background-color: #7dff3a !important; font-size: 18px !important; box-shadow: 0 0 12px #7dff3a99, 0 4px 0 #3a1a5a !important; top: calc(210px + env(safe-area-inset-top, 0px)) !important; }
+    /* the buttons sit in a row along the bottom, beside the mini map, which leaves the whole top for the targets bar */
+    #taPause { left: 148px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important; top: auto !important; right: auto !important; } #taZoomIn { left: 202px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important; top: auto !important; right: auto !important; } #taZoomOut { left: 256px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important; top: auto !important; right: auto !important; } #ta .skipHud { left: 310px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important; top: auto !important; right: auto !important; }
+    #hudGoal { max-width: min(560px, 100%) !important; } #taSub { margin-right: 0 !important; } #taPois { --cw: min(29px, calc((min(560px, 100vw - 20px) - 100px - (var(--n) - 1) * 5px) / var(--n))) !important; }
     .chaserArrow { color: #fff; font-size: 24px; }
     .photoBar { position: fixed; left: 0; top: 0; width: 64px; height: 8px; border-radius: 4px; background: #000a; border: 1px solid #fff8; overflow: hidden; display: none; pointer-events: none; z-index: 4; } .photoBar i { display: block; height: 100%; width: 0; background: #ffffff; }
     /* the tutorial prompt: a slim strip under the score bar, so the town stays in view */
@@ -61,9 +67,9 @@
     <div class="top">
       <div id="hudSize"><b id="taRank">F0</b><div id="taGrow"><div id="taGrowFill"></div><i class="tick" style="left:20%"><b>F1</b></i><i class="tick" style="left:40%"><b>F2</b></i><i class="tick" style="left:60%"><b>F3</b></i><i class="tick" style="left:80%"><b>F4</b></i><i class="tick" style="left:100%"><b>F5</b></i></div><span id="taTime">2:00</span></div>
       <div id="hudGoal"><span class="goalLbl">🎯 TARGETS<b id="taTargets"></b></span><div id="taPois"></div></div>
-      <div id="taSub"><span id="taLevel"></span><span id="taPct"></span><span id="taScore">0</span><span id="taCombo"></span></div>
+      <div id="taSub"><span id="taLevel"></span><span id="taScore">0</span><span id="taCombo"></span></div>
     </div>
-    <canvas id="taMap"></canvas>
+    <canvas id="taMap"></canvas><div id="taPct"></div>
     <button id="taView" class="ghost">ISO</button>
     <button id="taZoomIn" class="ghost zoomBtn">+</button><button id="taZoomOut" class="ghost zoomBtn">−</button>
     <button id="taPause" aria-label="Pause">❚❚</button>

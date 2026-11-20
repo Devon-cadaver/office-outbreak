@@ -10,7 +10,7 @@ import { makeCar } from '../car.js';
 import { isFuture, isPast, hoverize, futurePlane, pastPlane, buildCannon, buildChaserCoach, eraPicker, levelKey, bestKey, futureTank, laserBolt } from '../era.js';
 import { createTwisters, TWISTER_SKINS } from '../tornado.js';
 import { createFires } from '../fire.js';
-import { unlockAudio, soundToggle, setMusicDuck, skipSongBtn, sfx, stopMusic, setPlaneEngine, planeEngineLevel, setWind, windLevel, setStormLevel, stormBoost, stormMusicState, playSongs, songState, gameMusic, SONGS_TORNADO } from '../audio.js';
+import { unlockAudio, soundToggle, setMusicDuck, setSfxPaused, skipSongBtn, sfx, stopMusic, setPlaneEngine, planeEngineLevel, setWind, windLevel, setStormLevel, stormBoost, stormMusicState, playSongs, songState, gameMusic, SONGS_TORNADO } from '../audio.js';
 import { armySkin, townSkin, equippedSkin, equippedTornado, skinnedCarArgs, addCoins, grantSkin, equip, CHAR_SKINS, totalReward, pauseSkinRow, getOwned, getEquipped } from '../skins.js';
 import { forceSeason, seasonChoice, seasonPicker } from '../season.js';
 import { showPrizes } from '../prizes.js';
@@ -325,6 +325,7 @@ function goToPoi(k) { const P = pois[k]; if (state !== 'play' || !P || P.done) r
   P.arrow.classList.remove('ping'); void P.arrow.offsetWidth; P.arrow.classList.add('ping'); }
 function setupPoiHud() {
   poiOrder = Object.keys(pois).sort((a, b) => POI[a].f - POI[b].f || POI[a].pts - POI[b].pts);
+  $('taPois').style.setProperty('--n', poiOrder.length); /* the chips share one line: more targets, smaller chips */
   $('taPois').innerHTML = poiOrder.map((k) => '<span class="poiChip" id="poi_' + k + '"><em>' + POI[k].icon + '</em><b>F' + POI[k].f + '</b><i></i></span>').join('');
   for (const el of document.querySelectorAll('.poiArrow')) el.remove();
   for (const k of poiOrder) { const a = document.createElement('div'); a.className = 'poiArrow'; a.innerHTML = '<i>➤</i><em>' + POI[k].icon + '</em>'; document.body.appendChild(a); pois[k].arrow = a; pois[k].chip = $('poi_' + k); pois[k].chip.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); goToPoi(k); }); }
@@ -807,7 +808,7 @@ function update(dt) {
   const m = Math.floor(tLeft / 60), s = Math.floor(tLeft % 60);
   setT('taTime', m + ':' + String(s).padStart(2, '0')); if (hudCache.red !== (tLeft < 15)) { hudCache.red = tLeft < 15; $('taTime').style.color = tLeft < 15 ? '#ff5a3a' : ''; }
   setT('taScore', score); setT('taCombo', mult() > 1 && played - lastHit < 2.5 ? 'x' + mult() + ' COMBO' : '');
-  setT('taRank', 'F' + rankOf(sizeShown)); setStormLevel(rankOf(sizeShown)); { const k = (sizeShown - 1) / (MAX_S - 1); setWind(0.5 + 0.5 * k, k); } // the wind: louder and lower as the storm grows { const pct = Math.round((bDone / totalB) * 100); setT('taPct', '🏚️ ' + pct + '% / ' + L().goal + '%'); if (hudCache.pctOk !== (pct >= L().goal)) { hudCache.pctOk = pct >= L().goal; $('taPct').classList.toggle('ok', pct >= L().goal); } }
+  setT('taRank', 'F' + rankOf(sizeShown)); setStormLevel(rankOf(sizeShown)); { const k = (sizeShown - 1) / (MAX_S - 1); setWind(0.5 + 0.5 * k, k); } /* the wind: louder and lower as the storm grows */ { const pct = Math.round((bDone / totalB) * 100); setT('taPct', '🏚️ ' + pct + '% DESTROYED'); /* town destroyed against the goal: the badge over the mini map */ if (hudCache.pctOk !== (pct >= L().goal)) { hudCache.pctOk = pct >= L().goal; $('taPct').classList.toggle('ok', pct >= L().goal); } }
   { const w = ((sizeShown - 1) / (MAX_S - 1) * 100).toFixed(1) + '%'; if (hudCache.grow !== w) { hudCache.grow = w; $('taGrowFill').style.width = w; } const r = rankOf(sizeShown); if (r !== rankShown) { if (rankShown >= 0 && r > rankShown) { const b = $('taRank'); b.classList.remove('bump'); void b.offsetWidth; b.classList.add('bump'); } rankShown = r; document.querySelectorAll('#taGrow .tick').forEach((t, i) => t.classList.toggle('got', i < r)); } }
   if (Math.round((bDone / totalB) * 100) >= 100 && poiOrder.every((k) => pois[k].done)) { /* as soon as the HUD reads 100% (it rounds, so a stray building or two can't hold the round open) */ if (!totalD) totalWipe(twObj.position); tLeft = Math.min(tLeft, 1.5); }
   crowdLists[0][0] = people; crowdLists[1][0] = soldiers; crowd.sync(crowdLists, px, pz, 7 + R);
@@ -824,7 +825,7 @@ addEventListener('resize', resize); resize();
 const camTarget = new THREE.Vector3(); let last = performance.now(), pausedShown = false;
 function frame(now) {
   requestAnimationFrame(frame); const dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = now;
-  { const rb = document.getElementById('radioBox'); setMusicDuck(state === 'play' || state === 'outro' ? 1 : state === 'paused' && !(rb && !rb.classList.contains('hidden')) ? 0 : 0.5); } // music: full in a round, paused on pause (unless the radio is open), half on menus
+  setSfxPaused(state === 'paused'); { const rb = document.getElementById('radioBox'); setMusicDuck(state === 'play' || state === 'outro' ? 1 : state === 'paused' && !(rb && !rb.classList.contains('hidden')) ? 0 : 0.5); } // music: full in a round, paused on pause (unless the radio is open), half on menus
   { const pz = state === 'paused'; if (pz !== pausedShown) { pausedShown = pz; document.body.classList.toggle('paused', pz); } } // the tags and arrows that float over the town step aside for the pause menu
   const hold = coachFrame(state === 'play'); if (hold) $('taBanner').style.opacity = 0; // a first-time prompt is up: the round waits for the player
   if (state === 'play') { if (!hold) update(dt); } else if (state === 'outro') outroTick(dt);
