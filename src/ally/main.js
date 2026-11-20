@@ -683,7 +683,7 @@ function stormToss(kind, p, who, vel) {
     case 'egg': hit(1.1, 'EGGED!'); fx.spray(up(0.3), 20, { c: [0xff9ad8, 0x9ad8ff, 0xfff09a, 0xb4f0dc, 0xd8b4ff], pick: true, speed: 4, up: [2, 6], life: 1, size: 0.16, grav: 10, stretch: 1.6 }); thud(); break;
     case 'poo': hit(1.2, 'EW!'); splat([0x7a5a2a, 0x4a3018]); fx.pool(at, 1, 0x4a3612, 10, 0.65); thud(); break;
     case 'drum': hit(1.4, 'MELTED!'); splat([0xd8ff6a, 0x3aff3a], false, 24); fx.pool(at, 1.4, 0x3a8a1a, 10, 0.6); fx.glow(at, 2.4, 0x7dff3a, 0.6, 0.6); thud(); break;
-    case 'pie': hit(1.2, 'PIED!'); splat([0xffffff, 0xffd0e0]); fx.pool(at, 0.9, 0xf4ece0, 8, 0.6); if (near) sfx.pop(); break;
+    case 'pie': hit(1.2, 'PIED!'); splat([0xffffff, 0xffd0e0]); fx.pool(at, 0.9, 0xf4ece0, 8, 0.6); if (near && played - tossSfx > 0.6) { tossSfx = played; sfx.honk(); } break;
     case 'chicken': hit(1, 'SQUAWK!'); splat([0xfff09a, 0xf4d43a], true, 10); thud(); break;
     case 'chair': hit(1.2, 'BONK!'); for (let i = 0; i < 8; i++) fx.bit(up(0.3), 1, 0x7a5a3a, 5); fx.dust(at, 1); thud(); break;
     case 'cube': hit(1.1, 'DELETED'); fx.sparks(up(0.3), 18, { c: [0xffffff, 0x3af0ff], speed: 6, up: 5 }); fx.glow(at, 2, 0x3af0ff, 0.4, 0.7); thud(); break;

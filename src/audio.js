@@ -84,6 +84,7 @@ export const sfx = {
   whoop: () => { for (let i = 0; i < 4; i++) tone(520, 0.3, 'sawtooth', 0.04, 900, master, i * 0.32); },
   firework: () => { noise(0.25, 0.3, 1800, 0.8); tone(160, 0.3, 'triangle', 0.08, -90); setTimeout(() => noise(0.5, 0.1, 5200, 2), 90); },
   pop: () => noise(0.06, 0.12, 2400, 1.5),
+  honk: () => { tone(392, 0.1, 'sawtooth', 0.05, -30); tone(311, 0.2, 'sawtooth', 0.055, -40, master, 0.12); }, // a clown's horn: two notes, the second lower
   // a ghost's wail, a radar ping, muck landing, a short circuit, the power winding down, a radio's dying static
   ghost: () => { tone(880, 1.4, 'sine', 0.05, -520); tone(660, 1.6, 'sine', 0.04, -380, master, 0.15); noise(1.2, 0.05, 500, 3); },
   ping: (i = 0) => tone(1500 - i * 60, 0.22, 'sine', 0.05, -250),
