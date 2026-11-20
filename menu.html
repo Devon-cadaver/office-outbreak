@@ -61,6 +61,7 @@
     #quickBox .game i { font-style: normal; font-size: 44px; line-height: 1.1; } #quickBox .game b { font-size: 22px; letter-spacing: 1px; color: #7dff3a; } #quickBox .game span { font-size: 13px; font-weight: 700; color: #ffd24a; }
     #quickBox .game.kj { border-color: #ff7a3a; } #quickBox .game.kj b { color: #ff9a5a; }
     .credits { order: 99; margin: auto 0 0 !important; max-width: min(88vw, 360px); font-size: 9.5px !important; line-height: 1.3; color: #a898c8; opacity: .8; text-align: center; }
+      .exitBtn { order: 2; } .screen::after { order: 3; } /* EXIT sits last, under the sound buttons */
   </style>
 </head>
 <body>
@@ -77,6 +78,7 @@
       <button class="choice" onclick="location.href='store.html'" style="border-color:#ffd24a;box-shadow:0 4px 0 #5a4a1a !important"><b style="color:#ffd24a">🎨 SKIN SHOP</b><span class="saved" id="coins">Spend your coins</span></button>
       <button class="choice" id="radioBtn" style="border-color:#3af0ff;box-shadow:0 4px 0 #1a4a5a !important"><b style="color:#3af0ff">📻 RADIO</b><span>Pick your songs</span></button>
     </div>
+    <button class="exitBtn" onclick="exitGame()">✖ EXIT GAME</button>
     <!-- Survival and Extract are hidden for now; the pages still work and can come back by removing hidden -->
     <button class="choice hidden" onclick="location.href='deadcity.html'"><b>DEAD CITY (SURVIVAL)</b><span>Third-person joystick. Six nights, spells, guns, vehicles, survivors and a chopper at dawn.</span><span class="saved" id="dcSaved"></span></button>
     <button class="choice hidden" onclick="location.href='zombieville.html'"><b>EXTRACT</b><span>Snake-style maze run. Gather a line of survivors and get them out by heli. Ten districts.</span><span class="saved" id="zvSaved"></span></button>
@@ -127,5 +129,6 @@
     try { const c = Math.round(+JSON.parse(localStorage.getItem('oo_coins') || '0') * 100) / 100; if (c) document.getElementById('coins').textContent = '🪙 ' + c + (c === 1 ? ' coin' : ' coins'); } catch (e) {}
     try { if (localStorage.getItem('oo_save_zv')) document.getElementById('zvSaved').textContent = 'Saved game: district ' + JSON.parse(localStorage.getItem('oo_save_zv')).level; } catch (e) {}
   </script>
+<script>/* EXIT: leave full screen and go back to the title screen (a web page cannot close its own tab) */ window.exitGame = function () { var w = window; try { if (parent !== window && parent.document) w = parent; } catch (e) {} try { var d = w.document, x = d.exitFullscreen || d.webkitExitFullscreen; if ((d.fullscreenElement || d.webkitFullscreenElement) && x) x.call(d); if (document.fullscreenElement) document.exitFullscreen(); } catch (e) {} w.location.href = "index.html"; };</script>
 </body>
 </html>

@@ -101,7 +101,10 @@ export function createFoes(E) {
     cannons.push({ g, line, hp: 2, mode: 'idle', t: rnd(1.6, 2.6), aim, stun: 0, sp: 0, arrow: mkArrow('📢', '#ffb030') }); E.banner('📢 STORM CANNON!'); sfx.whoosh();
   }
   function killCannon(c, how) { E.speedBurst(2.2); const i = cannons.indexOf(c); if (i >= 0) cannons.splice(i, 1); scene.remove(c.line); c.arrow.remove(); const p = c.g.position.clone(); T.cannon = rnd(26, 38);
-    if (how === 'crushed') twisters.suck(c.g, E.tw); else { twisters.scatter([c.g], p, 5); fx.explode(p.clone().setY(0.6), how === 'over' ? 1.9 : 1.3); fx.scorch(p, 1.6); }
+    if (how === 'crushed') twisters.suck(c.g, E.tw); else { const big = how === 'over' ? 3.2 : 2.6, at = p.clone().setY(0.6); twisters.scatter([c.g], p, 7); fx.explode(at, big); fx.shock(p, big * 2.1, 0xffb060, 0.5); fx.glow(p, big * 2.3, 0xffa040, 1, 0.5); fx.scorch(p, 2.4); fx.sparks(at, 26, { speed: 9, up: 8, life: 0.9 }); E.flash(0.2); /* struck by lightning: a big blast, then smaller ones around it */
+      for (let k = 0; k < 4; k++) { const a = k * 1.57 + Math.random(), o = V(p.x + Math.cos(a) * 1.3, 0.5, p.z + Math.sin(a) * 1.3); setTimeout(() => fx.explode(o, 1.1), 90 + k * 70); } setTimeout(() => sfx.boom(), 160);
+      /* its sound wave lets go all at once: a ring races outward and flattens what stands close by */
+      fx.shock(p, 9, 0xffd9a0, 0.75); setTimeout(() => { fx.shock(p, 13, 0xffc060, 0.9); for (let k = 0; k < 10; k++) { const a = k * 0.628; fx.dust({ x: p.x + Math.cos(a) * 2.5, y: 0, z: p.z + Math.sin(a) * 2.5 }, 1.3, Math.cos(a) * 6, Math.sin(a) * 6); } E.crashDamage(p.clone(), how === 'over' ? 4.2 : 3.2, V(0, 0, 1)); E.jolt(0.8); }, 140); }
     E.award(600, p, how === 'crushed' ? 'CANNON CRUSHED' : how === 'over' ? 'OVERLOAD' : 'CANNON'); E.grow(1.5); E.banner(how === 'over' ? '📢 CANNON OVERLOADED!' : '📢 CANNON DESTROYED!'); sfx.boom(); E.jolt(0.6); }
   function zapCannon(c) { const p = c.g.position, over = c.mode === 'charge'; E.boltTo(V(p.x, 1, p.z)); c.hp -= over ? 2 : 1; // struck while it charges, it blows itself up
     if (c.hp <= 0) { killCannon(c, over ? 'over' : 'zap'); return; }

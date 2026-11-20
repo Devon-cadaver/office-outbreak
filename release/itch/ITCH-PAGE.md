@@ -1,6 +1,6 @@
 # Tornado Time! — itch.io page kit
 
-Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.29.4**. Upload `release/tornado-time-web-v1.29.4.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to. All the images below are in `release/itch/tornado-time/`.
+Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.29.5**. Upload `release/tornado-time-web-v1.29.5.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to. All the images below are in `release/itch/tornado-time/`.
 
 The game used to be called Dead City: Tornado Alley. From 1.28.0 it is **Tornado Time!**, with Kaiju Madness as its bonus game. Older zips keep their old `survive-dead-city-web` names.
 
@@ -15,7 +15,7 @@ The game used to be called Dead City: Tornado Alley. From 1.28.0 it is **Tornado
 | Short description / tagline | You are the tornado. Wreck six towns, swallow rival twisters, zap UFOs and blow up everything worth blowing up. |
 | Classification | Game |
 | Kind of project | **HTML** |
-| Uploads | `tornado-time-web-v1.29.4.zip` (about 32 MB, mostly the nine songs). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
+| Uploads | `tornado-time-web-v1.29.5.zip` (about 32 MB, mostly the nine songs). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
 | Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
 | Frame options | Leave SharedArrayBuffer off. No special headers needed. |
 | Pricing | Free (or "No payments"). |
@@ -123,6 +123,7 @@ Small browser games built fast, tested on a phone, and tuned by playing. Tornado
 
 ## Version history
 
+- **1.29.5** (2026-11-20): A red EXIT GAME button is on the main menu and the pause screens: it leaves full screen and returns to the title. The pause button stays top right; zoom and skip-song sit under it on a computer and along the bottom on a phone. A storm cannon struck by lightning goes up in a big blast with a shock wave that flattens nearby buildings.
 - **1.29.4** (2026-11-20): The targets bar always fits on one line and runs across the top. The pause, zoom and skip-song buttons are one size and sit along the bottom beside the mini map, which is a little bigger. A badge above the mini map shows how much of the town is destroyed. Pausing the game now silences every sound.
 - **1.29.3** (2026-11-20): The skin shop fits more skins on one screen. Destroying a big target or an enemy gives the storm a short speed boost, and a boosted storm flashes and throws lightning. You can wear several townsfolk and car skins at once: each one fills a quarter of the town. A bigger rogue twister that holds you for three seconds absorbs your storm and ends the round, and seeding planes, cannons, gunships and the UFO now shrink the rogue twister too. Tanks struck by lightning blow up big. Streets have zebra crossings where the lines end, and open squares are now parks with footpaths. Lightning bolts start from a point. Music is half volume on menus and pauses when the game is paused.
 - **1.29.2** (2026-11-19): Full screen now stays on when you go to the main menu or the skin shop from a game. The prize games in Tornado Time! can hand out a new storm: three times in four after a level you cleared, one in four after one you did not. The tornado has a faint wind sound that grows with the storm.

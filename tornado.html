@@ -38,8 +38,10 @@
     .zoomBtn { background-color: #ffd24a !important; font-size: 28px; font-family: Arial, sans-serif; box-shadow: 0 0 10px #ffd24a88, 0 4px 0 #3a1a5a !important; } .zoomBtn:active { transform: translateY(2px); }
     #ta .skipHud { background-color: #7dff3a !important; font-size: 18px !important; box-shadow: 0 0 12px #7dff3a99, 0 4px 0 #3a1a5a !important; top: calc(210px + env(safe-area-inset-top, 0px)) !important; }
     /* the buttons sit in a row along the bottom, beside the mini map, which leaves the whole top for the targets bar */
-    #taPause { left: 148px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important; top: auto !important; right: auto !important; } #taZoomIn { left: 202px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important; top: auto !important; right: auto !important; } #taZoomOut { left: 256px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important; top: auto !important; right: auto !important; } #ta .skipHud { left: 310px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important; top: auto !important; right: auto !important; }
-    #hudGoal { max-width: min(560px, 100%) !important; } #taSub { margin-right: 0 !important; } #taPois { --cw: min(29px, calc((min(560px, 100vw - 20px) - 100px - (var(--n) - 1) * 5px) / var(--n))) !important; }
+    /* pause stays top right beside the targets bar. Zoom and skip-song: a column under it where there is room (a computer), a row
+       along the bottom beside the mini map on a small screen (a phone) */
+    #taZoomIn { top: calc(102px + env(safe-area-inset-top, 0)); } #taZoomOut { top: calc(156px + env(safe-area-inset-top, 0)); }
+    @media (max-width: 760px), (max-height: 520px) { #taZoomIn { left: 148px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important; top: auto !important; right: auto !important; } #taZoomOut { left: 202px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important; top: auto !important; right: auto !important; } #ta .skipHud { left: 256px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important; top: auto !important; right: auto !important; } }
     .chaserArrow { color: #fff; font-size: 24px; }
     .photoBar { position: fixed; left: 0; top: 0; width: 64px; height: 8px; border-radius: 4px; background: #000a; border: 1px solid #fff8; overflow: hidden; display: none; pointer-events: none; z-index: 4; } .photoBar i { display: block; height: 100%; width: 0; background: #ffffff; }
     /* the tutorial prompt: a slim strip under the score bar, so the town stays in view */
@@ -88,7 +90,7 @@
     <div class="howRow"><button id="taHow" class="ghost">HOW TO PLAY</button><button class="ghost menuBtn" onclick="location.href='menu.html'">MAIN MENU</button></div>
   </div>
   <div id="twPickScr" class="screen hidden pickScr"><h1>CHOOSE YOUR TORNADO</h1><p id="twPickInfo" class="pickInfo"></p><div id="twPick" class="pickGrid"></div><button id="twPickDone" class="pickDone">✔ DONE</button></div>
-  <div id="taPaused" class="screen hidden"><h1>PAUSED</h1><button id="taResume">RESUME</button><button id="taRestart" class="ghost">↺ RESTART LEVEL</button><button class="ghost menuBtn" onclick="location.href='menu.html'">MAIN MENU</button></div>
+  <div id="taPaused" class="screen hidden"><h1>PAUSED</h1><button id="taResume">RESUME</button><button id="taRestart" class="ghost">↺ RESTART LEVEL</button><button class="ghost menuBtn" onclick="location.href='menu.html'">MAIN MENU</button><button class="exitBtn" onclick="exitGame()">✖ EXIT GAME</button></div>
   <div id="taPrize" class="screen hidden"><h1>PRIZE TIME!</h1><div id="taChests" class="chests"></div></div>
   <div id="taEnd" class="screen hidden">
     <h1 id="taEndTitle">STORM'S OVER</h1>
@@ -98,5 +100,6 @@
     <div class="howRow"><button class="ghost" onclick="location.href='store.html?from=alley'">🎨 SKIN SHOP</button><button class="ghost" onclick="location.href='tornado.html'">MENU</button><button class="ghost menuBtn" onclick="location.href='menu.html'">MAIN MENU</button></div>
   </div>
   <script type="module" src="./src/ally/main.js"></script>
+<script>/* EXIT: leave full screen and go back to the title screen (a web page cannot close its own tab) */ window.exitGame = function () { var w = window; try { if (parent !== window && parent.document) w = parent; } catch (e) {} try { var d = w.document, x = d.exitFullscreen || d.webkitExitFullscreen; if ((d.fullscreenElement || d.webkitFullscreenElement) && x) x.call(d); if (document.fullscreenElement) document.exitFullscreen(); } catch (e) {} w.location.href = "index.html"; };</script>
 </body>
 </html>
