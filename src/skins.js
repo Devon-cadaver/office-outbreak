@@ -38,10 +38,12 @@ export function grantSkin(id) { const owned = getOwned(); if (owned.includes(id)
 // skins everyone has from the start
 const FREE_SKINS = Object.entries(TWISTER_SKINS).filter(([, s]) => s.free).map(([k]) => 'tornado:' + k);
 export function getOwned() { const o = get(K.owned, []); return [...o, ...FREE_SKINS.filter((x) => !o.includes(x))]; }
-export function getEquipped() { const e = { player: null, npc: [], car: null, fx: null, tornado: null, ...get(K.equip, {}) }; if (typeof e.npc === 'string') e.npc = [e.npc]; if (!Array.isArray(e.npc)) e.npc = []; return e; }
+export function getEquipped() { const e = { player: null, npc: [], car: null, fx: null, tornado: null, ...get(K.equip, {}) }; for (const k of ['npc', 'car']) { if (typeof e[k] === 'string') e[k] = [e[k]]; if (!Array.isArray(e[k])) e[k] = []; } /* townsfolk and cars: a list (older saves had one car) */ return e; }
 export const NPC_MAX = 10;
-export function equip(cat, id) { const e = getEquipped(); if (cat === 'npc') { if (id == null) e.npc = []; else if (e.npc.includes(id)) e.npc = e.npc.filter((x) => x !== id); else if (e.npc.length < NPC_MAX) e.npc.push(id); } else e[cat] = id; set(K.equip, e); }
-export function isEquipped(cat, id) { const e = getEquipped(); return cat === 'npc' ? e.npc.includes(id) : e[cat] === id; }
+export function equip(cat, id) { const e = getEquipped(); if (cat === 'npc' || cat === 'car') { const list = e[cat]; if (id == null) e[cat] = []; else if (list.includes(id)) e[cat] = list.filter((x) => x !== id); else if (list.length < NPC_MAX) list.push(id); } else e[cat] = id; set(K.equip, e); }
+export function isEquipped(cat, id) { const e = getEquipped(); return cat === 'npc' || cat === 'car' ? e[cat].includes(id) : e[cat] === id; }
+// how much of the town wears the skins you picked: a quarter for each one, all of it from four; past four they share it evenly
+export const townShare = (n) => Math.min(1, n * 0.25);
 export function buy(id) { const s = SKINS.find((x) => x.id === id); if (!s) return false; const owned = getOwned(); if (owned.includes(id)) return true; if (s.bonus) return false; if (getCoins() < s.price) return false; addCoins(-s.price); owned.push(id); set(K.owned, owned); return true; }
 
 const box = new THREE.BoxGeometry(1, 1, 1), cone = new THREE.ConeGeometry(0.5, 1, 10), cyl = new THREE.CylinderGeometry(0.5, 0.5, 1, 10), sphere = new THREE.SphereGeometry(0.5, 12, 8), ring = new THREE.TorusGeometry(0.5, 0.08, 6, 14);
@@ -124,7 +126,7 @@ export function equippedTornado() { const e = getEquipped().tornado; return e ? 
 // a car in the player's equipped car skin (or plain, in the given colour)
 export function skinnedCarArgs(color) { const s = equippedSkin('car'); return s ? [s.color, s] : [color]; }
 // what a townsperson wears: in the Wild West or the Future, mostly the era's outfit (some still wear your picked outfits)
-export function townSkin() { const era = getEra(), eq = equippedSkin('npc'); if (era === 'past' || era === 'future') return eq && Math.random() < 0.35 ? eq : CHAR_SKINS[era === 'past' ? 'cowpoke' : 'neon']; return eq; }
-export function equippedSkin(cat) { let e = getEquipped()[cat]; if (cat === 'npc') e = e.length ? e[(Math.random() * e.length) | 0] : null; if (!e) return null; const key = e.split(':')[1] || e; return cat === 'car' ? CAR_SKINS[key] || null : cat === 'fx' ? FX_SKINS[key] || null : CHAR_SKINS[key] || null; }
+export function townSkin() { const era = getEra(), eq = equippedSkin('npc'); if (era === 'past' || era === 'future') return eq || CHAR_SKINS[era === 'past' ? 'cowpoke' : 'neon']; return eq; }
+export function equippedSkin(cat) { let e = getEquipped()[cat]; if (cat === 'npc' || cat === 'car') e = e.length && Math.random() < townShare(e.length) ? e[(Math.random() * e.length) | 0] : null; /* the rest of the town keeps its own look */ if (!e) return null; const key = e.split(':')[1] || e; return cat === 'car' ? CAR_SKINS[key] || null : cat === 'fx' ? FX_SKINS[key] || null : CHAR_SKINS[key] || null; }
 // ghost cars: every material on the finished group goes see-through
 export function ghostify(group) { group.traverse((m) => { if (m.isMesh && m.material && m.material.color) { m.material = m.material.clone(); m.material.transparent = true; m.material.opacity = 0.45; } }); }

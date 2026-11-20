@@ -265,7 +265,7 @@ export function buildCity(scene, wall, level) {
     const cz = wall.custom, idx = (x, y) => y * cols + x;
     const plaza = (x, y) => !!(cz && cz.plaza.has(idx(x, y)));
     // generated maps: roads run straight through parks. builder maps: grass is plain ground, roads only where placed
-    const road = (x, y) => open(x, y) && !plaza(x, y) && !(cz && cz.parks.has(idx(x, y)));
+    const road = (x, y) => open(x, y) && !plaza(x, y) && !park(x, y); /* a park is grass with footpaths, never road: a street that reaches one ends at its edge */
     // a road link between two cells exists when both are road and neither cell's shape mask forbids it
     const maskOf = (x, y) => (cz && cz.conn ? cz.conn.get(idx(x, y)) : undefined);
     const DIRS = { N: [0, -1, 1, 4], S: [0, 1, 4, 1], E: [1, 0, 2, 8], W: [-1, 0, 8, 2] };
@@ -280,6 +280,12 @@ export function buildCity(scene, wall, level) {
     for (const [x, y] of streetCells) if (park(x, y)) { const X = x * P, Y = y * P; g.fillStyle = (PAST ? '#8a8448' : FUT ? '#1c3646' : '#2f5a38'); g.fillRect(X, Y, P, P);
       g.fillStyle = (PAST ? '#a09a58' : FUT ? '#2a6a7a' : '#3a6a44'); for (let i = 0; i < 40; i++) g.fillRect(X + ((rng() * P) | 0), Y + ((rng() * P) | 0), 2, 1);
       g.fillStyle = (PAST ? '#b89a6a' : FUT ? '#3c4458' : '#8c9a9e'); if (!park(x, y - 1)) g.fillRect(X, Y, P, 5); if (!park(x, y + 1)) g.fillRect(X, Y + P - 5, P, 5); if (!park(x - 1, y)) g.fillRect(X, Y, 5, P); if (!park(x + 1, y)) g.fillRect(X + P - 5, Y, 5, P); }
+    // 1c. footpaths through the parks (generated maps): a narrow paved path from cell to cell and out to each street that ends at the park
+    if (!cz) { const pc = (PAST ? '#b89a6a' : FUT ? '#3c4458' : '#8c9a9e'), pw = 11; g.strokeStyle = pc; g.fillStyle = pc; g.lineWidth = pw; g.lineCap = 'butt';
+      const seg = (x0, y0, x1, y1) => { g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); };
+      for (const [x, y] of streetCells) { if (!park(x, y)) continue; const X = x * P, Y = y * P; g.fillRect(C(x) - pw / 2, C(y) - pw / 2, pw, pw);
+        if (park(x + 1, y)) seg(C(x), C(y), C(x + 1), C(y)); else if (open(x + 1, y)) seg(C(x), C(y), X + P, C(y)); if (park(x, y + 1)) seg(C(x), C(y), C(x), C(y + 1)); else if (open(x, y + 1)) seg(C(x), C(y), C(x), Y + P);
+        if (!park(x - 1, y) && open(x - 1, y)) seg(X, C(y), C(x), C(y)); if (!park(x, y - 1) && open(x, y - 1)) seg(C(x), Y, C(x), C(y)); } }
     // 2. roads: strips between the centres of neighbouring road cells (gutter first, asphalt on top), square joints at every centre.
     //    A road meeting a park runs up to the park's edge.
     const strip = (x0, y0, x1, y1, w, col) => { g.strokeStyle = col; g.lineWidth = w; g.lineCap = 'butt'; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); };
@@ -294,45 +300,38 @@ export function buildCity(scene, wall, level) {
     // 3. wear: speckles and patches on the road only
     g.fillStyle = (PAST ? '#6a4a2a' : FUT ? '#202842' : '#425860'); for (const [x, y] of streetCells) if (road(x, y)) for (let i = 0; i < 18; i++) { const a = (rng() - 0.5) * RW * 0.9, b = (rng() - 0.5) * RW * 0.9; g.fillRect(C(x) + a, C(y) + b, 2, 2); }
     g.fillStyle = (PAST ? '#5a3e24' : FUT ? '#10142a' : '#33444a'); for (const [x, y] of streetCells) if (road(x, y) && rng() < 0.2) { g.beginPath(); g.ellipse(C(x) + (rng() - 0.5) * 12, C(y) + (rng() - 0.5) * 12, 5 + rng() * 7, 4 + rng() * 5, rng() * 3, 0, Math.PI * 2); g.fill(); }
-    // 4. double yellow centre line: along every road strip except inside junction boxes. A straight or corner cell draws
-    //    from its centre to each open edge (corners as a curve); a T keeps the through street; a 4-way stays clear.
+    // 4. double yellow centre line: on straight road, round corners and up dead ends. Junction boxes (T and 4-way) stay clear.
+    //    A straight line stops a little short of a junction or a park edge, and a zebra crossing goes in that gap (step 5).
     const yellow = (fn) => { g.save(); g.strokeStyle = LINE; g.lineWidth = 2; g.lineCap = 'butt'; for (const o of [-2.4, 2.4]) { g.beginPath(); fn(o); g.stroke(); } g.restore(); };
-    const stopShort = 9;
+    const stopShort = 11, OPP = { N: 'S', S: 'N', E: 'W', W: 'E' };
+    const pk = (x, y, d) => !cz && park(x + DIRS[d][0], y + DIRS[d][1]); /* this side of the cell is a park edge */
+    const con = (x, y, d) => link(x, y, d) || (road(x, y) && pk(x, y, d)); /* the road carries on this way (to another road cell, or up to a park) */
+    const deg2 = (x, y) => con(x, y, 'N') + con(x, y, 'S') + con(x, y, 'E') + con(x, y, 'W');
+    const ends = (x, y, d) => pk(x, y, d) || deg2(x + DIRS[d][0], y + DIRS[d][1]) >= 3; /* the centre line ends on this side */
     for (const [x, y] of streetCells) {
       if (!road(x, y)) continue;
-      const n = cz ? link(x, y, 'N') : open(x, y - 1), s = cz ? link(x, y, 'S') : open(x, y + 1), e = cz ? link(x, y, 'E') : open(x + 1, y), wv = cz ? link(x, y, 'W') : open(x - 1, y); const d = n + s + e + wv;
+      const n = con(x, y, 'N'), s = con(x, y, 'S'), e = con(x, y, 'E'), wv = con(x, y, 'W'); const d = n + s + e + wv;
+      if (d >= 3 || !d) continue;
       const cx = C(x), cy = C(y), X = x * P, Y = y * P;
-      // where does this half-line end? at the cell edge normally, short of it if the neighbour is a 4-way box
-      const endE = e ? (deg(x + 1, y) === 4 ? X + P - stopShort : X + P) : cx, endW = wv ? (deg(x - 1, y) === 4 ? X + stopShort : X) : cx;
-      const endS = s ? (deg(x, y + 1) === 4 ? Y + P - stopShort : Y + P) : cy, endN = n ? (deg(x, y - 1) === 4 ? Y + stopShort : Y) : cy;
-      if (d === 4) continue;
-      if (d === 3) {
-        if (e && wv) yellow((o) => { g.moveTo(endW, cy + o); g.lineTo(endE, cy + o); });
-        else yellow((o) => { g.moveTo(cx + o, endN); g.lineTo(cx + o, endS); });
-        continue;
-      }
-      if (d === 2 && e && wv) { yellow((o) => { g.moveTo(endW, cy + o); g.lineTo(endE, cy + o); }); continue; }
-      if (d === 2 && n && s) { yellow((o) => { g.moveTo(cx + o, endN); g.lineTo(cx + o, endS); }); continue; }
-      if (d === 2) { // corner curve around the inside corner of the cell
+      const endE = e ? (ends(x, y, 'E') ? X + P - stopShort : X + P) : cx - 6, endW = wv ? (ends(x, y, 'W') ? X + stopShort : X) : cx + 6;
+      const endS = s ? (ends(x, y, 'S') ? Y + P - stopShort : Y + P) : cy - 6, endN = n ? (ends(x, y, 'N') ? Y + stopShort : Y) : cy + 6;
+      if (d === 2 && !(e && wv) && !(n && s)) { // corner: a curve around the inside corner of the cell, edge to edge
         const kx = e ? X + P : X, ky = s ? Y + P : Y; const a0 = Math.atan2(cy - ky, 0), a1 = Math.atan2(0, cx - kx); const sweep = (((a1 - a0) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
         g.save(); g.strokeStyle = LINE; g.lineWidth = 2; for (const r of [P / 2 - 2.4, P / 2 + 2.4]) { g.beginPath(); g.arc(kx, ky, r, a0, a1, sweep > Math.PI); g.stroke(); } g.restore();
         continue;
       }
-      if (d === 1) { // dead end: stop a little before the end of the road
-        if (wv) yellow((o) => { g.moveTo(endW, cy + o); g.lineTo(cx + 6, cy + o); }); if (e) yellow((o) => { g.moveTo(endE, cy + o); g.lineTo(cx - 6, cy + o); });
-        if (n) yellow((o) => { g.moveTo(cx + o, endN); g.lineTo(cx + o, cy + 6); }); if (s) yellow((o) => { g.moveTo(cx + o, endS); g.lineTo(cx + o, cy - 6); });
-      }
+      if (e || wv) yellow((o) => { g.moveTo(endW, cy + o); g.lineTo(endE, cy + o); }); else yellow((o) => { g.moveTo(cx + o, endN); g.lineTo(cx + o, endS); }); // straight, or a dead end (which stops a little before the end of the road)
     }
-    // 5. zebra crossings on the approaches to a 4-way or an avenue junction, only where the approach is a plain street cell
+    // 5. zebra crossings: only where a straight centre line ends, at a junction or at a park edge. Never on a curve.
+    const zebra = (x, y, d) => { const X = x * P, Y = y * P, depth = 8, half = RW / 2 - 2, [dx, dy] = DIRS[d]; g.fillStyle = '#e8eef0';
+      if (dx) { const bx = dx > 0 ? X + P - 1 - depth : X + 1; for (let k = C(y) - half; k < C(y) + half - 2; k += 6) g.fillRect(bx, k, depth, 3); }
+      else { const by = dy > 0 ? Y + P - 1 - depth : Y + 1; for (let k = C(x) - half; k < C(x) + half - 2; k += 6) g.fillRect(k, by, 3, depth); } };
     for (const [x, y] of streetCells) {
       if (!road(x, y)) continue;
-      const n = link(x, y, 'N'), s = link(x, y, 'S'), e = link(x, y, 'E'), wv = link(x, y, 'W'); const d = n + s + e + wv;
-      if (crossCell(x, y) ? d < 1 : (d < 3 || !(d === 4 || isAveRow(y) || isAveCol(x) || aveCell(x, y)))) continue;
-      const X = x * P, Y = y * P, depth = 8, half = RW / 2 - 2;
-      for (const [dx, dy, ok] of [[0, -1, n], [0, 1, s], [1, 0, e], [-1, 0, wv]]) { if (!ok || deg(x + dx, y + dy) >= 3) continue;
-        if (dx) { const bx = dx > 0 ? X + P + 1 : X - 1 - depth; g.fillStyle = '#e8eef0'; for (let k = C(y) - half; k < C(y) + half - 2; k += 6) g.fillRect(bx, k, depth, 3); }
-        else { const by = dy > 0 ? Y + P + 1 : Y - 1 - depth; g.fillStyle = '#e8eef0'; for (let k = C(x) - half; k < C(x) + half - 2; k += 6) g.fillRect(k, by, 3, depth); }
-      }
+      const n = con(x, y, 'N'), s = con(x, y, 'S'), e = con(x, y, 'E'), wv = con(x, y, 'W'); const d = n + s + e + wv;
+      if (crossCell(x, y)) { for (const k of ['N', 'S', 'E', 'W']) if (link(x, y, k) && deg2(x + DIRS[k][0], y + DIRS[k][1]) < 3) zebra(x + DIRS[k][0], y + DIRS[k][1], OPP[k]); continue; } // a crossing placed in the map builder
+      if (!(d === 1 || (d === 2 && ((n && s) || (e && wv))))) continue;
+      for (const [k, ok] of [['N', n], ['S', s], ['E', e], ['W', wv]]) if (ok && ends(x, y, k)) zebra(x, y, k);
     }
     // 6. manhole covers on a few straight cells
     g.fillStyle = '#2a363b'; g.strokeStyle = '#4a5c62'; g.lineWidth = 1;

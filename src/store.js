@@ -1,7 +1,7 @@
-import { radio } from './audio.js';
+import { radio, setMusicDuck } from './audio.js';
 // Skin shop: live 3D previews of every skin, buy with coins, tap again to equip.
 import * as THREE from 'three';
-import { SKINS, CHAR_SKINS, CAR_SKINS, FX_SKINS, NPC_MAX, getCoins, addCoins, getOwned, getEquipped, equip, isEquipped, buy, fmtCoins } from './skins.js';
+import { SKINS, CHAR_SKINS, CAR_SKINS, FX_SKINS, NPC_MAX, townShare, getCoins, addCoins, getOwned, getEquipped, equip, isEquipped, buy, fmtCoins } from './skins.js';
 import { makeCharacter, animateWalk } from './poster/characters.js';
 import { createPreviews } from './livePreview.js';
 import { makeCar } from './car.js';
@@ -18,6 +18,8 @@ const kjObj = (id, look) => { const rig = buildKaiju(id, look); rig.anim(0.4, 0)
 // You and Effects only show in Survival/Extract, which are hidden for now: add them back here when those games return
 const CATS = [['tornado', 'Tornadoes'], ['kaiju', 'Kaiju'], ['npc', 'Townsfolk'], ['car', 'Cars']];
 // each kaiju has its own slot (kj_<id>), so every monster can wear its skin at once
+// how much of the town the picked skins cover, shown under the heading
+const shareTxt = (cat) => { const n = getEquipped()[cat].length; return n ? 'tap to add or remove · ' + n + ' on: ' + Math.round(townShare(n) * 100) + '% of the town, ' + Math.round(townShare(n) * 100 / n) + '% each' : 'tap to add one: each covers 25% of the town, up to 4'; };
 const slotOf = (s) => (s.cat === 'kaiju' ? 'kj_' + s.key : s.cat);
 // the Kaiju tab: pick a monster first (kjSel), then its two skins
 let kjSel = null; try { kjSel = sessionStorage.getItem('shop_kj') || null; } catch { /* ignore */ }
@@ -40,19 +42,19 @@ function build() {
     let unl = [...FREE_KAIJU]; try { unl = unl.concat(JSON.parse(localStorage.getItem('kj_unlocked') || '[]')); } catch { /* ignore */ }
     const rowOf = (title, extra = '') => { const hh = document.createElement('h2'); hh.innerHTML = title; grid.appendChild(hh); const r = document.createElement('div'); r.className = 'row ' + extra; grid.appendChild(r); return r; };
     if (cat === 'kaiju' && !(kjSel && KAIJU[kjSel])) {
-      const rows = [rowOf('PICK A MONSTER <small>then choose its skin · swipe ↔</small>'), rowOf('LOCKED MONSTERS <small>win them in the prize games first</small>', 'locked')];
+      const rows = [rowOf('PICK A MONSTER <small>then choose its skin</small>'), rowOf('LOCKED MONSTERS <small>win them in the prize games first</small>', 'locked')];
       for (const id of Object.keys(KAIJU)) { const open = unl.includes(id), mine = SKINS.filter((x) => x.cat === 'kaiju' && x.key === id && owned.includes(x.id)).length; const on = eq['kj_' + id];
         const card = document.createElement('button'); card.className = 'skin' + (on ? ' on' : '') + (open ? '' : ' poor locked'); card.innerHTML = '<canvas width="150" height="150"></canvas><b>' + KAIJU[id].name + '</b><span></span><em>' + (open ? (mine ? mine + '/2 skins' + (on ? ' · wearing one' : '') : '2 skins') : '🔒 monster locked') + '</em>';
         card.addEventListener('click', () => pickKj(id)); rows[open ? 0 : 1].appendChild(card);
         show(card.querySelector('canvas'), () => kjObj(id, on || false), { rig: true }); }
       continue; }
-    const h = document.createElement('h2'); h.textContent = { player: 'YOUR CHARACTER (2 coins)', npc: 'TOWNSFOLK OUTFITS (1 coin, pick up to 10)', car: 'CARS IN TOWN', tornado: 'TORNADO SKINS', fx: 'EFFECTS', kaiju: 'KAIJU SKINS (tap again to take one off)' }[cat]; let row = null, lockedRow = null; if (cat === 'kaiju') { const back = document.createElement('button'); back.className = 'ghost'; back.textContent = '◀ ALL MONSTERS'; back.addEventListener('click', () => pickKj(null)); grid.appendChild(back); h.innerHTML = KAIJU[kjSel].name + ' <small>' + (unl.includes(kjSel) ? 'tap a skin to buy it, tap again to take it off' : 'win this monster first, then its skins can be bought') + '</small>'; grid.appendChild(h); row = document.createElement('div'); row.className = 'row'; grid.appendChild(row); lockedRow = row; } else { h.innerHTML += ' <small>swipe ↔</small>'; grid.appendChild(h); row = document.createElement('div'); row.className = 'row'; grid.appendChild(row); }
+    const h = document.createElement('h2'); h.innerHTML = { player: 'YOUR CHARACTER (2 coins)', npc: 'TOWNSFOLK OUTFITS (1 coin) <small>' + shareTxt('npc') + '</small>', car: 'CARS IN TOWN <small>' + shareTxt('car') + '</small>', tornado: 'TORNADO SKINS', fx: 'EFFECTS', kaiju: 'KAIJU SKINS (tap again to take one off)' }[cat]; let row = null, lockedRow = null; if (cat === 'kaiju') { const back = document.createElement('button'); back.className = 'ghost'; back.textContent = '◀ ALL MONSTERS'; back.addEventListener('click', () => pickKj(null)); grid.appendChild(back); h.innerHTML = KAIJU[kjSel].name + ' <small>' + (unl.includes(kjSel) ? 'tap a skin to buy it, tap again to take it off' : 'win this monster first, then its skins can be bought') + '</small>'; grid.appendChild(h); row = document.createElement('div'); row.className = 'row'; grid.appendChild(row); lockedRow = row; } else {  grid.appendChild(h); row = document.createElement('div'); row.className = 'row'; grid.appendChild(row); }
     for (const s of SKINS.filter((x) => x.cat === cat && (cat !== 'kaiju' || x.key === kjSel))) {
       const card = document.createElement('button'); card.className = 'skin'; const own = owned.includes(s.id), on = isEquipped(slotOf(s), s.id);
       card.innerHTML = '<canvas width="150" height="150"></canvas><b>' + s.name + '</b><span>' + s.desc + '</span><em>' + (on ? 'EQUIPPED' : own ? 'Tap to equip' : s.bonus ? '🏆 ' + s.bonus : '🪙 ' + s.price) + '</em>';
       if (on) card.classList.add('on'); else if (!own && (s.bonus || getCoins() < s.price)) card.classList.add('poor'); if (!own) card.classList.add('locked');
       card.addEventListener('click', () => { if (cat === 'kaiju' && !unl.includes(s.key)) { $('note').textContent = 'Win this monster in the Kaiju Madness prize games first, then its skin can be bought.'; return; } if (!owned.includes(s.id)) { if (s.bonus) { $('note').textContent = 'Bonus skin: ' + s.bonus + ' to unlock it.'; return; } if (getCoins() < s.price) { $('note').textContent = 'Not enough coins yet: ' + s.name + ' costs ' + s.price + '. Beat a game to earn more.'; return; }
-        askBuy(s, card.querySelector('canvas'), () => { if (!buy(s.id)) return; $('note').textContent = 'Bought ' + s.name + '!'; const sp = document.getElementById('wrap').scrollTop; if (!(cat === 'npc' && eq.npc.length >= NPC_MAX)) equip(slotOf(s), s.id); build(); renderAll(); document.getElementById('wrap').scrollTop = sp; }); return; } const sp = document.getElementById('wrap').scrollTop; if (cat === 'npc' && !on && eq.npc.length >= NPC_MAX) { $('note').textContent = 'Ten survivor skins at most. Tap one to remove it.'; return; } equip(slotOf(s), cat === 'npc' ? s.id : (on ? null : s.id)); build(); renderAll(); document.getElementById('wrap').scrollTop = sp; });
+        askBuy(s, card.querySelector('canvas'), () => { if (!buy(s.id)) return; $('note').textContent = 'Bought ' + s.name + '!'; const sp = document.getElementById('wrap').scrollTop; if (!((cat === 'npc' || cat === 'car') && eq[cat].length >= NPC_MAX)) equip(slotOf(s), s.id); build(); renderAll(); document.getElementById('wrap').scrollTop = sp; }); return; } const sp = document.getElementById('wrap').scrollTop; if ((cat === 'npc' || cat === 'car') && !on && eq[cat].length >= NPC_MAX) { $('note').textContent = 'Ten at most. Tap one to take it off.'; return; } equip(slotOf(s), cat === 'npc' || cat === 'car' ? s.id : (on ? null : s.id)); build(); renderAll(); document.getElementById('wrap').scrollTop = sp; });
       const lockedK = cat === 'kaiju' && !unl.includes(s.key); if (lockedK) { card.classList.add('poor'); card.querySelector('em').textContent = '🔒 monster locked'; } (lockedK ? lockedRow : row).appendChild(card);
       show(card.querySelector('canvas'), () => { let obj;
         if (cat === 'fx') { const fx = FX_SKINS[s.key]; obj = new THREE.Group(); if (fx.flames) { for (let i = 0; i < 14; i++) { const mm = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), new THREE.MeshBasicMaterial({ color: fx.flames[i % 3] })); mm.position.set((Math.random() - 0.5) * 0.8, 0.4 + Math.random() * 1.4, (Math.random() - 0.5) * 0.8); mm.rotation.set(Math.random() * 3, Math.random() * 3, 0); mm.scale.setScalar(1.2 - i * 0.06); obj.add(mm); } } else { for (let i = 0; i < 6; i++) { const mm = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), new THREE.MeshLambertMaterial({ color: fx.junk })); mm.position.set((Math.random() - 0.5) * 1.2, 0.3 + Math.random() * 1.2, (Math.random() - 0.5) * 1.2); mm.rotation.set(Math.random() * 3, Math.random() * 3, 0); obj.add(mm); } } }
@@ -62,7 +64,7 @@ function build() {
         return obj; }, { tw: cat === 'tornado', rig: cat === 'kaiju', walk: cat === 'npc' || cat === 'player' });
     }
     if (cat === 'kaiju') { const slot = 'kj_' + kjSel, none = document.createElement('button'), noneOn = !eq[slot]; none.className = 'skin' + (noneOn ? ' on' : ''); none.innerHTML = '<canvas width="150" height="150"></canvas><b>Normal ' + KAIJU[kjSel].name + '</b><span></span><em>' + (noneOn ? 'EQUIPPED' : 'Tap to wear') + '</em>'; none.addEventListener('click', () => { equip(slot, null); build(); renderAll(); }); row.prepend(none); show(none.querySelector('canvas'), () => kjObj(kjSel, false), { rig: true }); continue; }
-    const none = document.createElement('button'); const noneOn = cat === 'npc' ? !eq.npc.length : !eq[cat]; none.className = 'skin plain' + (noneOn ? ' on' : ''); none.innerHTML = '<b>Default</b><span>' + (cat === 'npc' ? 'Clears the set (' + eq.npc.length + '/' + NPC_MAX + ' picked).' : 'No skin.') + '</span><em>' + (noneOn ? 'EQUIPPED' : 'Tap to equip') + '</em>'; none.addEventListener('click', () => { const sp = document.getElementById('wrap').scrollTop; equip(cat, null); build(); renderAll(); document.getElementById('wrap').scrollTop = sp; }); row.appendChild(none);
+    const none = document.createElement('button'); const noneOn = cat === 'npc' || cat === 'car' ? !eq[cat].length : !eq[cat]; none.className = 'skin plain' + (noneOn ? ' on' : ''); none.innerHTML = '<b>Default</b><span>' + (cat === 'npc' || cat === 'car' ? 'Clears the set (' + eq[cat].length + ' picked).' : 'No skin.') + '</span><em>' + (noneOn ? 'EQUIPPED' : 'Tap to equip') + '</em>'; none.addEventListener('click', () => { const sp = document.getElementById('wrap').scrollTop; equip(cat, null); build(); renderAll(); document.getElementById('wrap').scrollTop = sp; }); row.appendChild(none);
   }
 }
 { const from = new URLSearchParams(location.search).get('from'); const ok = { extract: 'zombieville.html', alley: 'tornado.html', survival: 'deadcity.html', kaiju: 'kaiju.html' }[from];
@@ -71,4 +73,4 @@ build();
 function renderAll() {} // the cards draw themselves now, a few each frame (livePreview.js)
 renderAll();
 
-radio(); // the radio keeps playing in the shop
+radio(); setMusicDuck(0.5); // the radio keeps playing in the shop, at half volume

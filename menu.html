@@ -83,7 +83,7 @@
 
     <p class="credits">All monsters, robots and characters are original creations. Any resemblance to other characters is coincidental.</p>
   </div>
-  <script type="module">import { stampVersion } from './src/version.js'; import { initSaveCodes } from './src/savecode.js'; import { soundToggle, radio, menuMusic } from './src/audio.js';
+  <script type="module">import { stampVersion } from './src/version.js'; import { initSaveCodes } from './src/savecode.js'; import { soundToggle, radio, menuMusic, setMusicDuck } from './src/audio.js'; setMusicDuck(0.5);
     // the radio: same song and spot as the last page, from the first tap if the browser needs one
     radio();
     initSaveCodes(document.getElementById('menu'), document.querySelector('#menu .credits')); soundToggle(document.getElementById('menu')); stampVersion();

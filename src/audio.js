@@ -150,7 +150,11 @@ try { const st = JSON.parse(sessionStorage.getItem('oo_radio') || 'null'); if (s
 function saveRadio() { if (!song) return; try { sessionStorage.setItem('oo_radio', JSON.stringify({ i: songI, t: song.readyState >= 1 ? song.currentTime : resumeAt, order, rep: repeat })); } catch { /* ignore */ } }
 addEventListener('pagehide', saveRadio); setInterval(saveRadio, 1000);
 function curVol() { return volV !== null ? volV : VOLS[volI][1]; }
-function applyVol() { const v = curVol(); if (songGain) songGain.gain.value = v; else if (song) song.volume = Math.min(1, v); }
+// how loud the music is where you are: 1 in a round, 0.5 on menus, 0 (paused) while a game is paused. The radio lives in the
+// outer frame, so a page inside asks it there
+let duck = 1;
+export function setMusicDuck(k) { if (FRAME) return FRAME.setMusicDuck(k); if (k === duck) return; const was = duck; duck = k; applyVol(); if (!song) return; if (k === 0) song.pause(); else if (was === 0 && song.paused && !musicMuted && !radioPaused && duck > 0) song.play().catch(() => {}); }
+function applyVol() { const v = curVol() * duck; if (songGain) songGain.gain.value = v; else if (song) song.volume = Math.min(1, v); }
 // once the sound engine is running, the song goes through it (iPad/iPhone ignore an element's volume; MUSIC: OFF covers it)
 function routeSong() { if (!song || songGain || !ctx) return; try { songGain = ctx.createGain(); ctx.createMediaElementSource(song).connect(songGain).connect(musicSw); song.volume = 1; } catch { songGain = null; } applyVol(); }
 function startSong() { radioPaused = false; song.src = SONGS[songI]; if (!musicMuted) song.play().catch(() => {}); }
@@ -159,7 +163,7 @@ export function playSongs() {
   if (!song) { if (!SONGS[songI]) songI = onAir()[0]; /* the game opens on the first track that's on the air */ song = new Audio(); song.preload = 'auto'; song.loop = repeat || SONGS.length === 1; song.src = SONGS[songI];
     if (resumeAt > 1) { const t = resumeAt; song.addEventListener('loadedmetadata', () => { if (t < song.duration - 2) song.currentTime = t; }, { once: true }); }
     song.addEventListener('ended', () => nextSong()); applyVol(); }
-  routeSong(); song.muted = musicMuted; if (song.paused && !musicMuted && !radioPaused) song.play().catch(() => {});
+  routeSong(); song.muted = musicMuted; if (song.paused && !musicMuted && !radioPaused && duck > 0) song.play().catch(() => {});
 }
 // every page: try now, and again at the first tap or key (browsers block sound until then)
 export function menuMusic() { if (FRAME) return FRAME.menuMusic(); unlockAudio(); playSongs(); }
@@ -187,8 +191,8 @@ export function setMusicVol(v) { if (FRAME) return FRAME.setMusicVol(v); volV = 
 const volName = () => (volV !== null ? Math.round(volV * 100) + '%' : VOLS[volI][0]);
 // the frame page shares its radio with the pages inside it
 // wake the radio after iOS paused it (Control Center, a call, another app): resume the audio engine and the song
-function wake() { unlockAudio(); if (song && song.paused && !musicMuted && !radioPaused) song.play().catch(() => {}); }
-export function frameRadio() { songI = -1; resumeAt = 0; order = []; /* a fresh start of the game: back to the first track */ window.__radio = { wake, menuMusic, playSongs, nextSong, skipDown, playSong, songState, toggleRepeat, cycleVol, isRadioPaused, toggleRadioPause, musicVol, setMusicVol, setMuted, setMusicMuted, get repeat() { return repeat; }, get volName() { return volName(); } }; }
+function wake() { unlockAudio(); if (song && song.paused && !musicMuted && !radioPaused && duck > 0) song.play().catch(() => {}); }
+export function frameRadio() { songI = -1; resumeAt = 0; order = []; /* a fresh start of the game: back to the first track */ window.__radio = { setMusicDuck, wake, menuMusic, playSongs, nextSong, skipDown, playSong, songState, toggleRepeat, cycleVol, isRadioPaused, toggleRadioPause, musicVol, setMusicVol, setMuted, setMusicMuted, get repeat() { return repeat; }, get volName() { return volName(); } }; }
 // a game page's soundtrack: starts on the first tap and keeps going; SKIP SONG, REPEAT and VOLUME on the given screen
 export function gameMusic(host, list) {
   radio();

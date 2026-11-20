@@ -49,15 +49,19 @@ export function createFoes(E) {
   }
   function removeRival() { const r = rival; if (!r) return; twisters.remove(r.g, true); r.arrow.remove(); r.tag.remove(); rival = null; }
   function endRival(eaten) { const r = rival; r.out = 0; r.eaten = eaten; r.arrow.style.display = 'none'; r.tag.style.display = 'none'; T.rival = rnd(28, 40); }
-  function swallow() { const r = rival, p = r.g.position.clone(); endRival(true); // you take back everything it stole, and more
+  function swallow() { const r = rival, p = r.g.position.clone(); endRival(true); E.speedBurst(3); // you take back everything it stole, and more
     E.award(1500, p, 'TWISTER SWALLOWED'); E.grow(3 + r.mass * 0.8); E.banner('🌪️ ROGUE TWISTER SWALLOWED!'); sfx.boom(); sfx.power(); E.jolt(0.8); E.flash(0.25); fx.shock(p, 7, 0xff5ae0, 0.5);
     for (let i = 0; i < 3; i++) fx.sparks(V(p.x, 1 + i * 1.5, p.z), 14, { ...pink, speed: 8, up: 5, life: 0.7 }); }
   function zapRival() { const r = rival, p = r.g.position, at = V(p.x, 2.3 * r.shown, p.z); E.boltTo(at); if (r.immune > 0) { E.popup(p, 'NO EFFECT YET', '#d8b0e8'); return; }
     r.immune = 2.4; r.stun = 1.4; r.cut += 0.22; fx.sparks(at, 16, pink); E.popup(p, 'SHRUNK!', '#ffd24a'); E.award(100, p); E.jolt(0.3); }
+  // whatever shrinks your storm shrinks the rogue twister too (a seeding plane's spray, a cannon's blast, a gunship's rocket, the
+  // UFO's ray): step aside and let them hit it. rivalAt: the rogue, if (x, z) is within its funnel plus `pad`
+  function rivalAt(x, z, pad = 0, k = 1) { const r = rival; if (!r || r.out != null) return null; const p = r.g.position; return Math.hypot(p.x - x, p.z - z) < 1.6 * r.shown * k + pad ? r : null; }
+  function hurtRival(r, amt, text, col = '#ffd24a') { r.cut += amt; r.sayT = (r.sayT || 0); if (text && E.played - r.sayT > 0.45) { r.sayT = E.played; E.popup(r.g.position, text, col); } }
   function updateRival(dt, px, pz, R) {
     const r = rival, g = r.g, p = g.position, P = E.twObj.position;
     if (r.out != null) { r.out += dt; const k = Math.min(1, r.out / 0.6); g.scale.setScalar(Math.max(0.001, E.S0 * r.shown * (1 - k))); if (r.eaten) p.lerp(P, Math.min(1, dt * 6)); else p.y = k * 2; if (k >= 1) removeRival(); return; } // drawn into your storm, or winding itself out
-    r.life -= dt; r.stun -= dt; r.immune -= dt; r.eatT -= dt; r.clashT -= dt; r.biteT -= dt;
+    r.life -= dt; r.stun -= dt; r.immune -= dt; r.eatT -= dt; r.clashT -= dt; r.biteT -= dt; r.holdT = Math.max(r.holdT < -9 ? -99 : 0, (r.holdT || 0) - dt * 0.4); /* its grip: counts up while it has you (above), eases off when you break free */
     r.s = sizeOf(r); r.shown += (r.s - r.shown) * Math.min(1, dt * 1.6); g.scale.setScalar(E.S0 * r.shown); const rr = 1.6 * r.shown, b = lim();
     if (r.life <= 0) { if (seen(p, 2)) E.banner('🌪️ THE ROGUE TWISTER BLEW OUT'); endRival(false); return; }
     const dx = px - p.x, dz = pz - p.z, d = Math.hypot(dx, dz) || 0.01, ratio = r.shown / E.size, big = ratio > 1.1, small = ratio < 0.92, mySp = 3.2 + E.size * 0.7;
@@ -77,7 +81,8 @@ export function createFoes(E) {
     if (d < (R + rr) * 0.8) { const mid = V((p.x + px) / 2, 1.5, (p.z + pz) / 2);
       if (small) { swallow(); return; }
       if (r.stun > 0) { /* stunned: it can't hurt you */ }
-      else if (big) { E.grow(-E.massTarget * 0.03 * dt); kick.set(dx / d * 6, 0, dz / d * 6); status('🌪️ IT IS BIGGER! GET AWAY'); // it strips your size and throws you off
+      else if (big) { E.grow(-E.massTarget * 0.03 * dt); kick.set(dx / d * 6, 0, dz / d * 6); r.holdT = (r.holdT || 0) + dt; status('🌪️ IT IS ABSORBING YOU! GET AWAY ' + Math.max(1, Math.ceil(3 - r.holdT)));
+        if (r.holdT >= 3) { r.holdT = -99; fx.shock(mid, 8, 0xff5ae0, 0.6); for (let i = 0; i < 3; i++) fx.sparks(V(px, 1 + i * 1.5, pz), 14, { ...pink, speed: 8, up: 5, life: 0.7 }); E.jolt(0.9); E.flash(0.3); sfx.boom(); E.absorbed(p); return; } // three seconds in its grip: it swallows your storm and the round is lost // it strips your size and throws you off
         if (r.biteT <= 0) { r.biteT = 0.45; E.grow(-E.massTarget * 0.012); r.fed = Math.min(0.5, r.fed + 0.04); E.popup(P, '-SIZE', '#ff5ae0'); fx.sparks(mid, 8, pink); E.jolt(0.35); sfx.hurt(); } }
       else if (r.clashT <= 0) { r.clashT = 0.9; kick.set(dx / d * 9, 0, dz / d * 9); r.kv.set(-dx / d * 9, 0, -dz / d * 9); E.grow(-E.massTarget * 0.008); r.cut += 0.05; fx.sparks(mid, 14, pink); fx.shock(mid, 4, 0xffd24a); E.popup(mid, 'CLASH!', '#ffd24a'); E.jolt(0.5); sfx.boom(); status('🌪️ EVEN MATCH! STRIKE IT'); } } // an even match: both are thrown back
     const col = small ? '#7dff3a' : big ? '#ff5a4a' : '#ffd24a'; if (r.arrow._c !== col) { r.arrow._c = col; r.arrow.style.color = col; }
@@ -95,7 +100,7 @@ export function createFoes(E) {
     const line = new THREE.Mesh(lineGeo, new THREE.MeshBasicMaterial({ color: 0xffa030, transparent: true, opacity: 0.3, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending })); line.renderOrder = 8; line.visible = false; line.position.set(best.x, 0.14, best.z); scene.add(line);
     cannons.push({ g, line, hp: 2, mode: 'idle', t: rnd(1.6, 2.6), aim, stun: 0, sp: 0, arrow: mkArrow('📢', '#ffb030') }); E.banner('📢 STORM CANNON!'); sfx.whoosh();
   }
-  function killCannon(c, how) { const i = cannons.indexOf(c); if (i >= 0) cannons.splice(i, 1); scene.remove(c.line); c.arrow.remove(); const p = c.g.position.clone(); T.cannon = rnd(26, 38);
+  function killCannon(c, how) { E.speedBurst(2.2); const i = cannons.indexOf(c); if (i >= 0) cannons.splice(i, 1); scene.remove(c.line); c.arrow.remove(); const p = c.g.position.clone(); T.cannon = rnd(26, 38);
     if (how === 'crushed') twisters.suck(c.g, E.tw); else { twisters.scatter([c.g], p, 5); fx.explode(p.clone().setY(0.6), how === 'over' ? 1.9 : 1.3); fx.scorch(p, 1.6); }
     E.award(600, p, how === 'crushed' ? 'CANNON CRUSHED' : how === 'over' ? 'OVERLOAD' : 'CANNON'); E.grow(1.5); E.banner(how === 'over' ? '📢 CANNON OVERLOADED!' : '📢 CANNON DESTROYED!'); sfx.boom(); E.jolt(0.6); }
   function zapCannon(c) { const p = c.g.position, over = c.mode === 'charge'; E.boltTo(V(p.x, 1, p.z)); c.hp -= over ? 2 : 1; // struck while it charges, it blows itself up
@@ -115,6 +120,7 @@ export function createFoes(E) {
       ud.horn.rotation.y = c.aim - g.rotation.y; E.edgeArrow(c.arrow, p, true); }
     for (let i = waves.length - 1; i >= 0; i--) { const w = waves[i], st = WAVE_V * dt, p = w.g.position; p.addScaledVector(w.dir, st); w.far += st; const k = 1 + w.far * 0.07; w.g.scale.setScalar(k); w.mat.opacity = Math.max(0, 0.9 * (1 - w.far / (RANGE + 3)));
       if (Math.random() < 0.6) fx.dust({ x: p.x, y: 0, z: p.z }, 0.9, w.dir.x * 3, w.dir.z * 3);
+      { const rv = !w.hitR && rivalAt(p.x, p.z, 1.1 * k, 0.6); if (rv) { w.hitR = true; hurtRival(rv, 0.2, 'BLASTED! -SIZE', '#ffb030'); rv.kv.copy(w.dir).multiplyScalar(14); rv.stun = Math.max(rv.stun, 0.8); fx.shock(rv.g.position, 1.6 * rv.shown * 2.4, 0xffc060, 0.5); if (seen(rv.g.position, 2)) sfx.boom(); } }
       if (!w.hit && Math.hypot(p.x - px, p.z - pz) < R * 0.6 + 1.1 * k) { w.hit = true; kick.copy(w.dir).multiplyScalar(17); E.grow(-E.massTarget * 0.035); E.popup(E.twObj.position, 'BLASTED! -SIZE', '#ffb030'); E.banner('📢 BLASTED BACK!'); E.jolt(0.7); sfx.hurt(); fx.shock({ x: px, y: 0, z: pz }, R * 2.4, 0xffc060, 0.5); }
       if (w.far > RANGE + 3) { scene.remove(w.g); w.mat.dispose(); waves.splice(i, 1); } }
   }
@@ -125,7 +131,7 @@ export function createFoes(E) {
     E.banner('🚁 GUNSHIPS!'); sfx.whoosh(); }
   function fireRocket(s, px, pz) { const from = s.g.position.clone(); from.y -= 0.3; const d = Math.hypot(px - from.x, pz - from.z), tf = d / 13, to = V(px + sv.x * tf * 0.6, 1.2, pz + sv.z * tf * 0.6); // aimed a little ahead of the storm: keep moving, and turn
     const m = new THREE.Mesh(rocketGeo, rocketMat); m.position.copy(from); m.lookAt(to); scene.add(m); rockets.push({ m, vel: to.sub(from).normalize().multiplyScalar(13), sm: 0 }); fx.puff('smoke', from, 0.3); if (seen(from, from.y)) sfx.throw(); }
-  function zapShip(s) { const g = s.g, p = g.position.clone(), i = ships.indexOf(s); if (i >= 0) ships.splice(i, 1); s.arrow.remove(); E.boltTo(p.clone()); fx.explode(p.clone(), 0.6); E.popup(p, 'HIT!', '#ffd24a'); E.award(200, p); sfx.whoosh();
+  function zapShip(s) { E.speedBurst(2.2); const g = s.g, p = g.position.clone(), i = ships.indexOf(s); if (i >= 0) ships.splice(i, 1); s.arrow.remove(); E.boltTo(p.clone()); fx.explode(p.clone(), 0.6); E.popup(p, 'HIT!', '#ffd24a'); E.award(200, p); sfx.whoosh();
     const sp = Math.hypot(s.vel.x, s.vel.z); fall(g, sp > 1 ? Math.atan2(s.vel.x, s.vel.z) : s.head, Math.max(4, sp), { blast: 1.6, plough: rnd(3.5, 6), r: 1.5, pts: 400, label: 'GUNSHIP DOWN', banner: '🚁 GUNSHIP DOWN!', grow: 1.5, size: 0.8 }); }
   function updateShips(dt, px, pz, R) { const b = lim(), far = Math.max(b.x, b.z) + 14;
     for (let i = ships.length - 1; i >= 0; i--) { const s = ships[i], g = s.g, p = g.position; s.life -= dt; s.cd -= dt; s.ph += dt * 0.5; if (E.radarDown) s.life = Math.min(s.life, 0);
@@ -142,7 +148,8 @@ export function createFoes(E) {
       const hit = p.y < top && Math.hypot(p.x - px, p.z - pz) < R * 0.55 + 0.4;
       if (hit) { slowT = Math.min(3.4, Math.max(0, slowT) + 1.8); E.grow(-E.massTarget * 0.012); E.popup(E.twObj.position, 'FROZEN!', '#9fe8ff'); fx.sparks(p, 12, { c: [0xffffff, 0x9fe8ff], speed: 5, up: 3, life: 0.6 }); E.jolt(0.25); sfx.hurt(); }
       else if (p.y <= 0.15) { fx.explode(p.clone().setY(0.3), 0.4); fx.glow(p, 1.8, 0x9fe8ff, 0.9, 0.6); }
-      if (hit || p.y <= 0.15) { scene.remove(k.m); rockets.splice(i, 1); } }
+      const rv = !hit && p.y > 0.15 && rivalAt(p.x, p.z, 0.4, 0.55); const hitR = !!rv && p.y < 4.62 * rv.shown; if (hitR) { hurtRival(rv, 0.08, 'FROZEN!', '#9fe8ff'); rv.stun = Math.max(rv.stun, 1.2); fx.sparks(p, 12, { c: [0xffffff, 0x9fe8ff], speed: 5, up: 3, life: 0.6 }); }
+      if (hit || hitR || p.y <= 0.15) { scene.remove(k.m); rockets.splice(i, 1); } }
   }
 
   // ---------- UFO ----------
@@ -159,7 +166,7 @@ export function createFoes(E) {
     if (!open) { E.boltTo(V(p.x, p.y + 1, p.z)); u.pingT = 0.25; fx.sparks(p, 10, { c: [0xffffff, 0x6affd8], speed: 6, up: 2, life: 0.4 }); E.popup(p, 'SHIELDED!', '#6affd8'); return; } // lightning slides off the shield
     E.boltTo(p.clone()); if (u.hurt > 0) return; u.hurt = 1; u.hp--; fx.explode(p.clone(), 0.8); E.jolt(0.5); E.award(400, p, 'HIT');
     if (u.hp > 0) { E.banner('🛸 HIT! ' + u.hp + ' TO GO'); u.mode = 'reel'; u.t = 1.3; u.ray.visible = false; return; }
-    const g = u.g, sp = Math.hypot(u.vel.x, u.vel.z); dropUfo(); g.rotation.z = 0; E.banner('🛸 THE UFO IS GOING DOWN!'); // three strikes: it comes down hard
+    const g = u.g, sp = Math.hypot(u.vel.x, u.vel.z); dropUfo(); g.rotation.z = 0; E.banner('🛸 THE UFO IS GOING DOWN!'); E.speedBurst(3.5); // three strikes: it comes down hard
     fall(g, sp > 0.5 ? Math.atan2(u.vel.x, u.vel.z) : Math.random() * 6.28, 5, { blast: 3, plough: rnd(9, 13), r: 2.3, pts: 3000, label: 'UFO DOWN', banner: '🛸 UFO DOWN!', grow: 6, size: 1.7, flat: true }); }
   function updateUfo(dt, px, pz, R) {
     const u = ufo, g = u.g, p = g.position, ud = g.userData; u.t -= dt; u.life -= dt; u.hurt -= dt; u.tick -= dt; u.pingT -= dt; u.sayT -= dt;
@@ -174,6 +181,7 @@ export function createFoes(E) {
       if (u.mode === 'aim') { u.mark.material.color.setHex(0xffe24a); if (u.t <= 0) { u.mode = 'ray'; u.t = 2.4; sfx.laser(); if (seen(p, p.y)) E.jolt(0.3); } }
       else { u.mark.material.color.setHex(0x8aff5a); beam(u, u.foot, 0x8aff5a, 0.45, fr * 0.8);
         if (u.tick <= 0) { u.tick = 0.2; fx.sparks(V(u.foot.x, 0.2, u.foot.z), 5, { c: [0xffffff, 0x8aff5a], speed: 4, up: 4, life: 0.4 }); fx.glow(u.foot, fr * 1.4, 0x8aff5a, 0.3, 0.5); fx.scorch(u.foot, 0.7, 10); }
+        { const rv = rivalAt(u.foot.x, u.foot.z, fr, 0.35); if (rv) hurtRival(rv, 0.3 * dt, '-SIZE', '#8aff5a'); }
         if (fd < fr + R * 0.35) { E.grow(-E.massTarget * 0.05 * dt); status('🛸 SHRINK RAY! MOVE!'); if (u.sayT <= 0) { u.sayT = 0.5; E.popup(E.twObj.position, '-SIZE', '#8aff5a'); sfx.hurt(); } }
         if (u.t <= 0) { u.mode = 'seek'; u.t = 3; u.ray.visible = false; u.mark.visible = false; u.spot = pickSpot(p, px, pz, R); } } }
     else if (u.mode === 'seek') { tx = u.spot.x; tz = u.spot.z; vmax = 9; if (Math.hypot(tx - p.x, tz - p.z) < 0.8 || u.t <= 0) { u.mode = 'harvest'; u.t = 5.5; if (seen(p, p.y)) E.banner('🛸 SHIELD DOWN! STRIKE IT'); } }
@@ -249,7 +257,7 @@ export function createFoes(E) {
     if (ships.length && !coachSeen('ta_gunship')) { const s = ships.find((o) => o.life > 0 && seen(o.g.position, o.g.position.y)); if (s) return coach('ta_gunship', { mode: 'tap', title: '🚁 GUNSHIPS', text: 'Their freeze rockets slow your storm down. Keep moving, and tap each helicopter to strike it out of the sky.', at: () => (ships.includes(s) ? toScreen(s.g.position, s.g.position.y) : null) }); }
     if (ufo && ufo.mode !== 'leave' && !coachSeen('ta_ufo') && seen(ufo.g.position, ufo.g.position.y)) { const u = ufo; return coach('ta_ufo', { mode: 'ok', title: '🛸 UFO', text: 'Its shield stops lightning, and its green ray shrinks you: get out of the circle. When it drops low to beam people up, the shield is off. Tap it then. Three strikes bring it down.', at: () => (ufo === u ? toScreen(u.g.position, u.g.position.y) : null) }); }
     return false; }
-  return { update, clear, tap, targets, eachDot, coachTick, get slow() { return slowT > 0 ? 0.5 : 1; },
+  return { update, clear, tap, targets, eachDot, coachTick, rivalAt, hurtRival, get slow() { return slowT > 0 ? 0.5 : 1; },
     // for tests
     spawn(k) { if (k === 'rival') { removeRival(); spawnRival(); } else if (k === 'cannon') spawnCannon(); else if (k === 'ship') spawnShips(); else if (k === 'ufo') { if (ufo) scene.remove(dropUfo().g); spawnUfo(); } }, get state() { return { rival, cannons, ships, ufo, falling, rockets, waves, lifted, T, slowT, kick }; }, zapRival, zapCannon, zapShip, zapUfo };
 }

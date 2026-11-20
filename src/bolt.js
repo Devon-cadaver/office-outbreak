@@ -38,7 +38,7 @@ export function createBolts(scene) {
     let n = 0; for (const L of lines) n += L.pts.length - 1; if (n <= 0) return;
     const pos = new Float32Array(n * 12), oth = new Float32Array(n * 12), info = new Float32Array(n * 12), idx = new Uint16Array(n * 6); let v = 0, q = 0;
     for (const L of lines) { const last = L.pts.length - 1;
-      for (let i = 0; i < last; i++) { const a = L.pts[i], b = L.pts[i + 1], wa = L.w * (L.taper ? 1 - (i / last) * 0.75 : 1), wb = L.w * (L.taper ? 1 - ((i + 1) / last) * 0.75 : 1), v0 = v / 3;
+      for (let i = 0; i < last; i++) { const a = L.pts[i], b = L.pts[i + 1], tip = (j) => Math.min(1, 0.04 + j / Math.max(1.5, last * 0.25)), /* the main channel starts from a point and widens over its first quarter */ wa = L.w * (L.taper ? 1 - (i / last) * 0.75 : tip(i)), wb = L.w * (L.taper ? 1 - ((i + 1) / last) * 0.75 : tip(i + 1)), v0 = v / 3;
         for (const [p, o2, end, w] of [[a, b, 1, wa], [a, b, 1, wa], [b, a, -1, wb], [b, a, -1, wb]]) { const side = (v / 3) % 2 ? 1 : -1; pos[v] = p.x; pos[v + 1] = p.y; pos[v + 2] = p.z; oth[v] = o2.x; oth[v + 1] = o2.y; oth[v + 2] = o2.z; info[v] = side; info[v + 1] = end; info[v + 2] = w; v += 3; }
         idx[q++] = v0; idx[q++] = v0 + 1; idx[q++] = v0 + 2; idx[q++] = v0 + 2; idx[q++] = v0 + 1; idx[q++] = v0 + 3; } }
     const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('aOther', new THREE.BufferAttribute(oth, 3)); geo.setAttribute('aInfo', new THREE.BufferAttribute(info, 3)); geo.setIndex(new THREE.BufferAttribute(idx, 1));
