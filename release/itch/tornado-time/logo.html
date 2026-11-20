@@ -1,0 +1,49 @@
+<!doctype html>
+<!-- The TORNADO TIME! logo. Open through the dev server and screenshot the svg with a transparent background:
+     http://localhost:5188/release/itch/tornado-time/logo.html  ->  public/logo.png (1200 x 700).
+     Drawn with the Impact typeface that ships with Windows, so render it on a Windows PC. -->
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: transparent; } svg { display: block; }</style>
+<svg id="L" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" width="1200" height="700">
+  <defs>
+    <linearGradient id="gTop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".5" stop-color="#eaf8ff"/><stop offset="1" stop-color="#62bcff"/></linearGradient>
+    <linearGradient id="gTime" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fffbb0"/><stop offset=".45" stop-color="#ffd02a"/><stop offset="1" stop-color="#ff5a14"/></linearGradient>
+    <linearGradient id="gBolt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#7dff3a"/></linearGradient>
+    <linearGradient id="gFun" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#3a3162"/><stop offset=".42" stop-color="#a9a2dc"/><stop offset="1" stop-color="#3a3162"/></linearGradient>
+  </defs>
+  <g id="art" transform="translate(600 350) scale(0.95) rotate(-4) skewX(-8) translate(-600 -350)"></g>
+</svg>
+<script>
+  const NS = 'http://www.w3.org/2000/svg', art = document.getElementById('art');
+  const el = (tag, at, parent = art) => { const e = document.createElementNS(NS, tag); for (const k in at) e.setAttribute(k, at[k]); parent.appendChild(e); return e; };
+  const FONT = "Impact, 'Arial Black', sans-serif", DARK = '#12081f', PURPLE = '#7a2be2';
+  // ---- the funnel: stacked rings, wide at the top, whipping down to a point, with the Liberty Twister's neon bands ----
+  { const g = el('g', {}), N = 15; let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const at = (t) => ({ x: 232 + Math.sin(t * 2.6 + 0.4) * 46 - t * 34, y: 322 + t * 318, rx: 190 * Math.pow(1 - t, 1.45) + 13 });
+    for (let pass = 0; pass < 2; pass++) for (let i = 0; i <= N; i++) { const t = i / N, p = at(t), ry = p.rx * 0.27 + 4;
+      if (!pass) el('ellipse', { cx: p.x, cy: p.y, rx: p.rx + 13, ry: ry + 13, fill: DARK }, g); // a dark edge round the whole shape first
+      else { el('ellipse', { cx: p.x, cy: p.y, rx: p.rx, ry, fill: 'url(#gFun)' }, g);
+        const col = ['#ff2a4a', '#2ad8ff', '#ffffff'][i % 3]; el('path', { d: `M ${p.x - p.rx} ${p.y} A ${p.rx} ${ry} 0 0 0 ${p.x + p.rx} ${p.y}`, fill: 'none', stroke: col, 'stroke-width': i % 3 === 2 ? 5 : 9, 'stroke-linecap': 'round', opacity: i % 3 === 2 ? 0.8 : 1 }, g); } }
+    // bits of town caught in it
+    for (let i = 0; i < 16; i++) { const t = 0.05 + rnd() * 0.8, p = at(t), side = rnd() < 0.5 ? -1 : 1, x = p.x + side * (p.rx + 22 + rnd() * 54), y = p.y - 16 + rnd() * 30, w = 12 + rnd() * 20;
+      el('rect', { x: -w / 2, y: -w * 0.3, width: w, height: w * 0.6, fill: ['#ffd02a', '#ff2a4a', '#2ad8ff', '#ffffff', '#7dff3a'][i % 5], stroke: DARK, 'stroke-width': 5, 'stroke-linejoin': 'round', transform: `translate(${x} ${y}) rotate(${rnd() * 180})` }, g); } }
+  // ---- the words. Three passes each: a dropped shadow, a thick dark and purple outline, then the colour ----
+  const BOLT = [[58, 0], [4, 176], [46, 176], [14, 318], [100, 130], [58, 130], [92, 0]];
+  const measure = (txt, size, ls) => { const t = el('text', { 'font-family': FONT, 'font-size': size, 'letter-spacing': ls, x: 0, y: 0 }); t.textContent = txt; const w = t.getComputedTextLength(); t.remove(); return w; };
+  function word(parts, size, ls, xRight, base, fill) { // parts: strings, or 'BOLT'. Laid out to end at xRight
+    const cap = size * 0.79, bw = cap * 0.42, items = parts.map((p) => (p === 'BOLT' ? { bolt: true, w: bw + ls } : { txt: p, w: measure(p, size, ls) })); let x = xRight - items.reduce((s, i) => s + i.w, 0);
+    for (const it of items) { it.x = x; x += it.w; }
+    const draw = (dx, dy, style) => { for (const it of items) { if (it.bolt) { const k = cap * 1.2 / 318; el('polygon', { points: BOLT.map(([px, py]) => (it.x + dx + px * k * 0.42 / 0.42) + ',' + (base + dy - cap * 1.1 + py * k)).join(' '), 'stroke-linejoin': 'round', ...style, ...(style.fill === fill ? { fill: 'url(#gBolt)' } : {}) }); }
+        else { const t = el('text', { 'font-family': FONT, 'font-size': size, 'letter-spacing': ls, x: it.x + dx, y: base + dy, 'stroke-linejoin': 'round', 'paint-order': 'stroke', ...style }); t.textContent = it.txt; } } };
+    draw(12, 16, { fill: DARK, stroke: DARK, 'stroke-width': 46 });
+    draw(0, 0, { fill: DARK, stroke: DARK, 'stroke-width': 46 });
+    draw(0, 0, { fill: PURPLE, stroke: PURPLE, 'stroke-width': 24 });
+    draw(0, 0, { fill: DARK, stroke: DARK, 'stroke-width': 9 });
+    draw(0, 0, { fill });
+  }
+  word(['TORNADO'], 262, 8, 1150, 296, 'url(#gTop)');
+  word(['T', 'BOLT', 'ME!'], 318, 10, 1160, 612, 'url(#gTime)');
+  // a few sparks
+  for (const [x, y, s, c] of [[1118, 60, 20, '#ffd02a'], [70, 250, 16, '#2ad8ff'], [520, 640, 15, '#ffffff'], [1168, 340, 13, '#7dff3a']]) el('path', { d: `M ${x} ${y - s} L ${x + s * 0.28} ${y - s * 0.28} L ${x + s} ${y} L ${x + s * 0.28} ${y + s * 0.28} L ${x} ${y + s} L ${x - s * 0.28} ${y + s * 0.28} L ${x - s} ${y} L ${x - s * 0.28} ${y - s * 0.28} Z`, fill: c, stroke: DARK, 'stroke-width': 5, 'stroke-linejoin': 'round' });
+  document.title = document.fonts.check("20px Impact") ? 'impact' : 'fallback';
+</script>

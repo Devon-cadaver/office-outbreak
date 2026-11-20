@@ -7,31 +7,25 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Dead City" />
+  <meta name="apple-mobile-web-app-title" content="Tornado Time!" />
   <link rel="apple-touch-icon" href="./icon-180.png" />
   <link rel="icon" href="./icon-192.png" />
-  <title>Dead City</title>
+  <title>Tornado Time!</title>
   <style>
     html, body { margin: 0; height: 100%; overflow: hidden; background: #120a1f; overscroll-behavior: none; }
     #app { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; display: block; background: #120a1f; }
-    #start { position: fixed; inset: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 12px; padding: 24px 16px calc(48px + env(safe-area-inset-bottom, 0px)); background: #120a1f url(./intro-end.jpg) center top / contain no-repeat; cursor: pointer; font-family: system-ui, 'Segoe UI', sans-serif; touch-action: none; }
-    #start button { font: 900 clamp(22px, 6vw, 34px) system-ui, sans-serif; letter-spacing: 2px; padding: 16px 42px; border-radius: 16px; border: 3px solid #120a1f; background: #7dff3a; color: #120a1f; box-shadow: 0 6px 0 #3a8a1a, 0 0 30px #7dff3a88; animation: pulse 0.9s ease-in-out infinite alternate; cursor: pointer; }
-    #start small { color: #e9e4f5; text-shadow: 0 2px 6px #000; font-weight: 700; font-size: 13px; }
-    @keyframes pulse { to { transform: scale(1.06); } }
   </style>
 </head>
 <body>
-  <!-- the frame: START unlocks sound (browsers need one tap), then the menu, the games and the shop all load inside the
-       iframe while the radio lives here, so the music never stops between them -->
-  <iframe id="app" title="Dead City" allow="fullscreen; autoplay" allowfullscreen></iframe>
-  <div id="start"><button>▶ TAP TO PLAY</button><small>🔊 Turn your sound on</small></div>
+  <!-- the frame: the menu (with its opening scene), the games and the shop all load inside the iframe while the radio
+       lives out here, so the music never stops between them. The first tap, on the menu's TAP TO PLAY, starts the sound -->
+  <iframe id="app" title="Tornado Time!" allow="fullscreen; autoplay" allowfullscreen></iframe>
   <script type="module">
-    import { unlockAudio, playSongs, menuMusic, frameRadio } from './src/audio.js';
+    import { frameRadio } from './src/audio.js';
     frameRadio();
-    const start = document.getElementById('start'), app = document.getElementById('app');
+    const app = document.getElementById('app');
     app.addEventListener('load', () => { try { app.contentWindow.focus(); } catch { /* ignore */ } });
-    const go = (e) => { if (!start.isConnected) return; if (e) e.preventDefault(); unlockAudio(); menuMusic(); start.remove(); app.src = 'menu.html' + location.search; };
-    start.addEventListener('pointerdown', go); addEventListener('keydown', go);
+    app.src = 'menu.html?intro=1' + (location.search.length > 1 ? '&' + location.search.slice(1) : '');
   </script>
 </body>
 </html>

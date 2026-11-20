@@ -8,9 +8,9 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Dead City" />
+  <meta name="apple-mobile-web-app-title" content="Tornado Time!" />
   <link rel="apple-touch-icon" href="./icon-180.png" />
-  <title>Dead City: Kaiju Madness</title>
+  <title>Kaiju Madness | Tornado Time!</title>
   <link rel="icon" href="data:," />
   <link rel="stylesheet" href="/src/style.css" />
   <style>
@@ -109,7 +109,7 @@
   </style>
 </head>
 <body class="booting">
-  <div id="boot"><p class="bootKick">DEAD CITY</p><h1>KAIJU<br>MADNESS</h1><div class="bootSpin"><i></i><i></i><i></i><i></i></div><div class="bootBar"><b></b></div><p class="bootLbl">BUILDING THE TOWN</p><p id="bootTip"></p></div>
+  <div id="boot"><p class="bootKick">TORNADO TIME! BONUS GAME</p><h1>KAIJU<br>MADNESS</h1><div class="bootSpin"><i></i><i></i><i></i><i></i></div><div class="bootBar"><b></b></div><p class="bootLbl">BUILDING THE TOWN</p><p id="bootTip"></p></div>
   <script>window.__bootTip = function () { var t = ["Eat people to grow. Bigger monsters flatten taller buildings.","Power bar full? Tap a spot to fire your special.","In a fight, tap the gold stars for critical hits.","Tap the red ! to counter a rival's swing.","Daze a rival, then spin and toss it or slam it.","Fire shrinks you. Walk out of napalm fast.","Tap a target's icon up top and your monster heads for it."]; document.getElementById('bootTip').textContent = 'TIP: ' + t[Math.floor(Math.random() * t.length)]; }; window.__bootTip();</script>
   <canvas id="game"></canvas>
   <div id="ta" class="hidden">
@@ -129,7 +129,7 @@
   <div id="kjRival" class="hidden"><span id="kjRivalName"></span><div id="kjRivalBar"><div id="kjRivalFill"></div></div><div id="kjDaze"><div id="kjDazeFill"></div></div></div>
 
   <div id="taStart" class="screen">
-    <p class="small" style="letter-spacing:4px;color:#c9a6ff;margin-bottom:-8px">DEAD CITY</p>
+    <p class="small" style="letter-spacing:3px;color:#c9a6ff;margin-bottom:-8px">TORNADO TIME! BONUS GAME</p>
     <h1>KAIJU<br>MADNESS</h1>
     <p>You are the monster. Eat the town!</p>
     <div id="kjChosen" class="chosenCard"><canvas id="kjChosenCv" width="150" height="150"></canvas><div><small>YOUR MONSTER</small><b id="kjChosenName"></b><span id="kjChosenSpells"></span><button id="kjChoose" class="ghost">👹 CHOOSE MONSTER</button></div></div>

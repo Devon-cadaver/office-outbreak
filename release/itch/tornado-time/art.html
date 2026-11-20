@@ -1,0 +1,21 @@
+<!doctype html>
+<!-- Cover and banner art: the key art (a still of the game's own opening) with the logo over it. Open through the dev
+     server and screenshot at the size wanted:
+       cover   630 x 500: art.html?w=630&h=500&z=160&bx=40&by=22&lw=410&lx=50&ly=75&shade=bottom
+       banner  960 x 400: art.html?w=960&h=400&z=128&bx=18&by=30&lw=430&lx=74&ly=50&shade=right
+       banner  960 x 200: art.html?w=960&h=200&z=118&bx=10&by=38&lw=300&lx=80&ly=50&shade=right
+     z: how wide the art is drawn (% of the frame). bx, by: which part of it shows. lw, lx, ly: the logo's width and centre. -->
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; background: #120a1f; }
+  #f { position: relative; overflow: hidden; background: #120a1f url(./key-art-1920x1080.png) no-repeat; }
+  #s { position: absolute; inset: 0; }
+  #l { position: absolute; transform: translate(-50%, -50%); filter: drop-shadow(0 8px 14px #000c); }
+</style>
+<div id="f"><div id="s"></div><img id="l" src="../../../public/logo.png" alt=""></div>
+<script>
+  const q = new URLSearchParams(location.search), n = (k, d) => +(q.get(k) ?? d), f = document.getElementById('f'), l = document.getElementById('l'), s = document.getElementById('s');
+  f.style.width = n('w', 630) + 'px'; f.style.height = n('h', 500) + 'px'; f.style.backgroundSize = n('z', 160) + '% auto'; f.style.backgroundPosition = n('bx', 40) + '% ' + n('by', 22) + '%';
+  l.style.width = n('lw', 410) + 'px'; l.style.left = n('lx', 50) + '%'; l.style.top = n('ly', 75) + '%';
+  s.style.background = { bottom: 'linear-gradient(180deg, #120a1f00 45%, #120a1fb0 78%, #120a1fe0 100%)', right: 'linear-gradient(90deg, #120a1f00 45%, #120a1fa8 72%, #120a1fd8 100%)', left: 'linear-gradient(270deg, #120a1f00 45%, #120a1fa8 72%, #120a1fd8 100%)' }[q.get('shade')] || 'none';
+</script>

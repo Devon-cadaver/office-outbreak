@@ -2,7 +2,8 @@
 // menu can use it too.
 export const ERAS = [['past', 'Wild West'], ['present', 'Present'], ['future', 'Future']];
 export const TOWNS = ['Small Town', 'Suburbs', 'Downtown', 'Metro', 'Megacity', 'The Sprawl'];
-export function getEra() { try { const e = localStorage.getItem('dc_era'); return ERAS.some(([k]) => k === e) ? e : 'present'; } catch { return 'present'; } }
+let eraForced = null; export function forceEra(e) { eraForced = e; } // the menu's own town is always the Present, whatever era the player is in: set while it is built, then cleared
+export function getEra() { if (eraForced) return eraForced; try { const e = localStorage.getItem('dc_era'); return ERAS.some(([k]) => k === e) ? e : 'present'; } catch { return 'present'; } }
 export function setEra(e) { try { localStorage.setItem('dc_era', e); } catch { /* ignore */ } }
 // save keys for one game ('ta' or 'kj') in the current era; Present keeps the original keys so old saves carry over
 const eraTag = () => (getEra() === 'present' ? '' : getEra());

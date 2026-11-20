@@ -1,7 +1,7 @@
 {
-  "name": "Dead City",
-  "short_name": "Dead City",
-  "description": "Tornado Alley and Kaiju Madness: be the storm, or be the monster.",
+  "name": "Tornado Time!",
+  "short_name": "Tornado Time",
+  "description": "You are the storm. Wreck the town! With Kaiju Madness as a bonus game: be the monster.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "fullscreen",
@@ -9,7 +9,15 @@
   "background_color": "#120a1f",
   "theme_color": "#120a1f",
   "icons": [
-    { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png" }
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
   ]
 }

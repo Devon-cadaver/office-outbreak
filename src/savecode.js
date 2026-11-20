@@ -21,7 +21,7 @@ export async function makeCode() {
 }
 // reads a code and returns { data, summary } or throws an Error with a message for the player
 export async function readCode(code) {
-  const m = /^(DC[01])-([A-Za-z0-9_-]+)-([0-9A-Z]{4})$/.exec(String(code).replace(/\s+/g, '').trim()); if (!m) throw new Error("That doesn't look like a Dead City save code.");
+  const m = /^(DC[01])-([A-Za-z0-9_-]+)-([0-9A-Z]{4})$/.exec(String(code).replace(/\s+/g, '').trim()); if (!m) throw new Error("That doesn't look like a Tornado Time! save code.");
   if (check(m[2]) !== m[3]) throw new Error('That code has a typo in it. Copy it again, all of it.');
   let bytes = unb64(m[2]); if (m[1] === 'DC1') { if (typeof DecompressionStream === 'undefined') throw new Error('This browser is too old to read save codes.'); bytes = await pipe(bytes, new DecompressionStream('deflate-raw')); }
   const data = JSON.parse(new TextDecoder().decode(bytes)); const clean = {}; for (const k in data) if (KEEP.test(k) && typeof data[k] === 'string') clean[k] = data[k];
@@ -69,7 +69,7 @@ export function initSaveCodes(menu, before = null) {
   btn.addEventListener('click', async () => { box.classList.remove('hidden'); say('saveOutMsg', ''); say('saveInMsg', ''); $('saveIn').value = ''; pending = null;
     $('saveSum').textContent = summarize((k) => { try { return localStorage.getItem(k); } catch { return null; } });
     code = await makeCode(); $('saveOut').value = code;
-    $('saveMail').href = 'mailto:?subject=' + encodeURIComponent('My Dead City save code') + '&body=' + encodeURIComponent(code + '\n\nTo load it: Dead City main menu → SAVE CODE → paste it under LOAD A CODE → LOAD.'); });
+    $('saveMail').href = 'mailto:?subject=' + encodeURIComponent('My Tornado Time! save code') + '&body=' + encodeURIComponent(code + '\n\nTo load it: Tornado Time! main menu → SAVE CODE → paste it under LOAD A CODE → LOAD.'); });
   $('saveOut').addEventListener('focus', (e) => e.target.select());
   $('saveCopy').addEventListener('click', async () => { const sel = () => { const t = $('saveOut'); t.focus(); t.select(); t.setSelectionRange(0, t.value.length); };
     try { await navigator.clipboard.writeText(code); say('saveOutMsg', '✓ Copied! Paste it somewhere safe.', 'good'); }

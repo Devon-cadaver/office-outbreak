@@ -8,9 +8,9 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Dead City" />
+  <meta name="apple-mobile-web-app-title" content="Tornado Time!" />
   <link rel="apple-touch-icon" href="./icon-180.png" />
-  <title>Dead City: Tornado Alley</title>
+  <title>Tornado Time!</title>
   <link rel="icon" href="data:," />
   <link rel="stylesheet" href="/src/style.css" />
   <style>
@@ -54,7 +54,7 @@
   </style>
 </head>
 <body class="booting">
-  <div id="boot"><p class="bootKick">DEAD CITY</p><h1>TORNADO<br>ALLEY</h1><div class="bootSpin"><i></i><i></i><i></i><i></i></div><div class="bootBar"><b></b></div><p class="bootLbl">BUILDING THE TOWN</p><p id="bootTip"></p></div>
+  <div id="boot"><h1>TORNADO<br>TIME!</h1><div class="bootSpin"><i></i><i></i><i></i><i></i></div><div class="bootBar"><b></b></div><p class="bootLbl">BUILDING THE TOWN</p><p id="bootTip"></p></div>
   <script>window.__bootTip = function () { var t = ["Tap a target's icon up top and the storm heads straight for it.","The gold badges floating over town are your big targets.","A bigger storm wrecks taller buildings. Start with the small stuff.","Tap a seeding plane to strike it down. It crashes and takes buildings with it.","If a storm chaser gets away with its photos, another plane joins the hunt.","Drag anywhere to steer. Tap a spot and lightning leads the way.","Wreck the power plant and the whole town goes dark.","A rogue twister smaller than you is lunch. A bigger one is trouble: strike it down to size.","Step off the orange line before the storm cannon fires.","The UFO drops its shield to beam people up. Strike it then."]; document.getElementById('bootTip').textContent = 'TIP: ' + t[Math.floor(Math.random() * t.length)]; }; window.__bootTip();</script>
   <canvas id="game"></canvas>
   <div id="ta" class="hidden">
@@ -74,8 +74,7 @@
   </div>
 
   <div id="taStart" class="screen">
-    <p class="small" style="letter-spacing:4px;color:#c9a6ff;margin-bottom:-8px">DEAD CITY</p>
-    <h1>TORNADO<br>ALLEY</h1>
+    <h1>TORNADO<br>TIME!</h1>
     <p>You are the storm. Wreck the town!</p>
     <div id="twChosen" class="chosenCard"><canvas id="twChosenCv" width="150" height="150"></canvas><div><small>YOUR TORNADO</small><b id="twChosenName"></b><span id="twChosenDesc"></span><button id="twChoose" class="ghost">🌪️ CHOOSE TORNADO</button></div></div>
     <div id="taLevels"></div>

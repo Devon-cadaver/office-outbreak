@@ -1,75 +1,128 @@
-# Dead City: Tornado Alley — itch.io page kit
+# Tornado Time! — itch.io page kit
 
-Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.27.0**. Upload `release/survive-dead-city-web-v1.27.0.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to.
+Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.28.0**. Upload `release/tornado-time-web-v1.28.0.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to. All the images below are in `release/itch/tornado-time/`.
 
-> All monsters, robots and characters in Dead City are original creations. Any resemblance to other characters is coincidental.
+The game used to be called Dead City: Tornado Alley. From 1.28.0 it is **Tornado Time!**, with Kaiju Madness as its bonus game. Older zips keep their old `survive-dead-city-web` names.
+
+> All monsters, robots and characters in Tornado Time! are original creations. Any resemblance to other characters is coincidental.
 
 ## Upload settings (Edit game page)
 
 | Field | Value |
 |---|---|
-| Title | Dead City: Tornado Alley |
-| Project URL | survive-dead-city (keep the old URL so existing links still work) |
-| Short description / tagline | You are the storm. Tear through five towns, take out big targets, dodge seeding planes and outrun storm chasers. |
+| Title | Tornado Time! |
+| Project URL | `tornado-time` if you want the address to match. Changing it breaks links to the old address, so keep the old one if people already have it. |
+| Short description / tagline | You are the tornado. Wreck six towns, swallow rival twisters, zap UFOs and blow up everything worth blowing up. |
 | Classification | Game |
 | Kind of project | **HTML** |
-| Uploads | `survive-dead-city-web-v1.27.0.zip` (0.5 MB). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
+| Uploads | `tornado-time-web-v1.28.0.zip` (about 32 MB, mostly the nine songs). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
 | Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
 | Frame options | Leave SharedArrayBuffer off. No special headers needed. |
 | Pricing | Free (or "No payments"). |
 | Genre | Action |
-| Tags | tornado, destruction, arcade, browser, mobile, low-poly, three-js, casual, single-player, physics |
+| Tags | tornado, destruction, arcade, kaiju, browser, mobile, low-poly, casual, singleplayer, 3d |
 | Made with | Three.js |
 | Average session | A few minutes |
 | Inputs | Touchscreen, Mouse, Keyboard |
-| Accessibility | Drag or tap controls, a step-by-step tutorial, no text-only cues required |
+| Accessibility | Drag or tap controls. Each new thing is shown once, in the round, with the game paused. Nothing needs sound or colour alone. |
 | Release status | In development |
 
 ## Images (itch sizes)
 
-| Slot | File | Size | itch requirement |
+| Slot | File | Size | Notes |
 |---|---|---|---|
-| Cover image | `cover-630x500.png` | 630 × 500 | Minimum 315 × 250, recommended 630 × 500. |
-| Page background (Theme → Background image) | `background-1920x1080.gif` (animated, 2.1 MB) or `background-1920x1080.png` (still) | 1920 × 1080 | Set "Don't repeat", position Top centre, tick **Fixed** (so it stays put while the page scrolls), background colour #0e0818. The animation stays on the two edges (the storm on the left, debris flying out to the right); the middle is still, behind the page column. Keep GIFs under about 3 MB: bigger ones can stop animating. Source: `background-scene.html`. |
-| Banner (page theme → Banner) | `banner-960x200.png` | 960 × 200 | The thin banner (use this one). Any width up to 960 px, replaces the title. The taller `banner-960x400.png` is still there if you want it. Source: `logo-scene.html?layout=strip&w=960&h=200`. |
-| Kaiju Madness screenshots | `shot-kj-1-atomic-breath.png`, `shot-kj-2-spin-throw.png`, `shot-kj-3-robot.png` | 1280 × 720 | Scorchback's Atomic Breath, Rigbuster swinging a rival overhead, Triple Decker blasting Squidney. |
-| Screenshots | `shot-ta-1-title.png` … `shot-ta-8-shop.png` | 1280 × 720 | Upload all eight in order and remove the old Survival/Extract shots (`shot-1` … `shot-7`). |
-| Logo (optional, for the page header or devlog) | `logo-dead-city.png` | 768 × 512 | Rendered from `logo-scene.html` with the game's own city and storm. |
+| Cover image | `cover-630x500.png` | 630 × 500 | itch asks for at least 315 × 250 and recommends 630 × 500. |
+| Banner (Theme → Banner) | `banner-960x200.png` | 960 × 200 | The thin one. `banner-960x400.png` is there if you want it taller. Both replace the title text at the top of the page. |
+| Page background (Theme → Background image) | `key-art-1920x1080.png` | 1920 × 1080 | Don't repeat, top centre, tick **Fixed**, background colour #120a1f. It is busy in the middle, so if the page text is hard to read over it, use a plain #120a1f background instead. |
+| Logo (devlogs, social posts) | `logo-1200x700.png` | 1200 × 700 | Transparent background. Drawn in `logo.html`. |
+| Screenshots: Tornado Time! | `shot-01-title.png` … `shot-13-choose-your-tornado.png` | 1280 × 720 | Upload in order. See the list below. Remove every older screenshot. |
+| Screenshots: Kaiju Madness | `kaiju-01-roster.png` … `kaiju-05-fight-wrestler.png` | 1280 × 720 | Put these after the tornado ones: it is the bonus game. |
+| Phone screenshots (optional) | `phone-01-title.png`, `phone-02-menu.png`, `phone-03-play.png` | 540 × 1170 | For anywhere that wants upright shots, such as a store listing later. |
+
+What each screenshot shows:
+
+1. `shot-01-title`: the new opening and title: the Liberty Twister in the graveyard, a plane down in the distance, a saucer beaming people up.
+2. `shot-02-wreck`: Downtown coming apart: buildings break into real pieces of themselves.
+3. `shot-03-rogue-twister`: the rogue twister, bigger than you ("IT IS BIGGER! GET AWAY").
+4. `shot-04-ufo-shrink-ray`: the UFO's shrink ray landing on the storm, shield up.
+5. `shot-05-ufo-beam`: the UFO beaming people up with its shield down: the moment to strike.
+6. `shot-06-fairground`: the fairground going up in balloons and fireworks.
+7. `shot-07-power-plant`: the power plant throwing lightning at the buildings round it.
+8. `shot-08-sirens`: a police station's siren lights racing off in every direction.
+9. `shot-09-plane-crash`: a seeding plane struck down, during the blackout.
+10. `shot-10-f5-countryside`: an F5 at the edge of town: the wide view, gunships inbound, fields beyond.
+11. `shot-11-future-sharknado`: the Future era with the Sharknado.
+12. `shot-12-wild-west-firenado`: the Wild West with the Firenado.
+13. `shot-13-choose-your-tornado`: all nine storms.
+
+Kaiju Madness: `kaiju-01-roster` and `kaiju-02-roster-robots` (the monster picker, 60 of them), `kaiju-03-rampage` (Scorchback flattening Downtown), `kaiju-04-fight-robot` (Scorchback against Triple Decker), `kaiju-05-fight-wrestler` (Big Bruno Boulderbeard against Grumblegorilla, with a weak-spot marker up).
 
 ## Description (paste into the page body; Markdown works)
 
-# You are the storm.
+# It's TORNADO TIME!
 
-Dead City is about to have a very bad day. Drag to steer a tornado through town, tap to call down lightning, and grow from a dust devil into an F5 monster that rips towers out of the ground.
+**You are the storm.** Drag to steer a twister through town, tap to throw lightning, and grow from a dust devil into an F5 monster that pulls towers out of the ground.
 
-🌪️ **Tear it all down.** Houses, shops, towers, cars, lamp posts, and everyone running from you. Keep the chaos going for a x5 combo.
+🌪️ **Wreck everything.** Buildings crack, shudder and break into real pieces of themselves (walls, windows, roofs, the floors inside), spin up your funnel and get flung across town. Cars, crowds, tanks: it all goes up. Keep it going for a x5 combo.
 
-⚡ **Call the lightning.** Tap anywhere: buildings burn, cars explode, people run around on fire. Zap a seeding plane and it turns tail. Zap a storm chaser and its photos are toast.
+⚡ **Throw lightning.** Tap anywhere and a bolt lands first: buildings catch fire, cars blow up, and anything in the sky comes down.
 
-🎯 **Hunt ten big targets.** Black out the power plant. Wake the graveyard and the dead rise. Spring a jailbreak at the police station. Turn the sewage plant into a stink storm. Topple the radio tower. And in the biggest cities... melt down the nuclear plant.
+🎯 **Ten big targets, ten big finishes.** The big targets are the mission, and every one goes up its own way:
 
-✈️ **They fight back.** Listen for the siren: cloud-seeding planes hunt you, and their spray shrinks you. Storm chasers race in for a photo, and if they get away, more planes come.
+- The **water station** bursts and a wave washes the streets clean.
+- The **fire station** and **police station** throw siren lights in every direction (and the jail empties).
+- The **fairground** lets go of every balloon and firework it has.
+- The **graveyard** goes up in ghost-fire, and the dead rise.
+- The **power plant** throws lightning at everything near it, then the whole town goes dark.
+- The **sewage plant** becomes a stink storm. The **radio tower** topples. The **weather station** loses its dish.
+- And the **nuclear plant**... makes you the NUKULAR NADO.
 
-🏙️ **Five towns.** From Small Town to the sprawling Megacity. Every round is a new map, new target spots and a new season.
+🛸 **The town fights back.** A new enemy turns up in each town:
 
-🏆 **Earn the Acid Storm.** Beat Megacity to unlock a toxic green twister with acid rain, green lightning and baby tornadoes that roam the town.
+- **Seeding planes** shrink you with their spray. Strike one and it comes down in flames, ploughing a burning furrow through town.
+- **Storm chasers** race in for a photo. Blow them up with lightning, or catch one and hurl it.
+- A **rogue twister** eats your town before you can. Swallow it while it is smaller than you. Run when it is bigger, and strike it down to size.
+- A **storm cannon** guards a big target and blasts you back along its orange line.
+- **Gunships** circle you firing freeze rockets.
+- A shielded **UFO** hunts you with a shrink ray. Wait until it drops low to beam people up, then strike. Three hits and it crashes.
 
-🛒 **Make it yours.** Spend your coins on tornado skins (Sharknado, Firenado, Blizzard and more), townsfolk outfits and the cars in town.
+🏙️ **Six towns, three eras.** From Small Town to The Sprawl, in the Present, the Wild West or the Future, with Halloween, Christmas and 4th of July seasons. Every round is a new map, with countryside rolling out past the last street.
 
-New here? Hit **🎓 TUTORIAL** and you'll be flattening the suburbs in a minute.
+🎨 **Nine storms to play as.** Classic Twister, Poonado, Hallowstorm, Blizzard, Firenado, Sharknado, Bunnynado, the neon Liberty Twister, and the Acid Storm for beating Megacity. Win them in the prize games after each round or buy them with coins in the skin shop.
 
-*Plays in your browser. Built for phones (hold it upright); works with mouse and keyboard too.*
+▶ **Straight in.** Hit QUICK PLAY and you are in a round. No tutorial: the first time something new turns up, the round pauses and shows you what to do.
+
+📻 **Nine original songs** on the in-game radio.
+
+## Bonus game: KAIJU MADNESS
+
+The same towns, but this time **you are the monster**. Stomp, smash and eat your way from Hatchling to Titan to Colossus, wreck the big targets, and when a rival Kaiju shows up, fight it: tap to swing, hit the glowing weak spots, fill its daze bar, then SPIN & TOSS it across town or finish it with a wrestling move.
+
+**60 original monsters to collect**, each with three special moves of its own, plus Skeleton and Halloween looks:
+
+- **23 giant robots**, from Triple Decker and Paladin-7 to Boombox and Iron Grandpa
+- **10 upright giants**: lizards, dinosaurs and stranger things, led by Scorchback and his Atomic Breath
+- **8 masked wrestlers**, each with a flying elbow
+- **4 flyers** (two giant moths, two pterosaurs), **4 four-legged beasts**, **3 great apes** and **3 walking plants**
+- And five one-offs: a crab, a spider, a squid, a blob, and Mike Ferguson the Bounty Hunter with his sledgehammer
+
+Two are yours from the start. Win the rest in the prize games after each round.
+
+*Plays in your browser. Built for phones (hold it upright); works with mouse and keyboard too. All monsters, robots and characters are original creations.*
 
 ## How to play (paste below the description or into a "Controls" section)
 
-**Steer:** drag anywhere (WASD or arrow keys on PC). **Move with lightning:** tap a spot. **Zap:** tap a seeding plane or storm chaser. **Find targets:** follow the arrows at the screen edge or tap the minimap. **Zoom:** pinch, scroll or tap **+ / −**. **Pause:** ❚❚, or Esc / P on PC.
+**Steer:** drag anywhere (WASD or arrow keys on PC). **Move with lightning:** tap a spot. **Strike:** tap a plane, storm chaser, rogue twister, cannon, gunship or UFO (SPACE on PC strikes whatever is ahead of you). **Find targets:** follow the arrows at the screen edge, tap a target's icon at the top, or tap the minimap. Dim icons need a bigger storm; gold ones are ready. **Zoom:** pinch, scroll or tap **+ / −**. **Pause:** ❚❚, or Esc / P on PC.
+
+**Kaiju Madness:** drag to walk, tap to smash or strike. Near a rival, tap to swing and hit the glowing dots (gold: critical, red: counter its swing, purple: instant daze).
 
 ## Bio (for the devs66 profile)
 
-Small browser games built fast, tested on a phone, and tuned by playing. Dead City started as a zombie survival town; now its storms have a game of their own: Tornado Alley, where you are the tornado.
+Small browser games built fast, tested on a phone, and tuned by playing. Tornado Time! is the one where you are the tornado.
 
 ## Version history
 
+- **1.28.0** (2026-11-19): The game is now called Tornado Time!, with a new logo. A new opening plays when the game starts: the Liberty Twister tears into the graveyard, a burning plane comes down in the distance and a UFO beams people up, then TAP TO PLAY. The same scene carries on behind the main menu. Kaiju Madness is now listed as the bonus game.
 - **1.27.0** (2026-11-19): Every big target in Tornado Alley now goes up in its own way: the water station bursts, the fire and police stations throw siren lights in every direction, the fairground lets go of its balloons and fireworks, ghosts rise from the graveyard, the weather station dish flies off, the sewage plant spouts, the power plant throws lightning and the radio tower topples. Storm chasers explode when struck by lightning, and again where your storm hurls them. The camera pulls back further with each F level past F1. Targets you are too small for stay on screen dimmed, then turn gold. There is countryside round every town in both games: fields, roads, woods, farms and hills. Fixed: shockwave rings, firelight on the ground and scorch marks were never being drawn.
 - **1.26.0** (2026-11-19): Four new enemies in Tornado Alley. A rogue twister eats your town from the Suburbs on: swallow it while it is smaller than you, strike it down to size when it is bigger. A storm cannon guards big targets from Downtown on and blasts you back along its orange line. Gunships circle from Metro on, firing freeze rockets that slow you. A shielded UFO with a shrink ray hunts you in Megacity and The Sprawl: strike it when it drops low to beam people up. Seeding planes hit by lightning now crash in flames and take a strip of town with them. In Kaiju Madness, buildings burst apart when they are hit or stepped on.
 - **1.25.0** (2026-11-19): A big visual and speed upgrade. Buildings now crack and break into real pieces of themselves as the storm tears them away. Lightning, explosions, smoke and dust are all new, and the tornado bends as it moves. The city has brick, concrete and glass buildings with shopfronts and rooftop detail. A proper tank, dressed soldiers, and townsfolk who run with their arms up. Kaiju fights get a close-up camera, a weightier walk and slow-motion knockouts. Everything draws much faster, and there is a sixth, bigger town: The Sprawl. New loading screen.
@@ -179,15 +232,16 @@ Small browser games built fast, tested on a phone, and tuned by playing. Dead Ci
 
 ## Credits line
 
-Design: Sean Duvall. Built with Three.js and Vite. Original Extraction: Dead City logo art reused with permission of the author.
+Design: Sean Duvall. Built with Three.js and Vite.
 
 ## Checklist
 
-1. Create (or edit) the project → Title **Dead City: Tornado Alley**, URL, Kind **HTML**, upload the zip, tick "played in the browser", set viewport and Mobile friendly.
-2. Paste the description and controls into the body.
-3. Under Edit theme: background image `background-1920x1080.gif` (or the still `.png`; don't repeat, top centre, tick Fixed), background colour #0e0818, page background #1a0f2e, text #e9e4f5, links and buttons #7dff3a. Upload `cover-630x500.png` as the cover, the eight `shot-ta-*` screenshots in order (remove the older `shot-1` … `shot-7`), and `banner-960x200.png` under Theme → Banner.
-4. Tags, genre, status, pricing as above. Save, then **Public** when you are happy.
-5. Test the embed on your phone: the page is portrait first; use the fullscreen button.
+1. Edit the project → Title **Tornado Time!**, Kind **HTML**, upload the newest `tornado-time-web` zip, tick "played in the browser", set viewport and Mobile friendly. Hide or delete the old upload.
+2. Paste the short description, the description and the controls.
+3. Under Edit theme: cover `cover-630x500.png`, banner `banner-960x200.png`, background `key-art-1920x1080.png` (don't repeat, top centre, Fixed) or plain #120a1f, page background #1a0f2e, text #e9e4f5, links and buttons #7dff3a.
+4. Remove every old screenshot, then upload `shot-01` to `shot-13` in order, then the five `kaiju-` ones.
+5. Tags, genre, status, pricing as above. Save.
+6. Test the embed on your phone: the opening should play, then TAP TO PLAY, then the menu.
 
 ## Parked modes (not on the page for now)
 
