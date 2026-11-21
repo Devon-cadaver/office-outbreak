@@ -1,67 +1,82 @@
-// THE LONGSHANKS: BEAM 'EM UP!'s second machine, a three-legged walker (an original design: a round, ribbed head on three
-// long jointed legs with glowing knees). It walks instead of flying: its feet come down on whatever is under them, its death
-// ray works like the saucer's, and its beam is a searchlight that shines ahead of it. Built in world units: the head sits
-// WALK_Y above the street. userData carries the same names the saucer's model has (ring, pods, pilot, dome, eye, shield)
-// so the game's look code drives both, plus the legs and the searchlight cone.
+// THE LONGSHANKS: BEAM 'EM UP!'s second machine, a three-legged walker (an original design: a tall armoured body like an
+// upturned egg under a hood, one big glowing eye with a lamp each side, two jointed tentacle arms, and three long jointed
+// legs ending in ball feet). It walks instead of flying: its feet come down on whatever is under them, its death ray works
+// like the saucer's, it has the saucer's beam underneath, and a searchlight that shines the way it walks. Built in world
+// units: the body sits WALK_Y above the street. userData carries the names the saucer's model has (ring, pods, pilot,
+// dome, eye, shield) so the game's look code drives both, plus the legs, arms and the searchlight.
 import * as THREE from 'three';
 
-export const WALK_Y = 4.6; // the head's height above the street
-const LEG_R = 1.35; // how far out each hip sits
-// colours: [head, legs, glow, beam]
-export const WALKER_PAL = { base: [0x4a5260, 0x2a3038, 0x7dff3a, 0xb8ffd0] };
+export const WALK_Y = 4.6; // the body's height above the street (the hips)
+const HIP_R = 0.6, FOOT_R = 2.1; // how far out the hips sit, and where the feet come down (from the middle)
+// colours: [body, legs, glow, searchlight]
+export const WALKER_PAL = { base: [0x4e545c, 0x2e3238, 0xd8ff5a, 0xfff2b0] };
 const L = (c, e = 0) => new THREE.MeshLambertMaterial({ color: c, emissive: e });
-const G = (c, o = 1) => new THREE.MeshBasicMaterial({ color: c, transparent: o < 1, opacity: o, depthWrite: o >= 1 });
-const sph = new THREE.SphereGeometry(1, 16, 12), cyl = new THREE.CylinderGeometry(1, 1, 1, 10).translate(0, -0.5, 0), cone = new THREE.CylinderGeometry(0.12, 1, 1, 20, 1, true).translate(0, -0.5, 0);
+const G = (c) => new THREE.MeshBasicMaterial({ color: c });
+const sph = new THREE.SphereGeometry(1, 18, 12), cyl = new THREE.CylinderGeometry(1, 1, 1, 10).translate(0, -0.5, 0), cone = new THREE.CylinderGeometry(0.12, 1, 1, 20, 1, true).translate(0, -0.5, 0);
+const ringG = new THREE.TorusGeometry(1, 0.08, 5, 20);
 
-export function makeWalker(pal = WALKER_PAL.base) { const [cHead, cLeg, cGlow, cBeam] = pal, g = new THREE.Group(), legM = L(cLeg, 0x050608), glowM = G(cGlow);
-  // the head: a squat, ribbed dome over a darker underside, a glowing band round it, a lamp at the front
+// one jointed limb part: a tube from 0 down to -1 (scaled to length) with rings round it, so it reads as segmented
+function segPart(mat, ringMat, rings) { const g = new THREE.Group(), tube = new THREE.Mesh(cyl, mat); g.add(tube); g.userData.tube = tube; g.userData.rings = [];
+  for (let i = 1; i <= rings; i++) { const r = new THREE.Mesh(ringG, ringMat); r.rotation.x = Math.PI / 2; r.position.y = -i / (rings + 1); g.add(r); g.userData.rings.push(r); } return g; }
+function sizePart(p, len, w) { p.userData.tube.scale.set(w, len, w); for (const r of p.userData.rings) { r.position.y = r.userData.k * -len; r.scale.setScalar(w * 1.25); } }
+
+export function makeWalker(pal = WALKER_PAL.base) { const [cBody, cLeg, cGlow, cBeam] = pal, g = new THREE.Group(), legM = L(cLeg, 0x050608), bodyM = L(cBody, 0x0a0c0e), glowM = G(cGlow), darkM = L(0x14161a);
+  // the head: the whole upper body, which turns to face the way it walks
   const head = new THREE.Group(); g.add(head);
-  const dome = new THREE.Mesh(sph, L(cHead, 0x0a1210)); dome.scale.set(1.3, 0.62, 1.15); dome.position.y = 0.12; head.add(dome);
-  const under = new THREE.Mesh(sph, L(cLeg, 0x020304)); under.scale.set(1.15, 0.42, 1.0); under.position.y = -0.18; head.add(under);
-  for (let i = 0; i < 5; i++) { const r = new THREE.Mesh(new THREE.TorusGeometry(1, 0.035, 5, 24, Math.PI), L(cLeg)); r.rotation.y = Math.PI / 2; r.scale.set(1.12, 0.6, 1.3 - Math.abs(i - 2) * 0.22); r.position.set(-0.5 + i * 0.25, 0.14, 0); head.add(r); } // ribs over the top
-  const c = document.createElement('canvas'); c.width = 64; c.height = 8; const x2 = c.getContext('2d'); x2.fillStyle = '#0a140e'; x2.fillRect(0, 0, 64, 8); x2.fillStyle = '#ffffff'; x2.fillRect(6, 1, 20, 6);
+  const dome = new THREE.Mesh(sph, bodyM); dome.scale.set(0.82, 1.25, 0.72); dome.position.y = 1.05; head.add(dome); // the egg-shaped body
+  for (let i = 0; i < 5; i++) { const r = new THREE.Mesh(ringG, darkM), y = 0.25 + i * 0.26, k = Math.sqrt(Math.max(0, 1 - ((y - 1.05) / 1.25) ** 2)); r.rotation.x = Math.PI / 2; r.scale.set(0.84 * k, 0.74 * k, 0.6); r.position.y = y; head.add(r); } // armour bands
+  const hood = new THREE.Mesh(new THREE.SphereGeometry(1, 18, 10, 0, Math.PI * 2, 0, Math.PI * 0.55), bodyM); hood.scale.set(1.05, 0.9, 0.98); hood.position.set(0, 1.75, -0.12); hood.rotation.x = -0.25; head.add(hood); // a hood over the top and back
+  for (const s of [-1, 1]) { const fin = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.9, 4), darkM); fin.position.set(s * 0.95, 1.55, -0.05); fin.rotation.z = s * -1.15; head.add(fin); } // swept fins either side of the hood
+  const skirt = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 0.6, 0.38, 12), darkM); skirt.position.y = 0.02; head.add(skirt); // where the legs join
+  const c = document.createElement('canvas'); c.width = 64; c.height = 8; const x2 = c.getContext('2d'); x2.fillStyle = '#0a0c0a'; x2.fillRect(0, 0, 64, 8); x2.fillStyle = '#ffffff'; x2.fillRect(6, 1, 18, 6);
   const tex = new THREE.CanvasTexture(c); tex.wrapS = THREE.RepeatWrapping; tex.repeat.set(8, 1); tex.colorSpace = THREE.SRGBColorSpace;
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(1.24, 0.06, 6, 40), new THREE.MeshBasicMaterial({ map: tex, color: cGlow })); ring.rotation.x = Math.PI / 2; ring.position.y = -0.02; head.add(ring);
-  // the "pilot" is the turning front of the head: the lamp and the searchlight point the way it walks
-  const pilot = new THREE.Group(); head.add(pilot);
-  const brow = new THREE.Mesh(sph, L(cLeg)); brow.scale.set(0.5, 0.22, 0.4); brow.position.set(0, 0.0, 1.0); pilot.add(brow);
-  const eye = new THREE.Mesh(new THREE.CircleGeometry(0.26, 18), new THREE.MeshBasicMaterial({ color: cGlow })); eye.position.set(0, -0.02, 1.36); pilot.add(eye);
-  const lamp = new THREE.Group(); lamp.position.set(0, -0.05, 1.3); pilot.add(lamp);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.97, 0.05, 6, 40), new THREE.MeshBasicMaterial({ map: tex, color: cGlow })); ring.rotation.x = Math.PI / 2; ring.position.y = 0.2; head.add(ring); // a band of running lights round the waist
+  const pilot = new THREE.Group(); head.add(pilot); // the face: the big eye, a lamp each side, the searchlight
+  const eye = new THREE.Mesh(new THREE.CircleGeometry(0.28, 22), glowM); eye.position.set(0, 1.25, 0.73); pilot.add(eye);
+  const eyeRim = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.05, 6, 22), darkM); eyeRim.position.copy(eye.position); pilot.add(eyeRim);
+  for (const s of [-1, 1]) { const lampL = new THREE.Mesh(sph, glowM); lampL.scale.setScalar(0.12); lampL.position.set(s * 0.55, 0.95, 0.55); pilot.add(lampL); }
+  const lamp = new THREE.Group(); lamp.position.set(0, 1.2, 0.78); pilot.add(lamp);
   const beamM = new THREE.MeshBasicMaterial({ color: cBeam, transparent: true, opacity: 0.16, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
-  const searchlight = new THREE.Mesh(cone, beamM); searchlight.renderOrder = 3; lamp.add(searchlight); // aimed each frame (aimLight) down at the street ahead
-  const pods = new THREE.Group(); head.add(pods); for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2, p = new THREE.Mesh(sph, glowM); p.scale.setScalar(0.09); p.position.set(Math.cos(a) * 0.95, -0.42, Math.sin(a) * 0.85); pods.add(p); } // little lights underneath
-  const shield = new THREE.Mesh(new THREE.SphereGeometry(2.0, 20, 12), new THREE.MeshBasicMaterial({ color: cGlow, transparent: true, opacity: 0.12, depthWrite: false, blending: THREE.AdditiveBlending })); shield.scale.y = 0.6; shield.renderOrder = 3; head.add(shield);
-  // three legs: hip, a long thigh up and out, a knee that glows, a longer shin down to a three-toed foot
-  const legs = []; for (let i = 0; i < 3; i++) { const a = i / 3 * Math.PI * 2 + Math.PI / 6, hip = new THREE.Group(); hip.position.set(Math.sin(a) * LEG_R * 0.55, -0.3, Math.cos(a) * LEG_R * 0.55); g.add(hip);
-    const ball = new THREE.Mesh(sph, legM); ball.scale.setScalar(0.22); hip.add(ball);
-    const thigh = new THREE.Mesh(cyl, legM), knee = new THREE.Group(), kb = new THREE.Mesh(sph, glowM), shin = new THREE.Mesh(cyl, legM), foot = new THREE.Group();
-    thigh.scale.set(0.12, 1, 0.12); kb.scale.setScalar(0.17); shin.scale.set(0.09, 1, 0.09); knee.add(kb, shin); hip.add(thigh, knee);
-    for (let t = 0; t < 3; t++) { const toe = new THREE.Mesh(cyl, legM), ta = t / 3 * Math.PI * 2; toe.scale.set(0.05, 0.42, 0.05); toe.rotation.set(Math.cos(ta) * 1.1, 0, Math.sin(ta) * 1.1); foot.add(toe); } g.add(foot);
+  const searchlight = new THREE.Mesh(cone, beamM); searchlight.renderOrder = 3; lamp.add(searchlight);
+  // two tentacle arms hanging from the sides, a chain of short parts each, swaying as it walks
+  const arms = []; for (const s of [-1, 1]) { let parent = new THREE.Group(); parent.position.set(s * 0.72, 0.75, 0.2); head.add(parent); const chain = [];
+    for (let i = 0; i < 6; i++) { const seg = new THREE.Group(), m = new THREE.Mesh(cyl, legM); m.scale.set(0.06 - i * 0.006, 0.34, 0.06 - i * 0.006); seg.add(m); if (i) seg.position.y = -0.34; parent.add(seg); chain.push(seg); parent = seg; }
+    const claw = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.2, 5), glowM); claw.position.y = -0.4; claw.rotation.x = Math.PI; parent.add(claw); arms.push({ s, chain }); }
+  const pods = new THREE.Group(); head.add(pods); for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2, p = new THREE.Mesh(sph, glowM); p.scale.setScalar(0.07); p.position.set(Math.cos(a) * 0.7, -0.18, Math.sin(a) * 0.7); pods.add(p); }
+  const shield = new THREE.Mesh(new THREE.SphereGeometry(1.8, 20, 12), new THREE.MeshBasicMaterial({ color: cGlow, transparent: true, opacity: 0.1, depthWrite: false, blending: THREE.AdditiveBlending })); shield.scale.y = 1.2; shield.position.y = 1; shield.renderOrder = 3; head.add(shield);
+  // three legs: a hip ball, a long thigh up and out to a knee, a longer shin down to a ball foot
+  const legs = []; for (let i = 0; i < 3; i++) { const a = i / 3 * Math.PI * 2, hip = new THREE.Group(); g.add(hip);
+    const ball = new THREE.Mesh(sph, darkM); ball.scale.setScalar(0.2); hip.add(ball);
+    const thigh = segPart(legM, darkM, 3), knee = new THREE.Group(), kb = new THREE.Mesh(sph, darkM), shin = segPart(legM, darkM, 6), foot = new THREE.Mesh(sph, bodyM);
+    for (const p of [thigh, shin]) p.userData.rings.forEach((r, j, a2) => { r.userData.k = (j + 1) / (a2.length + 1); });
+    kb.scale.setScalar(0.16); foot.scale.set(0.24, 0.18, 0.24); knee.add(kb, shin); hip.add(thigh, knee); g.add(foot);
     legs.push({ a, hip, thigh, knee, shin, foot, at: new THREE.Vector3(), from: new THREE.Vector3(), to: new THREE.Vector3(), t: 1, i }); }
-  g.userData = { walker: true, head, dome, ring, pilot, eye, pods, shield, legs, searchlight, lamp, beamM, phase: 0, step: 0, planted: false, look: pal };
+  g.userData = { walker: true, head, dome, ring, pilot, eye, pods, shield, legs, arms, searchlight, lamp, beamM, phase: 0, look: pal };
   return g; }
 
-const v = new THREE.Vector3(), w = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0), DOWN = new THREE.Vector3(0, -1, 0), q = new THREE.Quaternion();
-// one leg from hip (world) to foot (world): the thigh goes up and out, the knee bends above the foot
-function poseLeg(g, l, hipW, footW) { const d = footW.clone().sub(hipW), len = d.length(), out = v.set(l.hip.position.x, 0, l.hip.position.z).normalize();
-  const knee = hipW.clone().addScaledVector(out, Math.min(1.5, len * 0.45)).add(w.set(0, 0.9, 0)); g.worldToLocal(knee); const hipL = l.hip.position, footL = g.worldToLocal(footW.clone());
+const v = new THREE.Vector3(), w = new THREE.Vector3(), DOWN = new THREE.Vector3(0, -1, 0), q = new THREE.Quaternion();
+// one leg from the hip to the foot (both in the walker's own space): the knee rises up and out above the line between them
+function poseLeg(l, hipL, footL) { const d = footL.clone().sub(hipL), len = d.length(), out = v.set(d.x, 0, d.z); if (out.lengthSq() < 1e-6) out.set(Math.sin(l.a), 0, Math.cos(l.a)); out.normalize();
+  const knee = hipL.clone().addScaledVector(d, 0.4).addScaledVector(out, 0.35).add(w.set(0, Math.max(0.6, 2.4 - len * 0.25), 0)); l.hip.position.copy(hipL);
   const a1 = knee.clone().sub(hipL), a2 = footL.clone().sub(knee);
-  l.thigh.position.set(0, 0, 0); l.thigh.quaternion.setFromUnitVectors(DOWN, a1.clone().normalize()); l.thigh.scale.y = a1.length();
-  l.knee.position.copy(knee).sub(hipL); l.shin.quaternion.setFromUnitVectors(DOWN, a2.clone().normalize()); l.shin.scale.y = a2.length(); l.foot.position.copy(footL); }
+  l.thigh.quaternion.setFromUnitVectors(DOWN, a1.clone().normalize()); sizePart(l.thigh, a1.length(), 0.11);
+  l.knee.position.copy(a1); l.shin.quaternion.setFromUnitVectors(DOWN, a2.clone().normalize()); sizePart(l.shin, a2.length(), 0.085); l.foot.position.copy(footL); }
 
-// walking: each leg in turn lifts and steps to a spot ahead of where the body is going; returns the feet that came down this
-// frame (world positions) so the game can stomp what is under them
-export function walkerTick(g, dt, x, z, y, vx, vz, face) { const u = g.userData, sp = Math.hypot(vx, vz), planted = []; g.updateMatrixWorld(true);
-  u.head.rotation.y = 0; u.pilot.rotation.y = face; u.head.position.y = Math.sin(u.phase * 2) * 0.06 * Math.min(1, sp);
-  const stepT = 0.42; u.phase += dt * (sp > 0.3 ? 1 / stepT : 0.6);
-  for (const l of u.legs) { const home = w.set(x + Math.sin(l.a + face) * LEG_R * 1.55 + vx * 0.32, 0, z + Math.cos(l.a + face) * LEG_R * 1.55 + vz * 0.32);
-    if (l.t >= 1 && l.at.lengthSq() === 0) { l.at.copy(home); l.from.copy(home); l.to.copy(home); }
-    if (l.t < 1) { l.t = Math.min(1, l.t + dt / stepT); const k = l.t, e = k * k * (3 - 2 * k); l.at.lerpVectors(l.from, l.to, e); l.at.y = Math.sin(k * Math.PI) * 0.9; if (l.t >= 1) { l.at.y = 0; planted.push(l.at.clone()); } }
-    else if (l.at.distanceTo(home) > 1.1 && u.legs.every((o) => o === l || o.t >= 1 || o.t > 0.6) && ((Math.floor(u.phase) % 3) === l.i || l.at.distanceTo(home) > 2.4)) { l.from.copy(l.at); l.to.copy(home); l.t = 0; }
-    g.updateMatrixWorld(true); const hipW = l.hip.getWorldPosition(new THREE.Vector3()); poseLeg(g, l, hipW, l.at.clone()); }
+// walking: the body turns to face the way it goes, and so do the hips; each leg in turn lifts and steps to its spot round
+// the body, a little ahead. Returns the feet that came down this frame (world positions) so the game can stomp what is under
+export function walkerTick(g, dt, x, z, y, vx, vz, face) { const u = g.userData, sp = Math.hypot(vx, vz), planted = [];
+  u.head.rotation.y = face; u.head.position.y = Math.sin(u.phase * 2) * 0.05 * Math.min(1, sp) + 0.15;
+  u.phase += dt * (sp > 0.3 ? 2.4 : 0.5);
+  for (const A of u.arms) A.chain.forEach((seg, i) => { seg.rotation.x = Math.sin(u.phase * 1.3 + i * 0.6 + A.s) * 0.18 + (i ? 0.08 : 0.25) + sp * 0.02; seg.rotation.z = A.s * (i ? 0.06 : 0.35) + Math.sin(u.phase + i) * 0.05; });
+  const stepT = 0.42, busy = u.legs.some((o) => o.t < 0.55);
+  for (const l of u.legs) { const ang = l.a + face, hipL = v.set(Math.sin(ang) * HIP_R, 0, Math.cos(ang) * HIP_R).clone(), home = new THREE.Vector3(x + Math.sin(ang) * FOOT_R + vx * 0.3, 0, z + Math.cos(ang) * FOOT_R + vz * 0.3);
+    if (l.at.lengthSq() === 0) { l.at.copy(home); l.to.copy(home); }
+    if (l.t < 1) { l.t = Math.min(1, l.t + dt / stepT); const k = l.t, e = k * k * (3 - 2 * k); l.at.lerpVectors(l.from, l.to, e); l.at.y = Math.sin(k * Math.PI) * 0.8; if (l.t >= 1) { l.at.y = 0; planted.push(l.at.clone()); } }
+    else if (!busy && l.at.distanceTo(home) > 0.9) { l.from.copy(l.at); l.to.copy(home); l.t = 0; }
+    poseLeg(l, hipL, new THREE.Vector3(l.at.x - x, l.at.y - y, l.at.z - z)); }
   return planted; }
 
-// the searchlight: from the lamp down to the street `reach` ahead of the head
-export function aimLight(g, reach, k = 1) { const u = g.userData; g.updateMatrixWorld(true); const from = u.lamp.getWorldPosition(new THREE.Vector3()), face = u.pilot.rotation.y + g.rotation.y,
+// the searchlight: from the lamp down to the street `reach` ahead, the way it faces
+export function aimLight(g, reach, face, k = 1) { const u = g.userData; g.updateMatrixWorld(true); const from = u.lamp.getWorldPosition(new THREE.Vector3()),
   to = new THREE.Vector3(from.x + Math.sin(face) * reach, 0.05, from.z + Math.cos(face) * reach), d = to.clone().sub(from), len = d.length();
   q.setFromUnitVectors(DOWN, d.normalize()); const parentQ = u.lamp.getWorldQuaternion(new THREE.Quaternion()).invert(); u.searchlight.quaternion.copy(parentQ.multiply(q)); u.searchlight.scale.set(1.6, len, 1.6); u.beamM.opacity = 0.14 * k; return to; }

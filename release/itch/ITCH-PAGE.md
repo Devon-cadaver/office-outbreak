@@ -1,6 +1,6 @@
 # Tornado Time! — itch.io page kit
 
-Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.35.0**. Upload `release/tornado-time-web-v1.35.0.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to. All the images below are in `release/itch/tornado-time/`.
+Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.36.0**. Upload `release/tornado-time-web-v1.36.0.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to. All the images below are in `release/itch/tornado-time/`.
 
 The game used to be called Dead City: Tornado Alley. From 1.28.0 it is **Tornado Time!**, with Kaiju Madness as its bonus game. Older zips keep their old `survive-dead-city-web` names.
 
@@ -15,7 +15,7 @@ The game used to be called Dead City: Tornado Alley. From 1.28.0 it is **Tornado
 | Short description / tagline | You are the tornado. Wreck six towns, swallow rival twisters, zap UFOs and blow up everything worth blowing up. |
 | Classification | Game |
 | Kind of project | **HTML** |
-| Uploads | `tornado-time-web-v1.35.0.zip` (about 40 MB, mostly the eleven songs). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
+| Uploads | `tornado-time-web-v1.36.0.zip` (about 40 MB, mostly the eleven songs). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
 | Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
 | Frame options | Leave SharedArrayBuffer off. No special headers needed. |
 | Pricing | Free (or "No payments"). |
@@ -123,6 +123,7 @@ Small browser games built fast, tested on a phone, and tuned by playing. Tornado
 
 ## Version history
 
+- **1.36.0** (2026-11-21): The Longshanks walker is redesigned: a tall hooded body with one big glowing eye, swaying tentacle arms and long jointed legs. Its legs now turn with it instead of crossing, and it has the saucer's beam underneath as well as its searchlight.
 - **1.35.0** (2026-11-21): Beam 'Em Up! has a second machine: THE LONGSHANKS, a three-legged walker. It stamps on the buildings its feet come down on, its death ray fires by itself, and its searchlight beams up anyone or any car caught in it for three seconds. 17 walker skins in the shop. Zombie Air Raid: enemy UFOs now hunt the plane and the heli (more and tougher in the bigger towns): dodge their red aiming line, and your tail gun shoots back. Grave Giants grab or swipe you for a third of your health and send you spinning, and only bring you down when you are already badly hurt. Your player badge sits beside EXIT GAME on the main menu.
 - **1.34.0** (2026-11-21): The PLAYER card: a player level (one for every town cleared in every game and era, every 5 skins and every badge), an emblem that grows with the games you have beaten (Tornado, Zombie Tornado... all four is APOCALYPSE) in bronze, silver, gold, emerald or cosmic, and 45 badges, locked until earned. Tap your emblem on the main menu or PLAYER on any pause screen to see every town cleared, your skins and your badges. Zombie Air Raid's goal bar now fills up as the horde goes down. In Beam 'Em Up! the beam comes down by itself after three seconds over people or cars.
 - **1.33.0** (2026-11-21): New controls. Zombie Air Raid: health, ammo and supplies sit in the top bar beside COLLATERAL; DROP and FIRE are a smaller button on the right, halfway up; a double tap also drops napalm on a spot (the bomber swoops over it) or fires a rocket at it (the heli); the weapon icons are bottom right; the heli aims with a beam of light instead of a ring. Beam 'Em Up!: no BEAM button: hover over people for a second and the beam comes down by itself (or hold on the saucer). On phones the mini map is smaller and the % badge is just an icon and the number.
