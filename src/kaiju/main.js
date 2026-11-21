@@ -1061,7 +1061,7 @@ let state = 'start', died = false, roundId = 0; // roundId: delayed effects from
 soundToggle($('taStart'), $('taPaused')); skipSongBtn($('ta')); eraPicker($('taLevels'), () => { level = unlockedLevel(); drawLevels(); }); seasonPicker($('eraRow')); // sound on/off on the start and pause screens
 // the soundtrack starts on the first tap and keeps rotating songs for as long as you're on Kaiju Madness
 gameMusic($('taPaused'), SONGS_KAIJU); radioButton($('taPaused'), $('taPaused').querySelector('.menuBtn'));
-const fsMode = initFullscreen(() => state === 'play'); // full screen on play, back in after a browser drop-out, no page scrolling mid-round
+const fsMode = initFullscreen(() => state === 'play' || state === 'outro'); // full screen on play, back in after a browser drop-out, no page scrolling mid-round
 function start() {
   fsMode.play();
   megaT = 0; megaUsed = false; megaDropT = 25 + Math.random() * 15; if (megaDrop) scene.remove(megaDrop.g); megaDrop = null; megaArrow.style.display = 'none'; megaEl.className = 'hidden'; megaBtn.classList.add('hidden'); for (const b of blasts) b.remove(); blasts.length = 0; camK = 1; roundId++;

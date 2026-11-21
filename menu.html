@@ -74,6 +74,11 @@
       <button class="choice" onclick="location.href='tornado.html'"><b>🌪️ TORNADO TIME!</b><span>Towns, eras and storms</span></button>
       <button class="choice" onclick="location.href='kaiju.html'" style="border-color:#ff7a3a;box-shadow:0 4px 0 #5a2a1a !important"><b style="color:#ff9a5a">🦖 KAIJU MADNESS</b><span>Bonus game: 60 monsters</span></button>
     </div>
+    <!-- the two newest bonus games -->
+    <div class="pair">
+      <button class="choice" onclick="location.href='airraid.html'" style="border-color:#b8d84a;box-shadow:0 4px 0 #3a4a1a !important"><b style="color:#d8f06a">🧟 ZOMBIE AIR RAID</b><span>Bonus: save the town</span></button>
+      <button class="choice" onclick="location.href='beamup.html'" style="border-color:#7dffb0;box-shadow:0 4px 0 #1a5a3a !important"><b style="color:#9affc8">🛸 BEAM &#39;EM UP!</b><span>Bonus: be the UFO</span></button>
+    </div>
     <div class="pair">
       <button class="choice" onclick="location.href='store.html'" style="border-color:#ffd24a;box-shadow:0 4px 0 #5a4a1a !important"><b style="color:#ffd24a">🎨 SKIN SHOP</b><span class="saved" id="coins">Spend your coins</span></button>
       <button class="choice" id="radioBtn" style="border-color:#3af0ff;box-shadow:0 4px 0 #1a4a5a !important"><b style="color:#3af0ff">📻 RADIO</b><span>Pick your songs</span></button>
@@ -115,7 +120,9 @@
       if (!box) { box = document.createElement('div'); box.id = 'quickBox';
         box.innerHTML = '<h2>▶ QUICK PLAY</h2><p>Pick a game. You go straight in.</p>'
           + '<button class="game" data-go="tornado.html"><i>🌪️</i><b>TORNADO TIME!</b><span data-g="ta"></span></button>'
-          + '<button class="game kj" data-go="kaiju.html"><i>🦖</i><b>KAIJU MADNESS</b><span data-g="kj"></span></button><button class="ghost back">◀ BACK</button>';
+          + '<button class="game kj" data-go="kaiju.html"><i>🦖</i><b>KAIJU MADNESS</b><span data-g="kj"></span></button>'
+          + '<button class="game" data-go="airraid.html"><i>🧟</i><b>ZOMBIE AIR RAID</b><span data-g="ar"></span></button>'
+          + '<button class="game" data-go="beamup.html"><i>🛸</i><b>BEAM &#39;EM UP!</b><span data-g="bu"></span></button><button class="ghost back">◀ BACK</button>';
         document.body.appendChild(box);
         for (const b of box.querySelectorAll('.game')) b.addEventListener('click', () => { location.href = b.dataset.go + '?quick=1'; });
         box.querySelector('.back').addEventListener('click', () => box.classList.add('hidden')); }

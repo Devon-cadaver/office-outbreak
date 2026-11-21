@@ -106,7 +106,7 @@ body.look #game { cursor: grab; }
 #people.ok { color: #7dff6a; }
 
 /* end-of-round chests */
-.chests { width: min(92vw, 420px); margin: 4px 0 8px; }
+.chests { width: min(100%, 420px); margin: 4px 0 8px; }
 .chestHead { font-size: 14px; font-weight: 700; color: #ffd24a; margin-bottom: 6px; }
 .chestRow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .chest { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 4px; min-height: 74px; font-size: 13px; background: #2a1a44; border: 2px solid #ffd24a; border-radius: 10px; color: #fff; box-shadow: 0 4px 0 #5a4a1a; }
@@ -183,7 +183,7 @@ button.ghost:active { transform: translateY(4px); box-shadow: 0 1px 0 #0e0618, 0
 button:disabled, button:disabled:active { transform: none; }
 .eraBtn.on { box-shadow: 0 5px 0 #1a8a9a, 0 7px 10px #0007; } .eraBtn.on:active { box-shadow: 0 1px 0 #1a8a9a; }
 /* game start menus (Tornado Alley, Kaiju Madness): one centred column, every row the same width */
-#taStart { --w: min(calc(100vw - 32px), 440px); gap: 12px; }
+#taStart { --w: min(100%, 440px); gap: 12px; padding-left: 16px; padding-right: 16px; } /* 100% of the screen inside its 16px sides: the column never pokes past the edge (100vw also counted a desktop scrollbar) */
 #taStart .chosenCard, #taStart #taLevels, #taStart #eraRow, #taStart #seasonRow, #taStart #taPlay, #taStart .soundRow, #taStart .howRow, #taStart > .menuBtn { width: var(--w); box-sizing: border-box; margin: 0; }
 #taStart .chosenCard > div { flex: 1; min-width: 0; } #taStart .chosenCard span { max-width: none; }
 #taStart #eraRow, #taStart #seasonRow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; } #taStart .eraLbl, #taStart .eraHint { grid-column: 1 / -1; }
@@ -193,7 +193,7 @@ button:disabled, button:disabled:active { transform: none; }
 #taStart #taPlay { padding: 16px; font-size: 26px; letter-spacing: 2px; }
 #taStart .soundRow, #taStart .howRow { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; } #taStart .soundRow button, #taStart .howRow button { padding: 10px 4px; font-size: 14px; white-space: nowrap; min-width: 0; margin: 0; }
 /* pause menus: the same centred column, sound and music buttons two to a row */
-#taPaused { --w: min(calc(100vw - 32px), 400px); gap: 10px; }
+#taPaused { --w: min(100%, 400px); gap: 10px; padding-left: 16px; padding-right: 16px; }
 #taPaused > button, #taPaused .soundRow { width: var(--w); box-sizing: border-box; margin: 0; }
 #taPaused .soundRow { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; } #taPaused .soundRow button { padding: 10px 4px; font-size: 14px; white-space: nowrap; min-width: 0; margin: 0; } #taPaused .soundRow button:nth-child(3) { grid-column: 1 / -1; }
 #taPaused #taResume { padding: 14px; font-size: 24px; letter-spacing: 2px; }

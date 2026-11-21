@@ -20,6 +20,7 @@ const capsule = new THREE.CapsuleGeometry(0.5, 1, 4, 10);
 const box = new THREE.BoxGeometry(1, 1, 1);
 // zombie eye beams: a short narrow cone from each eye, widening forward
 const beamGeo = new THREE.ConeGeometry(0.07, 0.55, 8, 1, true); beamGeo.translate(0, -0.275, 0); beamGeo.rotateX(-Math.PI / 2);
+const hordeBeams = new Map(), hordeBeam = (c) => { let m = hordeBeams.get(c); if (!m) { m = beamMat.clone(); m.color.setHex(c); hordeBeams.set(c, m); } return m; }; // a horde skin's eye beams, one material per colour
 const beamMat = new THREE.MeshBasicMaterial({ color: 0x8aff4a, transparent: true, opacity: 0.32, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
 const part = (geo, c, sx, sy, sz, x, y, z) => { const m = new THREE.Mesh(geo, mat(c)); m.scale.set(sx, sy, sz); m.position.set(x, y, z); return m; };
 
@@ -33,8 +34,9 @@ const CLOWNS = [
   { skin: 0xe8e86a, hair: 0x3a5fd6, shirt: 0x2ad6e0, pants: 0x3a2fd0 },
   { skin: 0xd6e86a, hair: 0xe03a3a, shirt: 0xe84aa0, pants: 0xd6d6e0 },
 ];
-export function makeCharacter(outfitName, { zombie = false, clown = null, skin = null, look = null } = {}) {
-  let o = OUTFITS[outfitName] || OUTFITS.worker; if (skin && !zombie) o = { ...o, ...skin.outfit }; if (zombie) o = zombify(o);
+// horde: a zombie in a horde skin's look (hordeSkins.js hordeBody): its colours, its shapes and its eye glow, instead of the green
+export function makeCharacter(outfitName, { zombie = false, clown = null, skin = null, look = null, horde = null } = {}) {
+  let o = OUTFITS[outfitName] || OUTFITS.worker; if (skin && !zombie) o = { ...o, ...skin.outfit }; if (zombie) o = horde ? { ...o, ...horde.outfit } : zombify(o);
   if (clown) o = { ...CLOWNS[clown === 'hammer' ? 0 : 1], skin: CLOWNS[clown === 'hammer' ? 0 : 1].skin };
   const g = new THREE.Group(); const body = new THREE.Group(); g.add(body);
   // legs: capsules hanging from the hip
@@ -51,16 +53,16 @@ export function makeCharacter(outfitName, { zombie = false, clown = null, skin =
   head.add(part(sphere, o.skin, 0.66, 0.66, 0.66, 0, 0.33, 0));
   if (clown) { for (const sx of [-1, 1]) head.add(part(sphere, o.hair, 0.36, 0.36, 0.36, sx * 0.36, 0.32, -0.05)); head.add(part(sphere, 0xff2a2a, 0.17, 0.17, 0.17, 0, 0.2, 0.36)); }
   else if (o.hair) { const cap = part(sphere, o.hair, 0.7, 0.5, 0.7, 0, 0.42, -0.04); head.add(cap); }
-  const eyeC = zombie ? 0x6cff2a : 0x1a1a1a; const eyeMat = zombie ? new THREE.MeshBasicMaterial({ color: eyeC }) : mat(eyeC);
+  const eyeC = zombie ? (horde ? horde.eye : 0x6cff2a) : 0x1a1a1a; const eyeMat = zombie ? new THREE.MeshBasicMaterial({ color: eyeC }) : mat(eyeC); const hBeam = zombie && horde ? hordeBeam(horde.eye) : beamMat;
   for (const ex of [-0.13, 0.13]) { const e = new THREE.Mesh(sphere, eyeMat); e.scale.setScalar(zombie ? 0.14 : 0.08); e.position.set(ex, 0.34, 0.3); head.add(e);
-    if (zombie) { e.scale.setScalar(0.1); const beam = new THREE.Mesh(beamGeo, beamMat); beam.position.set(ex, 0.34, 0.33); beam.rotation.x = 0.12; head.add(beam); } }
+    if (zombie) { e.scale.setScalar(0.1); const beam = new THREE.Mesh(beamGeo, hBeam); beam.position.set(ex, 0.34, 0.33); beam.rotation.x = 0.12; head.add(beam); } }
   // face and clothing detail
   const dark = (cc, f) => new THREE.Color(cc).multiplyScalar(f).getHex();
   head.add(part(sphere, dark(o.skin, 0.88), 0.11, 0.1, 0.12, 0, 0.27, 0.33));
   head.add(part(box, zombie ? 0x3a0a0a : 0x5a2a2a, zombie ? 0.18 : 0.12, zombie ? 0.07 : 0.025, 0.04, 0, 0.17, 0.3));
   if (!zombie) for (const ex of [-0.13, 0.13]) head.add(part(box, o.hair || 0x3a2a1a, 0.12, 0.025, 0.04, ex, 0.43, 0.3));
   body.add(part(sphere, dark(o.pants, 0.7), 0.8, 0.09, 0.62, 0, 1.07, 0));
-  if (zombie) { const wound = mat(0x5a0f14); for (let i = 0; i < 2; i++) { const w = new THREE.Mesh(sphere, wound); w.scale.set(0.16, 0.12, 0.06); w.position.set((Math.random() - 0.5) * 0.5, 1.15 + Math.random() * 0.35, 0.29); body.add(w); }
+  if (zombie && !horde) { const wound = mat(0x5a0f14); for (let i = 0; i < 2; i++) { const w = new THREE.Mesh(sphere, wound); w.scale.set(0.16, 0.12, 0.06); w.position.set((Math.random() - 0.5) * 0.5, 1.15 + Math.random() * 0.35, 0.29); body.add(w); }
     const rag = part(box, o.shirt, 0.14, 0.22, 0.04, (Math.random() - 0.5) * 0.4, 0.98, 0.28); rag.rotation.z = (Math.random() - 0.5) * 0.6; body.add(rag); }
   if (zombie) { armL.rotation.x = -1.3; armR.rotation.x = -1.3; body.rotation.x = 0.12; head.rotation.z = 0.15; }
   if (clown === 'hammer') {
@@ -73,6 +75,7 @@ export function makeCharacter(outfitName, { zombie = false, clown = null, skin =
     bal.userData.sway = true;
   }
   if (skin && !zombie && skin.dress) skin.dress({ g, body, head, armL, armR, legL, legR, part });
+  else if (zombie && horde && horde.dress) { const keep = [head.rotation.x, armL.rotation.x, armR.rotation.x]; horde.dress({ g, body, head, armL, armR, legL, legR, part }); [head.rotation.x, armL.rotation.x, armR.rotation.x] = keep; } /* (some outfits turn a part over with head.add(...).rotation, which turns the whole head) */
   else if (look != null && !zombie && !clown) { // townsfolk: one number picks a hat or a hairdo, a bag, a longer coat
     const r = (look * 97) % 1, r2 = (look * 389) % 1, r3 = (look * 1543) % 1, BAGS = [0x3a2a4a, 0x8a3a2a, 0x2a4a5a, 0x5a4a2a, 0x222228];
     if (r < 0.22) { head.add(part(sphere, o.shirt, 0.72, 0.4, 0.72, 0, 0.5, -0.02)); head.add(part(box, o.shirt, 0.5, 0.05, 0.3, 0, 0.42, 0.42)); } // a cap with a peak

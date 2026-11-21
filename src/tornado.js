@@ -44,7 +44,11 @@ function meteor() { const g = new THREE.Group(); piece(g, icoG, rockMat, 0.9, 0.
 function pie() { const g = new THREE.Group(); piece(g, cylG, LM(0xb8bcc4), 0.56, 0.06, 0.56, 0, 0, 0); piece(g, cylG, LM(0xd8a860), 0.5, 0.1, 0.5, 0, 0.07, 0); piece(g, sph, LM(0xfffaf0), 0.46, 0.24, 0.46, 0, 0.16, 0); piece(g, sph, LM(0xe0203a), 0.12, 0.12, 0.12, 0, 0.3, 0); return g; }
 function chicken() { const g = new THREE.Group(), y = LM(0xf4d43a), og = LM(0xf08a1a); piece(g, sph, y, 0.3, 0.3, 0.62, 0, 0, 0); piece(g, sph, y, 0.16, 0.36, 0.16, 0, 0.14, 0.3).rotation.x = 0.5; piece(g, sph, y, 0.2, 0.2, 0.2, 0, 0.32, 0.42); piece(g, coneG, og, 0.08, 0.16, 0.08, 0, 0.3, 0.56).rotation.x = Math.PI / 2; piece(g, box, LM(0xe0203a), 0.04, 0.1, 0.14, 0, 0.44, 0.4); for (const x of [-0.08, 0.08]) { piece(g, box, og, 0.04, 0.3, 0.04, x, -0.24, -0.22); piece(g, sph, BM(0x111111), 0.035, 0.035, 0.035, x, 0.35, 0.5); } return g; }
 function clown() { const c = makeCharacter('worker', { clown: Math.random() < 0.5 ? 'hammer' : 'balloons' }); c.scale.setScalar(0.42); return c; }
-function zombie() { const z = makeCharacter(['worker', 'suit', 'hoodie', 'plaid'][(Math.random() * 4) | 0], { zombie: true }); z.scale.setScalar(0.42); return z; }
+let hordeMod = null; export function useHordeLooks(m) { hordeMod = m; } // a page that imports hordeSkins.js itself hands it in (Tornado Time!), so even the first storm has it
+const hordesWorn = () => { try { const e = JSON.parse(localStorage.getItem('oo_skins_equip') || '{}'); return Array.isArray(e.horde) && e.horde.length > 0; } catch { return false; } };
+export const hordeLooksReady = hordesWorn() ? import('./hordeSkins.js').then((m) => { if (!hordeMod) hordeMod = m; return m; }).catch(() => null) : Promise.resolve(null); // (only when a horde is worn; null: the classic green)
+export const zombieBody = (hs) => (hs && hordeMod ? hordeMod.hordeBody(hs) : null); // a landed zombie, or one it bit, in the same horde
+function zombie() { const hs = hordeMod ? hordeMod.hordeLook() : null, z = makeCharacter(['worker', 'suit', 'hoodie', 'plaid'][(Math.random() * 4) | 0], { zombie: true, horde: hs ? hordeMod.hordeBody(hs) : null }); z.scale.setScalar(0.42); z.userData.hs = hs; return z; }
 function limb() { const g = new THREE.Group(), sk = LM(0x7a9a6a); piece(g, box, sk, 0.13, 0.5, 0.13, 0, 0, 0); piece(g, sph, sk, 0.17, 0.17, 0.17, 0, 0.3, 0); piece(g, box, LM(0x7a1a14), 0.14, 0.05, 0.14, 0, -0.26, 0); return g; }
 function tomb() { const g = new THREE.Group(), st = LM(0x8a9298); piece(g, box, st, 0.4, 0.5, 0.12, 0, 0, 0); piece(g, cylG, st, 0.4, 0.12, 0.4, 0, 0.25, 0).rotation.x = Math.PI / 2; return g; }
 function ghost() { const g = new THREE.Group(), dk = BM(0x10201a); piece(g, sph, ghostMat, 0.6, 0.6, 0.6, 0, 0.12, 0); piece(g, cylG, ghostMat, 0.6, 0.42, 0.6, 0, -0.1, 0); for (const [x, z] of [[-0.2, 0.1], [0, -0.14], [0.2, 0.1]]) piece(g, sph, ghostMat, 0.24, 0.3, 0.24, x, -0.34, z); for (const x of [-0.11, 0.11]) piece(g, sph, dk, 0.1, 0.14, 0.06, x, 0.16, 0.27); piece(g, sph, dk, 0.1, 0.16, 0.06, 0, -0.04, 0.29); g.userData.fly = true; return g; }
@@ -320,7 +324,7 @@ export function createTwisters(scene, { onBolt, onToss } = {}) {
       if (fx && o.userData.trail && o.parent === scene) { c.pt -= dt; if (c.pt <= 0) { c.pt = 0.04; fx.puff('flame', p, 0.4 + o.scale.x * 0.5); } }
       if (p.y > 0.12 && c.t < 6 && o.parent) continue;
       tossed.splice(i, 1); p.y = 0; const home = o.parent; if (home) home.remove(o);
-      if (home === scene && onToss && onToss(c.kind, p, c.tw, c.vel) !== false) continue; // the game took it from here
+      if (home === scene && onToss && onToss(c.kind, p, c.tw, c.vel, o) !== false) continue; // the game took it from here
       if (fx && home === scene) fx.dust(p, 0.8); else if (home) for (let q = 0; q < 6; q++) spark(p.clone().setY(0.05), new THREE.Vector3((Math.random() - 0.5) * 3, 1 + Math.random() * 2, (Math.random() - 0.5) * 3), (c.tw.skin.lights || c.tw.skin.junk)[q % 2], 0.5, 6, 1.2, home); } }
   const puddleG = new THREE.CircleGeometry(0.8, 14).rotateX(-Math.PI / 2), puddleM = [0x5a3e1a, 0x6a7a24].map((c) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.8, depthWrite: false }));
   function skinFx(tw, dt) {
@@ -356,3 +360,5 @@ export function createTwisters(scene, { onBolt, onToss } = {}) {
   function suck(m, tw, o) { scene.attach(m); addChunk(m, tw, 0); if (o && o.onLand) chunks[chunks.length - 1].onLand = o.onLand; } // o.onLand(m): called where it comes down, instead of it lying there (the storm chaser blows up)
   return { make, remove, tear, scatter, suck, update, clear, radiusAt, strikeAt, get tossed() { return tossed; }, setFx(f) { fx = f; }, get wreck() { return wreck; }, get chunks() { return chunks; }, get babies() { return babies; }, setBounds(b) { bounds = b; } };
 }
+// the things the storms carry, for the bonus games' craft skins (craftSkins.js): their followers, bombs and rockets
+export const STORM_ITEMS = { bat, pumpkin, reindeer, snowman, shark, bunny, egg, flag, fireball, drum, poo, tp, sludge, iceChunk, meteor, pie, chicken, limb, tomb, ghost, chair, table, mallow, cracker, choc, planet, star, cube, errPanel };

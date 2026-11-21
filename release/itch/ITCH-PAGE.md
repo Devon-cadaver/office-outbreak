@@ -1,6 +1,6 @@
 # Tornado Time! — itch.io page kit
 
-Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.30.0**. Upload `release/tornado-time-web-v1.30.0.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to. All the images below are in `release/itch/tornado-time/`.
+Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.31.0**. Upload `release/tornado-time-web-v1.31.0.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to. All the images below are in `release/itch/tornado-time/`.
 
 The game used to be called Dead City: Tornado Alley. From 1.28.0 it is **Tornado Time!**, with Kaiju Madness as its bonus game. Older zips keep their old `survive-dead-city-web` names.
 
@@ -15,7 +15,7 @@ The game used to be called Dead City: Tornado Alley. From 1.28.0 it is **Tornado
 | Short description / tagline | You are the tornado. Wreck six towns, swallow rival twisters, zap UFOs and blow up everything worth blowing up. |
 | Classification | Game |
 | Kind of project | **HTML** |
-| Uploads | `tornado-time-web-v1.30.0.zip` (about 32 MB, mostly the nine songs). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
+| Uploads | `tornado-time-web-v1.31.0.zip` (about 40 MB, mostly the eleven songs). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
 | Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
 | Frame options | Leave SharedArrayBuffer off. No special headers needed. |
 | Pricing | Free (or "No payments"). |
@@ -123,6 +123,7 @@ Small browser games built fast, tested on a phone, and tuned by playing. Tornado
 
 ## Version history
 
+- **1.31.0** (2026-11-21): Two new bonus games. ZOMBIE AIR RAID: fly a napalm bomber or a rocket heli over a zombie town, with more zombies in every town (300 up to 600), solid tall buildings, acid-spitting Gloopers and Grave Giants that throw chunks of buildings at you. BEAM 'EM UP!: be the UFO. Tap to fly there and zap, your death ray hits nearby buildings by itself, and you hold your finger on the saucer to beam people up, while helicopters, fighter jets and horn trucks fight back. New skins: 17 each for the bomber, the heli and the saucer, one for every tornado skin, plus 12 zombie hordes (skeletons, vampires, orcs, mummies, pumpkin heads, werewolves and more) for Air Raid, the saucer's graveyard and the Zombienado. Two new songs, Napalm Requiem and Beam Beam Baby.
 - **1.30.0** (2026-11-20): Kaiju fights rebuilt: tap for combos, flick to send a rival flying through buildings, flick to dodge (dodge late for a slow-motion counter). Wrestling moves follow your finger: lift and slam, swing it over, pull back and charge. Break free when a rival grabs you. Aim your throws and blasts, and tap as you land for a perfect flying elbow. Monsters move with more weight. Kaiju Madness now has the storm cannons, gunships and UFO, each big target's own explosion, big tank blasts and the new screen layout. House doors have a fresh look.
 - **1.29.5** (2026-11-20): A red EXIT GAME button is on the main menu and the pause screens: it leaves full screen and returns to the title. The pause button stays top right; zoom and skip-song sit under it on a computer and along the bottom on a phone. A storm cannon struck by lightning goes up in a big blast with a shock wave that flattens nearby buildings.
 - **1.29.4** (2026-11-20): The targets bar always fits on one line and runs across the top. The pause, zoom and skip-song buttons are one size and sit along the bottom beside the mini map, which is a little bigger. A badge above the mini map shows how much of the town is destroyed. Pausing the game now silences every sound.

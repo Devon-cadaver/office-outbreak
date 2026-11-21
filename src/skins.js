@@ -3,6 +3,8 @@
 import * as THREE from 'three';
 import { getEra } from './era.js';
 import { CHAR_SKINS2, CAR_SKINS2, FX_SKINS } from './skins2.js';
+import { CRAFT_SKINS, CRAFT_STORMS } from './craftSkinData.js';
+import { HORDE_SKINS, HORDE_IDS } from './hordeSkinData.js';
 import { TWISTER_SKINS } from './tornado.js';
 import { KAIJU, KAIJU_SKINS } from './kaiju/rigs.js';
 export { TWISTER_SKINS };
@@ -18,7 +20,7 @@ export function fmtCoins(c = getCoins()) { const v = Math.round(c * 100) / 100; 
 { try { const own = JSON.parse(localStorage.getItem('oo_skins_owned') || '[]'); const fix = (x) => (typeof x === 'string' && /^kaiju:[a-z0-9]+$/.test(x) ? x + ':skeleton' : x); if (own.some((x) => fix(x) !== x)) localStorage.setItem('oo_skins_owned', JSON.stringify(own.map(fix)));
   const eq = JSON.parse(localStorage.getItem('oo_skins_equip') || '{}'); let ch = false; for (const k in eq) if (fix(eq[k]) !== eq[k]) { eq[k] = fix(eq[k]); ch = true; } if (ch) localStorage.setItem('oo_skins_equip', JSON.stringify(eq)); } catch { /* ignore */ } }
 // put on a skin you just won (the slot comes from its id: tornado:<k>, kaiju:<id>:<look>, or the shop's own category)
-export function equipWon(id) { const s = SKINS.find((x) => x.id === id); const slot = id.startsWith('kaiju:') ? 'kj_' + id.split(':')[1] : s ? s.cat : null; if (slot && slot !== 'npc') equip(slot, id); }
+export function equipWon(id) { const s = SKINS.find((x) => x.id === id); const slot = id.startsWith('kaiju:') ? 'kj_' + id.split(':')[1] : id.startsWith('craft:') ? 'cr_' + id.split(':')[1] : s ? s.cat : null; if (slot && slot !== 'npc' && slot !== 'horde') equip(slot, id); }
 // the pause menu's CHOOSE SKIN button: opens its own little menu listing Default plus the skins you own for that slot;
 // tapping one puts it on and onPick swaps it in live (onPick returns false to refuse, e.g. mid-Nukular)
 export function pauseSkinRow(host, icon, slot, opts, onPick) { let b = host.querySelector('.psBtn'); if (!b) { b = document.createElement('button'); b.className = 'ghost psBtn'; host.insertBefore(b, host.querySelector('.soundRow')); }
@@ -36,12 +38,13 @@ export function totalReward(ids, nameOf, host) { const pool = ids.slice(); for (
   u.innerHTML = id ? '💥 TOTAL DESTRUCTION REWARD: <b>' + nameOf(id).toUpperCase() + '</b><br><small>A free skin, and it\'s on for your next round. Switch skins from the pause menu.</small>' : '💥 TOTAL DESTRUCTION REWARD: <b>+5 🪙</b><br><small>You already own every skin, so have some coins.</small>'; host.appendChild(u); return id; }
 export function grantSkin(id) { const owned = getOwned(); if (owned.includes(id)) return false; owned.push(id); set(K.owned, owned); return true; }
 // skins everyone has from the start
-const FREE_SKINS = Object.entries(TWISTER_SKINS).filter(([, s]) => s.free).map(([k]) => 'tornado:' + k);
+const FREE_SKINS = [...Object.entries(TWISTER_SKINS).filter(([, s]) => s.free).map(([k]) => 'tornado:' + k), ...Object.entries(CRAFT_SKINS).flatMap(([c, l]) => Object.keys(l).filter((k) => l[k].free).map((k) => 'craft:' + c + ':' + k)), ...HORDE_IDS.filter((k) => HORDE_SKINS[k].free).map((k) => 'horde:' + k)];
 export function getOwned() { const o = get(K.owned, []); return [...o, ...FREE_SKINS.filter((x) => !o.includes(x))]; }
-export function getEquipped() { const e = { player: null, npc: [], car: null, fx: null, tornado: null, ...get(K.equip, {}) }; for (const k of ['npc', 'car']) { if (typeof e[k] === 'string') e[k] = [e[k]]; if (!Array.isArray(e[k])) e[k] = []; } /* townsfolk and cars: a list (older saves had one car) */ return e; }
+export function getEquipped() { const e = { player: null, npc: [], car: null, horde: [], fx: null, tornado: null, ...get(K.equip, {}) }; for (const k of ['npc', 'car', 'horde']) { if (typeof e[k] === 'string') e[k] = [e[k]]; if (!Array.isArray(e[k])) e[k] = []; } /* townsfolk and cars: a list (older saves had one car) */ return e; }
 export const NPC_MAX = 10;
-export function equip(cat, id) { const e = getEquipped(); if (cat === 'npc' || cat === 'car') { const list = e[cat]; if (id == null) e[cat] = []; else if (list.includes(id)) e[cat] = list.filter((x) => x !== id); else if (list.length < NPC_MAX) list.push(id); } else e[cat] = id; set(K.equip, e); }
-export function isEquipped(cat, id) { const e = getEquipped(); return cat === 'npc' || cat === 'car' ? e[cat].includes(id) : e[cat] === id; }
+export const LIST_CATS = ['npc', 'car', 'horde']; // the ones you can wear several of, each a share of the town (or the horde)
+export function equip(cat, id) { const e = getEquipped(); if (LIST_CATS.includes(cat)) { const list = e[cat]; if (id == null) e[cat] = []; else if (list.includes(id)) e[cat] = list.filter((x) => x !== id); else if (list.length < NPC_MAX) list.push(id); } else e[cat] = id; set(K.equip, e); }
+export function isEquipped(cat, id) { const e = getEquipped(); return LIST_CATS.includes(cat) ? e[cat].includes(id) : e[cat] === id; }
 // how much of the town wears the skins you picked: a quarter for each one, all of it from four; past four they share it evenly
 export const townShare = (n) => Math.min(1, n * 0.25);
 export function buy(id) { const s = SKINS.find((x) => x.id === id); if (!s) return false; const owned = getOwned(); if (owned.includes(id)) return true; if (s.bonus) return false; if (getCoins() < s.price) return false; addCoins(-s.price); owned.push(id); set(K.owned, owned); return true; }
@@ -86,8 +89,8 @@ export const CHAR_SKINS = {
 };
 // car skins: body colour plus a dress(part, kind) hook. The car body is 0.95 wide, 1.9 long, roof at y 0.93; vans are 1.0 x 2.1, roof at 0.9
 export const CAR_SKINS = {
-  ateam: { name: 'A-Team van', price: 1, color: 0x1a1a1e, dress: (part, kind) => { const L = kind === 'van' ? 2.1 : 1.9; part(box, 0xc62828, 1.02, 0.1, L, 0, 0.5, kind === 'van' ? -0.1 : 0); part(box, 0x8a8f96, 1.02, 0.14, L, 0, 0.25, kind === 'van' ? -0.1 : 0); part(box, 0xc62828, 0.12, 0.05, 0.9, 0, 0.95, -0.2); part(box, 0x1a1a1e, 0.9, 0.12, 0.5, 0, 0.98, -0.3); } },
-  madmax: { name: 'Mad Max rig', price: 1, color: 0x6a4a2a, dress: (part, kind) => { const L = kind === 'van' ? 2.1 : 1.9; for (let i = 0; i < 4; i++) { const sp = part(cone, 0x8a8f96, 0.1, 0.3, 0.1, -0.5 + i * 0.33, 0.45, L / 2 + 0.1); sp.rotation.x = Math.PI / 2; } part(box, 0x3a3a3a, 0.9, 0.08, 0.9, 0, 1.0, -0.3); part(cyl, 0x2a2a2e, 0.14, 0.5, 0.14, 0.3, 0.9, -0.9); part(box, 0x8a8f96, 1.05, 0.3, 0.1, 0, 0.3, L / 2 + 0.04); part(box, 0x4a3a2a, 0.3, 0.2, 0.5, -0.35, 0.95, -0.2); } },
+  ateam: { name: 'Getaway Van', price: 1, color: 0x1a1a1e, dress: (part, kind) => { const z0 = kind === 'van' ? -0.1 : 0, sx0 = kind === 'van' ? 0.51 : 0.485; /* a lime lightning bolt down each side, and a roof rack with the bags on it */ for (const sx of [-sx0, sx0]) { part(box, 0x9dff3a, 0.03, 0.08, 0.6, sx, 0.62, z0 + 0.42).rotation.x = 0.55; part(box, 0x9dff3a, 0.03, 0.08, 0.5, sx, 0.5, z0).rotation.x = -0.55; part(box, 0x9dff3a, 0.03, 0.08, 0.6, sx, 0.38, z0 - 0.42).rotation.x = 0.55; } for (const x of [-0.35, 0.35]) part(box, 0x8a8f96, 0.05, 0.05, 1.2, x, 1.0, -0.2); for (const z of [-0.7, 0.3]) part(box, 0x8a8f96, 0.75, 0.05, 0.05, 0, 1.0, z); part(box, 0x5a3a22, 0.4, 0.2, 0.5, -0.1, 1.12, -0.35); part(box, 0x2a4a6a, 0.3, 0.16, 0.36, 0.18, 1.1, 0.05); } },
+  madmax: { name: 'Scrapyard Rig', price: 1, color: 0x6a4a2a, dress: (part, kind) => { const L = kind === 'van' ? 2.1 : 1.9; for (let i = 0; i < 4; i++) { const sp = part(cone, 0x8a8f96, 0.1, 0.3, 0.1, -0.5 + i * 0.33, 0.45, L / 2 + 0.1); sp.rotation.x = Math.PI / 2; } part(cyl, 0x2a2a2e, 0.14, 0.5, 0.14, 0.3, 0.9, -0.9); part(box, 0x8a8f96, 1.05, 0.3, 0.1, 0, 0.3, L / 2 + 0.04); /* a primer-grey door off another car, and a spare tyre on the roof */ part(box, 0x8a8e92, (kind === 'van' ? 1.0 : 0.95) + 0.04, 0.34, 0.5, 0, 0.47, 0.1); part(cyl, 0x1a1a1c, 0.62, 0.18, 0.62, -0.05, 1.04, -0.35); part(cyl, 0x8a8f96, 0.26, 0.2, 0.26, -0.05, 1.04, -0.35); } },
   police: { name: 'Police cruiser', price: 1, color: 0xf0f0f0, dress: (part, kind) => { const L = kind === 'van' ? 2.1 : 1.9; part(box, 0x1a1a2e, 1.02, 0.2, L * 0.5, 0, 0.3, 0); part(box, 0x1a1a2e, 0.9, 0.3, 0.3, 0, 0.5, L / 2 - 0.1); part(box, 0xff3a3a, 0.3, 0.1, 0.12, -0.2, 0.98, -0.15); part(box, 0x3a7aff, 0.3, 0.1, 0.12, 0.2, 0.98, -0.15); part(box, 0xffd24a, 0.14, 0.05, 0.14, 0, 0.5, L / 2 + 0.02); } },
   hearse: { name: 'Hearse', price: 1, color: 0x111114, dress: (part, kind) => { const L = kind === 'van' ? 2.1 : 1.9; part(box, 0x111114, 0.9, 0.3, L * 0.5, 0, 0.9, -0.4); part(box, 0x8a8f96, 0.05, 0.3, L * 0.5, 0.46, 0.9, -0.4); part(box, 0x8a8f96, 0.05, 0.3, L * 0.5, -0.46, 0.9, -0.4); part(box, 0xc9a35a, 0.6, 0.06, 0.2, 0, 0.9, -L / 2 - 0.02); } },
   pizza: { name: 'Pizza wagon', price: 1, color: 0xff8a1a, dress: (part) => { part(box, 0xffffff, 0.8, 0.3, 0.7, 0, 1.1, -0.2); part(box, 0xc62828, 0.82, 0.06, 0.72, 0, 1.27, -0.2); part(cyl, 0xe8d54a, 0.28, 0.06, 0.28, 0, 1.3, -0.2); part(box, 0xc62828, 0.1, 0.05, 0.1, 0.05, 1.34, -0.25); } },
@@ -103,6 +106,10 @@ export const SKINS = [
   ...Object.entries(CAR_SKINS).map(([id, s]) => ({ id: 'car:' + id, key: id, cat: 'car', name: s.name, price: s.price, desc: 'Your car and the parked cars and vans.' })),
   ...Object.entries(KAIJU_SKINS).flatMap(([id, looks]) => Object.values(looks).map((s) => ({ id: 'kaiju:' + id + ':' + s.look, key: id, look: s.look, cat: 'kaiju', name: s.name, price: 1, desc: (id === 'mike' && s.look === 'halloween' ? 'His Halloween costume: a frilly pink tutu and a long blond wig.' : s.look === 'gear' ? 'Alternate ring gear in new colours.' : s.look === 'skeleton' ? 'Black with bone-white plates and red eyes.' : "Glowing orange bones and a flaming jack-o'-lantern head (or a witch's hat).") }))),
   ...Object.entries(TWISTER_SKINS).map(([id, s]) => ({ id: 'tornado:' + id, key: id, cat: 'tornado', name: s.name, price: s.price, desc: s.desc, bonus: s.bonus || null })),
+  // Zombie Air Raid's horde (hordeSkinData.js): wear several, each a share of the horde, like townsfolk outfits
+  ...HORDE_IDS.map((k) => ({ id: 'horde:' + k, key: k, cat: 'horde', name: HORDE_SKINS[k].name, price: HORDE_SKINS[k].price, desc: HORDE_SKINS[k].desc + ' With the ' + HORDE_SKINS[k].giant + '.', bonus: null })),
+  // the bonus games' craft: one skin per storm for each (craftSkinData.js). Slot cr_<craft>, so each craft wears its own
+  ...Object.entries(CRAFT_SKINS).flatMap(([c, l]) => CRAFT_STORMS.filter((k) => l[k]).map((k) => ({ id: 'craft:' + c + ':' + k, key: k, craft: c, cat: 'craft', name: l[k].name, price: l[k].price, desc: l[k].desc, bonus: l[k].bonus || null, storm: TWISTER_SKINS[k] ? TWISTER_SKINS[k].name : '' }))),
 ];
 // ---------- the army dresses for the era: Future troopers (white armour, glowing cyan visor, laser rifle) and Wild West
 // cavalry (blue coat, wide-brimmed hat, yellow neckerchief, long rifle); otherwise the usual camo ----------

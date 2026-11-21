@@ -8,7 +8,9 @@ import { generateMaze, buildCity, toWorld, toCell, findPath, CELL, mulberry32 } 
 import { makeCharacter, animateWalk } from '../poster/characters.js';
 import { makeCar } from '../car.js';
 import { isFuture, isPast, hoverize, futurePlane, pastPlane, buildCannon, buildChaserCoach, eraPicker, levelKey, bestKey, futureTank, laserBolt } from '../era.js';
-import { createTwisters, TWISTER_SKINS } from '../tornado.js';
+import { createTwisters, TWISTER_SKINS, hordeLooksReady, zombieBody, useHordeLooks } from '../tornado.js';
+import * as hordeLooks from '../hordeSkins.js';
+useHordeLooks(hordeLooks); // the Zombienado's zombies wear the hordes from the first storm on
 import { createFires } from '../fire.js';
 import { unlockAudio, soundToggle, setMusicDuck, setSfxPaused, skipSongBtn, sfx, stopMusic, setPlaneEngine, planeEngineLevel, setWind, windLevel, setStormLevel, stormBoost, stormMusicState, playSongs, songState, gameMusic, SONGS_TORNADO } from '../audio.js';
 import { armySkin, townSkin, equippedSkin, equippedTornado, skinnedCarArgs, addCoins, grantSkin, equip, CHAR_SKINS, totalReward, pauseSkinRow, getOwned, getEquipped } from '../skins.js';
@@ -48,7 +50,7 @@ const fx = createFires(scene);
 const crowd = createCrowd(scene, 640), crowdLists = [[null, 0], [null, 1]]; // townsfolk and soldiers away from the storm: one draw call for the lot
 let shake = 0; const jolt = (v) => { shake = Math.max(shake, v); }; // camera shake (0..1): a short jolt when something big comes down
 let flashT = 0; const flashEl = document.createElement('div'); flashEl.style.cssText = 'position:fixed;inset:0;background:#dfeaff;opacity:0;pointer-events:none;z-index:5'; document.body.appendChild(flashEl);
-const twisters = createTwisters(scene, { onToss: (kind, p, who, vel) => stormToss(kind, p, who, vel), onBolt: (p, ground, who) => { const mine = !who || who === tw, sk = (who || tw || {}).skin; if (mine) { flashT = Math.max(flashT, ground ? 0.1 : 0.05); if (ground && Math.random() < 0.3) sfx.boom(); } if (ground) fx.zap(p, sk && sk.boltGlow ? sk.boltGlow : 0x9fd0ff); } }); twisters.setFx(fx); // another storm's bolts (the rogue twister) don't flash the screen
+const twisters = createTwisters(scene, { onToss: (kind, p, who, vel, o) => stormToss(kind, p, who, vel, o), onBolt: (p, ground, who) => { const mine = !who || who === tw, sk = (who || tw || {}).skin; if (mine) { flashT = Math.max(flashT, ground ? 0.1 : 0.05); if (ground && Math.random() < 0.3) sfx.boom(); } if (ground) fx.zap(p, sk && sk.boltGlow ? sk.boltGlow : 0x9fd0ff); } }); twisters.setFx(fx); // another storm's bolts (the rogue twister) don't flash the screen
 stampVersion($('taStart'));
 const poiFx = createPoiFx(scene, fx, { jolt, popup, flash: (v) => { flashT = Math.max(flashT, v); },
   // the nearest buildings still standing, for the power plant's lightning to jump to (some of them catch fire)
@@ -580,6 +582,8 @@ let state = 'start', roundId = 0; // roundId: delayed effects from an earlier ro
 const twPV = createPreviews({ perFrame: 4, cam: [0, 6.4, 25], look: [0, 5.7, 0], fov: 32 }), twPVT = createTwisters(twPV.scene), twLive = new Map(); twPV.onTick = (dt, n) => { if (n) twPVT.update(dt); };
 function twThumb(key, cv, slot = 'card') { const id = slot + ':' + (key || 'default'); // one storm per card, built when the card is first seen, then kept
   twPV.add(cv, () => { let s = twLive.get(id); if (!s) twLive.set(id, (s = twPVT.make(true, [], key))); return s; }, null, (v, s) => { s.userData.twister.asleep = !v; }); }
+// the horde looks load on the side (tornado.js): a Zombienado card built before then is rebuilt in them
+hordeLooksReady.then((m) => { if (!m || !m.hordeAny()) return; let n = 0; for (const id of [...twLive.keys()]) if (id.endsWith(':zombie')) { twPVT.remove(twLive.get(id), true); twLive.delete(id); n++; } if (n && state === 'start') drawTwPicker(); });
 const twName = (k) => (k ? TWISTER_SKINS[k].name : 'Classic Twister'), twDesc = (k) => (k ? TWISTER_SKINS[k].desc : 'Free! The classic grey funnel with blue-white lightning.');
 function drawTwPicker() { const cur = equippedTornado(); $('twChosenName').textContent = twName(cur).toUpperCase(); $('twChosenDesc').textContent = twDesc(cur); twPV.clear(); twThumb(cur, $('twChosenCv'), 'chosen');
   if ($('twPickScr').classList.contains('hidden')) return; const owned = getOwned(), all = [null, ...Object.keys(TWISTER_SKINS)], mine = (k) => !k || owned.includes('tornado:' + k);
@@ -595,7 +599,7 @@ drawTwPicker();
 soundToggle($('taStart'), $('taPaused')); skipSongBtn($('ta')); eraPicker($('taLevels'), () => { level = unlocked(); drawLevels(); }); seasonPicker($('eraRow')); // sound on/off on the start and pause screens
 // the soundtrack starts on the first tap and keeps rotating songs for as long as you're on Tornado Alley
 gameMusic($('taPaused'), SONGS_TORNADO); radioButton($('taPaused'), $('taPaused').querySelector('.menuBtn'));
-const fsMode = initFullscreen(() => state === 'play'); // full screen on play, back in after a browser drop-out, no page scrolling mid-round
+const fsMode = initFullscreen(() => state === 'play' || state === 'outro'); // full screen on play, back in after a browser drop-out, no page scrolling mid-round
 function start() {
   fsMode.play();
   coachClear(); saveLast('ta', level); crowd.clear();
@@ -689,7 +693,7 @@ const foes = createFoes({ absorbed: () => { absorbed = true; }, speedBurst: (s) 
 
 // ---------- what the storm's skin throws out, where it lands (tornado.js throws them: see `toss` in TWISTER_SKINS) ----------
 let tossSfx = 0; const hunters = [];
-function stormToss(kind, p, who, vel) {
+function stormToss(kind, p, who, vel, o = null) {
   if (who !== tw || state !== 'play') return false; const at = new THREE.Vector3(p.x, 0, p.z), near = toScreen(at).on;
   const hit = (r, label) => { let n = 0; // people there are knocked flying, cars go up, street furniture goes over
     for (let i = people.length - 1; i >= 0; i--) { const c = people[i]; if (c.userData.zombie || Math.hypot(c.position.x - p.x, c.position.z - p.z) > r) continue; people.splice(i, 1); delete c.updateMatrixWorld; twisters.scatter([c], at, 5); peopleN++; award(25, c.position, n++ ? '' : label); grow(0.12); }
@@ -717,13 +721,13 @@ function stormToss(kind, p, who, vel) {
       const from = at.clone().addScaledVector(new THREE.Vector3(vel.x, 0, vel.z).normalize(), -2); let nb = null, nd = 1.9; for (const x of buildings) { if (x.done || x.h > maxH(sizeShown)) continue; const d = Math.hypot(x.pos.x - p.x, x.pos.z - p.z); if (d < nd) { nd = d; nb = x; } } if (nb) wreckBuilding(nb, true, null, { collapse: true, from, power: 1.4 }); break; }
     case 'mallow': { splat([0xffffff, 0xffe8f0]); fx.pool(at, 1.5, 0xf4ece0, 9, 0.7); let n = 0; for (const c of people) if (!c.userData.zombie && Math.hypot(c.position.x - p.x, c.position.z - p.z) < 2.2) { c.userData.stuck = played + 7; n++; } if (n) popup(at, 'STUCK!', '#ffe8f0'); thud(); break; }
     case 'ghost': { fx.glow(at, 3, 0x7dffb0, 0.8, 0.7); fx.spray(up(0.4), 14, { c: [0xffffff, 0x7dffb0], speed: 2, up: [1, 4], life: 1, size: 0.5, grav: -1, shape: 0, stretch: 0 }); let n = 0; for (const c of people) if (!c.userData.zombie && Math.hypot(c.position.x - p.x, c.position.z - p.z) < 3) { c.userData.lure = played + 8; n++; } if (n) popup(at, 'POSSESSED!', '#b8ffd8'); if (near && played - tossSfx > 1.5) { tossSfx = played; sfx.ghost(); } break; }
-    case 'zombie': { for (let i = 0; i < 3; i++) fx.dust(at, 1.1, 0, 0, 0x6a7a4a); if (hunters.length < 12) spawnHunter(at); thud(); break; }
+    case 'zombie': { for (let i = 0; i < 3; i++) fx.dust(at, 1.1, 0, 0, 0x6a7a4a); if (hunters.length < 12) spawnHunter(at, o && o.userData.hs); thud(); break; }
     default: return false;
   }
   return true;
 }
 // Zombienado: the dead it drops go after the living. A bite turns the victim, who hunts too (a dozen at most)
-function spawnHunter(at) { const z = makeCharacter(['worker', 'suit', 'hoodie', 'plaid'][(Math.random() * 4) | 0], { zombie: true }); z.scale.setScalar(0.25); z.position.set(at.x, 0, at.z); collidePerson(z); scene.add(z); hunters.push({ c: z, prey: null, pickT: 0, life: 26 }); }
+function spawnHunter(at, hs = null) { const z = makeCharacter(['worker', 'suit', 'hoodie', 'plaid'][(Math.random() * 4) | 0], { zombie: true, horde: zombieBody(hs) }); /* hs: its horde skin, from the Zombienado (null: the classic green) */ z.scale.setScalar(0.25); z.position.set(at.x, 0, at.z); collidePerson(z); scene.add(z); hunters.push({ c: z, prey: null, pickT: 0, life: 26, hs }); }
 function updateHunters(dt, px, pz, R) {
   for (let i = hunters.length - 1; i >= 0; i--) { const h = hunters[i], c = h.c, P = c.position; h.life -= dt; h.pickT -= dt;
     if (Math.hypot(P.x - px, P.z - pz) < R + 0.35) { hunters.splice(i, 1); twisters.suck(c, tw); award(40, P, 'ZOMBIE'); grow(0.12); continue; } // the storm takes its own back
@@ -731,7 +735,7 @@ function updateHunters(dt, px, pz, R) {
     if (h.pickT <= 0 || (h.prey && !people.includes(h.prey))) { h.pickT = 0.6; h.prey = null; let bd = 11; for (const q of people) { if (q.userData.zombie || q.userData.burnT > 0) continue; const d = Math.hypot(q.position.x - P.x, q.position.z - P.z); if (d < bd) { bd = d; h.prey = q; } } }
     if (!h.prey) { animateWalk(c, dt, 0); continue; }
     const q = h.prey.position, dx = q.x - P.x, dz = q.z - P.z, d = Math.hypot(dx, dz) || 0.01;
-    if (d < 0.4) { const j = people.indexOf(h.prey); if (j >= 0) people.splice(j, 1); scene.remove(h.prey); award(30, q, 'BITTEN'); peopleN++; fx.sparks(new THREE.Vector3(q.x, 0.4, q.z), 6, { c: [0xff4a3a, 0x7a1a14], speed: 3, up: 3, life: 0.4 }); if (hunters.length < 12) spawnHunter(q); h.prey = null; h.pickT = 0; continue; }
+    if (d < 0.4) { const j = people.indexOf(h.prey); if (j >= 0) people.splice(j, 1); scene.remove(h.prey); award(30, q, 'BITTEN'); peopleN++; fx.sparks(new THREE.Vector3(q.x, 0.4, q.z), 6, { c: [0xff4a3a, 0x7a1a14], speed: 3, up: 3, life: 0.4 }); if (hunters.length < 12) spawnHunter(q, h.hs); h.prey = null; h.pickT = 0; continue; }
     P.x += dx / d * 2.1 * dt; P.z += dz / d * 2.1 * dt; c.rotation.y = Math.atan2(dx, dz); animateWalk(c, dt, 1.6); collidePerson(c); }
 }
 function clearHunters() { for (const h of hunters) scene.remove(h.c); hunters.length = 0; }

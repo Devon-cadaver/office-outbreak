@@ -114,7 +114,7 @@ export function createFoes(E) {
     g.position.copy(from).setY(1.2); g.rotation.y = c.aim; scene.add(g); waves.push({ g, mat, dir, far: 0, hit: false }); fx.shock(from, 3.5, 0xffc060); for (let i = 0; i < 4; i++) fx.dust(from, 1.2, dir.x * 4, dir.z * 4); sfx.boom(); if (seen(from)) E.jolt(0.3); }
   function updateCannons(dt, px, pz, R) {
     for (let i = cannons.length - 1; i >= 0; i--) { const c = cannons[i], g = c.g, p = g.position, ud = g.userData, dx = px - p.x, dz = pz - p.z, d = Math.hypot(dx, dz) || 0.01, want = Math.atan2(dx, dz); c.t -= dt; c.stun -= dt;
-      if (d < R + 0.9) { killCannon(c, 'crushed'); continue; }
+      if (d < R + 0.9 && !E.flying) { killCannon(c, 'crushed'); continue; } /* E.flying: the player flies over the trucks (BEAM 'EM UP!'s saucer) and never runs one over */
       if (c.stun > 0) { c.sp -= dt; if (c.sp <= 0) { c.sp = 0.18; fx.sparks(V(p.x, 1.1, p.z), 3, { speed: 3, up: 3, life: 0.35 }); } }
       else if (c.mode === 'idle') { c.aim = turnTo(c.aim, want, dt * 2.2); if (c.t <= 0 && d < RANGE) { c.mode = 'charge'; c.t = CHARGE; sfx.laser(); } }
       else { const lock = c.t < 0.45; if (!lock) c.aim = turnTo(c.aim, want, dt * 1.7); const k = 1 - c.t / CHARGE; // it locks for the last moment: that is when to step aside

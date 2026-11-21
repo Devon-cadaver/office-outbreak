@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#16302f" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Tornado Time!" />
+  <link rel="apple-touch-icon" href="./icon-180.png" />
+  <title>Zombie Air Raid | Tornado Time!</title>
+  <link rel="icon" href="data:," />
+  <link rel="stylesheet" href="/src/style.css" />
+  <style>
+    #ta { position: fixed; inset: 0; pointer-events: none; }
+    #taPct { position: absolute; left: 10px; bottom: calc(146px + env(safe-area-inset-bottom, 0)); width: 128px; box-sizing: border-box; text-align: center; padding: 3px 7px; border-radius: 9px; background: #0b1416c4; border: 2px solid #ffffff55; font-size: 12px; font-weight: 900; white-space: nowrap; color: #fff; } #taPct.ok { color: #7dff3a; border-color: #7dff3a; }
+    #taMap { position: absolute; left: 10px; bottom: calc(10px + env(safe-area-inset-bottom, 0)); width: 128px; height: 128px; border-radius: 50%; background: #0b1416c0; border: 2px solid #ffffff55; pointer-events: auto; touch-action: none; }
+    /* pause: big, bright green with purple bars, so nobody has to hunt for it */
+    #taPause { position: absolute; right: 10px; top: calc(48px + env(safe-area-inset-top, 0)); pointer-events: auto; width: 46px; height: 46px; box-sizing: border-box; padding: 0; margin: 0; border-radius: 12px; background: #7dff3a; border: 3px solid #5a2f80; color: #5a2f80; font-size: 20px; font-weight: 900; line-height: 1; box-shadow: 0 0 12px #7dff3a99, 0 4px 0 #3a1a5a; }
+    #taPause:active { transform: translateY(2px); box-shadow: 0 0 8px #7dff3a99, 0 2px 0 #3a1a5a; }
+    #taStick { position: absolute; width: 120px; height: 120px; border-radius: 50%; background: #ffffff1a; border: 2px solid #ffffff55; transform: translate(-50%, -50%); display: none; }
+    #taKnob { position: absolute; left: 50%; top: 50%; width: 48px; height: 48px; border-radius: 50%; background: #c9a6ffcc; transform: translate(-50%, -50%); }
+    #taBanner { position: absolute; left: 50%; top: max(24%, calc(var(--hudH, 116px) + 14px)); transform: translateX(-50%); width: max-content; max-width: calc(100vw - 124px); text-align: center; line-height: 1.05; font-size: clamp(20px, 6vw, 40px); font-weight: 900; color: #ffd24a; text-shadow: 0 3px 0 #5a2f80, 0 6px 14px #000; white-space: normal; text-wrap: balance; opacity: 0; transition: opacity .2s; }
+    .pop { position: fixed; left: 0; top: 0; font-weight: 900; font-size: 15px; color: #ffe27a; text-shadow: 0 2px 4px #000; pointer-events: none; white-space: nowrap; }
+    #taLevels { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; width: min(92vw, 420px); }
+    #taLevels .lvl { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 1px; font-size: 9px; min-width: 0; min-height: 58px; border-radius: 10px; }
+    #taLevels .lvl b { font-size: 18px; } #taLevels .lvl i { font-style: normal; color: #1f4a12; font-weight: 800; font-size: 10px; }
+    #taLevels .lvl.on { outline: 3px solid #7dff3a; } #taLevels .lvl:disabled { opacity: .45; }
+    /* the button column on the right: pause, zoom in, zoom out, skip song. All one size, one edge, evenly spaced */
+    .zoomBtn, #ta .skipHud { position: absolute; right: 10px !important; width: 46px !important; height: 46px !important; box-sizing: border-box; padding: 0; margin: 0; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 900; line-height: 1; pointer-events: auto; border: 3px solid #5a2f80 !important; color: #5a2f80 !important; background-image: none !important; }
+    .zoomBtn { background-color: #ffd24a !important; font-size: 28px; font-family: Arial, sans-serif; box-shadow: 0 0 10px #ffd24a88, 0 4px 0 #3a1a5a !important; } .zoomBtn:active { transform: translateY(2px); }
+    #ta .skipHud { background-color: #7dff3a !important; font-size: 18px !important; box-shadow: 0 0 12px #7dff3a99, 0 4px 0 #3a1a5a !important; top: calc(210px + env(safe-area-inset-top, 0px)) !important; }
+    /* pause stays top right. Zoom and skip-song: a column under it where there is room (a computer), a row along the bottom
+       beside the mini map on a small screen (a phone) */
+    #taZoomIn { top: calc(102px + env(safe-area-inset-top, 0)); } #taZoomOut { top: calc(156px + env(safe-area-inset-top, 0)); }
+    @media (max-width: 760px), (max-height: 520px) { #taZoomIn { left: 148px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important; top: auto !important; right: auto !important; } #taZoomOut { left: 202px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important; top: auto !important; right: auto !important; } #ta .skipHud { left: 256px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important; top: auto !important; right: auto !important; } }
+    .howRow { display: flex; gap: 8px; justify-content: center; } .howRow button { margin: 0; }
+    body.paused .pop, body.paused .baseArrow { visibility: hidden; }
+    #taEnd .howRow { flex-wrap: wrap; } #taEnd { gap: 8px; padding: 12px 16px; } #taEnd h1 { font-size: clamp(32px, 9vw, 60px); } #taEnd p { font-size: 15px; margin: 0; } #taEnd .small { font-size: 13px; } #taEnd button { padding-top: 10px; padding-bottom: 10px; } #taEnd .howRow button { font-size: 14px; }
+    #taPrize { padding-left: 16px; padding-right: 16px; } #taPrize .chests { width: min(100%, 420px); } /* the prize box fits inside the screen's sides: no sideways scrolling on a phone */
+    #taEnd table { margin: 0 auto; font-size: 14px; border-collapse: collapse; } #taEnd td { padding: 1px 8px; text-align: left; } #taEnd td:last-child { text-align: right; font-weight: 800; }
+
+    /* ---------- Zombie Air Raid ---------- */
+    /* the top row: the horde (how many are left, and a bar that shrinks toward the GOAL line), then the clock */
+    #taRank { background: #ff5a3a; color: #2a0806; box-shadow: 0 3px 0 #8a1a10, 0 0 10px #ff5a3a66; font-size: 16px; padding: 4px 9px; white-space: nowrap; } #taRank.ok { background: #7dff3a; color: #12240a; box-shadow: 0 3px 0 #3f9a1f, 0 0 10px #7dff3a66; }
+    #taGrowFill { background: linear-gradient(90deg, #ffb04a, #ff3a2a); transition: width .25s; } #arGoalTick { background: #7dff3a !important; width: 3px !important; } #arGoalTick b { color: #7dff3a !important; }
+    #taTime.low { color: #ff5a3a; }
+    /* the mission box: people still alive, and the collateral meter */
+    #hudGoal { gap: 12px; } #taTargets.low { color: #ff7a5a; }
+    #arColl { display: flex; flex-direction: column; gap: 3px; min-width: 0; } #arColl small { font-size: 11px; font-weight: 900; letter-spacing: .5px; color: #ffb4a8; white-space: nowrap; }
+    #arCollBar { width: min(170px, 40vw); height: 11px; border-radius: 6px; background: #ffffff1f; border: 1px solid #ffffff55; overflow: hidden; } #arCollFill { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #ffd24a, #ff3a2a); transition: width .2s; }
+    #arColl.warn #arCollBar { border-color: #ff3a2a; animation: collWarn .45s infinite alternate; } @keyframes collWarn { to { box-shadow: 0 0 10px #ff3a2a; } }
+    #arColl.bump #arCollBar { animation: collBump .45s; } @keyframes collBump { 30% { transform: scaleY(1.7); box-shadow: 0 0 14px #ff3a2a; } }
+    #arCraftTag { color: #ffd24a; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+    /* the aircraft: health and ammo. At the bottom in the middle on a computer; on a phone beside the zoom buttons, above them */
+    #arCraft { position: absolute; left: 50%; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); width: 200px; box-sizing: border-box; padding: 5px 8px; border-radius: 10px; background: #0b1416c8; border: 2px solid #ffffff55; display: grid; gap: 4px; pointer-events: none; }
+    .arRow { display: flex; align-items: center; gap: 6px; } .arRow em { flex: none; width: 18px; font-style: normal; font-size: 13px; text-align: center; } .arRow b { flex: none; min-width: 18px; font-size: 13px; font-weight: 900; text-align: right; }
+    .arBar { flex: 1; min-width: 0; height: 10px; border-radius: 5px; background: #ffffff1f; border: 1px solid #ffffff44; overflow: hidden; } .arBar i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #ff5a3a, #ffd24a 45%, #7dff3a); }
+    .arBar.ammo i { background: linear-gradient(90deg, #ff8a2a, #ffd24a); } #arCraft.low { border-color: #ff5a3a; animation: craftLow .5s infinite alternate; } @keyframes craftLow { to { box-shadow: 0 0 12px #ff5a3a; } } #arCraft.empty .arBar.ammo { border-color: #ffd24a; }
+    /* DROP: a big round button for the right thumb (hold it). Bottom right on a computer; on a phone above the zoom buttons */
+    #arDrop { position: absolute; right: 18px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); width: 108px; height: 108px; border-radius: 50%; padding: 0; margin: 0; pointer-events: auto; touch-action: none; -webkit-user-select: none; user-select: none;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; background: radial-gradient(circle at 50% 35%, #ffc05a, #ff5a1a 62%, #a02a0a) !important; border: 4px solid #ffe27a; color: #2a0a00; font-weight: 900; box-shadow: 0 0 18px #ff7a1a99, 0 6px 0 #5a1a06 !important; }
+    #arDrop b { font-size: 28px; line-height: 1; } #arDrop span { font-size: 17px; letter-spacing: 1px; line-height: 1; } #arDrop i { font-style: normal; font-size: 11px; line-height: 1.1; }
+    #arDrop.held { transform: translateY(4px) scale(0.95); box-shadow: 0 0 34px #ffc05a, 0 2px 0 #5a1a06 !important; } #arDrop.empty { filter: grayscale(0.85) brightness(0.75); }
+    /* back to base: a word in the middle near the bottom, and an arrow at the screen's edge */
+    #arBaseMsg { position: absolute; left: 50%; bottom: calc(132px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); width: max-content; max-width: calc(100vw - 32px); padding: 6px 12px; border-radius: 9px; background: #2a1a04e8; border: 2px solid #ffd24a; color: #ffe27a; font-weight: 900; font-size: 14px; letter-spacing: .5px; text-align: center; opacity: 0; transition: opacity .15s; pointer-events: none; }
+    #arBaseMsg.on { opacity: 1; animation: baseMsg .55s ease-in-out infinite alternate; } #arBaseMsg.refill { border-color: #7dff3a; color: #c8ff9a; background: #0e2a0ae8; animation: none; } @keyframes baseMsg { to { box-shadow: 0 0 16px #ffd24a; } }
+    .baseArrow { position: fixed; left: 0; top: 0; width: 38px; height: 38px; pointer-events: none; display: none; z-index: 4; }
+    .baseArrow em { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-style: normal; font-size: 18px; border-radius: 50%; background: #0b1416d8; border: 2px solid #7dff3a; box-shadow: 0 0 8px #7dff3a88; }
+    .baseArrow i { position: absolute; inset: -14px; display: flex; align-items: center; justify-content: flex-end; font-style: normal; font-size: 14px; color: #7dff3a; text-shadow: 0 0 3px #000; }
+    .baseArrow.need em { border-color: #ffd24a; box-shadow: 0 0 14px #ffd24a; animation: arrowPing .6s infinite; } .baseArrow.need i { color: #ffd24a; }
+    /* Grave Giants: a name and a health bar over each one, and a red arrow at the screen's edge when one is off screen */
+    .giTag { position: fixed; left: 0; top: 0; z-index: 3; pointer-events: none; display: none; text-align: center; }
+    .giTag b { display: block; font-size: 11px; font-weight: 900; letter-spacing: .5px; color: #ffc2b8; text-shadow: 0 1px 3px #000, 0 0 6px #000; white-space: nowrap; }
+    .giTag i { display: block; width: 66px; height: 8px; margin: 2px auto 0; border-radius: 4px; background: #1a0a0ad8; border: 1px solid #ff8a7a; overflow: hidden; } .giTag u { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #ff3a2a, #ffb04a); transition: width .15s; }
+    .giArrow em { border-color: #ff5a4a; box-shadow: 0 0 10px #ff5a4a88; } .giArrow i { color: #ff7a6a; }
+    body.paused .giTag, body.paused .giArrow { visibility: hidden; }
+    @media (max-width: 760px), (max-height: 520px) {
+      #arCraft { left: 148px; transform: none; bottom: calc(66px + env(safe-area-inset-bottom, 0px)); width: calc(100vw - 148px - 126px); min-width: 104px; max-width: 230px; padding: 4px 6px; }
+      #arDrop { right: 12px; bottom: calc(66px + env(safe-area-inset-bottom, 0px)); width: 100px; height: 100px; }
+      #arBaseMsg { bottom: calc(176px + env(safe-area-inset-bottom, 0px)); font-size: 13px; } }
+    @media (max-height: 520px) { #arBaseMsg { bottom: auto; top: 46%; } }
+    /* the start screen: pick your aircraft, two cards side by side, each with the aircraft turning on it */
+    #taStart h1 { font-size: clamp(34px, 11vw, 56px); } #taStart .tag { font-size: 16px; margin: -4px 0 0; }
+    #arCrafts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: var(--w); }
+    .craftCard { display: grid; gap: 3px; align-content: start; padding: 6px 6px 8px; margin: 0; border-radius: 14px; background: #1a0f2e; border: 3px solid #5a2f80; color: #fff; text-align: center; box-shadow: none; background-image: none; }
+    .craftCard canvas { width: 100%; height: 104px; object-fit: cover; border-radius: 10px; background: radial-gradient(circle at 50% 40%, #2e3a50, #120a1f 75%); }
+    .craftCard b { font-size: 13px; color: #ffd24a; letter-spacing: .3px; } .craftCard span { font-size: 11px; color: #e8dcff; line-height: 1.25; font-weight: 700; } .craftCard small { font-size: 10px; color: #c9e8b8; font-weight: 700; line-height: 1.2; }
+    /* the end of the start screen: room enough (an element, not only padding, which some browsers leave out) to scroll the
+       last row clear of the FULL SCREEN button in the corner */
+    #taStart::after { flex: 1 0 calc(56px + env(safe-area-inset-bottom, 0px)); }
+    @media (max-height: 900px) and (orientation: portrait) { #taStart.screen { gap: 8px; } } /* a phone: everything down to MAIN MENU clear of the FULL SCREEN button */
+    /* a phone on its side: a shorter start screen (no small print over the title, smaller aircraft pictures), so PLAY is a
+       short scroll away */
+    @media (max-height: 520px) and (orientation: landscape) { #taStart { gap: 8px; padding-top: 12px; } #taStart > p.small, #taStart .tag { display: none; } #taStart h1 { font-size: 30px; margin: 0; } .craftCard canvas { height: 66px; } .craftCard small { display: none; } }
+    /* RESTART asks twice: the second time it is red, so it is plain that one more tap restarts */
+    #taRestart.armed { background-color: #d8302a; background-image: linear-gradient(#ffffff26, #ffffff00 55%); color: #fff; border-color: #ff8a7a; font-size: 17px; box-shadow: 0 5px 0 #5a0e0a, 0 0 14px #ff5a3a88; }
+    .craftCard.on { border-color: #7dff3a; box-shadow: 0 0 14px #7dff3a88; } .craftCard.on b::after { content: ' ✔'; color: #7dff3a; } .craftCard:active { transform: translateY(2px); }
+  </style>
+</head>
+<body class="booting">
+  <div id="boot"><p class="bootKick">TORNADO TIME! BONUS GAME</p><h1>ZOMBIE<br>AIR RAID</h1><div class="bootSpin"><i></i><i></i><i></i><i></i></div><div class="bootBar"><b></b></div><p class="bootLbl">BUILDING THE TOWN</p><p id="bootTip"></p></div>
+  <script>window.__bootTip = function () { var t = ["Napalm burns for a few seconds. Drop it where the horde is heading.","The heli's rockets land on the circle ahead of it: turn the heli to aim, then hold FIRE.","Gloopers, the glowing green zombies, lob acid at low aircraft. Take them out first.","Out of ammo? Fly over the airfield to reload and repair.","Everyone a zombie catches becomes a zombie. Be quick!","Drop napalm down the middle of the street, away from the houses.","Tap the minimap to head across town.","The bomber never stops. Line it up on a long street before you drop.","Big buildings are solid. Watch for the red glow and steer round them.","A Grave Giant's red ring shows where its chunk is coming down. Get out from over it!"]; document.getElementById('bootTip').textContent = 'TIP: ' + t[Math.floor(Math.random() * t.length)]; }; window.__bootTip();</script>
+  <canvas id="game"></canvas>
+  <div id="ta" class="hidden">
+    <div class="top">
+      <div id="hudSize"><b id="taRank">🧟 300</b><div id="taGrow"><div id="taGrowFill"></div><i class="tick" id="arGoalTick" style="left:10%"><b>GOAL</b></i></div><span id="taTime">3:00</span></div>
+      <div id="hudGoal"><span class="goalLbl">👥 PEOPLE<b id="taTargets">0</b></span><div id="arColl"><small>💥 COLLATERAL</small><div id="arCollBar"><i id="arCollFill"></i></div></div></div>
+      <div id="taSub"><span id="taLevel"></span><span id="arCraftTag"></span><span id="taScore">0</span><span id="taCombo"></span></div>
+    </div>
+    <canvas id="taMap"></canvas><div id="taPct"></div>
+    <div id="arCraft"><div class="arRow"><em>❤️</em><div class="arBar"><i id="arHpFill"></i></div></div><div class="arRow"><em id="arAmmoIcon">🔥</em><div class="arBar ammo"><i id="arAmmoFill"></i></div><b id="arAmmoTxt">8</b></div></div>
+    <button id="arDrop" class="hidden" aria-label="Drop napalm or fire rockets"><b>🔥</b><span>DROP</span><i id="arDropN">8 LEFT</i></button>
+    <div id="arBaseMsg"></div>
+    <button id="taZoomIn" class="ghost zoomBtn">+</button><button id="taZoomOut" class="ghost zoomBtn">−</button>
+    <button id="taPause" aria-label="Pause">❚❚</button>
+    <div id="taStick"><div id="taKnob"></div></div>
+    <div id="taBanner"></div>
+  </div>
+
+  <div id="taStart" class="screen">
+    <p class="small" style="letter-spacing:3px;color:#c9a6ff;margin-bottom:-8px">TORNADO TIME! BONUS GAME</p>
+    <h1>ZOMBIE<br>AIR RAID</h1>
+    <p class="tag">The town is overrun. Burn the horde, spare the people.</p>
+    <div id="arCrafts"></div>
+    <div id="taLevels"></div>
+    <button id="taPlay">PLAY</button>
+    <div class="howRow"><button id="taHow" class="ghost">HOW TO PLAY</button><button class="ghost menuBtn" onclick="location.href='menu.html'">MAIN MENU</button></div>
+  </div>
+  <div id="taPaused" class="screen hidden"><h1>PAUSED</h1><button id="taResume">RESUME</button><button id="taRestart" class="ghost">↺ RESTART LEVEL</button><button class="ghost menuBtn" onclick="location.href='menu.html'">MAIN MENU</button><button class="exitBtn" onclick="exitGame()">✖ EXIT GAME</button></div>
+  <div id="taPrize" class="screen hidden"><h1>PRIZE TIME!</h1><div id="taChests" class="chests"></div></div>
+  <div id="taEnd" class="screen hidden">
+    <h1 id="taEndTitle">TOWN SAVED!</h1>
+    <p class="small" id="taGoalLine"></p>
+    <table id="taStats"></table>
+    <button id="taAgain">GO AGAIN</button>
+    <div class="howRow"><button class="ghost" onclick="location.href='airraid.html'">✈ CHANGE AIRCRAFT</button><button class="ghost" onclick="location.href='store.html?from=airraid'">🎨 SKIN SHOP</button><button class="ghost menuBtn" onclick="location.href='menu.html'">MAIN MENU</button></div>
+  </div>
+  <script type="module" src="./src/air/main.js"></script>
+<script>/* EXIT: leave full screen and go back to the title screen (a web page cannot close its own tab) */ window.exitGame = function () { var w = window; try { if (parent !== window && parent.document) w = parent; } catch (e) {} try { var d = w.document, x = d.exitFullscreen || d.webkitExitFullscreen; if ((d.fullscreenElement || d.webkitFullscreenElement) && x) x.call(d); if (document.fullscreenElement) document.exitFullscreen(); } catch (e) {} w.location.href = "index.html"; };</script>
+</body>
+</html>

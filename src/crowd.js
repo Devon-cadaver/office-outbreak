@@ -17,17 +17,18 @@ function figure() {
   add(ball, 0.66, 0.66, 0.66, 0, 2.11, 0, 2, 0); add(cap, 0.72, 0.74, 0.72, 0, 2.1, -0.04, 3, 0);
   return mergeGeometries(parts);
 }
-export function createCrowd(scene, max = 420) {
-  const geo = figure(), mk = (n) => { const a = new THREE.InstancedBufferAttribute(new Float32Array(max * n), n); a.setUsage(THREE.DynamicDrawUsage); return a; };
+// opt (the horde skins, hordeSkins.js): geo, a figure of its own (its fixed colours in aCol); shader, its own shader patch
+export function createCrowd(scene, max = 420, opt = {}) {
+  const geo = opt.geo ? opt.geo.clone() : figure(), mk = (n) => { const a = new THREE.InstancedBufferAttribute(new Float32Array(max * n), n); a.setUsage(THREE.DynamicDrawUsage); return a; };
   const A = { iShirt: mk(3), iPants: mk(3), iSkin: mk(3), iHair: mk(3), iAnim: mk(3) }; for (const k in A) geo.setAttribute(k, A[k]);
   const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
-  mat.onBeforeCompile = (sh) => { sh.vertexShader = sh.vertexShader
+  mat.onBeforeCompile = opt.shader || ((sh) => { sh.vertexShader = sh.vertexShader
     .replace('#include <common>', '#include <common>\nattribute vec2 aPart; attribute vec3 iShirt; attribute vec3 iPants; attribute vec3 iSkin; attribute vec3 iHair; attribute vec3 iAnim; // iAnim: step phase, stride, arms (0 swinging, 1 held out in front, 2 up in the air)')
     .replace('#include <begin_vertex>', `#include <begin_vertex>
       if (aPart.y > 0.5) { bool leg = aPart.y < 2.5; float pivot = leg ? 0.95 : 1.68, sw = sin(iAnim.x) * iAnim.y;
         float ang = leg ? (aPart.y < 1.5 ? sw : -sw) : iAnim.z > 1.5 ? -2.7 + sin(iAnim.x * 1.7 + aPart.y * 1.3) * 0.4 : mix((aPart.y < 3.5 ? -sw : sw) * 0.8, -1.35, iAnim.z);
         float cs = cos(ang), sn = sin(ang), dy = transformed.y - pivot, z0 = transformed.z; transformed.y = pivot + dy * cs - z0 * sn; transformed.z = dy * sn + z0 * cs; }`)
-    .replace('#include <color_vertex>', '#include <color_vertex>\n  vColor.rgb = aPart.x < 0.5 ? iShirt : aPart.x < 1.5 ? iPants : aPart.x < 2.5 ? iSkin : aPart.x < 3.5 ? iHair : vec3(0.015);'); };
+    .replace('#include <color_vertex>', '#include <color_vertex>\n  vColor.rgb = aPart.x < 0.5 ? iShirt : aPart.x < 1.5 ? iPants : aPart.x < 2.5 ? iSkin : aPart.x < 3.5 ? iHair : vec3(0.015);'); });
   const mesh = new THREE.InstancedMesh(geo, mat, max); mesh.frustumCulled = false; mesh.count = 0;
   const cc = new Map(), tc = new THREE.Color(), lin = (hex) => { let c = cc.get(hex); if (!c) { tc.setHex(hex); c = [tc.r, tc.g, tc.b]; cc.set(hex, c); } return c; };
   const DEF = [0x4f8fd6, 0x3b3f55, 0xf0c9a6, 0x4a2f1c], SLOT = [A.iShirt.array, A.iPants.array, A.iSkin.array, A.iHair.array]; let stamp = 0; const hidden = [];
@@ -42,7 +43,7 @@ export function createCrowd(scene, max = 420) {
       const an = A.iAnim.array; an[n * 3] = u.phase || 0; an[n * 3 + 1] = sp < 0.05 ? 0 : (sp > 1.05 ? 0.95 : 0.7) * Math.min(sp, 1.2); an[n * 3 + 2] = armsOut || u.zombie ? 1 : u.panic ? 2 : 0; n++; }
     // anyone the game took off its lists while hidden (grabbed, flung, eaten) gets their own body back
     for (let i = hidden.length - 1; i >= 0; i--) { const c = hidden[i], u = c.userData; if (u.crowdT !== stamp) { u.far = false; c.visible = true; hidden.splice(i, 1); } else if (!u.far) hidden.splice(i, 1); }
-    mesh.count = n; mesh.instanceMatrix.needsUpdate = true; for (const k in A) { A[k].clearUpdateRanges(); A[k].addUpdateRange(0, Math.max(1, n) * 3); A[k].needsUpdate = true; }
+    mesh.count = n; if (opt.geo) { mesh.instanceMatrix.clearUpdateRanges(); mesh.instanceMatrix.addUpdateRange(0, Math.max(1, n) * 16); } mesh.instanceMatrix.needsUpdate = true; for (const k in A) { A[k].clearUpdateRanges(); A[k].addUpdateRange(0, Math.max(1, n) * 3); A[k].needsUpdate = true; }
   }
   function clear() { for (const c of hidden) { c.userData.far = false; c.visible = true; } hidden.length = 0; mesh.count = 0; }
   return { sync, clear, mesh, get count() { return mesh.count; } };

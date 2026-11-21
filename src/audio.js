@@ -145,7 +145,7 @@ const FRAME = (() => { try { return window.parent !== window && window.parent.__
 // ---------- the radio: one shuffled station of every song, on every page (the menu, both games, the shop). Each page is a
 // fresh load, so the station carries over in sessionStorage: same song, same spot, same shuffle. It tries to play straight
 // away (fine on a computer once you've been on the site); phones and tablets pick it up at the first tap ----------
-export const SONGS_ALL = ['music/tornado-alley.mp3', 'music/twister-vs-army.mp3', 'music/clean-slate.mp3', 'music/feeding-ground.mp3', 'music/stomp-the-block.mp3', 'music/saving-you-the-trouble.mp3', 'music/tatsumaki-justice.mp3', 'music/my-little-disaster.mp3', 'music/my-little-disaster-2.mp3'];
+export const SONGS_ALL = ['music/tornado-alley.mp3', 'music/twister-vs-army.mp3', 'music/clean-slate.mp3', 'music/feeding-ground.mp3', 'music/stomp-the-block.mp3', 'music/saving-you-the-trouble.mp3', 'music/tatsumaki-justice.mp3', 'music/my-little-disaster.mp3', 'music/my-little-disaster-2.mp3', 'music/napalm-requiem.mp3', 'music/beam-beam-baby.mp3'];
 export const SONGS_TORNADO = SONGS_ALL, SONGS_KAIJU = SONGS_ALL;
 const VOLS = [['LOW', 0.25], ['MED', 0.55], ['FULL BLAST', 0.95]];
 let SONGS = SONGS_ALL, volV = null, radioPaused = false, order = [], song = null, songGain = null, songI = -1, repeat = false, volI = 0, resumeAt = 0; /* the songs start at LOW until you change it */
@@ -183,6 +183,8 @@ export function nextSong() { if (FRAME) return FRAME.nextSong(); if (!song) retu
 // the radio station's SKIP: the next song down the list that's on the air, and from the last one back to the first
 export function skipDown() { if (FRAME) return FRAME.skipDown(); if (!song) return playSongs(); const on = onAir(); playSong(SONGS[on.find((i) => i > songI) ?? on[0]]); }
 // play one song now (the radio station's ▶): the shuffle carries on from it afterwards
+// the first time a game is opened, its own song comes on (after that, the usual shuffle). Returns true when it did
+export function firstSong(game, src) { try { const k = 'oo_first_song_' + game; if (localStorage.getItem(k)) return false; localStorage.setItem(k, '1'); } catch { return false; } playSong(src); return true; }
 export function playSong(src) { if (FRAME) return FRAME.playSong(src); const i = SONGS.indexOf(src); if (i < 0) return; if (!song) { playSongs(); if (!song) return; } songI = i; resumeAt = 0; order = order.filter((k) => k !== i); startSong(); saveRadio(); }
 export function songState() { if (FRAME) return FRAME.songState(); return song ? { t: song.currentTime, paused: song.paused, muted: song.muted, src: SONGS[songI], loop: song.loop, vol: VOLS[volI][0], list: SONGS.length } : null; }
 function toggleRepeat() { repeat = !repeat; if (song) song.loop = repeat || SONGS.length === 1; saveRadio(); return repeat; }

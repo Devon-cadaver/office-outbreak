@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#16302f" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Tornado Time!" />
+  <link rel="apple-touch-icon" href="./icon-180.png" />
+  <title>Beam 'Em Up! - Tornado Time!</title>
+  <link rel="icon" href="data:," />
+  <link rel="stylesheet" href="/src/style.css" />
+  <style>
+    #ta { position: fixed; inset: 0; pointer-events: none; }
+    /* the top bar's first row: people beamed up against the goal, the ENERGY bar (shield and fuel in one), the clock */
+    #buBar { display: flex; align-items: center; gap: 8px; max-width: 680px; }
+    #buCount { flex: none; padding: 3px 9px; border-radius: 10px; background: #c9a6ff; color: #1a0f2e; font-size: 17px; font-weight: 900; line-height: 1.2; text-shadow: none; white-space: nowrap; box-shadow: 0 3px 0 #5a2f80, 0 0 10px #c9a6ff66; }
+    #buCount.ok { background: #7dff3a; box-shadow: 0 3px 0 #3f9a1f, 0 0 12px #7dff3a88; }
+    #buEnergy { position: relative; flex: 1; min-width: 0; height: 24px; border-radius: 12px; background: #0b1416d8; border: 2px solid #9affe8aa; overflow: hidden; box-shadow: 0 0 10px #5ae8ff44; }
+    #buEnergyFill { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; background: linear-gradient(90deg, #2ad0b0, #7dff3a); transition: width .15s; }
+    #buEnergyTxt { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900; letter-spacing: .5px; color: #fff; text-shadow: 0 1px 2px #000, 0 0 4px #000; white-space: nowrap; }
+    #buEnergy.mid { border-color: #ffd24a; } #buEnergy.mid #buEnergyFill { background: linear-gradient(90deg, #ff9a2a, #ffd24a); }
+    #buEnergy.low { border-color: #ff4a3a; animation: eLow .45s ease-in-out infinite alternate; } #buEnergy.low #buEnergyFill { background: linear-gradient(90deg, #a8140e, #ff5a3a); } @keyframes eLow { to { box-shadow: 0 0 18px #ff3a2a; } }
+    #buEnergy.nuke { border-color: #ffe27a; box-shadow: 0 0 16px #ffd24a; } #buEnergy.nuke #buEnergyFill { background: linear-gradient(90deg, #ffd24a, #fff6a0); } #buEnergy.nuke #buEnergyTxt { color: #3a2a00; text-shadow: none; }
+    #buEnergy.hit { border-color: #ffffff; }
+    #taTime.red { color: #ff5a3a; }
+    /* BEAM: a big round button for the right thumb. Hold it down */
+    #buBeam { position: absolute; right: 12px; bottom: calc(70px + env(safe-area-inset-bottom, 0px)); width: 96px; height: 96px; padding: 0; margin: 0; border-radius: 50%; pointer-events: auto; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: #04302a !important; font-weight: 900; border: 3px solid #e8fff6 !important;
+      background: radial-gradient(circle at 50% 36%, #b8fff0, #2ad0b0 62%, #127a6a) !important; box-shadow: 0 0 18px #5ae8ffaa, 0 6px 0 #0a4a40 !important; transition: transform .06s; }
+    #buBeam b { font-size: 22px; letter-spacing: 1px; line-height: 1; pointer-events: none; } #buBeam i { font-style: normal; font-size: 10px; letter-spacing: 2px; opacity: .75; pointer-events: none; }
+    #buBeam.on { transform: translateY(4px) scale(.95); background: radial-gradient(circle at 50% 36%, #ffffff, #8affe4 55%, #1aa890) !important; box-shadow: 0 0 34px #b8fff0, 0 0 72px #5ae8ffaa, 0 2px 0 #0a4a40 !important; }
+    #buBeam.hint { animation: beamHint .7s ease-in-out infinite alternate; } @keyframes beamHint { to { box-shadow: 0 0 34px #b8fff0, 0 0 60px #5ae8ff, 0 6px 0 #0a4a40; transform: scale(1.06); } }
+    .poiArrow { position: fixed; left: 0; top: 0; width: 34px; height: 34px; pointer-events: none; display: none; z-index: 4; opacity: .42; }
+    .poiArrow em { filter: grayscale(1); position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-style: normal; font-size: 17px; border-radius: 50%; background: #0b1416c0; border: 2px solid #ffffff55; }
+    .poiArrow i { position: absolute; inset: -13px; display: flex; align-items: center; justify-content: flex-end; font-style: normal; font-size: 13px; color: #fff; text-shadow: 0 0 3px #000; }
+    .poiArrow.ready { opacity: 1; } .poiArrow.ready em { filter: none; border-color: #ff5ae0; box-shadow: 0 0 10px #ff5ae0; } .poiArrow.ready i { color: #ff8ae8; }
+    #taPct { position: absolute; left: 10px; bottom: calc(146px + env(safe-area-inset-bottom, 0)); width: 128px; box-sizing: border-box; text-align: center; padding: 3px 7px; border-radius: 9px; background: #0b1416c4; border: 2px solid #ffffff55; font-size: 12px; font-weight: 900; white-space: nowrap; color: #fff; } #taPct.ok { color: #7dff3a; border-color: #7dff3a; }
+    #taMap { position: absolute; left: 10px; bottom: calc(10px + env(safe-area-inset-bottom, 0)); width: 128px; height: 128px; border-radius: 50%; background: #0b1416c0; border: 2px solid #ffffff55; pointer-events: auto; touch-action: none; }
+    /* pause: big, bright green with purple bars, so nobody has to hunt for it */
+    #taPause { position: absolute; right: 10px; top: calc(48px + env(safe-area-inset-top, 0)); pointer-events: auto; width: 46px; height: 46px; box-sizing: border-box; padding: 0; margin: 0; border-radius: 12px; background: #7dff3a; border: 3px solid #5a2f80; color: #5a2f80; font-size: 20px; font-weight: 900; line-height: 1; box-shadow: 0 0 12px #7dff3a99, 0 4px 0 #3a1a5a; }
+    #taPause:active { transform: translateY(2px); box-shadow: 0 0 8px #7dff3a99, 0 2px 0 #3a1a5a; }
+    #taStick { position: absolute; width: 120px; height: 120px; border-radius: 50%; background: #ffffff1a; border: 2px solid #ffffff55; transform: translate(-50%, -50%); display: none; }
+    #taKnob { position: absolute; left: 50%; top: 50%; width: 48px; height: 48px; border-radius: 50%; background: #9affe8cc; transform: translate(-50%, -50%); }
+    #taBanner { position: absolute; left: 50%; top: 24%; transform: translateX(-50%); width: max-content; max-width: calc(100vw - 124px); text-align: center; line-height: 1.05; font-size: clamp(20px, 6vw, 40px); font-weight: 900; color: #ffd24a; text-shadow: 0 3px 0 #5a2f80, 0 6px 14px #000; white-space: pre-line; text-wrap: balance; opacity: 0; transition: opacity .2s; }
+    @media (max-height: 520px) { #taBanner { top: calc(var(--hudH, 108px) + 6px); left: auto; right: calc(12px + env(safe-area-inset-right, 0px)); transform: none; max-width: 40vw; font-size: 20px; } }
+    .pop { position: fixed; left: 0; top: 0; font-weight: 900; font-size: 15px; color: #ffe27a; text-shadow: 0 2px 4px #000; pointer-events: none; white-space: nowrap; }
+    #taLevels { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; width: min(92vw, 420px); }
+    #taLevels .lvl { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 1px; font-size: 9px; min-width: 0; min-height: 58px; border-radius: 10px; }
+    #taLevels .lvl b { font-size: 18px; } #taLevels .lvl i { font-style: normal; color: #1f4a12; font-weight: 800; font-size: 10px; }
+    #taLevels .lvl.on { outline: 3px solid #7dff3a; } #taLevels .lvl:disabled { opacity: .45; }
+    /* the button column on the right: pause, zoom in, zoom out, skip song. All one size, one edge, evenly spaced */
+    .zoomBtn, #ta .skipHud { position: absolute; right: 10px !important; width: 46px !important; height: 46px !important; box-sizing: border-box; padding: 0; margin: 0; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 900; line-height: 1; pointer-events: auto; border: 3px solid #5a2f80 !important; color: #5a2f80 !important; background-image: none !important; }
+    .zoomBtn { background-color: #ffd24a !important; font-size: 28px; font-family: Arial, sans-serif; box-shadow: 0 0 10px #ffd24a88, 0 4px 0 #3a1a5a !important; } .zoomBtn:active { transform: translateY(2px); }
+    #ta .skipHud { background-color: #7dff3a !important; font-size: 18px !important; box-shadow: 0 0 12px #7dff3a99, 0 4px 0 #3a1a5a !important; top: calc(210px + env(safe-area-inset-top, 0px)) !important; }
+    /* pause stays top right beside the targets bar. Zoom and skip-song: a column under it where there is room (a computer), a row
+       along the bottom beside the mini map on a small screen (a phone). BEAM: bottom right, above that row on a phone */
+    #taZoomIn { top: calc(102px + env(safe-area-inset-top, 0)); } #taZoomOut { top: calc(156px + env(safe-area-inset-top, 0)); }
+    @media (max-width: 760px), (max-height: 520px) { #taZoomIn { left: 148px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important; top: auto !important; right: auto !important; } #taZoomOut { left: 202px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important; top: auto !important; right: auto !important; } #ta .skipHud { left: 256px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important; top: auto !important; right: auto !important; } }
+    @media (min-width: 761px) and (min-height: 521px) { #buBeam { right: 24px; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); width: 108px; height: 108px; } #buBeam i::after { content: ' · SPACE'; } }
+    @media (max-height: 520px) { #buBeam { bottom: calc(14px + env(safe-area-inset-bottom, 0px)); width: 84px; height: 84px; } }
+    .planeArrow { position: fixed; left: 0; top: 0; font-size: 26px; color: #9fd6ff; text-shadow: 0 0 8px #000, 0 0 3px #2a6aa0; pointer-events: none; display: none; z-index: 4; }
+    .foeArrow { font-size: 24px; filter: drop-shadow(0 0 4px currentColor); }
+    body.paused .planeArrow, body.paused .poiArrow, body.paused .pop, body.paused #taFoe, body.paused #taBanner, body.paused #buHold { visibility: hidden; }
+    /* the beam, taught on the saucer itself: while people are under it, a ring round it says to hold it (main.js holdHint) */
+    #buHold { position: fixed; left: 0; top: 0; display: none; pointer-events: none; z-index: 3; box-sizing: border-box; border-radius: 50%; border: 3px solid #b8fff0; box-shadow: 0 0 14px #5ae8ff, inset 0 0 12px #5ae8ff88; animation: holdPulse .8s ease-in-out infinite alternate; }
+    #buHold b { position: absolute; left: 50%; bottom: 100%; transform: translate(-50%, -4px); padding: 2px 8px; border-radius: 8px; background: #04302ad8; color: #d8fff6; font-size: 13px; font-weight: 900; letter-spacing: 1px; white-space: nowrap; text-shadow: 0 1px 2px #000; }
+    @keyframes holdPulse { to { box-shadow: 0 0 26px #b8fff0, inset 0 0 18px #5ae8ffaa; border-color: #ffffff; } }
+    #taStart .buKeys { margin: -4px 0 0; font-size: 13px; font-weight: 800; color: #b8fff0; letter-spacing: .3px; } #taStart .buKeys i { display: none; font-style: normal; }
+    /* a computer's wide, short window (1280x720): the title and the controls on one line each and the rows a little closer, so the
+       start screen fits without scrolling (a phone keeps them stacked) */
+    @media (min-width: 800px) and (max-height: 860px) { #taStart h1 br, #taStart .buKeys br { display: none; } #taStart .buKeys i { display: inline; } #taStart .buKeys { max-width: none; } #taStart { gap: 8px; padding-bottom: 20px; } }
+    #taFoe { position: absolute; left: 50%; bottom: calc(186px + env(safe-area-inset-bottom, 0)); transform: translateX(-50%); width: max-content; max-width: calc(100vw - 32px); padding: 6px 12px; border-radius: 8px; background: #2a0a1ccc; border: 2px solid #ff9a5a; color: #ffe6d0; font-weight: 900; font-size: 15px; opacity: 0; transition: opacity .15s; pointer-events: none; }
+    @media (min-width: 761px) and (min-height: 521px) { #taFoe { bottom: calc(40px + env(safe-area-inset-bottom, 0)); } }
+    @media (max-height: 520px) { #taFoe { bottom: calc(12px + env(safe-area-inset-bottom, 0px)); left: calc(50% + 105px); max-width: min(400px, calc(100vw - 420px)); } } /* sideways: down in the gap between the zoom buttons and BEAM, not under the saucer */
+    .howRow { display: flex; gap: 8px; justify-content: center; } .howRow button { margin: 0; }
+    #taStart .chosenCard canvas { background: radial-gradient(circle at 50% 40%, #1f4a52, #120a1f 75%); }
+    #taEnd .howRow { flex-wrap: wrap; } #taEnd { gap: 8px; padding: 12px 16px; } #taEnd h1 { font-size: clamp(32px, 9vw, 60px); } #taEnd p { font-size: 15px; margin: 0; } #taEnd .small { font-size: 13px; } #taEnd button { padding-top: 10px; padding-bottom: 10px; } #taEnd .howRow button { font-size: 14px; }
+    #taChests { width: min(100%, 420px); } /* the prize game fits inside the screen's own side padding (92vw did not on a phone: an 8px sideways scroll) */
+    #taEnd table { margin: 0 auto; font-size: 14px; border-collapse: collapse; } #taEnd td { padding: 1px 8px; text-align: left; } #taEnd td:last-child { text-align: right; font-weight: 800; }
+  </style>
+</head>
+<body class="booting">
+  <div id="boot"><p class="bootKick">TORNADO TIME! BONUS GAME</p><h1>BEAM<br>'EM UP!</h1><div class="bootSpin"><i></i><i></i><i></i><i></i></div><div class="bootBar"><b></b></div><p class="bootLbl">BUILDING THE TOWN</p><p id="bootTip"></p></div>
+  <script>window.__bootTip = function () { var t = ["Press and hold on your saucer over a crowd. Everyone you pull up fills your energy.","Tap anything: your saucer flies there and zaps it.","Your death ray zaps the buildings you fly over all by itself.","Big buildings are solid. A red glow means you are about to fly into one!","A red lane on the street means a jet is coming. Get out of it!","A horn truck blasts along its orange line. Keep your shadow off it.","Keep moving: most army shots miss a saucer on the move.","A tank's barrel glows before it fires. Get out of the way!","Grab people one after another for a BEAM CHAIN: it fills your shield faster.","Knock a building down and the people inside run out. Beam them up!","Big targets take a few zaps. Each one refills your energy and speeds you up.","A red line from a missile truck means it has locked on. Zap it, or keep moving.","Wreck the power plant and the army can't see you for a while.","Tap the minimap to fly across town. Green dots are people."]; document.getElementById('bootTip').textContent = 'TIP: ' + t[Math.floor(Math.random() * t.length)]; }; window.__bootTip();</script>
+  <canvas id="game"></canvas>
+  <div id="ta" class="hidden">
+    <div class="top">
+      <div id="buBar"><b id="buCount">👽 0/30</b><div id="buEnergy"><div id="buEnergyFill"></div><span id="buEnergyTxt">🛡 ENERGY 100%</span></div><span id="taTime">2:30</span></div>
+      <div id="hudGoal"><span class="goalLbl">🎯 TARGETS<b id="taTargets"></b></span><div id="taPois"></div></div>
+      <div id="taSub"><span id="taLevel"></span><span id="taScore">0</span><span id="taCombo"></span></div>
+    </div>
+    <canvas id="taMap"></canvas><div id="taPct"></div><div id="taFoe"></div>
+    <button id="taZoomIn" class="ghost zoomBtn">+</button><button id="taZoomOut" class="ghost zoomBtn">−</button>
+    <button id="taPause" aria-label="Pause">❚❚</button>
+    <div id="taStick"><div id="taKnob"></div></div>
+    <button id="buBeam" aria-label="Beam: hold"><b>BEAM</b><i>HOLD</i></button>
+    <div id="buHold"><b>👆 HOLD TO BEAM</b></div>
+    <div id="taBanner"></div>
+  </div>
+
+  <div id="taStart" class="screen">
+    <p class="small" style="letter-spacing:3px;color:#c9a6ff;margin-bottom:-8px">TORNADO TIME! BONUS GAME</p>
+    <h1>BEAM <br>'EM UP!</h1>
+    <p>You are the UFO. Beam up the town!</p>
+    <p class="buKeys">Drag to fly · Tap to go and zap<br><i> · </i>Hold on the saucer to beam</p>
+    <div id="buChosen" class="chosenCard"><canvas id="buShipCv" width="150" height="150"></canvas><div><small>YOUR SAUCER</small><b>THE BEAMER</b><span>A tractor beam, a death ray, and a shield that runs on people. The army will not like it.</span></div></div>
+    <div id="taLevels"></div>
+    <button id="taPlay">PLAY</button>
+    <div class="howRow"><button id="taHow" class="ghost">HOW TO PLAY</button><button class="ghost menuBtn" onclick="location.href='menu.html'">MAIN MENU</button></div>
+  </div>
+  <div id="taPaused" class="screen hidden"><h1>PAUSED</h1><button id="taResume">RESUME</button><button id="taRestart" class="ghost">↺ RESTART LEVEL</button><button class="ghost menuBtn" onclick="location.href='menu.html'">MAIN MENU</button><button class="exitBtn" onclick="exitGame()">✖ EXIT GAME</button></div>
+  <div id="taPrize" class="screen hidden"><h1>PRIZE TIME!</h1><div id="taChests" class="chests"></div></div>
+  <div id="taEnd" class="screen hidden">
+    <h1 id="taEndTitle">TIME'S UP</h1>
+    <p class="small" id="taGoalLine"></p>
+    <table id="taStats"></table>
+    <button id="taAgain">GO AGAIN</button>
+    <div class="howRow"><button class="ghost" onclick="location.href='store.html?from=beamup'">🎨 SKIN SHOP</button><button class="ghost" onclick="location.href='beamup.html'">MENU</button><button class="ghost menuBtn" onclick="location.href='menu.html'">MAIN MENU</button></div>
+  </div>
+  <script type="module" src="./src/ufo/main.js"></script>
+<script>/* EXIT: leave full screen and go back to the title screen (a web page cannot close its own tab) */ window.exitGame = function () { var w = window; try { if (parent !== window && parent.document) w = parent; } catch (e) {} try { var d = w.document, x = d.exitFullscreen || d.webkitExitFullscreen; if ((d.fullscreenElement || d.webkitFullscreenElement) && x) x.call(d); if (document.fullscreenElement) document.exitFullscreen(); } catch (e) {} w.location.href = "index.html"; };</script>
+</body>
+</html>
