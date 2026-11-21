@@ -25,12 +25,13 @@ import { showHowTo, tip, clearTips } from '../howto.js';
 import { coach, coachSeen, coachIdle, coachBusy, coachFrame, coachClear } from '../coach.js';
 import { autoResolution, mergeStatic, bakeMovable, bakeUnits, setBakedGlow } from '../perf.js';
 import { rides, spinners } from '../landmarks.js';
+import { nukeBlast } from '../nuke.js';
 import { buildOutskirts } from '../outskirts.js';
 import { createPreviews } from '../livePreview.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { createHorde, G_R } from './horde.js';
 import { makeBomber, makeHeli, makeAirfield, makeRocket, makeCanister, setPods, BASE_R } from './craft.js';
-import { airSkin, craftPreview, craftSkinKey, craftSkinButton, unlockCraftBonus, disposeCraft } from '../craftSkins.js';
+import { airSkin, craftPreview, craftSkinKey, craftSkinButton, unlockCraftBonus, disposeCraft, craftPrize } from '../craftSkins.js';
 import { airTownSkin } from '../hordeSkins.js';
 
 const $ = (id) => document.getElementById(id), Q = new URLSearchParams(location.search);
@@ -73,7 +74,7 @@ let level = 1; const L = () => LEVELS[level - 1];
 const Z_MAX = 900, zombiesIn = (lv) => Math.max(1, Math.min(Z_MAX, +Q.get('z') || lv.zombies)); // ?z=N (tests): that many zombies in every town instead, up to Z_MAX (horde.js CROWD_MAX has room for that many plus the townsfolk)
 const CRAFTS = {
   bomber: { name: 'NAPALM BOMBER', tag: 'BOMBER', icon: '🔥', speed: 7.6, turn: 1.8, ammo: 10, hp: 100, alt: 6.4, low: 3.1, acid: 12, r: 1.3, reload: 1.6, repair: 45, ammoName: 'NAPALM', desc: 'Fast, and it never stops. Hold DROP for a wall of fire.', best: 'Best on big crowds in open streets' },
-  heli: { name: 'ROCKET HELI', tag: 'HELI', icon: '🚀', speed: 6.4, ammo: 24, hp: 100, alt: 3.3, acid: 9, r: 1.05, reload: 1.8, repair: 40, ammoName: 'ROCKETS', desc: 'Hovers. Turn it to aim, then hold FIRE: rockets hit the circle ahead.', best: 'Precise: best near people and houses' },
+  heli: { name: 'ROCKET HELI', tag: 'HELI', icon: '🚀', speed: 6.4, ammo: 24, hp: 100, alt: 3.3, acid: 9, r: 1.05, reload: 1.8, repair: 40, ammoName: 'ROCKETS', desc: 'Hovers. Tap to fly there, double tap to shoot that spot, or hold FIRE: rockets hit the circle ahead.', best: 'Precise: best near people and houses' },
 }; // alt: how high each flies. The heli's height is set so houses and small shops pass under it and anything of three floors or more does not
 const NAPALM_R = 1.5, NAPALM_T = 8, ROCKET_R = 1.75; // a fire patch's radius and how long it burns; a rocket's blast
 const AIM_D = 6.5; // the heli's rockets land on a circle this far ahead of its nose
@@ -86,7 +87,7 @@ const BLD = { margin: 0.25, rc: { bomber: 0.55, heli: 0.5 }, dmg: 34, bump: 1.0,
 // into; hold: how long it holds the chunk up; cd: seconds between throws; dmg: a chunk that reaches the aircraft (a quarter of
 // full health); hitR: how much of the chunk's size counts for a hit; fire / rocket: what each new fire patch it touches and
 // each rocket take off its health; rise: when the first climbs out of the ground, then the gap; g: the chunk's gravity
-const GIANT = { range: 15, reach: 3.6, hold: 1.0, lock: 0.35, cd: [6, 8.5], dmg: 25, hitR: 0.8, fire: 1.5, rocket: 1, rise: [16, 34], score: 5000, g: 15 }; // lock: how long before the throw its aim (the red ring) stops following you
+const GIANT = { range: 15, reach: 3.6, hold: 0.8, lock: 0.35, cd: [3.2, 4.6], grabR: 2.3, dmg: 25, hitR: 0.8, fire: 1.5, rocket: 1, rise: [16, 34], score: 5000, g: 15 }; // lock: how long before the throw its aim (the red ring) stops following you
 const COLL = { civ: 8, bHit: 2, bLost: 3, poi: 25 }; // what fills the collateral meter (100 = mission failed): about a dozen people, or twenty buildings
 const SC = { kill: 100, spit: 250, saved: 150, civ: -2000, bHit: -1000, bLost: -1000, poi: -10000, civEnd: 500, sec: 100 }; // points
 // the big landmarks are the town's pride: hit one and it goes up in its own way (poiFx), and that is a lot of collateral
@@ -203,7 +204,7 @@ function addKill(p, pts, spit) { const k = Math.round(p.x / 4) + ',' + Math.roun
 function flushKills(dt) { for (const [k, b] of buckets) { b.t -= dt; if (b.t > 0) continue; buckets.delete(k); let pts = b.pts;
     if (b.n >= 6) { pts += b.n * 50; multiBest = Math.max(multiBest, b.n); if (b.n >= 10) banner('🔥 MULTI-KILL x' + b.n + '!'); }
     score += pts; popup({ x: b.x, y: 0.2, z: b.z }, '+' + pts + (b.n >= 6 ? ' MULTI-KILL x' + b.n : b.n > 1 ? ' x' + b.n : b.spit ? ' GLOOPER' : ''), b.n >= 6 ? '#ff9a3a' : b.spit ? '#9aff5a' : '#ffe27a'); } }
-function onKill(o, how, saved) { if (state !== 'play' || how === 'giant') return; kills++; /* (zombies a giant's chunk lands on are gone, but not to your credit) */ const spit = !!o.userData.spit; if (spit) spitKills++; addKill(o.position, spit ? SC.spit : SC.kill, spit);
+function onKill(o, how, saved) { if (state !== 'play' || how === 'giant') return; kills++; addSup(1); /* (zombies a giant's chunk lands on are gone, but not to your credit) */ const spit = !!o.userData.spit; if (spit) spitKills++; addKill(o.position, spit ? SC.spit : SC.kill, spit);
   if (saved && now() - savedT > 0.7) { savedT = now(); savedN++; score += SC.saved; popup(saved.position, 'SAVED!', '#7dff3a'); } if (Math.random() < 0.25) sfx.splat(); }
 function onCivLost(o, how) { if (state !== 'play') return; if (how === 'giant') { crushed++; popup(o.position, 'CRUSHED!', '#ff9a8a'); return; } /* a giant's doing, not yours: no collateral */ civHit++; score += SC.civ; addColl(COLL.civ, o.position, how === 'fire' ? 'PERSON BURNED!' : 'PERSON HIT!'); }
 function onBite(c) { if (state !== 'play') return; if (now() - biteT > 0.6) { biteT = now(); popup(c.position, 'BITTEN!', '#ff7a6a'); if (toScreen(c.position).on) sfx.caught(); } }
@@ -254,10 +255,9 @@ function wreckPoi(k) { const P = pois[k]; if (!P || P.done) return; P.done = tru
   for (const h of P.hz) { live(h); for (const part of h.parts || []) if (part.parent) g.attach(part); const i = city.obstacles.findIndex((o) => Math.abs(o.x - h.pos.x) < 0.3 && Math.abs(o.z - h.pos.z) < 0.3); if (i >= 0) city.obstacles.splice(i, 1); }
   twisters.tear(g, P.center, new THREE.Box3().setFromObject(g).getSize(new THREE.Vector3()), null, [], [], { collapse: true, now: true, power: 1.4 });
   fx.explode(new THREE.Vector3(P.center.x, 1, P.center.z), 2.2); flashT = Math.max(flashT, 0.3); jolt(1); sfx.boom(); setTimeout(() => sfx.boom(), 200); poiFx.play(k, P.center);
-  if (state === 'play') { score += SC.poi; addColl(COLL.poi, P.center, '⚠ ' + POI[k].name + '!'); banner('⚠ YOU HIT THE ' + POI[k].name + '!'); }
+  if (state === 'play') { score += SUP.poiPts; popup(P.center, '+' + SUP.poiPts + ' 📦 SUPPLIES!', '#ffd24a'); banner('📦 SUPPLIES FROM THE ' + POI[k].name + '!'); addSup(Math.round(zStart * SUP.poi)); }
   if (k === 'power') { for (const [t, v] of [[0, 0.3], [0.16, 0.9], [0.34, 0.15], [0.55, 0.75], [0.8, 0.1], [1.05, 0.5]]) poiFx.after(t, () => lights(v)); poiFx.after(1.3, blackout); } // the town's lights stutter, then go out
-  for (const b of buildings) if (!b.done && b.burnT == null && Math.hypot(b.pos.x - P.center.x, b.pos.z - P.center.z) < 4.6 && Math.random() < 0.3) igniteB(b); // the blast sets its neighbours alight
-  horde.blast(P.center.x, P.center.z, 3.2, 1.3); }
+  horde.blast(P.center.x, P.center.z, 3.2, 1.3, 'rocket', true); } /* (zombies only: blowing a landmark up for its supplies costs no collateral) */
 function lights(v) { for (const x of buildings) for (const m of x.b.userData.fade || []) if (m.emissiveIntensity != null) { if (m.userData.glow0 == null) m.userData.glow0 = m.emissiveIntensity; m.emissiveIntensity = m.userData.glow0 * v; } setBakedGlow(v); }
 function blackout() { hemi.intensity *= 0.6; sun.intensity *= 0.65; for (const x of buildings) for (const m of x.b.userData.fade || []) if (m.emissiveIntensity != null) m.emissiveIntensity = 0.04; setBakedGlow(0.04);
   city.group.traverse((m) => { const mt = m.material; if (mt && !Array.isArray(mt) && mt.isMeshBasicMaterial && mt.color && mt.color.getHex() === 0xf6e94a) mt.color.setHex(0x22232a); }); }
@@ -274,22 +274,46 @@ function hitThings(x, z, how) { const rocket = how === 'rocket';
 // the craft skin's looks, trail and quirks (craftSkins.js). With no skin worn, every call does nothing
 const sk = airSkin({ scene, fx, horde, twisters, popup, sfx, jolt, hitThings, rocketR: ROCKET_R });
 // ---------- weapons ----------
-const cans = [], rockets = []; let drops = 0, shots = 0;
-function dropCanister(c) { const m = sk.canister() || makeCanister(); m.position.copy(c.pos); m.position.y -= 0.35; m.rotation.y = c.head; scene.add(m); cans.push({ m, vx: c.vel.x * 0.55, vy: -1, vz: c.vel.z * 0.55, head: c.head }); drops++; sfx.throw(); }
+const cans = [], rockets = [], arBlasts = []; let drops = 0, shots = 0;
+// SUPPLIES: every zombie destroyed is one, a landmark blown up is a tenth of the horde's worth. The bar unlocks a weapon at each
+// mark (a share of the horde); the last is the NUKE: one shot, and another for every further SUP.more of supplies
+const SUP = { at: [0.12, 0.28, 0.48], more: 0.16, poi: 0.1, poiPts: 2000, nukeR: 8, nukeG: 6 };
+const WPN = { bomber: [{ icon: '🔥', name: 'NAPALM', cost: 1 }, { icon: '💣', name: 'BIG BOMB', cost: 2 }, { icon: '🎆', name: 'FIRE WALL', cost: 2 }, { icon: '☢️', name: 'NUKE', cost: 0 }],
+  heli: [{ icon: '🚀', name: 'ROCKET', cost: 1 }, { icon: '💥', name: 'BIG ROCKET', cost: 2 }, { icon: '🎇', name: 'SALVO', cost: 3 }, { icon: '☢️', name: 'NUKE', cost: 0 }] };
+let wpn = 0, wLv = 0, sup = 0, nukes = 0, supNuke = 0;
+function addSup(n) { if (state !== 'play') return; sup += n; let ch = false; while (wLv < 3 && sup >= SUP.at[wLv] * zStart) { wLv++; ch = true; if (wLv === 3) { nukes = 1; supNuke = sup + SUP.more * zStart; } else wpn = wLv; banner('⬆ NEW WEAPON: ' + WPN[craftKind][wLv].name + '!'); sfx.power(); }
+  if (wLv >= 3 && sup >= supNuke) { supNuke += SUP.more * zStart; if (nukes < 2) { nukes++; ch = true; banner('☢️ ANOTHER NUKE IS READY!'); sfx.power(); } } if (ch) drawWpns(); }
+function supPct() { if (wLv >= 3) return nukes >= 2 ? 100 : (1 - (supNuke - sup) / (SUP.more * zStart)) * 100; const a = wLv ? SUP.at[wLv - 1] * zStart : 0, b = SUP.at[wLv] * zStart; return (sup - a) / (b - a) * 100; }
+function drawWpns() { const box = $('arWpns'); if (!box) return; const l = WPN[craftKind]; if (box.children.length !== l.length || box.dataset.k !== craftKind) { box.innerHTML = ''; box.dataset.k = craftKind; l.forEach((w, i) => { const b = document.createElement('button'); b.innerHTML = '<b>' + w.icon + '</b><i></i>'; b.setAttribute('aria-label', w.name);
+      b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); if (state !== 'play' || i > wLv || (i === 3 && nukes <= 0)) return; wpn = i; sfx.click(); drawWpns(); popup(craft.pos, w.name, '#ffd24a', craft.pos); }); box.appendChild(b); }); }
+  l.forEach((w, i) => { const b = box.children[i]; b.classList.toggle('lock', i > wLv || (i === 3 && nukes <= 0)); b.classList.toggle('sel', i === wpn); b.querySelector('i').textContent = i === 3 ? (i <= wLv ? '×' + nukes : '') : w.cost > 1 ? '−' + w.cost : ''; });
+  const d = $('arDrop'), ic = d && d.querySelector('b'); if (ic) ic.textContent = l[wpn].icon; }
+// which weapon this shot is, paid for: the one picked, or the plain one when there is not enough left for it
+function useW(c) { let w = wpn; if (w === 3) { if (nukes > 0) { nukes--; wpn = Math.min(wLv, 2); drawWpns(); return 3; } w = wpn = Math.min(wLv, 2); drawWpns(); } if (c.ammo < WPN[c.kind][w].cost) w = 0; c.ammo -= WPN[c.kind][w].cost; return w; }
+function fireSpot(x, z) { fx.ignite(new THREE.Vector3(x, 0.1, z), 1.0, NAPALM_T); addPatch(x, z); hitThings(x, z, 'napalm'); }
+// the NUKE: a blast that burns the dead and leaves the living and the town standing (a Grave Giant in it is badly hurt)
+function nukeAt(x, z) { const at = new THREE.Vector3(x, 0, z), hitG = new Set(); let done = 0; flashT = Math.max(flashT, 1); jolt(1.3); sfx.boom(); setTimeout(() => sfx.boom(), 220); banner('☢️ NUKE!');
+  arBlasts.push(nukeBlast(scene, at, SUP.nukeR, { kind: 'nuke', secs: 1.8, onRadius: (r) => { if (r - done < 1) return; done = r; horde.blast(x, z, r, 1.4, 'rocket', true);
+    for (const G of horde.giants) if (G.live && !hitG.has(G) && Math.hypot(G.root.position.x - x, G.root.position.z - z) < r + G_R * 0.6) { hitG.add(G); hurtG(G, SUP.nukeG); } } })); }
+function updateBlasts(dt) { for (let i = arBlasts.length - 1; i >= 0; i--) if (!arBlasts[i].update(dt)) arBlasts.splice(i, 1); }
+function landCan(k, x, z) { const w = k.w || 0; if (w === 3) { nukeAt(x, z); return; } napalm(x, z, k.head); if (!w) return; const fx0 = Math.sin(k.head), fz0 = Math.cos(k.head), cx = Math.cos(k.head), cz = -Math.sin(k.head);
+  if (w === 1) { fx.explode(new THREE.Vector3(x, 0.4, z), 1.7); fx.shock({ x, y: 0, z }, 4.2, 0xffc070, 0.4); jolt(0.4); horde.blast(x, z, 2.5, 1.2); for (const s of [-1.4, 1.4]) fireSpot(x + fx0 * s, z + fz0 * s); for (const G of horde.giants) if (G.live && Math.hypot(G.root.position.x - x, G.root.position.z - z) < 2.5 + G_R * 0.6) hurtG(G, 2); }
+  else for (const s of [-2.8, -1.4, 1.4, 2.8]) fireSpot(x + cx * s, z + cz * s); } /* FIRE WALL: five fires side by side, right across the street and the pavements */
+function dropCanister(c, w = 0) { const m = sk.canister() || makeCanister(); if (w) m.scale.multiplyScalar(w === 3 ? 2.2 : 1.5); m.position.copy(c.pos); m.position.y -= 0.35; m.rotation.y = c.head; scene.add(m); cans.push({ m, w, vx: c.vel.x * 0.55, vy: -1, vz: c.vel.z * 0.55, head: c.head }); drops++; sfx.throw(); }
 function updateCans(dt) { for (let i = cans.length - 1; i >= 0; i--) { const k = cans[i], m = k.m; k.vy -= 14 * dt; m.position.x += k.vx * dt; m.position.y += k.vy * dt; m.position.z += k.vz * dt; m.rotation.x = Math.min(1.1, m.rotation.x + dt * 1.8);
-    if (m.position.y > 0.15) continue; scene.remove(m); cans.splice(i, 1); napalm(m.position.x, m.position.z, k.head); } }
+    if (m.position.y > 0.15) continue; scene.remove(m); cans.splice(i, 1); landCan(k, m.position.x, m.position.z); } }
 function napalm(x, z, head) { const at = new THREE.Vector3(x, 0, z), cx = Math.cos(head), cz = -Math.sin(head); // (cx, cz): across the line of flight
   fx.explode(at.clone().setY(0.15), 0.75); fx.sparks({ x, y: 0.3, z }, 14, { c: [0xffe08a, 0xff5a1a], speed: 5, up: 3, life: 0.6 }); fx.glow(at, 3.2, 0xff7a1a, 0.5, 0.8); fx.scorch(at, 1.5, 26); boom(); jolt(0.18);
   for (const s of [-1, 1]) fx.ignite(new THREE.Vector3(x + cx * 0.55 * s, 0.1, z + cz * 0.55 * s), 1.0, NAPALM_T); // a wall of fire across the street, two fires wide
   addPatch(x, z); hitThings(x, z, 'napalm'); sk.napalm(x, z); }
-function fireRocket(p) { const c = craft; if (!c || !c.alive || c.crash) return false; if (c.baseD < BASE_R) { if (now() - (c.ringT || 0) > 1.5) { c.ringT = now(); popup(c.pos, 'LEAVE THE RING TO FIRE', '#9fd6ff', c.pos); } return false; } if (c.ammo <= 0) { if (now() - (c.emptyT || 0) > 2) { c.emptyT = now(); banner('OUT OF ROCKETS: BACK TO BASE'); } return false; } if (c.fireCd > 0) return false;
-  c.fireCd = AR.fireEvery; c.ammo--; shots++; c.g.updateMatrixWorld(true); c.pod = 1 - c.pod; const from = new THREE.Vector3(c.pod ? 0.72 : -0.72, -0.24, 0.5).applyMatrix4(c.g.matrixWorld);
-  const m = sk.rocket() || makeRocket(); m.position.copy(from); m.lookAt(p); scene.add(m); rockets.push({ m, from, to: p.clone().setY(0.05), t: 0, T: Math.max(0.15, from.distanceTo(p) / 34), sm: 0 }); fx.puff('flame', from, 0.35); sfx.whoosh(); sfx.throw(); return true; }
+function fireRocket(p) { const c = craft; if (!c || !c.alive || c.crash) return false; if (c.baseD < BASE_R) { if (now() - (c.ringT || 0) > 1.5) { c.ringT = now(); popup(c.pos, 'LEAVE THE RING TO FIRE', '#9fd6ff', c.pos); } return false; } if (c.ammo <= 0 && !(wpn === 3 && nukes > 0)) { if (now() - (c.emptyT || 0) > 2) { c.emptyT = now(); banner('OUT OF ROCKETS: BACK TO BASE'); } return false; } if (c.fireCd > 0) return false;
+  const w = useW(c); c.fireCd = AR.fireEvery * (w ? 1.7 : 1); shots++; c.g.updateMatrixWorld(true); c.pod = 1 - c.pod; const from = new THREE.Vector3(c.pod ? 0.72 : -0.72, -0.24, 0.5).applyMatrix4(c.g.matrixWorld);
+  { const px = Math.cos(c.head), pz = -Math.sin(c.head); for (const s of w === 2 ? [-1.8, 0, 1.8] : [0]) { const q = new THREE.Vector3(p.x + px * s, 0.05, p.z + pz * s), m = sk.rocket() || makeRocket(); if (w === 1 || w === 3) m.scale.multiplyScalar(w === 3 ? 2.2 : 1.6); m.position.copy(from); m.lookAt(q); scene.add(m); rockets.push({ m, from, to: q, w, t: 0, T: Math.max(0.15, from.distanceTo(q) / 34), sm: 0 }); } } fx.puff('flame', from, 0.35); sfx.whoosh(); sfx.throw(); return true; }
 function updateRockets(dt) { for (let i = rockets.length - 1; i >= 0; i--) { const r = rockets[i]; r.t += dt; const k = Math.min(1, r.t / r.T); r.m.position.lerpVectors(r.from, r.to, k); r.sm -= dt; if (r.sm <= 0) { r.sm = 0.02; fx.puff('smoke', r.m.position, 0.32); }
-    if (k < 1) continue; scene.remove(r.m); rockets.splice(i, 1); const p = r.to; fx.explode(p.clone().setY(0.15), 0.95); fx.shock(p, 2.8, 0xffc070, 0.32); fx.scorch(p, 0.9, 18); boom(); jolt(0.22);
-    horde.blast(p.x, p.z, ROCKET_R, 1); hitThings(p.x, p.z, 'rocket'); sk.blast(p);
-    for (const G of horde.giants) if (G.live && Math.hypot(G.root.position.x - p.x, G.root.position.z - p.z) < ROCKET_R + G_R * 0.6) hurtG(G, GIANT.rocket); } } // a Grave Giant in the blast takes a hit
-function clearWeapons() { for (const k of cans) scene.remove(k.m); cans.length = 0; for (const r of rockets) scene.remove(r.m); rockets.length = 0; patches.length = 0; patchesChanged(); patchMesh.count = 0; burning.length = 0; buckets.clear();
+    if (k < 1) continue; scene.remove(r.m); rockets.splice(i, 1); const p = r.to; if (r.w === 3) { nukeAt(p.x, p.z); continue; } const big = r.w === 1, RR = big ? ROCKET_R * 1.7 : ROCKET_R; if (big) { fx.explode(p.clone().setY(0.4), 1.7); fx.shock(p, 4.6, 0xffc070, 0.4); jolt(0.35); } fx.explode(p.clone().setY(0.15), 0.95); fx.shock(p, 2.8, 0xffc070, 0.32); fx.scorch(p, 0.9, 18); boom(); jolt(0.22);
+    horde.blast(p.x, p.z, RR, 1); hitThings(p.x, p.z, 'rocket'); sk.blast(p);
+    for (const G of horde.giants) if (G.live && Math.hypot(G.root.position.x - p.x, G.root.position.z - p.z) < RR + G_R * 0.6) hurtG(G, GIANT.rocket * (big ? 2 : 1)); } } // a Grave Giant in the blast takes a hit
+function clearWeapons() { for (const b of arBlasts) b.remove(); arBlasts.length = 0; for (const k of cans) scene.remove(k.m); cans.length = 0; for (const r of rockets) scene.remove(r.m); rockets.length = 0; patches.length = 0; patchesChanged(); patchMesh.count = 0; burning.length = 0; buckets.clear();
   for (const r of rocks) for (const q of r.parts) twisters.wreck.free(q.f); rocks.length = 0; for (const s of shards) twisters.wreck.free(s.f); shards.length = 0; for (const m of rings) { m.visible = false; m.userData.used = false; } }
 
 // ---------- the aircraft ----------
@@ -307,7 +331,7 @@ function makeCraft(kind) { if (craft) { scene.remove(craft.g); scene.remove(craf
 function place(c) { const g = c.g; g.position.copy(c.pos); g.rotation.set(0, c.head, 0); g.rotateZ(c.bank); g.rotateX(c.pitch);
   c.shadow.position.set(c.pos.x, 0.07, c.pos.z); c.shadow.scale.setScalar(c.kind === 'heli' ? 1.3 : 1.45); c.shadow.material.opacity = 0.32 - Math.min(0.18, c.pos.y * 0.02); }
 const held = () => dropHeld || keys[' '] || botDrop; // DROP / FIRE held down (or SPACE, or the autopilot)
-const dropping = () => !!craft && craft.kind === 'bomber' && craft.ammo > 0 && held(), firing = () => !!craft && craft.kind === 'heli' && craft.alive && !craft.crash && held();
+const dropping = () => !!craft && craft.kind === 'bomber' && (craft.ammo > 0 || (wpn === 3 && nukes > 0)) && held(), firing = () => !!craft && craft.kind === 'heli' && craft.alive && !craft.crash && held();
 const aimPoint = (c, out) => out.set(c.pos.x + Math.sin(c.head) * AIM_D, 0, c.pos.z + Math.cos(c.head) * AIM_D); // the heli's circle: where a rocket fired now comes down
 const tmpA = new THREE.Vector3(), tmpW = new THREE.Vector3();
 /* the keys steer from the pilot's seat: A or the left arrow always turns the aircraft to its own left, D or the right arrow to its own right,
@@ -332,7 +356,7 @@ function updateCraft(dt) { const c = craft, S = c.S; c.t += dt; sk.tick(dt, c); 
     c.bank += (Math.max(-0.8, Math.min(0.8, -turn / Math.max(dt, 1e-4) * 0.42)) - c.bank) * Math.min(1, dt * 5);
     c.vel.set(Math.sin(c.head) * S.speed, 0, Math.cos(c.head) * S.speed); c.pos.x += c.vel.x * dt; c.pos.z += c.vel.z * dt;
     const low = dropping(); c.alt += Math.max(-6 * dt, Math.min(4.2 * dt, (low ? S.low : S.alt) - c.alt)); c.pos.y = c.alt; c.pitch += ((low && c.alt > S.low + 0.2 ? 0.18 : 0) - c.pitch) * Math.min(1, dt * 4); // it dips its nose to go down and drop, and climbs back quickly when you let go
-    c.dropT -= dt; if (low && c.dropT <= 0) { c.dropT = AR.dropEvery; c.ammo--; dropCanister(c); setPods(c.g, c.ammo); }
+    c.dropT -= dt; if (low && c.dropT <= 0) { const w = useW(c); c.dropT = AR.dropEvery * (w ? 1.7 : 1); dropCanister(c, w); setPods(c.g, c.ammo); }
     if ((dropHeld || keys[' ']) && c.ammo <= 0 && c.t - (c.emptyT || -9) > 3) { c.emptyT = c.t; banner('OUT OF NAPALM: BACK TO BASE'); }
     for (const p of c.g.userData.props) p.rotation.z += dt * 40;
     setPlaneEngine(state === 'play' ? 0.3 + (low ? 0.14 : 0) : 0, 1 + Math.abs(c.bank) * 0.12 + (low ? 0.08 : 0)); // your own engine: a soft, steady drone that rises as you dive to drop
@@ -457,6 +481,7 @@ function updateGiants(dt) { while (gPlan.length && played >= gPlan[0]) { gPlan.s
     // napalm: every fire patch it walks into (or that comes down on it) burns it, once each
     for (const Pt of patches) { if (Pt.t < 0.25 || Math.hypot(Pt.x - P.x, Pt.z - P.z) > Pt.r + G_R * 0.75) continue; if (!Pt.hg) Pt.hg = new Set(); if (Pt.hg.has(G)) continue; Pt.hg.add(G); G.burn = 3; hurtG(G, GIANT.fire); if (!G.live) break; }
     if (!G.live) continue;
+    /* fly into it and it snatches you out of the air and slams you into the street: that is the end of the flight */ if (c && c.alive && !c.crash && !craftView.safe && state === 'play' && G.st !== 'rise' && Math.hypot(c.pos.x - P.x, c.pos.z - P.z) < GIANT.grabR) { G.st = 'throw'; G.t = 0; G.thrown = true; G.face = Math.atan2(c.pos.x - P.x, c.pos.z - P.z); sfx.groan(); hurtCraft(9999, 'grab', 'GRABBED!', '#ff5a4a'); if (c.crash) { c.crash.vy = -16; banner('💀 GRABBED AND SLAMMED!'); } }
     if (G.st === 'walk') { G.cd -= dt; if (G.cd <= 0 && c && c.alive && !c.crash && !craftView.safe && state === 'play') { const d = Math.hypot(c.pos.x - P.x, c.pos.z - P.z); if (d < GIANT.range && d > 2.5) { const b = grabbable(G); if (b) { horde.giantGrab(G, b, GIANT.hold); G.cd = GIANT.cd[0] + Math.random() * (GIANT.cd[1] - GIANT.cd[0]); } else G.cd = 0.7; } else G.cd = 0.4; } }
     if (G.rock && G.rock.held && !G.rock.locked) { if (G.st === 'throw' || (G.st === 'hold' && G.t > G.hold - GIANT.lock)) G.rock.locked = true; else aimGiant(G); } } } // while it lifts and holds the chunk up it aims where the aircraft is going, until a moment before the throw: then the ring stays put
 // the building it can reach (the tallest on the squares round it, if near enough)
@@ -551,6 +576,7 @@ function updateHud(dt) { const c = craft, S = c.S, zl = horde.zombies;
   setT('taScore', Math.max(0, Math.round(score)));
   { const pct = Math.max(0, Math.min(100, Math.round((zStart - zl) / Math.max(1, zStart - goalN) * 100))); setT('taPct', '☣️ ' + pct + '% CLEARED'); setC('taPct', 'ok', pct >= 100); }
   setW('arHpFill', c.hp / S.hp * 100); setC('arCraft', 'low', c.hp < S.hp * 0.35); setW('arAmmoFill', c.ammo / S.ammo * 100); setT('arAmmoTxt', c.ammo); setC('arCraft', 'empty', c.ammo <= 0);
+  setW('arSupFill', Math.max(0, Math.min(100, supPct())));
   setT('arDropN', c.ammo > 0 ? c.ammo + ' LEFT' : 'RELOAD'); setC('arDrop', 'empty', c.ammo <= 0); setC('arDrop', 'held', dropping() || firing()); // DROP (the bomber) or FIRE (the heli)
   // the way home: an arrow at the edge of the screen (gold when you need it), and a word in the middle
   const needBase = c.ammo <= 0 || c.hp < S.hp * 0.35;
@@ -584,7 +610,7 @@ function coachAR() { if (coachBusy() || !craft || !craft.alive || craft.crash) r
   // the urgent ones first: a building ahead (seen from further off than the BUILDING! warning, so that still comes, with time
   // to steer, once the prompt has gone; it glows red while the prompt is up), a Grave Giant climbing out of the ground
   if (!coachSeen('ar_bld') && c.bumpT <= 0 && (c.kind === 'bomber' || !c.way)) { const b = bldAhead(c, c.kind === 'bomber' ? 2.4 : 1.8, null, c.kind === 'bomber' && dropping() ? Math.min(c.alt, c.S.low) : c.alt); if (b) { setWarn(b); coach('ar_bld', { title: '🏢 BIG BUILDINGS ARE SOLID', text: 'Fly into one and it comes down, and it costs you a third of your health. Watch for the red glow and BUILDING!, and steer round. ' + (c.kind === 'heli' ? 'The heli flies over houses and small shops.' : 'The bomber clears all but the tallest towers until it dips to drop.'), at: () => onOr(toScreen(b.pos, b.h * 0.6)) }); return; } }
-  { const G = horde.giants.find((g) => g.live && (g.st !== 'rise' || g.t > 1.2)); if (G && !coachSeen('ar_giant')) { coach('ar_giant', { title: '💀 GRAVE GIANT', text: 'A giant zombie! It tears chunks off buildings and throws them at you: when a red ring shows where one is coming, fly clear of it. Napalm and rockets bring it down, but it takes a lot of them.', at: () => onOr(toScreen(G.root.position, 4), gArrows[horde.giants.indexOf(G)]) }); return; } }
+  { const G = horde.giants.find((g) => g.live && (g.st !== 'rise' || g.t > 1.2)); if (G && !coachSeen('ar_giant')) { coach('ar_giant', { title: '💀 GRAVE GIANT', text: 'A giant zombie! It tears chunks off buildings and throws them at you: when a red ring shows where one is coming, fly clear of it. Never fly into it: it grabs you and slams you down. Napalm and rockets bring it down, but it takes a lot of them.', at: () => onOr(toScreen(G.root.position, 4), gArrows[horde.giants.indexOf(G)]) }); return; } }
   if (!coachSeen('ar_steer_' + c.kind)) { if (played > 0.6) coach('ar_steer_' + c.kind, c.kind === 'bomber' ? { mode: 'drag', title: '✈ STEER', text: 'Hold and drag anywhere to steer. The bomber never stops, so keep it turning. You can also tap a spot to turn toward it.' + (matchMedia('(hover: hover) and (pointer: fine)').matches ? ' Keys: A turns left, D turns right.' : '') } : { mode: 'drag', title: '🚁 FLY', text: 'Hold and drag anywhere to fly the helicopter: it turns to face the way it flies. Let go and it hovers. Tap a spot to fly there.' + (matchMedia('(hover: hover) and (pointer: fine)').matches ? ' Keys: W and S fly forward and back, A and D turn.' : '') }); return; }
   if (!coachSeen('ar_goal')) { if (played > 3 && coachIdle() > 1.5) coach('ar_goal', { title: '🧟 THE HORDE', text: 'Bring the horde down to the GOAL line before time runs out. Zombies turn anyone they catch, so the horde grows if you are slow.', at: () => elMid($('taGrow')) }); return; }
   if (c.kind === 'bomber' && !coachSeen('ar_drop') && c.ammo > 0) { const t = horde.densest(c.pos.x + c.vel.x * 1.2, c.pos.z + c.vel.z * 1.2, 9); if (t && t.n >= 4 && c.ammo > 0) coach('ar_drop', { mode: 'tap', title: '🔥 NAPALM', text: 'Hold DROP to lay a wall of fire. The canisters land on the orange ring ahead of you, and zombies that walk into the fire burn. Keep it on the street, away from houses.', at: () => elMid($('arDrop')) }); return; }
@@ -606,7 +632,10 @@ function pUp(id) { const t = touches.get(id); if (!t) return; touches.delete(id)
 function stickOff() { stick.id = null; stick.x = stick.y = 0; stick.on = false; stickEl.style.display = 'none'; }
 const ray = new THREE.Raycaster(), groundP = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 function groundAt(cx, cy) { cam.updateMatrixWorld(); ray.setFromCamera(new THREE.Vector2((cx / innerWidth) * 2 - 1, -(cy / innerHeight) * 2 + 1), cam); const p = new THREE.Vector3(); return ray.ray.intersectPlane(groundP, p) ? p : null; }
-function tapAt(cx, cy) { if (state !== 'play' || !craft || !craft.alive || craft.crash) return; const p = groundAt(cx, cy); if (!p) return; craft.way = outOf(p); craft.wayT = 0; rtT = 0; } // a tap on the town: fly there (the heli) or turn toward it (the bomber)
+let tap0 = null; /* the last tap (a second one close by, soon after, is a double tap) */
+function tapAt(cx, cy) { if (state !== 'play' || !craft || !craft.alive || craft.crash) return; const p = groundAt(cx, cy); if (!p) return; const t = now(), dbl = tap0 && t - tap0.t < 0.35 && Math.hypot(cx - tap0.x, cy - tap0.y) < 45; tap0 = dbl ? null : { t, x: cx, y: cy };
+  if (dbl && craft.kind === 'heli') { craft.way = craft.prevWay || null; craft.fireCd = 0; if (fireRocket(p)) popup(p, '🎯', '#ffd24a'); return; } /* the heli: a double tap shoots the spot (and keeps the course it had before the first tap) */
+  craft.prevWay = craft.way; craft.way = outOf(p); craft.wayT = 0; rtT = 0; } // a tap on the town: fly there (the heli) or turn toward it (the bomber)
 const ZOOM_MIN = 0.55, ZOOM_MAX = 1.6; let zoom = 1; try { zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, +localStorage.getItem('ar_zoom') || 1)); } catch { /* ignore */ }
 function setZoom(z) { zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z)); try { localStorage.setItem('ar_zoom', String(zoom)); } catch { /* ignore */ } }
 // a pinch counts only fingers on the town itself: a thumb held on DROP while the other one steers is not a pinch
@@ -636,10 +665,10 @@ const fsMode = initFullscreen(() => state === 'play' || state === 'outro'); // f
 function start() {
   fsMode.play(); coachClear(); saveLast('ar', level); horde.crowd.clear(); if (state !== 'start' || roundN > 0) roundN++; roundId++;
   unlockAudio(); sk.clear(); buildWorld(); makeCraft(craftKind); setupMap(); /* (sk.clear first: it frees the last round's baby twisters while the twisters module still has them) */
-  score = coll = kills = spitKills = savedN = civHit = turned = bHit = bLost = poiHit = acidHits = refills = multiBest = drops = shots = bumps = rockHits = crushed = gUp = gDown = 0; played = 0; coll70 = false; endWhy = ''; dropHeld = false; botDrop = false; botKT = 0; stickOff(); touches.clear(); setWarn(null);
+  score = coll = kills = spitKills = savedN = civHit = turned = bHit = bLost = poiHit = acidHits = refills = multiBest = drops = shots = bumps = rockHits = crushed = gUp = gDown = 0; wpn = wLv = sup = nukes = supNuke = 0; played = 0; coll70 = false; endWhy = ''; dropHeld = false; botDrop = false; botKT = 0; stickOff(); touches.clear(); setWarn(null);
   gPlan = []; for (let i = 0; i < (L().giants || 0); i++) gPlan.push(GIANT.rise[0] + i * GIANT.rise[1]); // when each Grave Giant climbs out of the ground
   ROUND = +Q.get('time') || L().time; tLeft = ROUND; zStart = horde.zombies; goalN = Math.max(1, Math.round(zStart * L().goal)); civStart = horde.civs;
-  $('arGoalTick').style.left = (goalN / zStart * 100) + '%'; { const b = $('arDrop'), heli = craftKind === 'heli'; b.innerHTML = heli ? '<b>🚀</b><span>FIRE</span><i id="arDropN"></i>' : '<b>🔥</b><span>DROP</span><i id="arDropN"></i>'; b.setAttribute('aria-label', heli ? 'Fire rockets' : 'Drop napalm'); b.classList.remove('hidden'); } /* the big button: DROP napalm, or FIRE rockets */ $('arAmmoIcon').textContent = craftKind === 'bomber' ? '🔥' : '🚀'; $('arCraftTag').textContent = CRAFTS[craftKind].icon + ' ' + CRAFTS[craftKind].tag;
+  $('arGoalTick').style.left = (goalN / zStart * 100) + '%'; { const b = $('arDrop'), heli = craftKind === 'heli'; b.innerHTML = heli ? '<b>🚀</b><span>FIRE</span><i id="arDropN"></i>' : '<b>🔥</b><span>DROP</span><i id="arDropN"></i>'; b.setAttribute('aria-label', heli ? 'Fire rockets' : 'Drop napalm'); b.classList.remove('hidden'); } drawWpns(); /* the big button: DROP napalm, or FIRE rockets; beside it, the weapons the supplies unlock */ $('arAmmoIcon').textContent = craftKind === 'bomber' ? '🔥' : '🚀'; $('arCraftTag').textContent = CRAFTS[craftKind].icon + ' ' + CRAFTS[craftKind].tag;
   for (const s of ['taStart', 'taEnd', 'taPaused', 'taPrize']) $(s).classList.add('hidden'); $('ta').classList.remove('hidden');
   state = 'play'; playSongs(); sfx.whoosh(); banner('LEVEL ' + level + ': ' + L().name.toUpperCase()); const rid = roundId; setTimeout(() => { if (state === 'play' && rid === roundId) banner('WIPE OUT THE HORDE!'); }, 2400);
   renderer.compile(scene, cam); $('taLevel').textContent = 'L' + level + ' · ' + L().name; measureHud(); for (const k in hudCache) delete hudCache[k]; baseArrow._c = undefined;
@@ -651,7 +680,7 @@ const END_TITLE = { win: 'TOWN SAVED!', damage: 'TOO MUCH DAMAGE!', down: 'SHOT 
 let outroT = 0;
 function finish(why) { if (state !== 'play') return; flushKills(1); /* (kills still being added up count too) */ endZ = horde.zombies; endCiv = horde.civs; if (craft) updateHud(0); /* the HUD shows how it ended (green at the goal) through the outro */ setT('arBaseMsg', ''); setC('arBaseMsg', 'on', false); endWhy = why; state = 'outro'; outroT = 0; dropHeld = false; botDrop = false; stickOff(); touches.clear(); clearTips(); setPlaneEngine(0); stopMusic(); reticle.visible = wayMark.visible = false; setWarn(null); baseArrow.style.display = 'none';
   banner(END_TITLE[why]); if (why === 'win') { sfx.wave(); setTimeout(() => sfx.power(), 400); let n = 0; for (const o of horde.C) { if (o.userData.st !== 'idle' && o.userData.st !== 'flee') continue; o.userData.panic = true; if (n++ < 10 && toScreen(o.position).on) popup(o.position, 'SAVED!', '#7dff3a'); } } else sfx.over(); }
-function outroTick(dt) { outroT += dt; horde.update(dt); if (craft) sk.tick(dt, craft); updateCans(dt); updateRockets(dt); updatePatches(dt); updateBuildingFires(dt); updateRocks(dt); updateShards(dt);
+function outroTick(dt) { outroT += dt; horde.update(dt); if (craft) sk.tick(dt, craft); updateCans(dt); updateRockets(dt); updateBlasts(dt); updatePatches(dt); updateBuildingFires(dt); updateRocks(dt); updateShards(dt);
   const c = craft; if (c && !c.crash) { if (c.kind === 'bomber') { c.pos.x += c.vel.x * dt; c.pos.z += c.vel.z * dt; c.alt += dt * 1.5; c.pos.y = c.alt; for (const p of c.g.userData.props) p.rotation.z += dt * 40; } else { c.alt += dt * 1.2; c.pos.y = c.alt; c.head += dt * (endWhy === 'win' ? 2.5 : 0); for (const p of c.g.userData.props) p.rotation.y += dt * 32; } place(c); } else if (c && c.crash && !c.crash.down) crashTick(c, dt);
   if (outroT >= 3.2) finishNow(); }
 function finishNow() {
@@ -665,14 +694,14 @@ function finishNow() {
   $('taEndTitle').innerHTML = T[endWhy] || "TIME'S<br>UP";
   $('taAgain').textContent = won && level < LEVELS.length ? 'NEXT LEVEL' : won ? 'PLAY AGAIN' : 'TRY AGAIN';
   const why = { win: level < LEVELS.length ? 'Level ' + (level + 1) + ' unlocked: ' + LEVELS[level].name + '.' : 'Every town saved. Hero.', damage: 'Too many people and buildings were hit. Drop your napalm down the middle of the street and keep rockets off the houses.',
-    down: { acid: "The gloopers' acid brought you down. Take the glowing green ones out first, and fly back to the airfield to repair when you are hurt.", building: 'You flew into one building too many. Big buildings are solid: watch for the red glow and BUILDING!, and steer round them.', giant: "A Grave Giant's throw brought you down. When a red ring shows where a chunk is coming, fly clear of it." }[(craft && craft.lastHit) || 'acid'], nociv: 'The horde caught everyone. Go for the zombies closest to people first.', time: 'Bring the horde down to ' + goalN + ' or fewer before time runs out (there were ' + zl + ' left).' };
+    down: { acid: "The gloopers' acid brought you down. Take the glowing green ones out first, and fly back to the airfield to repair when you are hurt.", building: 'You flew into one building too many. Big buildings are solid: watch for the red glow and BUILDING!, and steer round them.', grab: 'You flew into a Grave Giant: it grabbed you and slammed you into the street. Stay out of its reach and hit it from a distance.', giant: "A Grave Giant's throw brought you down. When a red ring shows where a chunk is coming, fly clear of it." }[(craft && craft.lastHit) || 'acid'], nociv: 'The horde caught everyone. Go for the zombies closest to people first.', time: 'Bring the horde down to ' + goalN + ' or fewer before time runs out (there were ' + zl + ' left).' };
   $('taGoalLine').textContent = why[endWhy] || '';
   if (gotSkins.length) { const u = document.createElement('div'); u.style.cssText = 'margin-top:8px;padding:8px 10px;border-radius:10px;border:2px solid #7dff3a;background:#0e2a0acc;color:#7dff3a;font-weight:900;font-size:15px;box-shadow:0 0 14px #7dff3a66'; u.innerHTML = '🏆 BONUS SKINS UNLOCKED: <b>' + gotSkins.join(' AND ').toUpperCase() + '</b><br><small style="color:#cfe8c8;font-weight:700;font-size:11px">Put them on with CHOOSE SKIN, or in the skin shop.</small>'; $('taGoalLine').appendChild(u); }
   if (won && level < LEVELS.length) level++; saveLast('ar', level); drawLevels();
   $('taStats').innerHTML = [['🧟 Zombies destroyed', kills + (spitKills ? ' (' + spitKills + ' gloopers)' : '')], ...(lv0.giants ? [['💀 Grave Giants downed', gDown + ' / ' + lv0.giants]] : []), ['Horde left', zl + ' (goal ' + goalN + ')'], [won ? '👥 People saved' : '👥 People alive', alive + ' / ' + civStart + (won ? '  +' + civB : '')], ['People turned', turned], ['People you hit', civHit], ['🏚️ Buildings hit', bHit + (bLost ? ' (' + bLost + ' destroyed)' : '')], ...(bumps ? [['✈️ Buildings flown into', bumps]] : []), ['💥 Collateral', Math.round(coll) + '%'],
     ...(won ? [['⏱️ Time bonus', '+' + timeB]] : []), ['Aircraft', CRAFTS[craft.kind].name], ['Score', score], ['Score coins', '+' + scoreCoins + ' 🪙'], ['Best', best]].map(([a, b]) => '<tr><td>' + a + '</td><td>' + b + '</td></tr>').join('');
   const kept = won && alive >= civStart * 0.7, goes = Math.min(3, 1 + (won ? 1 : 0) + (kept ? 1 : 0));
-  showPrizes($('taChests'), goes, ['1 go for flying the mission', won && '+1 for saving the town', kept && '+1 for keeping 70% of the people alive'].filter(Boolean).join(', '), () => { location.href = 'store.html?from=airraid'; }, null, () => { $('taPrize').classList.add('hidden'); $('taEnd').classList.remove('hidden'); });
+  showPrizes($('taChests'), goes, ['1 go for flying the mission', won && '+1 for saving the town', kept && '+1 for keeping 70% of the people alive'].filter(Boolean).join(', '), () => { location.href = 'store.html?from=airraid'; }, craftPrize(craft.kind, won, goes), () => { $('taPrize').classList.add('hidden'); $('taEnd').classList.remove('hidden'); }, 'craft');
   $('ta').classList.add('hidden'); $('taPrize').classList.remove('hidden'); // the prize game first, then the score
 }
 const HOWTO = [
@@ -680,9 +709,10 @@ const HOWTO = [
   ['🔥', 'Napalm bomber', 'Fast, and it never stops. Drag to steer, or tap a spot to turn toward it. Hold DROP for a wall of fire: the canisters land on the orange ring ahead of you, and zombies that walk into the fire burn. Best down open streets.'],
   ['🚀', 'Rocket heli', 'Slower, and it hovers. Drag to fly, let go to stop: it turns to face the way it flies. Its rockets land on the orange circle in front of it, so turn to aim, then hold FIRE. Tap a spot to fly there.'],
   ['🏢', 'Big buildings are solid', 'Fly into a big building and it comes down, and it costs you a third of your health. The heli flies over houses and small shops; the bomber clears all but the tallest towers until it dips to drop. A red glow and BUILDING! warn you first.'],
-  ['👥', 'Spare the people', 'Burning or blasting people, or setting buildings alight, fills the COLLATERAL meter. Fill it and the mission fails. Hitting a big landmark is the worst of all.'],
+  ['👥', 'Spare the people', 'Burning or blasting people, or setting buildings alight, fills the COLLATERAL meter. Fill it and the mission fails.'],
+  ['📦', 'Supplies and new weapons', 'Every zombie you destroy adds to the SUPPLIES bar, and blowing up a big landmark (the fairground, the power plant...) adds a lot, at no cost. Fill the bar to unlock a bigger bomb, then a second new weapon, then the NUKE. Pick your weapon with the buttons on the right.'],
   ['🟢', 'Gloopers', 'Gloopers, the glowing green zombies, lob acid at aircraft that fly low. The heli is always low; the bomber dips low while it drops. Take them out first.'],
-  ['💀', 'Grave Giants', 'From Downtown on, giant zombies climb out of the ground. They tear chunks off buildings and throw them at you: a red ring shows where one is coming, so fly clear. Napalm and rockets bring them down, but it takes a lot.'],
+  ['💀', 'Grave Giants', 'From Downtown on, giant zombies climb out of the ground. They tear chunks off buildings and throw them at you: a red ring shows where one is coming, so fly clear. Fly into one and it grabs you and slams you down. Napalm and rockets bring them down, but it takes a lot.'],
   ['⛽', 'The airfield', 'Out of ammo or hurt? Fly over the airfield just outside town to reload and repair (nobody fires from inside its ring). Follow the ⛽ arrow at the edge of the screen.'],
   ['⌨️', 'On a computer', 'A and D (or the left and right arrows) always turn the aircraft to its own left and right: hold one to fly a circle. Hold SPACE to drop (bomber) or fire (heli). Heli: W and S (or up and down) fly forward and back. Click the town to fly there.'],
   ['🏆', 'Save the town', 'Save a town to open the next one. Everyone still alive at the end is a bonus.'],
@@ -692,7 +722,7 @@ function loadThen(fn) { if (window.__bootTip) window.__bootTip(); document.body.
 const playNow = () => { fsMode.play(); unlockAudio(); loadThen(start); }; // full screen and sound have to be asked for in the tap itself
 $('taPlay').addEventListener('click', playNow); $('taAgain').addEventListener('click', playNow);
 function drawLevels() { const box = $('taLevels'); box.innerHTML = ''; const un = unlocked(); LEVELS.forEach((lv, i) => { const b = document.createElement('button'), n = i + 1; let best = 0; try { best = +localStorage.getItem(bestKey('ar', n)) || 0; } catch { /* ignore */ }
-  b.className = 'lvl' + (n === level ? ' on' : ''); b.disabled = n > un; b.innerHTML = '<b>' + (n > un ? '🔒' : n) + '</b><span>' + lv.name + '</span>' + (best ? '<i>' + best + '</i>' : ''); b.addEventListener('click', () => { level = n; drawLevels(); }); box.appendChild(b); }); }
+  b.className = 'lvl' + (n === level ? ' on' : ''); b.disabled = n > un; b.innerHTML = '<b>' + (n > un ? '🔒' : n) + '</b><span>' + lv.name.replace('Small Town', 'Town').replace('The Sprawl', 'Sprawl') + '</span>' + (best ? '<i>' + best + '</i>' : ''); b.addEventListener('click', () => { level = n; drawLevels(); }); box.appendChild(b); }); }
 level = unlocked(); if (import.meta.env.DEV) { const q = +Q.get('level'); if (q >= 1 && q <= LEVELS.length) level = q; } drawLevels();
 $('taPause').addEventListener('click', togglePause); $('taResume').addEventListener('click', togglePause);
 { const rb = $('taRestart'); let armT = 0; const reset = () => { armT = 0; rb.textContent = '↺ RESTART LEVEL'; rb.classList.remove('armed'); };
@@ -741,7 +771,7 @@ function update(dt) {
   played += dt; tLeft -= dt; if (tLeft <= 0) { tLeft = 0; finish(horde.zombies <= goalN ? 'win' : 'time'); return; }
   coachAR(); if (coachBusy()) return; /* a prompt has just come up: the round waits from this moment (a building it is about stays lit up red) */ if (played > 30) tip('ar_map', '🗺️ Tap the minimap to fly across town.'); if (bot) botTick(dt);
   updateCraft(dt); const c = craft; craftView.pos.copy(c.pos); craftView.vel.copy(c.vel); craftView.r = c.S.r; craftView.alive = c.alive && !c.crash; craftView.safe = c.baseD < BASE_R + 1; craftView.stealth = c.stealth || 1; // the airfield is a safe zone: the acid (and the giants) can't reach it
-  horde.update(dt); updateGiants(dt); updateRocks(dt); updateShards(dt); updateCans(dt); updateRockets(dt); updatePatches(dt); updateBuildingFires(dt); flushKills(dt);
+  horde.update(dt); updateGiants(dt); updateRocks(dt); updateShards(dt); updateCans(dt); updateRockets(dt); updateBlasts(dt); updatePatches(dt); updateBuildingFires(dt); flushKills(dt);
   if (state !== 'play') return; // something above ended the round
   if (horde.zombies <= goalN) { finish('win'); return; } if (horde.civs <= 0) { finish('nociv'); return; }
   updateHud(dt); mapT -= dt; if (mapT <= 0) { mapT = 0.1; drawMini(); }

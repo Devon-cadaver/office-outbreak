@@ -7,7 +7,7 @@ import { roll } from './chests.js';
 import { fmtCoins } from './skins.js';
 
 const GAMES = ['claw', 'wheel', 'egg'];
-const ICON = { coin: '🪙', skin: '👕', dupe: '🪙', empty: '💨', kaiju: '👹', storm: '🌪️' };
+const ICON = { coin: '🪙', skin: '👕', dupe: '🪙', empty: '💨', kaiju: '👹', storm: '🌪️', craft: '🎁' };
 
 // onDone: once every go is used, a SEE YOUR SCORE button calls it (the prize screen comes before the score screen)
 export function showPrizes(el, goes, why = '', onShop = null, extra = null, onDone = null, special = 'kaiju') {

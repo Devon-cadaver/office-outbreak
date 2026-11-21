@@ -11,7 +11,7 @@ export function seasonChoice() { try { const s = localStorage.getItem('oo_season
 // the SEASON buttons on a game's start screen, under the ERA row
 export function seasonPicker(after) { let row = document.getElementById('seasonRow'); if (!row) { row = document.createElement('div'); row.id = 'seasonRow'; after.after(row); }
   const cur = seasonChoice(), icon = { random: '🎲 ', none: '☀️ ', halloween: '🎃 ', christmas: '🎄 ', july4: '🎆 ' }; row.innerHTML = '<span class="eraLbl">SEASON</span>';
-  for (const [id, name] of SEASONS) { const b = document.createElement('button'); b.className = 'ghost eraBtn' + (id === cur ? ' on' : ''); b.textContent = icon[id] + name.toUpperCase();
+  for (const [id, name] of SEASONS) { const b = document.createElement('button'); b.className = 'ghost eraBtn' + (id === cur ? ' on' : ''); b.innerHTML = '<i>' + icon[id].trim() + '</i> <em>' + name.toUpperCase() + '</em>'; b.title = name; b.setAttribute('aria-label', name); /* (a phone's start screen shows the icon only) */
     b.addEventListener('click', (ev) => { ev.stopPropagation(); setSeason(id); seasonPicker(after); }); row.appendChild(b); } }
 export function bindSeasonSelect(sel) { if (!sel) return; sel.innerHTML = SEASONS.map(([k, n]) => '<option value="' + k + '">' + n + '</option>').join(''); sel.value = getSeason(); sel.addEventListener('change', () => setSeason(sel.value)); }
 

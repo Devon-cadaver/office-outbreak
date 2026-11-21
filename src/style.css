@@ -242,5 +242,26 @@ button:disabled, button:disabled:active { transform: none; }
 /* the small print: which town, how much of it is wrecked against the goal, the score */
 #taSub { margin-right: 56px; max-width: 460px; display: flex; align-items: baseline; gap: 10px; font-size: 11.5px; font-weight: 700; white-space: nowrap; opacity: .92; } #taSub > span { white-space: nowrap; }
 #taLevel { color: #c9a6ff; overflow: hidden; text-overflow: ellipsis; min-width: 0; } #taPct.ok { color: #7dff3a; } #taScore { margin-left: auto; font-size: 13px; } #taCombo { color: #ffd24a; }
-.prizeWin.storm { border-color: #3af0ff; color: #b8f8ff; box-shadow: 0 0 14px #3af0ff; } /* a new storm won in the prize game */
+.prizeWin.storm, .prizeWin.craft { border-color: #3af0ff; color: #b8f8ff; box-shadow: 0 0 14px #3af0ff; } /* a new storm won in the prize game */
 .exitBtn { font-size: 16px; padding: 8px 18px; background: #d8302a !important; background-image: linear-gradient(#ffffff26, #ffffff00 55%) !important; color: #fff !important; border: 2px solid #ff8a7a !important; box-shadow: 0 5px 0 #5a0e0a, 0 7px 10px #0007 !important; font-weight: 900; letter-spacing: 1px; } .exitBtn:active { transform: translateY(4px); box-shadow: 0 1px 0 #5a0e0a !important; } /* red EXIT on the main menu and the pause screens */
+
+/* the start screens on a phone (portrait): everything fits on one screen with no scrolling. The title is one small line; ERA and
+   SEASON each sit on one line with their label in front (the seasons as icons only); the chosen storm / monster / craft is a
+   small strip (picture, name and the choose button) */
+@media (max-width: 600px) and (orientation: portrait) {
+  #taStart { gap: 8px !important; padding-top: max(10px, env(safe-area-inset-top, 0px)) !important; justify-content: flex-start; }
+  #taStart h1 { font-size: clamp(22px, 7.6vw, 30px) !important; line-height: 1.05; margin: 0; white-space: nowrap; } #taStart h1 br { display: none; }
+  #taStart > small, #taStart > p.small:not(#taGoalLine), #taStart .buKeys { display: none !important; }
+  #taStart > p, #taStart .tag { font-size: 12px !important; margin: -4px 0 0 !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: var(--w); }
+  #taStart #eraRow { grid-template-columns: auto repeat(3, minmax(0, 1fr)); gap: 5px; } #taStart #seasonRow { grid-template-columns: auto repeat(5, minmax(0, 1fr)); gap: 5px; }
+  #taStart .eraLbl { grid-column: auto; font-size: 10px; letter-spacing: 1px; min-width: 50px; text-align: left; }
+  #taStart .eraBtn { padding: 7px 2px; font-size: 11px; } #taStart .eraBtn em { font-style: normal; } #taStart .eraBtn i { font-style: normal; }
+  #taStart #seasonRow .eraBtn { padding: 5px 0; font-size: 18px; line-height: 1; } #taStart #seasonRow .eraBtn em { display: none; }
+  #taStart .chosenCard { padding: 4px 8px 4px 4px; gap: 8px; } #taStart .chosenCard canvas { width: 56px; height: 56px; }
+  #taStart .chosenCard small, #taStart .chosenCard span { display: none; } #taStart .chosenCard > div { display: flex; align-items: center; gap: 8px; }
+  #taStart .chosenCard b { font-size: 14px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } #taStart .chosenCard button { font-size: 11px; padding: 7px 8px; margin: 0; white-space: nowrap; }
+  #taStart #arCrafts canvas { width: 56px !important; height: 56px !important; } #taStart #arCrafts span, #taStart #arCrafts small { display: none !important; }
+  #taStart #taPlay { padding-top: 10px; padding-bottom: 10px; }
+  #taStart .soundRow:has(.psBtn) { grid-template-columns: 0.7fr 1fr 1fr !important; gap: 6px !important; }
+  #taStart .soundRow button { font-size: 11.5px; padding-left: 4px; padding-right: 4px; white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; letter-spacing: 0; }
+}

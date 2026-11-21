@@ -673,7 +673,7 @@ const playNow = () => { fsMode.play(); unlockAudio(); loadThen(start); }; // ful
 $('taPlay').addEventListener('click', playNow); // straight in: the cards are there if you ask (HOW TO PLAY), and the round itself shows a new player each thing as it comes up
 $('taAgain').addEventListener('click', playNow);
 function drawLevels() { const box = $('taLevels'); box.innerHTML = ''; const un = unlocked(); LEVELS.forEach((lv, i) => { const b = document.createElement('button'); const n = i + 1; let best = 0; try { best = +localStorage.getItem(bestKey('ta', n)) || 0; } catch { /* ignore */ }
-  b.className = 'lvl' + (n === level ? ' on' : ''); b.disabled = n > un; b.innerHTML = '<b>' + (n > un ? '🔒' : n) + '</b><span>' + lv.name + '</span>' + (best ? '<i>' + best + '</i>' : ''); b.addEventListener('click', () => { level = n; drawLevels(); }); box.appendChild(b); }); }
+  b.className = 'lvl' + (n === level ? ' on' : ''); b.disabled = n > un; b.innerHTML = '<b>' + (n > un ? '🔒' : n) + '</b><span>' + lv.name.replace('Small Town', 'Town').replace('The Sprawl', 'Sprawl') + '</span>' + (best ? '<i>' + best + '</i>' : ''); b.addEventListener('click', () => { level = n; drawLevels(); }); box.appendChild(b); }); }
 level = unlocked(); if (import.meta.env.DEV) { const q = +new URLSearchParams(location.search).get('level'); if (q >= 1 && q <= LEVELS.length) level = q; } drawLevels();
 $('taPause').addEventListener('click', togglePause); $('taResume').addEventListener('click', togglePause);
 // restart the level from the pause screen; the first tap asks, a second tap within 3 seconds does it

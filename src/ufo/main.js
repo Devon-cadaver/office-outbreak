@@ -34,7 +34,7 @@ import { createPreviews } from '../livePreview.js';
 import { buildTown, POI } from './town.js';
 import { createArmy, ARMY_FIRST } from './army.js';
 import { makeShip, makeBeam, makeRay } from './models.js';
-import { ufoSkin, craftPreview, craftSkinKey, craftSkinButton, unlockCraftBonus } from '../craftSkins.js';
+import { ufoSkin, craftPreview, craftSkinKey, craftSkinButton, unlockCraftBonus, craftPrize } from '../craftSkins.js';
 import { hordeLook, hordeBody, airTownSkin } from '../hordeSkins.js'; // (airTownSkin: townsfolk leave off an outfit the hordes worn borrow)
 
 const $ = (id) => document.getElementById(id);
@@ -288,7 +288,7 @@ function updateLifted(dt) { const top = ship.y - 0.45;
 function aboard(l) { const c = l.c, kind = l.kind, at = ship.center.clone().setY(ship.y + 0.6);
   if (played - lastGrab < 2.2) grabChain++; else grabChain = 0; lastGrab = played;
   const gain = (kind === 'car' ? 1.5 : kind === 'soldier' ? 6 : kind === 'zombie' ? 2.5 : 4) + Math.min(grabChain, 8) * 0.75; addEnergy(gain);
-  if (kind !== 'car') abd++; { const key = { car: 'cars', soldier: 'soldiers', zombie: 'zombies', convict: 'convicts' }[kind] || 'people'; stats[key] = (stats[key] || 0) + 1; }
+  if (kind !== 'car') { abd++; swCheck(); } { const key = { car: 'cars', soldier: 'soldiers', zombie: 'zombies', convict: 'convicts' }[kind] || 'people'; stats[key] = (stats[key] || 0) + 1; }
   const label = kind === 'car' ? 'CAR NAPPED' : kind === 'soldier' ? 'SOLDIER' : kind === 'zombie' ? 'ZOMBIE' : kind === 'convict' ? 'CONVICT' : '';
   award(kind === 'car' ? 150 : kind === 'soldier' ? 60 : kind === 'zombie' ? 80 : kind === 'convict' ? 90 : 30, at, label, true);
   popup(at, '+' + Math.round(gain) + '⚡' + (label ? ' ' + label : '') + (grabChain >= 2 ? '  x' + (grabChain + 1) : ''), grabChain >= 2 ? '#c8ff6a' : '#7dff3a');
@@ -326,12 +326,25 @@ function tapUp(x, y, aim, card) { if (coachBusy()) { if (flyCard()) { answerCard
 const flyCard = () => coachBusy() && !!curCard && curCard.key === 'bu_move'; /* (while it is up, even a press on the saucer itself is a tap: the round is holding, so there is nothing to beam) */
 const inReach = (tgt) => Math.hypot(tgt.pos.x - ship.x, tgt.pos.z - ship.z) <= RAY_RANGE;
 // the one place the death ray is fired from, taps and automatic shots alike (o.auto: the ray's own shot, no cooldown, quieter)
+// the ray's levels: unlocked at these shares of the town's people goal (L().abduct); the nukes are one shot each, and come
+// back with every SW.more of the goal beamed up after that
+const SW = { at: [0.25, 0.5, 0.75, 1], more: 0.3, miniR: 7, l: [{ icon: '🔫', name: 'S1 RAY' }, { icon: '⚡', name: 'S2 HEAVY RAY' }, { icon: '🔱', name: 'S3 TRIPLE RAY' }, { icon: '💥', name: 'S4 MINI NUKE' }, { icon: '☢️', name: 'S5 BIG NUKE' }] };
+let sw = 0, swLv = 0, swN = [0, 0], swNext = 0;
+function swCheck() { const g = L().abduct; let ch = false; while (swLv < 4 && abd >= SW.at[swLv] * g) { swLv++; ch = true; if (swLv >= 3) swN[swLv - 3] = 1; if (swLv === 4) swNext = abd + SW.more * g; sw = swLv; banner('⬆ ' + SW.l[swLv].name + ' UNLOCKED!'); sfx.wave(); }
+  if (swLv === 4 && abd >= swNext) { swNext += SW.more * g; if (swN[0] < 1 || swN[1] < 1) { swN[0] = 1; swN[1] = 1; ch = true; banner('☢️ NUKES RELOADED!'); } } if (ch) drawSw(); }
+function drawSw() { const box = $('buWpns'); if (!box) return; if (!box.children.length) SW.l.forEach((w, i) => { const b = document.createElement('button'); b.innerHTML = '<b>' + w.icon + '</b><i>S' + (i + 1) + '</i>'; b.setAttribute('aria-label', w.name);
+    b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); if (state !== 'play' || i > swLv || (i >= 3 && swN[i - 3] <= 0)) return; sw = i; drawSw(); popup(ship.center, w.name, '#ffd24a'); }); box.appendChild(b); });
+  SW.l.forEach((w, i) => { const b = box.children[i]; b.classList.toggle('lock', i > swLv || (i >= 3 && swN[i - 3] <= 0)); b.classList.toggle('sel', i === sw); }); }
+// a tap's shot at the picked level (the ray's own automatic shots stay plain)
+function swShot(tgt, to) { if (sw >= 3) { const k = sw - 3; if (swN[k] > 0) { swN[k]--; goNuke(to, k ? NUKE_R : SW.miniR); stats.nukes = (stats.nukes || 0) + 1; } sw = Math.min(swLv, 2); drawSw(); return; }
+  if (sw >= 1) { fx.glow(to, 3.2, 0xffffff, 0.5, 0.6); tgt.hit(); } /* the heavy ray: twice the damage */
+  if (sw === 2) { let n = 0; for (const x of buildings) { if (n >= 2) break; if (x.done || x.pos.distanceTo(to) > 6 || x.pos.distanceTo(to) < 0.5) continue; const at = x.pos.clone().setY(Math.min(x.h * 0.6, 2.5)); rays.fire(eyePos(), at); hitBuilding(x, at); hitBuilding(x, at); n++; } } }
 function fireAt(tgt, o = {}) { if (tgt.ok && !tgt.ok()) return false; /* already gone (a waiting shot drops it) */ if (!o.auto) { if (rayCd > 0 || !inReach(tgt)) return false; rayCd = RAY_CD; stats.shots = (stats.shots || 0) + 1; } else stats.auto = (stats.auto || 0) + 1;
   const from = eyePos(), to = tgt.pos.clone(); rays.fire(from, to); sk.hit(to);
   // where every ray lands (taps and automatic shots alike)
   fx.flash(to, o.auto ? 0.6 : 0.9, 0xff9af0); fx.sparks(to, o.auto ? 7 : 12, { c: [0xffffff, 0xff5ae0], speed: 6, up: 4, life: 0.45 }); fx.glow(to, o.auto ? 1.4 : 2, 0xff3ad0, 0.4, 0.7);
   if (o.auto) sfx.zap(); else { sfx.laser(); sfx.zap(); jolt(0.08); ship.vel.addScaledVector(V3(ship.x - to.x, 0, ship.z - to.z).normalize(), 0.6); } // a little kick back
-  tgt.hit(); return true; }
+  tgt.hit(); if (!o.auto) swShot(tgt, to); return true; }
 // the ray's own shots: the nearest standing building the saucer is over or right beside, every AUTO_CD (free). Aimed at the
 // nearest point of the building to the saucer's lamp: down onto a roof below, straight across at a wall alongside
 const boxD = (bx, x, z) => Math.hypot(Math.max(bx.min.x - x, 0, x - bx.max.x), Math.max(bx.min.z - z, 0, z - bx.max.z));
@@ -431,8 +444,8 @@ function wreckPoi(k) {
 }
 // the nuclear plant: a mushroom cloud and a shock wave that flattens a wide ring of town (and the army in it); people are knocked flat
 const NUKE_R = 20, blasts = [];
-function goNuke(c) { const at = V3(c.x, 0, c.z); let done = 0;
-  blasts.push(nukeBlast(scene, at, NUKE_R, { kind: 'nuke', secs: 1.8, onRadius: (r) => { if (r - done < 1.2) return; done = r;
+function goNuke(c, R0 = NUKE_R) { const at = V3(c.x, 0, c.z); let done = 0; if (R0 !== NUKE_R) { flashT = Math.max(flashT, 0.8); jolt(1); sfx.boom(); }
+  blasts.push(nukeBlast(scene, at, R0, { kind: 'nuke', secs: 1.8, onRadius: (r) => { if (r - done < 1.2) return; done = r;
     for (const x of buildings) if (!x.done && Math.hypot(x.pos.x - at.x, x.pos.z - at.z) < r) crumble(x, at);
     army.hitArea(at, r); foes.hitAt(at, r); for (const p of people) if (Math.hypot(p.position.x - at.x, p.position.z - at.z) < r) p.userData.stun = played + 6;
     for (let i = drivers.length - 1; i >= 0; i--) { const q = drivers[i].g.position; if (Math.hypot(q.x - at.x, q.z - at.z) < r) { const d = drivers[i]; drivers.splice(i, 1); blowCar(d.g, q.clone()); } } } })); }
@@ -530,7 +543,8 @@ function coachBU() {
 // what is there; press and hold on the saucer itself to beam (or hold BEAM, or SPACE) ----------
 const stick = { id: null, cx: 0, cy: 0, x: 0, y: 0, moved: 0, aim: null, card: false }; const stickEl = $('taStick'), knobEl = $('taKnob'); const keys = {};
 // a press that starts on the saucer itself (its body on screen, with a generous margin round it) is the tractor beam: on for as
-// long as it is held still. Slide it SLIDE_PX off and it steers instead, like any drag (the stick centred where it began)
+// long as it is held. Slide it SLIDE_PX off and it steers as well, like any drag (the stick centred where it began), with the beam
+// still on; a steering finger that comes onto the saucer turns the beam on too. Lifting the finger ends both
 const SLIDE_PX = 22; let beamPress = null, mouseShip = null; /* beamPress: the press holding the beam on ('t' + a touch's id, or 'm' for the mouse) */
 const shipPx = () => Math.max(64, 2.05 * SHIP_SCALE * innerHeight / (cam.top - cam.bottom) + 26);
 function onShip(x, y) { if (state !== 'play' || !ship.alive || !ship.g || !ship.g.visible) return false; const s = toScreen(ship.center, ship.y); return Math.hypot(s.x - x, s.y - y) < shipPx(); }
@@ -554,8 +568,8 @@ canvas.addEventListener('touchmove', (e) => { for (const t of e.changedTouches) 
     if (!pinch.on) { if (stick.id !== null && stick.moved >= 10) pinch = null; else if (all.every((q) => q.moved >= 8)) { pinch.on = true; pinch.d = d; for (const q of all) q.pz = true; sUp(stick.id); } } /* both fingers moving: a pinch */
     if (pinch && pinch.on) { if (d > 0 && pinch.d > 0) setZoom(zoom * pinch.d / d); pinch.d = d; if (e.cancelable) e.preventDefault(); return; } }
   for (const t of e.changedTouches) { const o = touchOn.get(t.identifier), id = 't' + t.identifier; if (!o || o.pz) continue;
-    if (o.ship) { if (o.moved < SLIDE_PX) continue; o.ship = false; if (beamPress === id) beamPress = null; if (stick.id === null || stick.moved < 10) { sUp(stick.id); sDown(id, o.x0, o.y0); } sMove(id, t.clientX, t.clientY); continue; } /* slid off the saucer: the beam goes off and it steers */
-    if (o.moved >= 10 && stick.id !== id && (stick.id === null || stick.moved < 10)) { sUp(stick.id); sDown(id, t.clientX, t.clientY); } sMove(id, t.clientX, t.clientY); } /* the finger that slides steers */
+    if (o.ship) { if (o.moved < SLIDE_PX) continue; o.ship = false; if (stick.id === null || stick.moved < 10) { sUp(stick.id); sDown(id, o.x0, o.y0); } sMove(id, t.clientX, t.clientY); continue; } /* slid off the saucer: it steers, and the beam stays on until the finger lifts */
+    if (o.moved >= 10 && stick.id !== id && (stick.id === null || stick.moved < 10)) { sUp(stick.id); sDown(id, t.clientX, t.clientY); } sMove(id, t.clientX, t.clientY); if (beamPress === null && stick.id === id && state === 'play' && onShip(t.clientX, t.clientY)) { beamPress = id; unlockAudio(); } } /* the finger that slides steers; steer it onto the saucer and the beam comes on too, until it lifts */
   if (state === 'play' && e.cancelable) e.preventDefault(); }, { passive: false });
 addEventListener('wheel', (e) => { if (e.target !== canvas || state !== 'play') return; e.preventDefault(); setZoom(zoom * (e.deltaY > 0 ? 1.1 : 0.9)); }, { passive: false });
 for (const [id, k] of [['taZoomIn', 0.85], ['taZoomOut', 1.18]]) $(id).addEventListener('pointerdown', (e) => { e.stopPropagation(); setZoom(zoom * k); });
@@ -567,8 +581,8 @@ addEventListener('touchend', tUp); addEventListener('touchcancel', tUp);
 canvas.addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch') return; try { canvas.setPointerCapture(e.pointerId); } catch { /* ignore */ }
   if (e.button === 0 && beamPress === null && onShip(e.clientX, e.clientY)) { mouseShip = { id: e.pointerId, x0: e.clientX, y0: e.clientY }; beamPress = 'm'; unlockAudio(); return; }
   sDown(e.pointerId, e.clientX, e.clientY); if (stick.id === e.pointerId) { stick.aim = pickAt(e.clientX, e.clientY); stick.card = closing(); } });
-addEventListener('pointermove', (e) => { if (e.pointerType === 'touch') return; const m = mouseShip; if (m && e.pointerId === m.id) { if (Math.hypot(e.clientX - m.x0, e.clientY - m.y0) < SLIDE_PX) return; mouseShip = null; if (beamPress === 'm') beamPress = null; sDown(e.pointerId, m.x0, m.y0); } sMove(e.pointerId, e.clientX, e.clientY); });
-const mUp = (e, cancel) => { if (e.pointerType === 'touch') return; const m = mouseShip; if (m && e.pointerId === m.id) { mouseShip = null; if (beamPress === 'm') beamPress = null; if (!cancel && flyCard()) tapUp(m.x0, m.y0, null, true); return; }
+addEventListener('pointermove', (e) => { if (e.pointerType === 'touch') return; const m = mouseShip; if (m && e.pointerId === m.id) { if (Math.hypot(e.clientX - m.x0, e.clientY - m.y0) < SLIDE_PX) return; mouseShip = null; sDown(e.pointerId, m.x0, m.y0); } sMove(e.pointerId, e.clientX, e.clientY); });
+const mUp = (e, cancel) => { if (e.pointerType === 'touch') return; if (beamPress === 'm') beamPress = null; const m = mouseShip; if (m && e.pointerId === m.id) { mouseShip = null; if (beamPress === 'm') beamPress = null; if (!cancel && flyCard()) tapUp(m.x0, m.y0, null, true); return; }
   if (e.pointerId !== stick.id) return; const tap = !cancel && stick.moved < 10; sUp(e.pointerId); if (tap) tapUp(stick.cx, stick.cy, stick.aim, stick.card); }; /* a click that did not drag: fly there and zap what is there */
 addEventListener('pointerup', (e) => mUp(e, false)); addEventListener('pointercancel', (e) => mUp(e, true));
 // while the BEAM card is up, only a press on the saucer, BEAM (or SPACE) carries on: other presses are swallowed, so the player
@@ -596,7 +610,7 @@ const setC = (id, cls, on) => { const k = id + '.' + cls; if (hudCache[k] !== on
 function start() {
   fsMode.play(); coachClear(); if (!noSave) saveLast('bu', level); crowd.clear(); unlockAudio(); roundId++; timers.length = 0; sk.clear(); /* (last round's baby twisters, freed while the twisters module still has them) */
   buildWorld(); makePlayerShip(); setupPoiHud();
-  score = 0; chain = 0; lastHit = -9; tLeft = L().time; played = 0; abd = 0; stats = {}; energy = E_MAX; boostT = nukeT = hitT = hurtK = 0; hits = 0; lowWarned = false; rayCd = 0; moveTo = null; lastGrab = -9; grabChain = 0; dmgPop = 0; dmgPopT = hurtSfx = lowAt = -9; outro = null; beamCoach = false;
+  score = 0; chain = 0; lastHit = -9; tLeft = L().time; played = 0; abd = 0; stats = {}; sw = swLv = swNext = 0; swN = [0, 0]; drawSw(); energy = E_MAX; boostT = nukeT = hitT = hurtK = 0; hits = 0; lowWarned = false; rayCd = 0; moveTo = null; lastGrab = -9; grabChain = 0; dmgPop = 0; dmgPopT = hurtSfx = lowAt = -9; outro = null; beamCoach = false;
   blindT = 0; radarDown = radioDown = fireBoost = stink = false; beamHeld = false; beamPress = mouseShip = botDrag = null; bumpT = autoT = 0; pend = null; warnT = -9; setWarn(null); curCard = null; cardUp = false; cardShutAt = -99; holdN = 0;
   army.spawnTown();
   for (const s of ['taStart', 'taEnd', 'taPaused', 'taPrize']) $(s).classList.add('hidden'); $('ta').classList.remove('hidden');
@@ -645,7 +659,7 @@ function finishNow() {
     ['Damage taken', Math.round(n('dmg'))], ['Score', score], ['Score coins', '+' + scoreCoins + ' 🪙'], ['Best', best]].map(([a, b]) => '<tr><td>' + a + '</td><td>' + b + '</td></tr>').join('');
   const goes = Math.min(3, 1 + (cleared ? 1 : 0) + Math.floor(done.length / 2));
   if (simming) { $('ta').classList.add('hidden'); $('taEnd').classList.remove('hidden'); return; } /* the balance robot: no prize game */
-  showPrizes($('taChests'), goes, '1 go, +1 for clearing the level, +1 for every 2 big targets destroyed (max 3)', () => { location.href = 'store.html?from=beamup'; }, null, () => { $('taPrize').classList.add('hidden'); $('taEnd').classList.remove('hidden'); });
+  showPrizes($('taChests'), goes, '1 go, +1 for clearing the level, +1 for every 2 big targets destroyed (max 3)', () => { location.href = 'store.html?from=beamup'; }, craftPrize('ufo', cleared, goes), () => { $('taPrize').classList.add('hidden'); $('taEnd').classList.remove('hidden'); }, 'craft');
   $('ta').classList.add('hidden'); $('taPrize').classList.remove('hidden'); // the prize game first, then the score
 }
 const HOWTO = [
@@ -665,7 +679,7 @@ function loadThen(fn) { if (window.__bootTip) window.__bootTip(); document.body.
 const playNow = () => { fsMode.play(); unlockAudio(); loadThen(start); }; // full screen and sound have to be asked for in the tap itself
 $('taPlay').addEventListener('click', playNow); $('taAgain').addEventListener('click', playNow);
 function drawLevels() { const box = $('taLevels'); box.innerHTML = ''; const un = unlocked(); LEVELS.forEach((lv, i) => { const b = document.createElement('button'); const n = i + 1; let best = 0; try { best = +localStorage.getItem(bestKey('bu', n)) || 0; } catch { /* ignore */ }
-  b.className = 'lvl' + (n === level ? ' on' : ''); b.disabled = n > un; b.innerHTML = '<b>' + (n > un ? '🔒' : n) + '</b><span>' + lv.name + '</span>' + (best ? '<i>' + best + '</i>' : ''); b.addEventListener('click', () => { level = n; drawLevels(); }); box.appendChild(b); }); }
+  b.className = 'lvl' + (n === level ? ' on' : ''); b.disabled = n > un; b.innerHTML = '<b>' + (n > un ? '🔒' : n) + '</b><span>' + lv.name.replace('Small Town', 'Town').replace('The Sprawl', 'Sprawl') + '</span>' + (best ? '<i>' + best + '</i>' : ''); b.addEventListener('click', () => { level = n; drawLevels(); }); box.appendChild(b); }); }
 const params = new URLSearchParams(location.search);
 level = unlocked(); const devLevel = import.meta.env.DEV ? +params.get('level') : 0; if (devLevel >= 1 && devLevel <= LEVELS.length) { level = devLevel; noSave = true; } drawLevels();
 $('taPause').addEventListener('click', togglePause); $('taResume').addEventListener('click', togglePause);
@@ -700,7 +714,7 @@ function update(dt) {
     if (beamOn && d < GRAB_R && lifted.length < LIFT_MAX) { people.splice(i, 1); lift(c, u.kind || 'person'); continue; }
     if (u.stun > played) { animateWalk(c, dt, 0); continue; } // knocked flat (a blast, a flood): they can't run
     if (beamOn && d < PULL_R) { const k = 1 - d / PULL_R, sp = (2.3 + 2.4 * k) * dt; c.position.x -= dx / d * sp; c.position.z -= dz / d * sp; c.rotation.y = Math.atan2(dx, dz); u.panic = true; animateWalk(c, dt, 1.4); collidePerson(c); u.goal = null; if (Math.random() < dt * 0.25) popup(c.position, SHOUTS[(Math.random() * SHOUTS.length) | 0], '#ffffff'); continue; } // dragged in, legs going, arms up
-    if (d < PANIC_R * sk.panic && !u.zombie && !sk.lured(c, d)) { const sp = (stink ? 0.5 : 1.7) * dt; c.position.x += dx / d * sp; c.position.z += dz / d * sp; c.rotation.y = Math.atan2(dx, dz); u.panic = !stink; animateWalk(c, dt, stink ? 0.6 : 1.3); collidePerson(c); u.goal = null; if (u.panic && Math.random() < dt * 0.04) popup(c.position, SHOUTS[(Math.random() * SHOUTS.length) | 0], '#ffffff'); continue; }
+    if (d < PANIC_R * sk.panic && !u.zombie && !sk.lured(c, d)) { const sp = (stink ? 0.5 : 1.7) * dt, x0 = c.position.x, z0 = c.position.z; c.position.x += dx / d * sp; c.position.z += dz / d * sp; c.rotation.y = Math.atan2(dx, dz); u.panic = !stink; collidePerson(c); /* a wall in the way: run along it instead of running on the spot */ if (Math.hypot(c.position.x - x0, c.position.z - z0) < sp * 0.4) { const sd = u.side || (u.side = Math.random() < 0.5 ? 1 : -1); c.position.x = x0 - dz / d * sp * sd; c.position.z = z0 + dx / d * sp * sd; c.rotation.y = Math.atan2(-dz * sd, dx * sd); collidePerson(c); if (Math.hypot(c.position.x - x0, c.position.z - z0) < sp * 0.4) u.side = -sd; } if (Math.hypot(c.position.x - x0, c.position.z - z0) > sp * 0.25) animateWalk(c, dt, stink ? 0.6 : 1.3); u.goal = null; if (u.panic && Math.random() < dt * 0.04) popup(c.position, SHOUTS[(Math.random() * SHOUTS.length) | 0], '#ffffff'); continue; }
     if ((u.zombie || sk.lured(c, d)) && d < 14) { const sp = 0.7 * dt; c.position.x -= dx / d * sp; c.position.z -= dz / d * sp; c.rotation.y = Math.atan2(-dx, -dz); animateWalk(c, dt, 0.8); collidePerson(c); continue; } // the dead shamble toward the light
     if (d > 34) { if (!u.frz) { u.frz = true; c.updateMatrixWorld(true); c.updateMatrixWorld = noop; } continue; } // out of sight: hold still, matrices frozen
     if ((i + frameN) & 1) continue; const dw = dt * 2; u.wait -= dw; if (!u.goal && u.wait <= 0) u.goal = V3(u.home.x + (Math.random() - 0.5) * 2, 0, u.home.z + (Math.random() - 0.5) * 2); // every other frame: just strolling about
@@ -771,7 +785,7 @@ function sim(secs, bot, every = 0.25) { const dt = 1 / 30; let acc = 0; noSave =
 if (params.has('quick')) { level = quickLevel('bu'); if (devLevel >= 1 && devLevel <= LEVELS.length) level = devLevel; drawLevels(); start(); }
 else { buildWorld(); makePlayerShip(); setupPoiHud(); for (const k of poiOrder) pois[k].arrow.style.display = 'none'; }
 requestAnimationFrame(frame); requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove('booting'))); // the start screen is ready now
-window.__bu = { start, finish, tapAt, fireAt, zapKey, sim, L, LEVELS, wreckPoi, hitPoi, hitBuilding, crumble, blast, hurt, setZoom, THREE, renderer, scene, cam, army, crowd, fx, toScreen, foes, goTo, blockerAt, bldAhead, onShip, shipPx, answerCard, BLD, flyY,
+window.__bu = { get sw() { return [sw, swLv, swN.slice(), swNext, abd, L().abduct]; }, start, finish, tapAt, fireAt, zapKey, sim, L, LEVELS, wreckPoi, hitPoi, hitBuilding, crumble, blast, hurt, setZoom, THREE, renderer, scene, cam, army, crowd, fx, toScreen, foes, goTo, blockerAt, bldAhead, onShip, shipPx, answerCard, BLD, flyY,
   get card() { return curCard; }, get beamPress() { return beamPress; }, get warnB() { return warnB; }, get bumpT() { return bumpT; }, get pend() { return pend; }, get bAt() { return bAt; }, drag(d) { botDrag = d ? { x: d.x, z: d.z } : null; },
   get state() { return state; }, get level() { return level; }, set level(v) { level = v; }, get ship() { return ship; }, get energy() { return energy; }, set energy(v) { energy = v; }, get abd() { return abd; }, set abd(v) { abd = v; },
   get beamOn() { return beamOn; }, set beam(v) { beamHeld = !!v; }, get moveTo() { return moveTo; }, set moveTo(v) { moveTo = v; }, get tLeft() { return tLeft; }, set tLeft(v) { tLeft = v; }, get score() { return score; }, get stats() { return stats; },

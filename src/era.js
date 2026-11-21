@@ -44,7 +44,7 @@ export function futurePlane(p) {
 export function eraPicker(after, onChange) { let row = document.getElementById('eraRow'); if (!row) { row = document.createElement('div'); row.id = 'eraRow'; after.after(row); }
   const cur = getEra(); row.innerHTML = '<span class="eraLbl">ERA</span>';
   for (const [id, name] of ERAS) { const b = document.createElement('button'); b.className = 'ghost eraBtn' + (id === cur ? ' on' : '');
-    b.textContent = ({ future: '🚀 ', past: '🤠 ' }[id] || '🏙️ ') + name.toUpperCase();
+    b.innerHTML = '<i>' + ({ future: '🚀', past: '🤠' }[id] || '🏙️') + '</i> <em>' + name.toUpperCase() + '</em>'; b.title = name; /* (a phone's start screen shows the icon and a short word) */
     b.addEventListener('click', (ev) => { ev.stopPropagation(); setEra(id); eraPicker(after, onChange); if (onChange) onChange(); });
     row.appendChild(b); } }
 

@@ -64,6 +64,11 @@
       display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; background: radial-gradient(circle at 50% 35%, #ffc05a, #ff5a1a 62%, #a02a0a) !important; border: 4px solid #ffe27a; color: #2a0a00; font-weight: 900; box-shadow: 0 0 18px #ff7a1a99, 0 6px 0 #5a1a06 !important; }
     #arDrop b { font-size: 28px; line-height: 1; } #arDrop span { font-size: 17px; letter-spacing: 1px; line-height: 1; } #arDrop i { font-style: normal; font-size: 11px; line-height: 1.1; }
     #arDrop.held { transform: translateY(4px) scale(0.95); box-shadow: 0 0 34px #ffc05a, 0 2px 0 #5a1a06 !important; } #arDrop.empty { filter: grayscale(0.85) brightness(0.75); }
+    /* the weapons the supplies unlock: a column above DROP, faint until each is unlocked */
+    #arWpns { position: absolute; right: 22px; bottom: calc(136px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column-reverse; gap: 6px; pointer-events: none; z-index: 3; }
+    #arWpns button { position: relative; width: 48px; height: 48px; border-radius: 50%; padding: 0; margin: 0; pointer-events: auto; touch-action: none; background: #1a1206e6 !important; border: 3px solid #a8842a; box-shadow: none !important; } #arWpns button b { font-size: 22px; line-height: 1; }
+    #arWpns button i { position: absolute; right: -6px; bottom: -4px; font-style: normal; font-size: 11px; font-weight: 900; color: #ffe27a; text-shadow: 0 1px 2px #000; } #arWpns button.sel { border-color: #ffe27a; box-shadow: 0 0 14px #ffc05a !important; transform: scale(1.12); } #arWpns button.lock { opacity: 0.22; pointer-events: none; filter: grayscale(1); }
+    .arBar.sup i { background: linear-gradient(90deg, #6ab8ff, #ffe27a); }
     /* back to base: a word in the middle near the bottom, and an arrow at the screen's edge */
     #arBaseMsg { position: absolute; left: 50%; bottom: calc(132px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); width: max-content; max-width: calc(100vw - 32px); padding: 6px 12px; border-radius: 9px; background: #2a1a04e8; border: 2px solid #ffd24a; color: #ffe27a; font-weight: 900; font-size: 14px; letter-spacing: .5px; text-align: center; opacity: 0; transition: opacity .15s; pointer-events: none; }
     #arBaseMsg.on { opacity: 1; animation: baseMsg .55s ease-in-out infinite alternate; } #arBaseMsg.refill { border-color: #7dff3a; color: #c8ff9a; background: #0e2a0ae8; animation: none; } @keyframes baseMsg { to { box-shadow: 0 0 16px #ffd24a; } }
@@ -80,7 +85,9 @@
     @media (max-width: 760px), (max-height: 520px) {
       #arCraft { left: 148px; transform: none; bottom: calc(66px + env(safe-area-inset-bottom, 0px)); width: calc(100vw - 148px - 126px); min-width: 104px; max-width: 230px; padding: 4px 6px; }
       #arDrop { right: 12px; bottom: calc(66px + env(safe-area-inset-bottom, 0px)); width: 100px; height: 100px; }
-      #arBaseMsg { bottom: calc(176px + env(safe-area-inset-bottom, 0px)); font-size: 13px; } }
+      #arBaseMsg { bottom: calc(176px + env(safe-area-inset-bottom, 0px)); font-size: 13px; }
+      #arWpns { right: 14px; bottom: calc(174px + env(safe-area-inset-bottom, 0px)); } #arWpns button { width: 44px; height: 44px; } }
+    @media (max-height: 520px) { #arWpns { flex-direction: row-reverse; right: 122px; bottom: calc(70px + env(safe-area-inset-bottom, 0px)); } }
     @media (max-height: 520px) { #arBaseMsg { bottom: auto; top: 46%; } }
     /* the start screen: pick your aircraft, two cards side by side, each with the aircraft turning on it */
     #taStart h1 { font-size: clamp(34px, 11vw, 56px); } #taStart .tag { font-size: 16px; margin: -4px 0 0; }
@@ -111,7 +118,8 @@
       <div id="taSub"><span id="taLevel"></span><span id="arCraftTag"></span><span id="taScore">0</span><span id="taCombo"></span></div>
     </div>
     <canvas id="taMap"></canvas><div id="taPct"></div>
-    <div id="arCraft"><div class="arRow"><em>❤️</em><div class="arBar"><i id="arHpFill"></i></div></div><div class="arRow"><em id="arAmmoIcon">🔥</em><div class="arBar ammo"><i id="arAmmoFill"></i></div><b id="arAmmoTxt">8</b></div></div>
+    <div id="arCraft"><div class="arRow"><em>❤️</em><div class="arBar"><i id="arHpFill"></i></div></div><div class="arRow"><em id="arAmmoIcon">🔥</em><div class="arBar ammo"><i id="arAmmoFill"></i></div><b id="arAmmoTxt">8</b></div><div class="arRow"><em>📦</em><div class="arBar sup"><i id="arSupFill" style="width:0"></i></div></div></div>
+    <div id="arWpns"></div>
     <button id="arDrop" class="hidden" aria-label="Drop napalm or fire rockets"><b>🔥</b><span>DROP</span><i id="arDropN">8 LEFT</i></button>
     <div id="arBaseMsg"></div>
     <button id="taZoomIn" class="ghost zoomBtn">+</button><button id="taZoomOut" class="ghost zoomBtn">−</button>
@@ -122,7 +130,7 @@
 
   <div id="taStart" class="screen">
     <p class="small" style="letter-spacing:3px;color:#c9a6ff;margin-bottom:-8px">TORNADO TIME! BONUS GAME</p>
-    <h1>ZOMBIE<br>AIR RAID</h1>
+    <h1>ZOMBIE <br>AIR RAID</h1>
     <p class="tag">The town is overrun. Burn the horde, spare the people.</p>
     <div id="arCrafts"></div>
     <div id="taLevels"></div>

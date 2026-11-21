@@ -1148,7 +1148,7 @@ $('taPlay').addEventListener('click', playNow); // straight in: the cards are th
 $('taAgain').addEventListener('click', playNow);
 $('taEndPick').addEventListener('click', openPicker);
 function drawLevels() { const box = $('taLevels'); box.innerHTML = ''; const un = unlockedLevel(); LEVELS.forEach((lv, i) => { const b = document.createElement('button'); const n = i + 1; let best = 0; try { best = +localStorage.getItem(bestKey('kj', n)) || 0; } catch { /* ignore */ }
-  b.className = 'lvl' + (n === level ? ' on' : ''); b.disabled = n > un; b.innerHTML = '<b>' + (n > un ? '🔒' : n) + '</b><span>' + lv.name + '</span>' + (best ? '<i>' + best + '</i>' : ''); b.addEventListener('click', () => { level = n; drawLevels(); }); box.appendChild(b); }); }
+  b.className = 'lvl' + (n === level ? ' on' : ''); b.disabled = n > un; b.innerHTML = '<b>' + (n > un ? '🔒' : n) + '</b><span>' + lv.name.replace('Small Town', 'Town').replace('The Sprawl', 'Sprawl') + '</span>' + (best ? '<i>' + best + '</i>' : ''); b.addEventListener('click', () => { level = n; drawLevels(); }); box.appendChild(b); }); }
 // ---------- the monster picker: the start screen shows your monster; CHOOSE MONSTER opens a scrolling screen with a
 // picture of every one (locked ones are dark silhouettes). Pictures are rendered once each, a few per frame ----------
 // the monsters on the menu are live: each card shows its monster walking on the spot and turning (livePreview.js)

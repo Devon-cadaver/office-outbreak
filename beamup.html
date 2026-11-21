@@ -61,6 +61,12 @@
     #taZoomIn { top: calc(102px + env(safe-area-inset-top, 0)); } #taZoomOut { top: calc(156px + env(safe-area-inset-top, 0)); }
     @media (max-width: 760px), (max-height: 520px) { #taZoomIn { left: 148px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important; top: auto !important; right: auto !important; } #taZoomOut { left: 202px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important; top: auto !important; right: auto !important; } #ta .skipHud { left: 256px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important; top: auto !important; right: auto !important; } }
     @media (min-width: 761px) and (min-height: 521px) { #buBeam { right: 24px; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); width: 108px; height: 108px; } #buBeam i::after { content: ' · SPACE'; } }
+    /* the death ray's levels: a column above BEAM, faint until each is unlocked */
+    #buWpns { position: absolute; right: 16px; bottom: calc(176px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column-reverse; gap: 5px; pointer-events: none; z-index: 3; }
+    #buWpns button { position: relative; width: 44px; height: 44px; border-radius: 50%; padding: 0; margin: 0; pointer-events: auto; touch-action: none; background: #0a1a16e6 !important; border: 3px solid #3aa890; box-shadow: none !important; } #buWpns button b { font-size: 20px; line-height: 1; }
+    #buWpns button i { position: absolute; right: -6px; bottom: -4px; font-style: normal; font-size: 10px; font-weight: 900; color: #9affc8; text-shadow: 0 1px 2px #000; } #buWpns button.sel { border-color: #b8fff0; box-shadow: 0 0 14px #5ae8ff !important; transform: scale(1.12); } #buWpns button.lock { opacity: 0.22; pointer-events: none; filter: grayscale(1); }
+    @media (min-width: 761px) and (min-height: 521px) { #buWpns { right: 52px; bottom: calc(144px + env(safe-area-inset-bottom, 0px)); } }
+    @media (max-height: 520px) { #buWpns { flex-direction: row-reverse; right: 108px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); } }
     @media (max-height: 520px) { #buBeam { bottom: calc(14px + env(safe-area-inset-bottom, 0px)); width: 84px; height: 84px; } }
     .planeArrow { position: fixed; left: 0; top: 0; font-size: 26px; color: #9fd6ff; text-shadow: 0 0 8px #000, 0 0 3px #2a6aa0; pointer-events: none; display: none; z-index: 4; }
     .foeArrow { font-size: 24px; filter: drop-shadow(0 0 4px currentColor); }
@@ -97,6 +103,7 @@
     <button id="taZoomIn" class="ghost zoomBtn">+</button><button id="taZoomOut" class="ghost zoomBtn">−</button>
     <button id="taPause" aria-label="Pause">❚❚</button>
     <div id="taStick"><div id="taKnob"></div></div>
+    <div id="buWpns"></div>
     <button id="buBeam" aria-label="Beam: hold"><b>BEAM</b><i>HOLD</i></button>
     <div id="buHold"><b>👆 HOLD TO BEAM</b></div>
     <div id="taBanner"></div>
