@@ -36,7 +36,8 @@ import { createPreviews } from '../livePreview.js';
 import { buildTown, POI } from './town.js';
 import { createArmy, ARMY_FIRST } from './army.js';
 import { makeShip, makeBeam, makeRay } from './models.js';
-import { ufoSkin, craftPreview, craftSkinKey, craftSkinButton, unlockCraftBonus, craftPrize } from '../craftSkins.js';
+import { ufoSkin, craftPreview, craftSkinKey, craftSkinButton, unlockCraftBonus, craftPrize, walkerPal } from '../craftSkins.js';
+import { makeWalker, walkerTick, aimLight, WALK_Y } from './walker.js';
 import { hordeLook, hordeBody, airTownSkin } from '../hordeSkins.js'; // (airTownSkin: townsfolk leave off an outfit the hordes worn borrow)
 
 const $ = (id) => document.getElementById(id);
@@ -88,6 +89,10 @@ let level = 1; const L = () => LEVELS[level - 1];
 const ramp = () => Math.min(1, (level - 1) / 5); // 0 in Small Town, 1 in The Sprawl
 let noSave = false, simming = false, memOpen = 0; /* noSave: a test page (?level=N, or the balance robot): bests, unlocks, coins and QUICK PLAY's town are left alone */
 const unlocked = () => { let n = 1; try { n = +localStorage.getItem(levelKey('bu')) || 1; } catch { n = 1; } return Math.max(1, Math.min(LEVELS.length, Math.max(n, memOpen))); };
+// the machine: the saucer, or the LONGSHANKS walker (walker.js). WALK_HOLD: seconds in the walker's searchlight before it is
+// beamed up; WALK_REACH: how far ahead the light reaches; WALK_SPD: its walking speed as a share of the saucer's
+let craftKind = (() => { try { return localStorage.getItem('bu_craft') === 'walker' ? 'walker' : 'ufo'; } catch { return 'ufo'; } })(); const WALK = () => craftKind === 'walker';
+const WALK_HOLD = 3, WALK_REACH = 8.5, WALK_SPD = 0.72;
 const SHIP_SCALE = 0.95, SHIELD_R = 2.7 * SHIP_SCALE, flyY = () => L().fly; // the saucer's size, its shield, and how high it flies in this town (LEVELS)
 const GRAB_R = 2.1, PULL_R = 4.6, PANIC_R = 7, LIFT_MAX = 9; // the beam grabs anyone this close to the spot under the ship, and drags in anyone in PULL_R
 const SPEED = 7.2, BEAM_SLOW = 0.55, BOOST = 1.6, ACC = 3.4; // flying speed, the share of it while beaming, a speed boost, and how quickly the ship answers the stick
@@ -196,8 +201,9 @@ const reticle = (() => { const g = new THREE.Group(), c = document.createElement
 let energy = E_MAX, boostT = 0, nukeT = 0, hitT = 0, hurtSfx = 0, dmgPop = 0, dmgPopT = 0, hits = 0, lowWarned = false, lowAt = -9, beepT = 0, rayCd = 0, beamHeld = false, beamOn = false, hoverT = 0, autoBeamT = 0, moveTo = null, lastGrab = -9, grabChain = 0;
 let blindT = 0, radarDown = false, radioDown = false, fireBoost = false, stink = false, bumpT = 0, autoT = 0, pend = null, botDrag = null;
 const hordeBodyNow = () => { const hs = hordeLook(); return hs ? hordeBody(hs) : null; }; // a graveyard zombie in one of the hordes worn (hordeSkins.js)
-function makePlayerShip() { if (ship.g) { scene.remove(ship.g); disposeTree(ship.g); } const root = new THREE.Group(), body = sk.dress(makeShip()); sk.beam(beam); rays.setColors(sk.rayColors()); body.scale.setScalar(SHIP_SCALE); root.add(body); scene.add(root);
-  Object.assign(ship, { g: root, body, x: 0, z: 0, y: flyY(), alive: true, fall: null, spin: 0 }); ship.vel.set(0, 0, 0); ship.center.set(0, ship.y, 0); root.position.copy(ship.center); }
+function makePlayerShip() { if (ship.g) { scene.remove(ship.g); disposeTree(ship.g); } const root = new THREE.Group(); let body; if (WALK()) { body = makeWalker(walkerPal(craftSkinKey('walker'))); rays.setColors(null); beam.g.visible = false; } else { body = sk.dress(makeShip()); sk.beam(beam); rays.setColors(sk.rayColors()); body.scale.setScalar(SHIP_SCALE); beam.g.visible = true; } root.add(body); scene.add(root);
+  Object.assign(ship, { g: root, body, x: 0, z: 0, y: shipY(), alive: true, fall: null, spin: 0, face: 0 }); ship.vel.set(0, 0, 0); ship.center.set(0, ship.y, 0); root.position.copy(ship.center); }
+const shipY = () => (WALK() ? WALK_Y : flyY());
 const eyePos = () => V3(ship.x, ship.y - 0.42 * SHIP_SCALE, ship.z);
 const addEnergy = (v) => { energy = Math.min(E_MAX, energy + v); };
 const right = V3(), upv = V3(), tmp = V3(), want = V3();
@@ -206,17 +212,17 @@ const right = V3(), upv = V3(), tmp = V3(), want = V3();
 function fly(dt) {
   let sx = stick.x + ((keys.d || keys.arrowright) ? 1 : 0) - ((keys.a || keys.arrowleft) ? 1 : 0), sy = stick.y + ((keys.s || keys.arrowdown) ? 1 : 0) - ((keys.w || keys.arrowup) ? 1 : 0);
   cam.updateMatrixWorld(); right.setFromMatrixColumn(cam.matrixWorld, 0).setY(0).normalize(); upv.setFromMatrixColumn(cam.matrixWorld, 1).setY(0).normalize();
-  const mag = Math.min(1, Math.hypot(sx, sy)), spd = SPEED * (boostT > 0 ? BOOST : 1) * (beamOn ? BEAM_SLOW : 1); let acc = ACC; want.set(0, 0, 0); rtT -= dt;
+  const mag = Math.min(1, Math.hypot(sx, sy)), spd = SPEED * (boostT > 0 ? BOOST : 1) * (beamOn ? BEAM_SLOW : 1) * (WALK() ? WALK_SPD : 1); let acc = ACC; want.set(0, 0, 0); rtT -= dt;
   if (botDrag) { moveTo = null; want.set(botDrag.x, 0, botDrag.z).multiplyScalar(spd); } /* the balance robot dragging (a world direction, length up to 1) */
   else if (mag > 0.05) { moveTo = null; want.copy(right).multiplyScalar(sx).addScaledVector(upv, -sy).normalize().multiplyScalar(spd * mag); }
   else if (moveTo) { const dl = Math.hypot(moveTo.x - ship.x, moveTo.z - ship.z), sp0 = Math.hypot(ship.vel.x, ship.vel.z); if (dl < 0.35) moveTo = null;
-    else { const w = route(moveTo), dx = w.x - ship.x, dz = w.z - ship.z, d = Math.hypot(dx, dz) || 1; let v = Math.min(spd, dl * 2.4); /* it slows as it arrives */ if (sp0 > 0.5) v *= 0.45 + 0.55 * Math.max(0, (ship.vel.x * dx + ship.vel.z * dz) / (sp0 * d)); /* and round a sharp corner */
+    else { const w = WALK() ? moveTo : route(moveTo), dx = w.x - ship.x, dz = w.z - ship.z, d = Math.hypot(dx, dz) || 1; let v = Math.min(spd, dl * 2.4); /* it slows as it arrives */ if (sp0 > 0.5) v *= 0.45 + 0.55 * Math.max(0, (ship.vel.x * dx + ship.vel.z * dz) / (sp0 * d)); /* and round a sharp corner */
       want.set(dx / d * v, 0, dz / d * v); if (bldAhead(0.45)) acc = 6.5; } } // quick to swing away if its course would take it into a building
   ship.vel.lerp(want, Math.min(1, dt * acc)); ship.x += ship.vel.x * dt; ship.z += ship.vel.z * dt; // a little drift: it answers the stick quickly, not instantly
   const b = T.lim; ship.x = Math.max(-b.x - 2, Math.min(b.x + 2, ship.x)); ship.z = Math.max(-b.z - 2, Math.min(b.z + 2, ship.z));
-  ship.y += (flyY() - ship.y) * Math.min(1, dt * 2);
+  ship.y += (shipY() - ship.y) * Math.min(1, dt * 2);
   // big buildings: a warning just before (the building glows red, BUILDING!), then the crash
-  if (state === 'play' && ship.alive) { bumpT = Math.max(0, bumpT - dt); const hb = blockerAt(ship.x, ship.z, BLD.rc); if (hb) { if (bumpT <= 0) crashInto(hb); else pushOut(hb); } if (!bldCard()) setWarn(bumpT <= 0 ? bldAhead(moveTo ? 0.4 : BLD.warn) : null); } /* (on its way to a tapped spot it steers round them itself: only a hit that is really coming is warned of. The BIG BUILDINGS card keeps its own building lit) */
+  if (state === 'play' && ship.alive && !WALK()) { bumpT = Math.max(0, bumpT - dt); const hb = blockerAt(ship.x, ship.z, BLD.rc); if (hb) { if (bumpT <= 0) crashInto(hb); else pushOut(hb); } if (!bldCard()) setWarn(bumpT <= 0 ? bldAhead(moveTo ? 0.4 : BLD.warn) : null); } /* (on its way to a tapped spot it steers round them itself: only a hit that is really coming is warned of. The BIG BUILDINGS card keeps its own building lit) */
   ship.center.set(ship.x, ship.y, ship.z); }
 
 // ---------- big buildings are solid (BLD). bAt: the solid building on each street square, if any ----------
@@ -265,7 +271,23 @@ const wayMark = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.78, 28).rotateX(-Ma
 function goTo(x, z) { const b = T.lim; moveTo = outOf(V3(Math.max(-b.x, Math.min(b.x, x)), 0, Math.max(-b.z, Math.min(b.z, z)))); return moveTo; }
 // how the saucer looks each frame: bobbing, leaning into its turns, lights racing round faster the quicker it goes, the pilot looking where it's going, and the shield
 const shieldCol = new THREE.Color(), GOLD = new THREE.Color(0xffd24a), LOWC = new THREE.Color(0xff3a2a), MIDC = new THREE.Color(0xffd24a), OKC = new THREE.Color(0x7dff3a), WHITE = new THREE.Color(0xffffff), DOMEC = new THREE.Color(0xd8ffb0);
-function shipLook(dt) { const g = ship.g, u = ship.body.userData, sp = Math.hypot(ship.vel.x, ship.vel.z); reticle.visible = !ship.fall && g.visible; if (ship.fall) return;
+function walkerLook(dt) { const u = ship.body.userData, sp = Math.hypot(ship.vel.x, ship.vel.z); if (sp > 0.6) { let d = Math.atan2(ship.vel.x, ship.vel.z) - ship.face; d = Math.atan2(Math.sin(d), Math.cos(d)); ship.face += d * Math.min(1, dt * 4); }
+  reticle.visible = false; ship.g.position.set(ship.x, ship.y, ship.z); ship.g.rotation.set(0, 0, 0); u.ring.material.map.offset.x += dt * (0.4 + sp * 0.2); u.pods.rotation.y += dt;
+  const steps = walkerTick(ship.body, dt, ship.x, ship.z, ship.y, ship.vel.x, ship.vel.z, ship.face); u.pilot.rotation.y = ship.face; aimLight(ship.body, WALK_REACH, 1 + (u.catching || 0) * 1.4);
+  u.domeK = Math.max(0, (u.domeK || 0) - dt * 3); const k = energy / E_MAX; hitT = Math.max(0, hitT - dt); u.shield.material.opacity = (0.06 + hitT * 1.4) * (k < 0.25 && Math.random() < 0.25 ? 0.2 : 1);
+  if (state === 'play') for (const p of steps) { stats.steps = (stats.steps || 0) + 1; stomp(p); } }
+// a foot comes down: whatever building it lands on takes a hit (as the kaiju's do); dust and a thud
+function stomp(p) { fx.sparks(V3(p.x, 0.2, p.z), 5, { c: [0xb8a888, 0x8a7a68], speed: 2, up: 1.5, life: 0.5 }); if (toScreen(p).on) { sfx.stomp ? sfx.stomp(2) : sfx.pop(); jolt(0.06); }
+  if (!T) return; const cols = T.cols, c = toCell(p.x, p.z, cols, T.rows); for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) { const l = bGrid.get((c.cy + j) * cols + c.cx + i); if (l) for (const x of l) { if (x.done) continue; const b = x.box; if (p.x > b.min.x - 0.7 && p.x < b.max.x + 0.7 && p.z > b.min.z - 0.7 && p.z < b.max.z + 0.7) { hitBuilding(x, p.clone().setY(Math.min(x.h, 1.5))); stats.stomps = (stats.stomps || 0) + 1; } } } }
+// the searchlight: anyone (or any car, or soldier) standing in it for WALK_HOLD seconds is beamed up
+const inLight = (q) => { const f = ship.face, dx = q.x - ship.x, dz = q.z - ship.z, along = dx * Math.sin(f) + dz * Math.cos(f), lat = Math.abs(dx * Math.cos(f) - dz * Math.sin(f)); return along > 0.4 && along < WALK_REACH + 0.6 && lat < 0.5 + along * 0.2; };
+function walkerBeam(dt) { const u = ship.body.userData; let n = 0;
+  const tick = (o, pos) => { if (inLight(pos)) { o.wb = (o.wb || 0) + dt; n++; if (o.wb >= WALK_HOLD - 0.6 && !o.wbShown) { o.wbShown = true; popup(pos, '🔦', '#b8ffd0'); } return o.wb >= WALK_HOLD; } o.wb = 0; o.wbShown = false; return false; };
+  for (let i = people.length - 1; i >= 0 && lifted.length < LIFT_MAX; i--) { const c = people[i]; if (tick(c.userData, c.position)) { people.splice(i, 1); lift(c, c.userData.kind || 'person'); } }
+  const S = army.soldiers; for (let i = S.length - 1; i >= 0 && lifted.length < LIFT_MAX; i--) { const s0 = S[i]; if (tick(s0.userData, s0.position)) { S.splice(i, 1); lift(s0, 'soldier'); } }
+  for (let i = drivers.length - 1; i >= 0 && lifted.length < LIFT_MAX; i--) { const o = drivers[i]; if (tick(o, o.g.position)) { drivers.splice(i, 1); lift(o.g, 'car'); } }
+  u.catching = Math.min(1, n * 0.5); }
+function shipLook(dt) { if (WALK()) { walkerLook(dt); return; } const g = ship.g, u = ship.body.userData, sp = Math.hypot(ship.vel.x, ship.vel.z); reticle.visible = !ship.fall && g.visible; if (ship.fall) return;
   reticle.position.set(ship.x, 0.13, ship.z); reticle.userData.ring.material.opacity = beamOn ? 0.8 : 0.3 + Math.sin(played * 4) * 0.12;
   g.position.set(ship.x, ship.y + Math.sin(played * 2.1) * 0.12, ship.z); g.rotation.set(ship.vel.z * 0.032 + Math.sin(played * 1.3) * 0.03, 0, -ship.vel.x * 0.032 + Math.cos(played * 1.1) * 0.03);
   u.ring.material.map.offset.x += dt * (0.5 + sp * 0.22 + (boostT > 0 ? 1.4 : 0)); ship.spin += dt * (0.4 + sp * 0.05); u.pods.rotation.y = ship.spin;
@@ -343,7 +365,7 @@ function swShot(tgt, to) { if (sw >= 3) { const k = sw - 3; if (swN[k] > 0) { sw
   if (sw >= 1) { fx.glow(to, 3.2, 0xffffff, 0.5, 0.6); tgt.hit(); } /* the heavy ray: twice the damage */
   if (sw === 2) { let n = 0; for (const x of buildings) { if (n >= 2) break; if (x.done || x.pos.distanceTo(to) > 6 || x.pos.distanceTo(to) < 0.5) continue; const at = x.pos.clone().setY(Math.min(x.h * 0.6, 2.5)); rays.fire(eyePos(), at); hitBuilding(x, at); hitBuilding(x, at); n++; } } }
 function fireAt(tgt, o = {}) { if (tgt.ok && !tgt.ok()) return false; /* already gone (a waiting shot drops it) */ if (!o.auto) { if (rayCd > 0 || !inReach(tgt)) return false; rayCd = RAY_CD; stats.shots = (stats.shots || 0) + 1; } else stats.auto = (stats.auto || 0) + 1;
-  const from = eyePos(), to = tgt.pos.clone(); rays.fire(from, to); sk.hit(to);
+  const from = eyePos(), to = tgt.pos.clone(); rays.fire(from, to); (WALK() || sk.hit(to));
   // where every ray lands (taps and automatic shots alike)
   fx.flash(to, o.auto ? 0.6 : 0.9, 0xff9af0); fx.sparks(to, o.auto ? 7 : 12, { c: [0xffffff, 0xff5ae0], speed: 6, up: 4, life: 0.45 }); fx.glow(to, o.auto ? 1.4 : 2, 0xff3ad0, 0.4, 0.7);
   if (o.auto) sfx.zap(); else { sfx.laser(); sfx.zap(); jolt(0.08); ship.vel.addScaledVector(V3(ship.x - to.x, 0, ship.z - to.z).normalize(), 0.6); } // a little kick back
@@ -522,14 +544,14 @@ const nearestPerson = (r) => { let best = null, bd = r; for (const p of people) 
 // been switched on there a few times)
 const holdEl = $('buHold'); let holdN = 0, holdOn = false;
 const peopleUnder = () => people.some((p) => Math.abs(p.position.x - ship.x) < GRAB_R + 0.6 && Math.hypot(p.position.x - ship.x, p.position.z - ship.z) < GRAB_R + 0.6);
-function holdHint() { const want = state === 'play' && ship.alive && !beamOn && holdN < 6 && bumpT <= 0 && peopleUnder(); /* (not just after a crash or a blast: its words would crowd the popups there) */ if (want !== holdOn) { if (holdOn && beamOn) holdN++; holdOn = want; holdEl.style.display = want ? 'block' : 'none'; } if (!want) return;
+function holdHint() { const want = !WALK() && state === 'play' && ship.alive && !beamOn && holdN < 6 && bumpT <= 0 && peopleUnder(); /* (not just after a crash or a blast: its words would crowd the popups there) */ if (want !== holdOn) { if (holdOn && beamOn) holdN++; holdOn = want; holdEl.style.display = want ? 'block' : 'none'; } if (!want) return;
   const s = toScreen(ship.center, ship.y), d = Math.round(shipPx() * 1.5); holdEl.style.width = holdEl.style.height = d + 'px'; holdEl.style.transform = 'translate(' + Math.round(s.x) + 'px,' + Math.round(s.y) + 'px) translate(-50%,-50%)'; }
 // The cards about the army and the dangers say how to beat them and wait for a tap (mode 'ok': that tap never reaches the game)
 function coachBU() {
   if (coachBusy()) return;
   if (!coachSeen('bu_move')) { if (played > 0.5) card('bu_move', { mode: 'drag', title: '🛸 FLY', text: 'Drag anywhere on the screen to fly your saucer. Or tap a spot: it flies there.' }); return; }
   if (!coachSeen('bu_bld') && bumpT <= 0 && cardIdle() > 0.5) { const b = bldAhead(1.4); if (b) { setWarn(b); card('bu_bld', { mode: 'ok', title: '🏢 BIG BUILDINGS ARE SOLID', text: 'Fly into one and it comes down, but it costs you a lot of energy. Watch for the red glow and BUILDING!, and fly round. Houses and small shops pass under you.', at: () => toScreen(b.pos, b.h * 0.6), done: () => { warnT = -9; } }); return; } } /* danger first, whatever else is still to learn (once it closes, BUILDING! pops up again when the real warning comes) */
-  if (!coachSeen('bu_beam')) { if (abd > 0) { markSeen('c_bu_beam'); return; } /* already beaming people up: nothing to teach */ const c = cardIdle() > 1 && !beamOn && nearestPerson(10); /* (not while the beam is already on) */ if (c && card('bu_beam', { mode: 'tap', title: '🔦 BEAM THEM UP', text: 'Hover over people or cars for three seconds and the beam comes down by itself (or press and HOLD on your saucer to beam right away). Everyone you beam up fills your ENERGY.', at: () => toScreen(ship.center, ship.y), done: () => { beamCoach = false; const n = nearestPerson(10) || c; goTo(n.position.x, n.position.z); } })) beamCoach = true; return; } /* once it is pressed the saucer glides over the nearest crowd, so the first try works */
+  if (!coachSeen('bu_beam')) { if (abd > 0) { markSeen('c_bu_beam'); return; } /* already beaming people up: nothing to teach */ const c = cardIdle() > 1 && !beamOn && nearestPerson(10); /* (not while the beam is already on) */ if (c && card('bu_beam', { mode: 'tap', title: '🔦 BEAM THEM UP', text: WALK() ? 'Point your searchlight at people or cars: anything that stays in it for three seconds is beamed up. It shines the way you walk.' : 'Hover over people or cars for three seconds and the beam comes down by itself (or press and HOLD on your saucer to beam right away). Everyone you beam up fills your ENERGY.', at: () => toScreen(ship.center, ship.y), done: () => { beamCoach = false; const n = nearestPerson(10) || c; goTo(n.position.x, n.position.z); } })) beamCoach = true; return; } /* once it is pressed the saucer glides over the nearest crowd, so the first try works */
   if (army.coachTick()) return;
   if (!coachSeen('bu_horn')) { const cn = foes.state.cannons.find((o) => inView(o.g.position, 0.8)); if (cn) { card('bu_horn', { mode: 'ok', title: '📢 HORN TRUCK', text: 'It charges, then blasts along its orange line: that drains your shield and throws you back. Get your shadow off the line! Tap the truck to zap it: twice, or once while it charges.', at: () => (foes.state.cannons.includes(cn) ? toScreen(cn.g.position, 0.8) : null) }); return; } }
   if (!coachSeen('bu_energy') && hits > 2 && cardIdle() > 2) { card('bu_energy', { mode: 'ok', title: '🛡 ENERGY', text: 'Your shield and your fuel are one bar. Army hits and crashes drain it, and so does flying. Beam people up to fill it. At zero your saucer goes down!', at: () => elMid($('buEnergy')) }); return; }
@@ -550,7 +572,7 @@ const stick = { id: null, cx: 0, cy: 0, x: 0, y: 0, moved: 0, aim: null, card: f
 // still on; a steering finger that comes onto the saucer turns the beam on too. Lifting the finger ends both
 const SLIDE_PX = 22; let beamPress = null, mouseShip = null; /* beamPress: the press holding the beam on ('t' + a touch's id, or 'm' for the mouse) */
 const shipPx = () => Math.max(64, 2.05 * SHIP_SCALE * innerHeight / (cam.top - cam.bottom) + 26);
-function onShip(x, y) { if (state !== 'play' || !ship.alive || !ship.g || !ship.g.visible) return false; const s = toScreen(ship.center, ship.y); return Math.hypot(s.x - x, s.y - y) < shipPx(); }
+function onShip(x, y) { if (WALK() || state !== 'play' || !ship.alive || !ship.g || !ship.g.visible) return false; const s = toScreen(ship.center, ship.y); return Math.hypot(s.x - x, s.y - y) < shipPx(); }
 const closing = () => coachBusy() || coachIdle() < 0.25; /* a press that closes a first-time card: it never taps (no zap, no flying off) */
 function sDown(id, x, y) { if (stick.id !== null || state !== 'play') return; stick.id = id; stick.cx = x; stick.cy = y; stick.x = stick.y = 0; stick.moved = 0; stickEl.style.left = x + 'px'; stickEl.style.top = y + 'px'; stickEl.style.display = 'none'; knobEl.style.transform = 'translate(-50%,-50%)'; }
 function sMove(id, x, y) { if (id !== stick.id) return; const dx = x - stick.cx, dy = y - stick.cy, d = Math.hypot(dx, dy) || 1, m = Math.min(d, 55); stick.moved = Math.max(stick.moved, d); if (stick.moved < 10) return; stickEl.style.display = 'block'; moveTo = null; stick.x = dx / d * m / 55; stick.y = dy / d * m / 55; knobEl.style.transform = 'translate(calc(-50% + ' + stick.x * 36 + 'px), calc(-50% + ' + stick.y * 36 + 'px))'; }
@@ -628,17 +650,17 @@ let timeBonus = 0;
 function finish(kind, why) { if (state !== 'play') return; state = 'outro'; outro = { kind, why, t: 0 }; beamHeld = false; beamPress = mouseShip = null; sUp(stick.id); clearTips(); moveTo = null; pend = null; setWarn(null); wayMark.visible = false; holdOn = false; holdEl.style.display = 'none'; foes.clear(); setPlaneEngine(0); setWind(0);
   for (const k of poiOrder) if (pois[k].arrow) pois[k].arrow.style.display = 'none';
   if (kind === 'win') { timeBonus = Math.round(tLeft) * 60; score += timeBonus; banner('🛸 MISSION COMPLETE!'); if (timeBonus) popup(ship.center, '+' + timeBonus + ' TIME BONUS', '#ffd24a'); sfx.power(); after(0.4, () => sfx.wave()); }
-  else if (kind === 'crash') { ship.alive = false; sk.crash(ship.center.clone()); banner(why === 'fuel' ? '⚡ OUT OF ENERGY!' : why === 'building' ? '💥 CRASHED!' : '💥 SHIP DOWN!'); sfx.over(); const d = Math.hypot(ship.vel.x, ship.vel.z) > 0.5 ? Math.atan2(ship.vel.x, ship.vel.z) : Math.random() * 6.28; ship.fall = { t: 0, vy: 0, head: d, sp: Math.max(3, Math.hypot(ship.vel.x, ship.vel.z)), sm: 0 };
+  else if (kind === 'crash') { ship.alive = false; WALK() || sk.crash(ship.center.clone()); banner(why === 'fuel' ? '⚡ OUT OF ENERGY!' : why === 'building' ? '💥 CRASHED!' : '💥 SHIP DOWN!'); sfx.over(); const d = Math.hypot(ship.vel.x, ship.vel.z) > 0.5 ? Math.atan2(ship.vel.x, ship.vel.z) : Math.random() * 6.28; ship.fall = { t: 0, vy: 0, head: d, sp: Math.max(3, Math.hypot(ship.vel.x, ship.vel.z)), sm: 0 };
     fx.sparks(ship.center, 30, { c: [0xffffff, 0x7dff3a], speed: 9, up: 3, life: 0.6 }); fx.explode(ship.center.clone(), 0.9); jolt(0.7); flashT = 0.25; ship.body.userData.shield.visible = false; } // the shield bursts, and down it goes
   else { banner("⏰ TIME'S UP!"); sfx.over(); } }
 function outroTick(dt) { const o = outro; o.t += dt; runTimers(dt); army.update(dt); updateLifted(dt); const g = ship.g; reticle.visible = false; setT('taScore', score); beam.update(dt, Math.max(0.5, ship.y - 0.34), GRAB_R, false); for (let i = blasts.length - 1; i >= 0; i--) if (!blasts[i].update(dt)) blasts.splice(i, 1);
-  if (o.kind === 'crash') { sk.tick(dt, ship); const f = ship.fall; if (f && !f.down) { f.t += dt; f.vy += 9 * dt; ship.x += Math.sin(f.head) * f.sp * dt; ship.z += Math.cos(f.head) * f.sp * dt; ship.y -= f.vy * dt; g.position.set(ship.x, ship.y, ship.z); g.rotation.set(Math.sin(f.t * 9) * 0.6, g.rotation.y + dt * 9, Math.cos(f.t * 7) * 0.6);
+  if (o.kind === 'crash') { (WALK() || sk.tick(dt, ship)); const f = ship.fall; if (f && !f.down) { f.t += dt; f.vy += 9 * dt; ship.x += Math.sin(f.head) * f.sp * dt; ship.z += Math.cos(f.head) * f.sp * dt; ship.y -= f.vy * dt; g.position.set(ship.x, ship.y, ship.z); g.rotation.set(Math.sin(f.t * 9) * 0.6, g.rotation.y + dt * 9, Math.cos(f.t * 7) * 0.6);
       f.sm -= dt; if (f.sm <= 0) { f.sm = 0.03; fx.puff('flame', g.position, 0.9); fx.puff('smoke', g.position, 1.1); if (Math.random() < 0.4) fx.sparks(g.position, 3, { speed: 3, up: 1, life: 0.5 }); }
       if (ship.y <= 0.6) { f.down = true; const at = V3(ship.x, 0, ship.z); fx.explode(at.clone().setY(0.8), 2.6); fx.scorch(at, 2.6, 30); fx.shock(at, 7, 0x7dff3a, 0.6); jolt(1); flashT = 0.4; sfx.boom(); after(0.2, () => sfx.boom());
         const u = ship.body.userData; for (const m of u.strip || []) if (m.parent) m.parent.remove(m); twisters.tear(ship.body, at, V3(3.4, 0.9, 3.4), null, [], [], { collapse: true, now: true, power: 1.4 }); blast(at, 2.4, { from: at }); } }
     if (o.t >= 3.4) finishNow(); return; }
   // won, or out of time: the saucer spins up, climbs, and is gone in a flash
-  const k = Math.min(1, o.t / 2.2); ship.y += (1.5 + o.t * o.t * 9) * dt; ship.spin += dt * (2 + o.t * 14); g.position.set(ship.x, ship.y, ship.z); g.rotation.set(0, ship.spin, 0); ship.body.userData.ring.material.map.offset.x += dt * 4; if (!o.gone) sk.tick(dt, ship, true);
+  const k = Math.min(1, o.t / 2.2); ship.y += (1.5 + o.t * o.t * 9) * dt; ship.spin += dt * (2 + o.t * 14); g.position.set(ship.x, ship.y, ship.z); g.rotation.set(0, ship.spin, 0); ship.body.userData.ring.material.map.offset.x += dt * 4; if (!o.gone) (WALK() || sk.tick(dt, ship, true));
   if (o.t > 1.6 && !o.gone) { o.gone = true; sk.clear(); /* (its followers go with it) */ flashT = 0.35; sfx.whoosh(); fx.flash(ship.center, 3, 0xd8ffe8); g.visible = false; }
   if (k >= 1 && o.t >= 2.6) finishNow(); }
 function finishNow() {
@@ -668,6 +690,7 @@ function finishNow() {
 }
 const HOWTO = [
   ['🛸', 'Fly', 'Drag anywhere to fly your saucer. Tap a spot to fly there, or tap the minimap to cross town. On a computer: WASD or the arrow keys, or click.'],
+  ['🦿', 'The Longshanks', 'Pick the WALKER on the start screen instead of the saucer. It walks on three long legs and stamps on the buildings its feet come down on. Its death ray works like the saucer’s, and its beam is a searchlight that shines the way it walks: anyone or any car that stays in it for three seconds is beamed up.'],
   ['🔦', 'Beam them up', 'Hover over people or cars for three seconds and the beam comes down by itself. You can also press and HOLD on your saucer (SPACE on a computer), and slide your finger to steer while it beams. Soldiers and cars can be beamed up as well.'],
   ['⚡', 'Death ray', 'It zaps the buildings you fly over or beside by itself. Tap a building, a big target, a tank or a soldier: your saucer flies there and zaps it. Tap an aircraft, a missile or a truck: the ray zaps it where it is. It costs no energy. Tall buildings take two or three zaps. On a computer, F zaps the nearest attacker.'],
   ['🏢', 'Big buildings', 'Big buildings are solid. Fly into one and it comes down, but it costs a lot of energy. The red glow and BUILDING! warn you just before. Houses and small shops pass under you.'],
@@ -693,10 +716,17 @@ $('taPause').addEventListener('click', togglePause); $('taResume').addEventListe
     reset(); $('taPaused').classList.add('hidden'); playNow(); }); }
 // the saucer on the start screen: live, hovering and turning, its beam on (livePreview.js)
 const pv = createPreviews({ perFrame: 1, cam: [0, 2.1, 6.4], look: [0, -0.35, 0], fov: 34 });
-let pvKey; function drawShipPv() { pv.clear(); const ck = craftSkinKey('ufo'); pvKey = ck; /* (a saucer skin shows on the start screen too) */
+let pvKey; function drawShipPv() { pv.clear(); if (WALK()) { const wk = craftSkinKey('walker'); pvKey = 'w:' + wk; pv.add($('buShipCv'), () => craftPreview('walker', wk, { fitTo: 3.9 }), (dt, t, o) => o.userData.tick(dt, t)); return; } const ck = craftSkinKey('ufo'); pvKey = ck; /* (a saucer skin shows on the start screen too) */
 pv.add($('buShipCv'), ck ? () => craftPreview('ufo', ck, { fitTo: 3.9 }) : () => { const g = new THREE.Group(), s = makeShip(), b = makeBeam(); s.scale.setScalar(0.95); g.add(s); b.g.position.y = -0.45; g.add(b.g); g.userData = { s, b }; return g; },
   ck ? (dt, t, o) => o.userData.tick(dt, t) : (dt, t, o) => { const { s, b } = o.userData; s.position.y = Math.sin(t * 2) * 0.08; s.rotation.z = Math.sin(t * 1.3) * 0.06; s.userData.ring.material.map.offset.x += dt * 0.8; s.userData.pilot.rotation.y = Math.sin(t * 0.7) * 0.9; b.update(dt, 1.9, 1.1, Math.sin(t * 0.9) > -0.3); }); }
-drawShipPv(); craftSkinButton($('taStart'), 'ufo', () => { if (craftSkinKey('ufo') === pvKey) return; drawShipPv(); if (state !== 'play' && ship.g) makePlayerShip(); }); /* (nothing to rebuild when the same skin is picked) */
+const pvNow = () => (WALK() ? 'w:' + craftSkinKey('walker') : craftSkinKey('ufo'));
+function skinBtn() { const old = $('taStart').querySelector('.psBtn'); if (old) old.remove(); craftSkinButton($('taStart'), craftKind, () => { if (pvNow() === pvKey) return; drawShipPv(); if (state !== 'play' && ship.g) makePlayerShip(); }); }
+function pickCraft(k) { if (k === craftKind) return; craftKind = k; try { localStorage.setItem('bu_craft', k); } catch { /* ignore */ } drawCraftPick(); drawShipPv(); skinBtn(); if (state !== 'play' && ship.g) makePlayerShip(); }
+function drawCraftPick() { const c = $('buChosen'); c.querySelector('small').textContent = 'YOUR MACHINE'; c.querySelector('b').textContent = WALK() ? 'THE LONGSHANKS' : 'THE BEAMER';
+  c.querySelector('span').textContent = WALK() ? 'Walks on three long legs and stamps on buildings. Its searchlight beams up anyone caught in it for three seconds.' : 'A tractor beam, a death ray, and a shield that runs on people. The army will not like it.';
+  let row = $('buPick'); if (!row) { row = document.createElement('div'); row.id = 'buPick'; c.after(row); for (const [k, t] of [['ufo', '🛸 SAUCER'], ['walker', '🦿 WALKER']]) { const b = document.createElement('button'); b.className = 'ghost eraBtn'; b.dataset.k = k; b.textContent = t; b.addEventListener('click', (e) => { e.stopPropagation(); pickCraft(k); }); row.appendChild(b); } }
+  for (const b of row.children) b.classList.toggle('on', b.dataset.k === craftKind); }
+drawCraftPick(); drawShipPv(); skinBtn(); /* (nothing to rebuild when the same skin is picked) */
 
 // the saucer skin's looks, followers and quirks (craftSkins.js). With no skin worn, every call does nothing
 const sk = ufoSkin({ scene, fx, twisters, popup, sfx, jolt, people: () => people, buildings: () => buildings, army, addPerson, collide: collidePerson, played: () => played, beamOn: () => beamOn, lim: () => (T ? T.lim : null) });
@@ -706,7 +736,7 @@ function update(dt) {
   if (cardUp && !coachBusy()) { cardUp = false; curCard = null; cardShutAt = played; } /* a first-time card has just been closed */
   coachBU(); if (played > 30) tip('bu_map', '🗺️ Tap the minimap to fly across town. Green dots are people.');
   /* the beam comes down by itself once people have stayed in the circle under the saucer for a second, and stays on while there are people about */ { let near = false; if (ship.alive && state === 'play') for (const c of people) if (Math.hypot(c.position.x - ship.x, c.position.z - ship.z) < PULL_R * 0.8) { near = true; break; } if (!near && ship.alive && state === 'play') for (const d of drivers) if (Math.hypot(d.g.position.x - ship.x, d.g.position.z - ship.z) < PULL_R * 0.8) { near = true; break; } /* (a car counts too) */ hoverT = near ? hoverT + dt : 0; autoBeamT = hoverT >= AUTO_BEAM ? 0.45 : Math.max(0, autoBeamT - dt); }
-  beamOn = (beamHeld || beamPress !== null || !!keys[' '] || autoBeamT > 0) && ship.alive; fly(dt); shipLook(dt); sk.tick(dt, ship);
+  beamOn = !WALK() && (beamHeld || beamPress !== null || !!keys[' '] || autoBeamT > 0) && ship.alive; if (WALK() && ship.alive) walkerBeam(dt); fly(dt); shipLook(dt); (WALK() || sk.tick(dt, ship));
   boostT -= dt; nukeT = Math.max(0, nukeT - dt); blindT = Math.max(0, blindT - dt); rayCd -= dt;
   energy -= fuelRate() * dt; if (energy <= 0) { energy = 0; finish('crash', 'fuel'); return; } // flying burns energy too: keep beaming people up
   const sx = ship.x, sz = ship.z, bl = ship.y - 0.42 * SHIP_SCALE; beam.g.position.set(sx, bl, sz); beam.update(dt, bl, GRAB_R, beamOn);
@@ -717,10 +747,11 @@ function update(dt) {
   for (let i = people.length - 1; i >= 0; i--) { const c = people[i], u = c.userData; u.panic = false; const dx = c.position.x - sx, dz = c.position.z - sz, d = Math.hypot(dx, dz) || 0.01;
     if (u.frz && d <= 34) { u.frz = false; delete c.updateMatrixWorld; }
     if (beamOn && d < GRAB_R && lifted.length < LIFT_MAX) { people.splice(i, 1); lift(c, u.kind || 'person'); continue; }
+    if (u.wb > 0) { u.panic = true; c.rotation.y = Math.atan2(-dx, -dz); c.position.y = Math.min(0.5, u.wb * 0.15); animateWalk(c, dt, 0); continue; } /* caught in the walker's searchlight: frozen to the spot, lifting a little off the ground */
     if (u.stun > played) { animateWalk(c, dt, 0); continue; } // knocked flat (a blast, a flood): they can't run
     if (beamOn && d < PULL_R) { const k = 1 - d / PULL_R, sp = (2.3 + 2.4 * k) * dt; c.position.x -= dx / d * sp; c.position.z -= dz / d * sp; c.rotation.y = Math.atan2(dx, dz); u.panic = true; animateWalk(c, dt, 1.4); collidePerson(c); u.goal = null; if (Math.random() < dt * 0.25) popup(c.position, SHOUTS[(Math.random() * SHOUTS.length) | 0], '#ffffff'); continue; } // dragged in, legs going, arms up
-    if (d < PANIC_R * sk.panic && !u.zombie && !sk.lured(c, d)) { const sp = (stink ? 0.5 : 1.7) * dt, x0 = c.position.x, z0 = c.position.z; c.position.x += dx / d * sp; c.position.z += dz / d * sp; c.rotation.y = Math.atan2(dx, dz); u.panic = !stink; collidePerson(c); /* a wall in the way: run along it instead of running on the spot */ if (Math.hypot(c.position.x - x0, c.position.z - z0) < sp * 0.4) { const sd = u.side || (u.side = Math.random() < 0.5 ? 1 : -1); c.position.x = x0 - dz / d * sp * sd; c.position.z = z0 + dx / d * sp * sd; c.rotation.y = Math.atan2(-dz * sd, dx * sd); collidePerson(c); if (Math.hypot(c.position.x - x0, c.position.z - z0) < sp * 0.4) u.side = -sd; } if (Math.hypot(c.position.x - x0, c.position.z - z0) > sp * 0.25) animateWalk(c, dt, stink ? 0.6 : 1.3); u.goal = null; if (u.panic && Math.random() < dt * 0.04) popup(c.position, SHOUTS[(Math.random() * SHOUTS.length) | 0], '#ffffff'); continue; }
-    if ((u.zombie || sk.lured(c, d)) && d < 14) { const sp = 0.7 * dt; c.position.x -= dx / d * sp; c.position.z -= dz / d * sp; c.rotation.y = Math.atan2(-dx, -dz); animateWalk(c, dt, 0.8); collidePerson(c); continue; } // the dead shamble toward the light
+    if (d < PANIC_R * (WALK() ? 1 : sk.panic) && !u.zombie && !(!WALK() && sk.lured(c, d))) { const sp = (stink ? 0.5 : 1.7) * dt, x0 = c.position.x, z0 = c.position.z; c.position.x += dx / d * sp; c.position.z += dz / d * sp; c.rotation.y = Math.atan2(dx, dz); u.panic = !stink; collidePerson(c); /* a wall in the way: run along it instead of running on the spot */ if (Math.hypot(c.position.x - x0, c.position.z - z0) < sp * 0.4) { const sd = u.side || (u.side = Math.random() < 0.5 ? 1 : -1); c.position.x = x0 - dz / d * sp * sd; c.position.z = z0 + dx / d * sp * sd; c.rotation.y = Math.atan2(-dz * sd, dx * sd); collidePerson(c); if (Math.hypot(c.position.x - x0, c.position.z - z0) < sp * 0.4) u.side = -sd; } if (Math.hypot(c.position.x - x0, c.position.z - z0) > sp * 0.25) animateWalk(c, dt, stink ? 0.6 : 1.3); u.goal = null; if (u.panic && Math.random() < dt * 0.04) popup(c.position, SHOUTS[(Math.random() * SHOUTS.length) | 0], '#ffffff'); continue; }
+    if ((u.zombie || (!WALK() && sk.lured(c, d))) && d < 14) { const sp = 0.7 * dt; c.position.x -= dx / d * sp; c.position.z -= dz / d * sp; c.rotation.y = Math.atan2(-dx, -dz); animateWalk(c, dt, 0.8); collidePerson(c); continue; } // the dead shamble toward the light
     if (d > 34) { if (!u.frz) { u.frz = true; c.updateMatrixWorld(true); c.updateMatrixWorld = noop; } continue; } // out of sight: hold still, matrices frozen
     if ((i + frameN) & 1) continue; const dw = dt * 2; u.wait -= dw; if (!u.goal && u.wait <= 0) u.goal = V3(u.home.x + (Math.random() - 0.5) * 2, 0, u.home.z + (Math.random() - 0.5) * 2); // every other frame: just strolling about
     if (u.goal) { const gx = u.goal.x - c.position.x, gz = u.goal.z - c.position.z, gl = Math.hypot(gx, gz); if (gl < 0.1) { u.goal = null; u.wait = 1 + Math.random() * 3; animateWalk(c, dw, 0); } else { c.position.x += gx / gl * 0.6 * dw; c.position.z += gz / gl * 0.6 * dw; c.rotation.y = Math.atan2(gx, gz); animateWalk(c, dw, 0.5); } } else animateWalk(c, dw, 0); }
@@ -763,7 +794,7 @@ function frame(now) {
   { const pz = state === 'paused'; if (pz !== pausedShown) { pausedShown = pz; document.body.classList.toggle('paused', pz); } } // the tags and arrows that float over the town step aside for the pause menu
   const hold = coachFrame(state === 'play'); if (hold) { $('taBanner').style.opacity = 0; holdQuiet(dt); } // a first-time prompt is up: the round waits for the player
   if (state === 'play') { if (!hold) update(dt); } else if (state === 'outro') outroTick(dt);
-  else if (state === 'start' && ship.g) { ship.x = Math.sin(now / 4000) * 7 - 4; ship.z = Math.cos(now / 5000) * 6 - 4; ship.vel.set(Math.cos(now / 4000) * 1.75, 0, -Math.sin(now / 5000) * 1.2); ship.y = flyY(); played += dt; shipLook(dt); sk.tick(dt, ship, true); beam.g.position.set(ship.x, ship.y - 0.34, ship.z); beam.update(dt, ship.y - 0.34, GRAB_R, Math.sin(now / 1500) > 0.2); crowdLists[0][0] = people; crowdLists[1][0] = army.soldiers; crowd.sync(crowdLists, ship.x, ship.z, 4); syncGlows(); } // the title screen: the saucer cruising over a quiet town (its people drawn as the crowd)
+  else if (state === 'start' && ship.g) { ship.x = Math.sin(now / 4000) * 7 - 4; ship.z = Math.cos(now / 5000) * 6 - 4; ship.vel.set(Math.cos(now / 4000) * 1.75, 0, -Math.sin(now / 5000) * 1.2); ship.y = shipY(); played += dt; shipLook(dt); (WALK() || sk.tick(dt, ship, true)); beam.g.position.set(ship.x, ship.y - 0.34, ship.z); beam.update(dt, ship.y - 0.34, GRAB_R, !WALK() && Math.sin(now / 1500) > 0.2); crowdLists[0][0] = people; crowdLists[1][0] = army.soldiers; crowd.sync(crowdLists, ship.x, ship.z, 4); syncGlows(); } // the title screen: the saucer cruising over a quiet town (its people drawn as the crowd)
   if (T && state !== 'paused') { twisters.update(dt); fx.update(dt); poiFx.update(dt); T.city.updateRain(dt); rays.update(dt); }
   bannerT -= dt; if (bannerT <= 0) $('taBanner').style.opacity = 0; statusT -= dt; $('taFoe').style.opacity = statusT > 0 ? 1 : 0;
   flashT = Math.max(0, flashT - dt); flashEl.style.opacity = Math.min(0.75, flashT * 3); hurtK = Math.max(0, hurtK - dt * 2.2); hurtEl.style.opacity = Math.min(0.85, hurtK + (state === 'play' && energy < 25 ? 0.25 + Math.sin(now / 160) * 0.2 : 0));
@@ -790,7 +821,7 @@ function sim(secs, bot, every = 0.25) { const dt = 1 / 30; let acc = 0; noSave =
 if (params.has('quick')) { level = quickLevel('bu'); if (devLevel >= 1 && devLevel <= LEVELS.length) level = devLevel; drawLevels(); start(); }
 else { buildWorld(); makePlayerShip(); setupPoiHud(); for (const k of poiOrder) pois[k].arrow.style.display = 'none'; }
 requestAnimationFrame(frame); requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove('booting'))); // the start screen is ready now
-window.__bu = { get sw() { return [sw, swLv, swN.slice(), swNext, abd, L().abduct]; }, start, finish, tapAt, fireAt, zapKey, sim, L, LEVELS, wreckPoi, hitPoi, hitBuilding, crumble, blast, hurt, setZoom, THREE, renderer, scene, cam, army, crowd, fx, toScreen, foes, goTo, blockerAt, bldAhead, onShip, shipPx, answerCard, BLD, flyY,
+window.__bu = { stomp: (p) => stomp(p), get sw() { return [sw, swLv, swN.slice(), swNext, abd, L().abduct]; }, start, finish, tapAt, fireAt, zapKey, sim, L, LEVELS, wreckPoi, hitPoi, hitBuilding, crumble, blast, hurt, setZoom, THREE, renderer, scene, cam, army, crowd, fx, toScreen, foes, goTo, blockerAt, bldAhead, onShip, shipPx, answerCard, BLD, flyY,
   get card() { return curCard; }, get beamPress() { return beamPress; }, get warnB() { return warnB; }, get bumpT() { return bumpT; }, get pend() { return pend; }, get bAt() { return bAt; }, drag(d) { botDrag = d ? { x: d.x, z: d.z } : null; },
   get state() { return state; }, get level() { return level; }, set level(v) { level = v; }, get ship() { return ship; }, get energy() { return energy; }, set energy(v) { energy = v; }, get abd() { return abd; }, set abd(v) { abd = v; },
   get beamOn() { return beamOn; }, set beam(v) { beamHeld = !!v; }, get moveTo() { return moveTo; }, set moveTo(v) { moveTo = v; }, get tLeft() { return tLeft; }, set tLeft(v) { tLeft = v; }, get score() { return score; }, get stats() { return stats; },

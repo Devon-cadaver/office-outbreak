@@ -3,7 +3,7 @@
 // Poonado set is free, the Acid set is won by beating The Sprawl, the last town, in that craft's game). Their looks are in craftSkins.js;
 // this file is only names and prices, so the shop list can load it without any 3D code. Shop ids: craft:<craft>:<storm>.
 // Quirk skins change play a little (each game handles its own quirks); every other skin is looks only.
-export const CRAFT_KINDS = { bomber: 'Napalm Bomber', heli: 'Rocket Heli', ufo: 'Saucer' };
+export const CRAFT_KINDS = { bomber: 'Napalm Bomber', heli: 'Rocket Heli', ufo: 'Saucer', walker: 'Longshanks' };
 const AIR = 'Beat The Sprawl in Zombie Air Raid', UFO = "Beat The Sprawl in Beam 'Em Up!";
 export const CRAFT_SKINS = {
   bomber: {
@@ -62,6 +62,26 @@ export const CRAFT_SKINS = {
     grid: { name: 'Wireframe', price: 3, desc: 'Black, covered in a glowing green grid.' },
     void: { name: 'Eclipse', price: 3, quirk: true, desc: 'QUIRK: people let it get a little closer before they run.' },
     glitch: { name: 'Saucer Not Found', price: 3, desc: 'Flickers and jumps like a broken screen.' },
+  },
+  // the Longshanks, Beam 'Em Up!'s three-legged walker: looks only (its head, legs, glow and searchlight colours, walkerSkins.js)
+  walker: {
+    poo: { name: 'Sewer Stilts', price: 0, free: true, desc: 'Sludge-brown, with a green stink glow.' },
+    halloween: { name: 'Hallowshanks', price: 2, desc: 'Black and pumpkin orange, with an orange searchlight.' },
+    christmas: { name: 'Candy Stilts', price: 2, desc: 'Red and white like a candy cane, with a frosty light.' },
+    fire: { name: 'Lava Legs', price: 2, desc: 'Black rock with glowing lava and a red heat light.' },
+    shark: { name: 'Shark Stilts', price: 2, desc: 'Shark grey and white, with a sea-blue light.' },
+    easter: { name: 'Egg Walker', price: 2, desc: 'Pastel pink and mint, with a sunny yellow light.' },
+    acid: { name: 'Acid Walker', price: 0, bonus: UFO, desc: 'Toxic green all over, with an acid light.' },
+    july4: { name: 'Liberty Legs', price: 2, desc: 'Red, white and blue, with a white light.' },
+    clown: { name: 'Big Top Stilts', price: 3, desc: 'Circus red and yellow, like a clown on stilts.' },
+    zombie: { name: 'Grave Walker', price: 3, desc: 'Rotten green and grey, with a sickly light.' },
+    ghost: { name: 'Spook Walker', price: 3, desc: 'Ghostly white, with a pale blue glow.' },
+    mallow: { name: 'Mallow Legs', price: 3, desc: 'Soft marshmallow pink and white.' },
+    planet: { name: 'Orbit Walker', price: 3, desc: 'Deep space blue with a golden glow.' },
+    wormhole: { name: 'Warp Walker', price: 3, desc: 'Swirling purple, with a violet light.' },
+    grid: { name: 'Wire Walker', price: 3, desc: 'Black with neon cyan lights.' },
+    void: { name: 'Void Walker', price: 3, desc: 'Pitch black, with a deep purple glow.' },
+    glitch: { name: 'Glitch Walker', price: 3, desc: 'Static grey with magenta glitch lights.' },
   },
 };
 // the storm each set matches, in shop order

@@ -13,6 +13,8 @@ import { mergeParts } from './perf.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { recolor, makeBomber, makeHeli } from './air/craft.js';
 import { makeShip, makeBeam } from './ufo/models.js';
+import { makeWalker, walkerTick, WALKER_PAL, WALK_Y } from './ufo/walker.js';
+import { WALKER_LOOKS } from './walkerSkins.js';
 import { getEquipped, pauseSkinRow, grantSkin, getOwned, equip } from './skins.js';
 import { HORDE_IDS, HORDE_SKINS } from './hordeSkinData.js';
 import { CRAFT_SKINS, CRAFT_STORMS } from './craftSkinData.js';
@@ -435,7 +437,11 @@ export function crashFx(fx, key, at, kind, popup) { const L = LOOK[key]; if (!L 
 
 // ---------- the live picture: a craft in a skin, turning, with its followers, dropping or firing now and then ----------
 // fitTo: how wide the craft is drawn. For the shop and the games' menus (livePreview.js)
+// the Longshanks walker's colours for a skin (or its own)
+export const walkerPal = (key) => (key && WALKER_LOOKS[key]) || WALKER_PAL.base;
 export function craftPreview(kind, key, { fitTo = 2.7, y = 0, tilt = 0 } = {}) {
+  if (kind === 'walker') { const o = new THREE.Group(), g = makeWalker(walkerPal(key)), k = fitTo / 7.4; o.add(g); g.scale.setScalar(k); g.position.y = WALK_Y * k - (WALK_Y + 0.8) * k * 0.55; /* (the whole walker, feet to head, fills the picture) */ o.position.y = y * 0.4; let face = 0; walkerTick(g, 0.016, 0, 0, WALK_Y, 0, 0, 0); /* (the preview walks on the spot: legs set once, the head looks round) */
+    o.userData.tick = (dt, t) => { o.rotation.y = 0.6 + t * 0.4; face = Math.sin(t * 0.8) * 0.6; g.userData.pilot.rotation.y = face; g.userData.head.position.y = Math.sin(t * 1.6) * 0.06; g.userData.ring.material.map.offset.x += dt * 0.6; }; return o; }
   const o = new THREE.Group(), stage = new THREE.Group(); o.add(stage); o.position.y = y; o.rotation.x = tilt; let g, beam = null;
   if (kind === 'ufo') { g = makeShip(); if (key) dressShip(g, key); g.scale.setScalar(fitTo / 4.1); beam = makeBeam(); if (key) skinBeam(beam, key); beam.g.position.y = -0.45 * fitTo / 4.1; stage.add(beam.g); }
   else { g = kind === 'heli' ? makeHeli() : makeBomber(); if (key) dressCraft(g, kind, key); const bb = new THREE.Box3().setFromObject(g), sz = bb.getSize(new THREE.Vector3()); g.scale.multiplyScalar(fitTo / Math.max(sz.x, sz.z)); bb.setFromObject(g); g.position.sub(bb.getCenter(new THREE.Vector3())); }
@@ -472,7 +478,7 @@ const sharedSets = {}; function sharedOf(kind, key) { const sk = kind + ':' + (k
 export function disposeCraft(g, kind) { if (!g) return; const keep = sharedOf(kind, g.userData.skinKey || null), canKeep = new Set(); for (const c of canCache.values()) if (c) { canKeep.add(c.geo); canKeep.add(c.mat); } if (ghostXray) canKeep.add(ghostXray);
   if (g.parent) g.parent.remove(g); g.traverse((m) => { if (m.geometry && !keep.has(m.geometry) && !canKeep.has(m.geometry)) m.geometry.dispose(); for (const x of m.material ? [].concat(m.material) : []) if (!keep.has(x) && !canKeep.has(x)) x.dispose(); if (m.isInstancedMesh) m.dispose(); }); } /* (the canister batch's own instance buffers too) */
 // the CHOOSE SKIN button on a game's start screen: Default plus the skins owned for that craft (skins.js pauseSkinRow)
-export function craftSkinButton(host, kind, onPick) { if (!host) return; const icon = kind === 'ufo' ? '🛸' : kind === 'heli' ? '🚁' : '✈️', l = CRAFT_SKINS[kind];
+export function craftSkinButton(host, kind, onPick) { if (!host) return; const icon = kind === 'walker' ? '🦿' : kind === 'ufo' ? '🛸' : kind === 'heli' ? '🚁' : '✈️', l = CRAFT_SKINS[kind];
   pauseSkinRow(host, icon, 'cr_' + kind, CRAFT_STORMS.filter((k) => l[k]).map((k) => [craftSkinId(kind, k), l[k].name]), (id) => { if (onPick) onPick(id); return true; }); /* (beside SOUND and MUSIC: the start screen still fits a phone) */ const b = host.querySelector('.psBtn'), row = host.querySelector('.soundRow'); if (b && row) { if (b.parentNode !== row) row.insertBefore(b, row.firstChild); row.style.display = 'grid'; row.style.gridTemplateColumns = 'repeat(3, minmax(0, 1fr))'; b.style.margin = '0'; b.title = b.textContent; b.textContent = b.textContent.split(' ')[0] + ' SKIN'; /* (the name it wears shows in the menu) */ } }
 // beating The Sprawl (the last town) wins that game's Acid skins, as the Acid Storm is won in Tornado Time!. Returns the names won
 // the prize game's own prize: a skin for the craft just flown (3 in 4 after a win, 1 in 4 after a loss), on one go picked at
@@ -481,7 +487,7 @@ export function craftPrize(kind, won, goes) { let n = 0; const go = Math.random(
   return () => { if (n++ !== go) return null; const own = getOwned(), l = CRAFT_SKINS[kind], cl = Object.keys(l).filter((k) => !l[k].bonus && !own.includes(craftSkinId(kind, k))), hl = HORDE_IDS.filter((k) => !own.includes('horde:' + k));
     if (hl.length && (!cl.length || Math.random() < 0.25)) { const k = hl[(Math.random() * hl.length) | 0]; grantSkin('horde:' + k); return { kind: 'craft', text: 'NEW ZOMBIES: ' + HORDE_SKINS[k].name.toUpperCase() + '! Put them on in the skin shop.' }; }
     if (!cl.length) return null; const k = cl[(Math.random() * cl.length) | 0]; grantSkin(craftSkinId(kind, k)); equip('cr_' + kind, craftSkinId(kind, k)); return { kind: 'craft', text: 'NEW SKIN: ' + l[k].name.toUpperCase() + '! It is on for your next round.' }; }; }
-export function unlockCraftBonus(game) { const won = []; for (const k of game === 'ufo' ? ['ufo'] : ['bomber', 'heli']) if (grantSkin(craftSkinId(k, 'acid'))) won.push(CRAFT_SKINS[k].acid.name); return won; }
+export function unlockCraftBonus(game) { const won = []; for (const k of game === 'ufo' ? ['ufo', 'walker'] : ['bomber', 'heli']) if (grantSkin(craftSkinId(k, 'acid'))) won.push(CRAFT_SKINS[k].acid.name); return won; }
 // things a quirk throws (pies, meteors, moons): they arc from a to (x, z) over T seconds, then land()
 function makeFlying(scene) { const list = [];
   return { add(m, a, x, z, T, land, arc = 1.5) { m.position.copy(a); scene.add(m); list.push({ m, a: a.clone(), x, z, t: 0, T, land, arc }); },

@@ -23,7 +23,7 @@ export function progress() { const wins = new Set(winsList()), out = {};
 const allTrue = (a) => a.every(Boolean), anyTrue = (a) => a.some(Boolean);
 
 // the skin collections: one per kind of skin in the shop (each aircraft on its own)
-const SKIN_SETS = [['tornado', 'Tornadoes', '🌪️'], ['kaiju', 'Monsters', '🦖'], ['craft:bomber', 'Bombers', '✈️'], ['craft:heli', 'Helis', '🚁'], ['craft:ufo', 'Saucers', '🛸'], ['horde', 'Zombie hordes', '🧟'], ['npc', 'Townsfolk', '👥'], ['player', 'Heroes', '🦸'], ['car', 'Cars', '🚗'], ['fx', 'Effects', '✨']];
+const SKIN_SETS = [['tornado', 'Tornadoes', '🌪️'], ['kaiju', 'Monsters', '🦖'], ['craft:bomber', 'Bombers', '✈️'], ['craft:heli', 'Helis', '🚁'], ['craft:ufo', 'Saucers', '🛸'], ['craft:walker', 'Walkers', '🦿'], ['horde', 'Zombie hordes', '🧟'], ['npc', 'Townsfolk', '👥'], ['player', 'Heroes', '🦸'], ['car', 'Cars', '🚗'], ['fx', 'Effects', '✨']];
 const setOf = (s) => (s.cat === 'craft' ? 'craft:' + s.craft : s.cat);
 
 export function stats() { const P = progress(), own = new Set(getOwned()), beaten = GAMES.reduce((n, { k }) => n + ERAS.reduce((m, [e]) => m + P[k][e].filter(Boolean).length, 0), 0);
