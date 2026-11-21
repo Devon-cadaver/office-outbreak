@@ -28,7 +28,7 @@ export function createFoes(E) {
   let rival = null, cannons = [], ships = [], ufo = null; const falling = [], rockets = [], waves = [], lifted = [];
   const T = { rival: 0, cannon: 0, ship: 0, ufo: 0 }; // seconds until the next of each may turn up
   let slowT = 0, statusT = 0, frostT = 0, lx = 0, lz = 0; const kick = V(), sv = V();
-  const lim = () => toWorld(E.cols - 1, E.cols - 1, E.cols, E.cols), on = (k) => E.level >= FOE_FIRST[k];
+  const lim = () => toWorld(E.cols - 1, E.cols - 1, E.cols, E.cols), on = (k) => E.level >= FOE_FIRST[k] && !(E.skip && E.skip.includes(k)); // E.skip: enemies a game leaves out (Kaiju Madness has its own rival)
   const mkArrow = (txt, col) => { const a = document.createElement('div'); a.className = 'planeArrow foeArrow'; a.textContent = txt; a.style.color = col; document.body.appendChild(a); return a; };
   const mkTag = () => { const t = document.createElement('div'); t.className = 'foeTag'; document.body.appendChild(t); return t; };
   function tagAt(el, pos, y, text, cls) { const s = E.toScreen(pos, y); if (!s.on) { el.style.display = 'none'; return; } el.style.display = 'block'; el.style.transform = 'translate(' + Math.max(74, Math.min(innerWidth - 74, s.x)) + 'px,' + s.y + 'px) translate(-50%,-100%)'; if (el._t !== text) { el._t = text; el.textContent = text; } if (el._c !== cls) { el._c = cls; el.className = 'foeTag ' + cls; } }
@@ -101,7 +101,7 @@ export function createFoes(E) {
     cannons.push({ g, line, hp: 2, mode: 'idle', t: rnd(1.6, 2.6), aim, stun: 0, sp: 0, arrow: mkArrow('📢', '#ffb030') }); E.banner('📢 STORM CANNON!'); sfx.whoosh();
   }
   function killCannon(c, how) { E.speedBurst(2.2); const i = cannons.indexOf(c); if (i >= 0) cannons.splice(i, 1); scene.remove(c.line); c.arrow.remove(); const p = c.g.position.clone(); T.cannon = rnd(26, 38);
-    if (how === 'crushed') twisters.suck(c.g, E.tw); else { const big = how === 'over' ? 3.2 : 2.6, at = p.clone().setY(0.6); twisters.scatter([c.g], p, 7); fx.explode(at, big); fx.shock(p, big * 2.1, 0xffb060, 0.5); fx.glow(p, big * 2.3, 0xffa040, 1, 0.5); fx.scorch(p, 2.4); fx.sparks(at, 26, { speed: 9, up: 8, life: 0.9 }); E.flash(0.2); /* struck by lightning: a big blast, then smaller ones around it */
+    if (how === 'crushed' && E.tw) twisters.suck(c.g, E.tw); else { const big = how === 'over' ? 3.2 : 2.6, at = p.clone().setY(0.6); twisters.scatter([c.g], p, 7); fx.explode(at, big); fx.shock(p, big * 2.1, 0xffb060, 0.5); fx.glow(p, big * 2.3, 0xffa040, 1, 0.5); fx.scorch(p, 2.4); fx.sparks(at, 26, { speed: 9, up: 8, life: 0.9 }); E.flash(0.2); /* struck by lightning: a big blast, then smaller ones around it */
       for (let k = 0; k < 4; k++) { const a = k * 1.57 + Math.random(), o = V(p.x + Math.cos(a) * 1.3, 0.5, p.z + Math.sin(a) * 1.3); setTimeout(() => fx.explode(o, 1.1), 90 + k * 70); } setTimeout(() => sfx.boom(), 160);
       /* its sound wave lets go all at once: a ring races outward and flattens what stands close by */
       fx.shock(p, 9, 0xffd9a0, 0.75); setTimeout(() => { fx.shock(p, 13, 0xffc060, 0.9); for (let k = 0; k < 10; k++) { const a = k * 0.628; fx.dust({ x: p.x + Math.cos(a) * 2.5, y: 0, z: p.z + Math.sin(a) * 2.5 }, 1.3, Math.cos(a) * 6, Math.sin(a) * 6); } E.crashDamage(p.clone(), how === 'over' ? 4.2 : 3.2, V(0, 0, 1)); E.jolt(0.8); }, 140); }
@@ -256,11 +256,18 @@ export function createFoes(E) {
   // first-time prompts: each enemy is explained the first time it is on screen
   function coachTick() { const { coach, coachSeen, toScreen } = E;
     if (rival && rival.out == null && rival.shown > 0.5 && !coachSeen('ta_rival') && seen(rival.g.position, 2)) { const r = rival; return coach('ta_rival', { mode: 'tap', title: '🌪️ ROGUE TWISTER', text: 'It eats your town. Its tag shows who is bigger. Green: run into it and swallow it. Red: keep away, and tap it to strike it down to size.', at: () => (rival === r ? toScreen(r.g.position, 2.3 * r.shown) : null) }); }
-    if (cannons.length && !coachSeen('ta_cannon')) { const c = cannons.find((o) => seen(o.g.position, 0.8)); if (c) return coach('ta_cannon', { mode: 'tap', title: '📢 STORM CANNON', text: 'It charges, then blasts along the orange line: that knocks you back and shrinks you. Step off the line, then tap the truck to strike it, or run it over.', at: () => (cannons.includes(c) ? toScreen(c.g.position, 0.8) : null) }); }
-    if (ships.length && !coachSeen('ta_gunship')) { const s = ships.find((o) => o.life > 0 && seen(o.g.position, o.g.position.y)); if (s) return coach('ta_gunship', { mode: 'tap', title: '🚁 GUNSHIPS', text: 'Their freeze rockets slow your storm down. Keep moving, and tap each helicopter to strike it out of the sky.', at: () => (ships.includes(s) ? toScreen(s.g.position, s.g.position.y) : null) }); }
-    if (ufo && ufo.mode !== 'leave' && !coachSeen('ta_ufo') && seen(ufo.g.position, ufo.g.position.y)) { const u = ufo; return coach('ta_ufo', { mode: 'ok', title: '🛸 UFO', text: 'Its shield stops lightning, and its green ray shrinks you: get out of the circle. When it drops low to beam people up, the shield is off. Tap it then. Three strikes bring it down.', at: () => (ufo === u ? toScreen(u.g.position, u.g.position.y) : null) }); }
+    if (cannons.length && !coachSeen('ta_cannon')) { const c = cannons.find((o) => seen(o.g.position, 0.8)); if (c) return coach('ta_cannon', { mode: 'tap', title: '📢 STORM CANNON', text: (E.words || {}).cannon || 'It charges, then blasts along the orange line: that knocks you back and shrinks you. Step off the line, then tap the truck to strike it, or run it over.', at: () => (cannons.includes(c) ? toScreen(c.g.position, 0.8) : null) }); }
+    if (ships.length && !coachSeen('ta_gunship')) { const s = ships.find((o) => o.life > 0 && seen(o.g.position, o.g.position.y)); if (s) return coach('ta_gunship', { mode: 'tap', title: '🚁 GUNSHIPS', text: (E.words || {}).ship || 'Their freeze rockets slow your storm down. Keep moving, and tap each helicopter to strike it out of the sky.', at: () => (ships.includes(s) ? toScreen(s.g.position, s.g.position.y) : null) }); }
+    if (ufo && ufo.mode !== 'leave' && !coachSeen('ta_ufo') && seen(ufo.g.position, ufo.g.position.y)) { const u = ufo; return coach('ta_ufo', { mode: 'ok', title: '🛸 UFO', text: (E.words || {}).ufo || 'Its shield stops lightning, and its green ray shrinks you: get out of the circle. When it drops low to beam people up, the shield is off. Tap it then. Three strikes bring it down.', at: () => (ufo === u ? toScreen(u.g.position, u.g.position.y) : null) }); }
     return false; }
-  return { update, clear, tap, targets, eachDot, coachTick, rivalAt, hurtRival, get slow() { return slowT > 0 ? 0.5 : 1; },
+  // anything that lands a blow over an area (Kaiju Madness: a punch, a spell, a body skidding through town) strikes what is in it.
+  // Each one can only be struck so often, so one long skid is one hit
+  function hitAt(c, r) { let n = 0; const now = E.played, ok = (o, gap) => { if ((o.hitCd || -9) > now) return false; o.hitCd = now + gap; return true; };
+    for (const cn of cannons.slice()) if (Math.hypot(cn.g.position.x - c.x, cn.g.position.z - c.z) < r + 1 && ok(cn, 0.5)) { zapCannon(cn); n++; }
+    for (const s of ships.slice()) if (Math.hypot(s.g.position.x - c.x, s.g.position.z - c.z) < r + 1.4) { zapShip(s); n++; }
+    if (ufo && ufo.mode !== 'leave' && Math.hypot(ufo.g.position.x - c.x, ufo.g.position.z - c.z) < r + 2 && ok(ufo, 0.6)) { zapUfo(); n++; }
+    return n; }
+  return { update, clear, tap, targets, eachDot, coachTick, hitAt, rivalAt, hurtRival, get slow() { return slowT > 0 ? 0.5 : 1; },
     // for tests
     spawn(k) { if (k === 'rival') { removeRival(); spawnRival(); } else if (k === 'cannon') spawnCannon(); else if (k === 'ship') spawnShips(); else if (k === 'ufo') { if (ufo) scene.remove(dropUfo().g); spawnUfo(); } }, get state() { return { rival, cannons, ships, ufo, falling, rockets, waves, lifted, T, slowT, kick }; }, zapRival, zapCannon, zapShip, zapUfo };
 }

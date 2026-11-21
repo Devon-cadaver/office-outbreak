@@ -430,7 +430,7 @@ export function buildCity(scene, wall, level) {
   const HOUSE_WALLS = [0xe8d54a, 0x3f6fb0, 0xb8473a, 0x8a5a3a, 0xd9c7a8, 0x6a8f5a], HOUSE_ROOFS = [0x4a3324, 0x3a3a44, 0x5a2e2a, 0x2f3d4a];
   const footMat = M({ color: PAST ? 0x5a4a3a : 0x4a5458 }), hedgeMat = M({ color: PAST ? 0x6a6a34 : 0x2f6a3a }), roofDark = M({ color: 0x3a4a50 }), tankMat = M({ color: 0x7a5a3a }), steelMat = M({ color: 0x8a949a });
   const SIGNS = [0xd84a4a, 0x3a8ad8, 0xe8b23a, 0x3ab87a, 0xb84ad8, 0xe86a2a, 0x2ab8b8].map((c) => M({ color: c }));
-  const roofTrim = M({ color: 0x2a2a30 }), brickMat = M({ color: 0xb8473a }), litWin = new THREE.MeshBasicMaterial({ color: FUT ? 0x8af4ff : PAST ? 0xffb050 : 0xf6e94a }), darkWin = M({ color: FUT ? 0x1a2238 : PAST ? 0x2a1e16 : 0x34506e }), doorMatH = M({ color: FUT ? 0x1a1e2a : 0x2a2320 });
+  const roofTrim = M({ color: 0x2a2a30 }), brickMat = M({ color: 0xb8473a }), litWin = new THREE.MeshBasicMaterial({ color: FUT ? 0x8af4ff : PAST ? 0xffb050 : 0xf6e94a }), darkWin = M({ color: FUT ? 0x1a2238 : PAST ? 0x2a1e16 : 0x34506e }), doorMatH = M({ color: FUT ? 0x1a1e2a : 0x2a2320 }), trimH = M({ color: PAST ? 0xc8b48a : 0xe2dccc }), knobMat = M({ color: 0xd8b04a }), DOOR_PAINT = (PAST ? [0x6a3a1e, 0x5a2e1a, 0x7a4a26] : [0x8a2a24, 0x2e4a6a, 0x3a5a36, 0x6a3e22, 0x4a2a4a, 0xd8d0c0]).map((c) => M({ color: c }));
   const PAST_HOUSES = [0x8a5a3a, 0x9a6a44, 0x7a4e30, 0xa87a50, 0xc8b490], PAST_BUILD = [0x9a6a44, 0x8a5a3a, 0xb08a5a, 0x7a4a2e, 0xa04a3a, 0xd8c8a0], woodTrim = M({ color: 0x4a2e1a }), stoneW = M({ color: 0x8a8478 });
   const FUT_HOUSES = [0xe8eef4, 0xc8d4e0, 0xb4c4dc, 0xd8ccf0, 0xd0e8e4], FUT_BUILD = [0xdfe6ee, 0x9aa6b8, 0x2a3a5a, 0x1c2030, 0x5a4a7a, 0x3a5a6a];
   const neonC = new THREE.MeshBasicMaterial({ color: 0x3af0ff }), neonM = new THREE.MeshBasicMaterial({ color: 0xff4fd8 }), metalF = new THREE.MeshPhongMaterial({ color: 0xc8d0dc, shininess: 60 });
@@ -448,10 +448,14 @@ export function buildCity(scene, wall, level) {
     const soffit = new THREE.Mesh(box, FUT ? (rr() < 0.5 ? neonC : neonM) : roofTrim); if (FUT) soffit.scale.set(bw + 0.08, 0.06, bd + 0.08); else soffit.scale.set(bw + 0.5, 0.06, bd + 0.5); soffit.position.y = bh - 0.07; g.add(soffit);
     const chim = new THREE.Mesh(box, FUT ? metalF : PAST ? stoneW : brickMat); if (FUT) chim.scale.set(0.06, 1.3, 0.06); else chim.scale.set(0.25, 0.7, 0.25); chim.position.set(bw * 0.3, bh + rh * 0.6, -bd * 0.2); g.add(chim);
     // door + windows on the street face (local +z)
-    const door = new THREE.Mesh(box, doorMatH); door.scale.set(0.42, 0.8, 0.06); door.position.set(-0.55, 0.4, bd / 2 + 0.03); g.add(door);
+    // the front door: painted, in a pale frame, standing on the footing (above the step), with a brass knob
+    const dz0 = FUT ? 0 : 0.14, fr0 = new THREE.Mesh(box, FUT ? doorMatH : trimH); fr0.scale.set(0.54, 0.84, 0.05); fr0.position.set(-0.55, dz0 + 0.42, bd / 2 + 0.02); g.add(fr0);
+    const door = new THREE.Mesh(box, FUT ? doorMatH : DOOR_PAINT[(rr() * DOOR_PAINT.length) | 0]); door.scale.set(0.4, 0.76, 0.06); door.position.set(-0.55, dz0 + 0.38, bd / 2 + 0.04); g.add(door);
+    if (!FUT) { const knob = new THREE.Mesh(box, knobMat); knob.scale.set(0.05, 0.05, 0.05); knob.position.set(-0.42, dz0 + 0.38, bd / 2 + 0.08); g.add(knob); }
     for (const [wx, wy] of [[0.45, 0.6], [0.45, bh > 1.2 ? 1.45 : -1]]) if (wy > 0) { const win = new THREE.Mesh(box, rr() < 0.55 ? season.win(litWin, rr) : darkWin); win.scale.set(0.5, 0.4, 0.06); win.position.set(wx, wy, bd / 2 + 0.03); g.add(win); const fr = new THREE.Mesh(box, doorMatH); fr.scale.set(0.56, 0.46, 0.04); fr.position.set(wx, wy, bd / 2 + 0.02); g.add(fr); }
     const side = new THREE.Mesh(box, rr() < 0.4 ? season.win(litWin, rr) : darkWin); side.scale.set(0.06, 0.4, 0.5); side.position.set(bw / 2 + 0.03, 0.6, 0.2); g.add(side);
-    if (PAST || rr() < 0.5) { const porch = new THREE.Mesh(box, roofMat); porch.scale.set(1.0, 0.06, 0.5); porch.position.set(-0.55, 0.95, bd / 2 + 0.25); g.add(porch); }
+    if (!FUT && (PAST || rr() < 0.5)) { const py = Math.min(0.9, bh - 0.1), porch = new THREE.Mesh(box, trimH); porch.scale.set(0.9, 0.05, 0.42); porch.position.set(-0.55, py, bd / 2 + 0.21); g.add(porch); // a little porch roof on two posts, tucked under the eaves
+      for (const k of [-1, 1]) { const post = new THREE.Mesh(box, trimH); post.scale.set(0.05, py - 0.07, 0.05); post.position.set(-0.55 + k * 0.4, 0.07 + (py - 0.07) / 2, bd / 2 + 0.38); g.add(post); } }
     { // a footing, steps up to the door, shutters, a hedge down one side, sometimes a dormer: all plain pieces that merge away
       const h2 = mulberry32(((w.x * 131 + w.z * 977) | 0) + 99), pc = (m, sx, sy, sz, px, py, pz) => { const o = new THREE.Mesh(box, m); o.scale.set(sx, sy, sz); o.position.set(px, py, pz); g.add(o); return o; };
       if (!FUT) { pc(footMat, bw + 0.08, 0.14, bd + 0.08, 0, 0.07, 0); pc(footMat, 0.56, 0.07, 0.2, -0.55, 0.035, bd / 2 + 0.13);

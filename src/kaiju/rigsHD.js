@@ -21,7 +21,7 @@ const PLATE = () => geo('plate', () => { const s = new THREE.Shape(); s.moveTo(-
   const g = new THREE.ExtrudeGeometry(s, { depth: 0.12, bevelEnabled: true, bevelThickness: 0.04, bevelSize: 0.03, bevelSegments: 1 }); g.translate(0, 0, -0.06); return g; });
 function part(parent, g, m, sx, sy, sz, x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0) { const o = new THREE.Mesh(g, m); o.scale.set(sx, sy, sz); o.position.set(x, y, z); o.rotation.set(rx, ry, rz); parent.add(o); return o; }
 const grp = (parent, x = 0, y = 0, z = 0) => { const g = new THREE.Group(); g.position.set(x, y, z); parent.add(g); return g; };
-const S = (k, a) => Math.sin(k * Math.PI) * a;
+const S = (k, a) => { /* a one-shot with weight: a small wind-back, a fast strike that overshoots, then a slower settle */ const v = k < 0.2 ? -0.2 * Math.sin(k / 0.2 * Math.PI / 2) : k < 0.38 ? -0.2 + 1.3 * (1 - Math.pow(1 - (k - 0.2) / 0.18, 3)) : 1.1 * (1 - ((k - 0.38) / 0.62) ** 2 * (3 - 2 * ((k - 0.38) / 0.62))); return v * a; };
 const koTip = (body, k) => { body.rotation.z = Math.min(1.5, k * 2); body.position.y = -k * 0.2; };
 const UP = new THREE.Vector3(0, 1, 0);
 function rod(parent, m, a, b, r) { const d = new THREE.Vector3().subVectors(b, a), len = d.length(); const o = new THREE.Mesh(CAP(), m); o.scale.set(r, len, r); o.position.copy(a).addScaledVector(d, 0.5); o.quaternion.setFromUnitVectors(UP, d.normalize()); parent.add(o); return o; }

@@ -12,7 +12,7 @@ const mats = new Map();
 const mat = (c, basic = false) => { const k = c + (basic ? 'b' : ''); if (!mats.has(k)) mats.set(k, basic ? new THREE.MeshBasicMaterial({ color: c }) : new THREE.MeshLambertMaterial({ color: c, flatShading: true })); return mats.get(k); };
 function part(parent, geo, c, sx, sy, sz, x, y, z, rx = 0, ry = 0, rz = 0, basic = false) { const m = new THREE.Mesh(geo, mat(c, basic)); m.scale.set(sx, sy, sz); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); parent.add(m); return m; }
 const grp = (parent, x, y, z) => { const g = new THREE.Group(); g.position.set(x, y, z); parent.add(g); return g; };
-const S = (k, a) => Math.sin(k * Math.PI) * a; // a one-shot's swell
+const S = (k, a) => { /* a one-shot with weight: a small wind-back, a fast strike that overshoots, then a slower settle */ const v = k < 0.2 ? -0.2 * Math.sin(k / 0.2 * Math.PI / 2) : k < 0.38 ? -0.2 + 1.3 * (1 - Math.pow(1 - (k - 0.2) / 0.18, 3)) : 1.1 * (1 - ((k - 0.38) / 0.62) ** 2 * (3 - 2 * ((k - 0.38) / 0.62))); return v * a; };
 
 // pal: skin, dark, belly, accent (plates, crystals, sail...), eye
 export const KAIJU = {

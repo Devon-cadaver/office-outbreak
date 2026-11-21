@@ -19,9 +19,10 @@
     .poiArrow em { filter: grayscale(1); position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-style: normal; font-size: 17px; border-radius: 50%; background: #0b1416c0; border: 2px solid #ffffff55; }
     .poiArrow i { position: absolute; inset: -13px; display: flex; align-items: center; justify-content: flex-end; font-style: normal; font-size: 13px; color: #fff; text-shadow: 0 0 3px #000; }
     .poiArrow.ready { opacity: 1; } .poiArrow.ready em { filter: none; border-color: #ffd24a; box-shadow: 0 0 10px #ffd24a; } .poiArrow.ready i { color: #ffd24a; }
-    #taMap { position: absolute; left: 10px; bottom: calc(10px + env(safe-area-inset-bottom, 0)); width: 104px; height: 104px; border-radius: 50%; background: #0b1416c0; border: 2px solid #ffffff55; pointer-events: auto; touch-action: none; }
+    #taPct { position: absolute; left: 10px; bottom: calc(146px + env(safe-area-inset-bottom, 0)); width: 128px; box-sizing: border-box; text-align: center; padding: 3px 7px; border-radius: 9px; background: #0b1416c4; border: 2px solid #ffffff55; font-size: 12px; font-weight: 900; white-space: nowrap; color: #fff; } #taPct.ok { color: #7dff3a; border-color: #7dff3a; }
+    #taMap { position: absolute; left: 10px; bottom: calc(10px + env(safe-area-inset-bottom, 0)); width: 128px; height: 128px; border-radius: 50%; background: #0b1416c0; border: 2px solid #ffffff55; pointer-events: auto; touch-action: none; }
     /* pause: big, bright green with purple bars, so nobody has to hunt for it */
-    #taPause { position: absolute; right: 10px; top: calc(48px + env(safe-area-inset-top, 0)); pointer-events: auto; width: 46px; height: 46px; padding: 0; margin: 0; border-radius: 12px; background: #7dff3a; border: 3px solid #5a2f80; color: #5a2f80; font-size: 20px; font-weight: 900; line-height: 1; box-shadow: 0 0 12px #7dff3a99, 0 4px 0 #3a1a5a; }
+    #taPause { position: absolute; right: 10px; top: calc(48px + env(safe-area-inset-top, 0)); pointer-events: auto; width: 46px; height: 46px; box-sizing: border-box; padding: 0; margin: 0; border-radius: 12px; background: #7dff3a; border: 3px solid #5a2f80; color: #5a2f80; font-size: 20px; font-weight: 900; line-height: 1; box-shadow: 0 0 12px #7dff3a99, 0 4px 0 #3a1a5a; }
     #taPause:active { transform: translateY(2px); box-shadow: 0 0 8px #7dff3a99, 0 2px 0 #3a1a5a; }
     #taStick { position: absolute; width: 120px; height: 120px; border-radius: 50%; background: #ffffff1a; border: 2px solid #ffffff55; transform: translate(-50%, -50%); display: none; }
     #taKnob { position: absolute; left: 50%; top: 50%; width: 48px; height: 48px; border-radius: 50%; background: #c9a6ffcc; transform: translate(-50%, -50%); }
@@ -32,8 +33,14 @@
     #taLevels .lvl { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 1px; font-size: 9px; min-width: 0; min-height: 58px; border-radius: 10px; }
     #taLevels .lvl b { font-size: 18px; } #taLevels .lvl i { font-style: normal; color: #1f4a12; font-weight: 800; font-size: 10px; }
     #taLevels .lvl.on { outline: 3px solid #7dff3a; } #taLevels .lvl:disabled { opacity: .45; }
-    .zoomBtn { position: absolute; right: 10px; width: 34px; height: 34px; padding: 0; font-size: 20px; line-height: 1; pointer-events: auto; }
-    #taZoomIn { top: calc(104px + env(safe-area-inset-top, 0)); right: 16px; } #taZoomOut { top: calc(144px + env(safe-area-inset-top, 0)); right: 16px; }
+    /* the buttons on the right: pause, zoom in, zoom out, skip song. All one size, one edge, evenly spaced. Pause stays top right;
+       on a phone the other three stand in a column at the bottom right (the Power bar has the bottom middle) */
+    .zoomBtn, #ta .skipHud { position: absolute; right: 10px !important; width: 46px !important; height: 46px !important; box-sizing: border-box; padding: 0; margin: 0; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 900; line-height: 1; pointer-events: auto; border: 3px solid #5a2f80 !important; color: #5a2f80 !important; background-image: none !important; }
+    .zoomBtn { background-color: #ffd24a !important; font-size: 28px; font-family: Arial, sans-serif; box-shadow: 0 0 10px #ffd24a88, 0 4px 0 #3a1a5a !important; } .zoomBtn:active { transform: translateY(2px); }
+    #ta .skipHud { background-color: #7dff3a !important; font-size: 18px !important; box-shadow: 0 0 12px #7dff3a99, 0 4px 0 #3a1a5a !important; top: calc(210px + env(safe-area-inset-top, 0px)) !important; }
+    #taZoomIn { top: calc(102px + env(safe-area-inset-top, 0)); } #taZoomOut { top: calc(156px + env(safe-area-inset-top, 0)); }
+    @media (max-width: 760px), (max-height: 520px) { #taZoomIn { top: auto !important; left: auto !important; right: 10px !important; bottom: calc(114px + env(safe-area-inset-bottom, 0px)) !important; } #taZoomOut { top: auto !important; left: auto !important; right: 10px !important; bottom: calc(62px + env(safe-area-inset-bottom, 0px)) !important; } #ta .skipHud { top: auto !important; left: auto !important; right: 10px !important; bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important; }
+      #kjMegaBtn, #kjFinish, #kjRanged { bottom: calc(178px + env(safe-area-inset-bottom, 0px)) !important; } #kjMove .gmHint { bottom: calc(200px + env(safe-area-inset-bottom, 0px)); } #kjMove .gmBar { bottom: calc(176px + env(safe-area-inset-bottom, 0px)); } }
     .chaserArrow { color: #fff; font-size: 24px; }
     .photoBar { position: fixed; left: 0; top: 0; width: 64px; height: 8px; border-radius: 4px; background: #000a; border: 1px solid #fff8; overflow: hidden; display: none; pointer-events: none; z-index: 4; } .photoBar i { display: block; height: 100%; width: 0; background: #ffffff; }
     #taTut { position: absolute; left: 50%; top: calc(126px + env(safe-area-inset-top, 0)); transform: translateX(-50%); width: min(360px, 92vw); padding: 10px 12px; border-radius: 14px; background: #1a0f2ef0; border: 2px solid #ffd24a; text-align: center; pointer-events: auto; box-shadow: 0 4px 16px #000a; transition: border-color .2s; }
@@ -72,7 +79,7 @@
     .fdot.red { background: radial-gradient(circle, #ffd0d0, #ff3a3a 60%, #a01a1a); color: #ff3a3a; animation: dotBlink .25s infinite alternate; }
     .fdot.purple { background: radial-gradient(circle, #f0d8ff, #b86aff 60%, #6a2ab0); color: #b86aff; }
     .fdot.pop { animation: dotPop .2s forwards; } @keyframes dotPop { to { opacity: 0; transform: scale(1.8); } } @keyframes dotBlink { to { filter: brightness(1.5); } }
-    #kjFightEdge { position: fixed; inset: 0; pointer-events: none; z-index: 3; box-shadow: inset 0 0 0 4px #ff9a3a99, inset 0 0 40px #ff5a1a55; } #kjFightEdge.hidden { display: none; }
+    #kjFightEdge { position: fixed; inset: 0; pointer-events: none; z-index: 3; box-shadow: inset 0 0 0 4px #ff9a3a99, inset 0 0 40px #ff5a1a55; } #kjFightEdge.hidden { display: none; } #kjFightEdge.counter { box-shadow: inset 0 0 0 6px #7dff3a, inset 0 0 60px #7dff3a88; }
     #kjRanged { position: fixed; left: 50%; bottom: calc(150px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 6; margin: 0; padding: 14px 22px; font-size: 18px; white-space: nowrap; background-color: #ff7a3a; color: #1a0f2e; box-shadow: 0 6px 0 #a8461a, 0 0 22px #ff7a3a88; }
     #kjRanged:active { transform: translateX(-50%) translateY(5px); box-shadow: 0 1px 0 #a8461a; } #kjRanged.hidden { display: none; }
     #kjRival { position: fixed; left: 0; top: 0; width: 120px; pointer-events: none; z-index: 4; text-align: center; }
@@ -80,6 +87,18 @@
     #kjRivalBar { height: 8px; border-radius: 4px; background: #000b; border: 1px solid #ff5a5a; overflow: hidden; } #kjRivalFill { height: 100%; width: 100%; background: linear-gradient(90deg, #ff3a3a, #ff9a3a); }
     .rivalArrow { width: 34px; height: 34px; font-size: 0; } .rivalArrow em { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-style: normal; font-size: 18px; border-radius: 50%; background: #2a0a0ac0; border: 2px solid #ff5a5a; } .rivalArrow i { position: absolute; inset: -13px; display: flex; align-items: center; justify-content: flex-end; font-style: normal; font-size: 13px; color: #ff5a5a; }
     #kjMini { position: fixed; inset: 0; z-index: 7; touch-action: none; }
+    .foeArrow { font-size: 24px; filter: drop-shadow(0 0 4px currentColor); }
+    body.paused .foeTag, body.paused .planeArrow, body.paused .poiArrow, body.paused .pop, body.paused #taFoe { visibility: hidden; }
+    .foeTag { position: fixed; left: 0; top: 0; padding: 3px 8px; border-radius: 9px; background: #120a1edd; border: 2px solid #ffffff66; color: #fff; font-weight: 900; font-size: 12px; letter-spacing: .3px; white-space: nowrap; pointer-events: none; display: none; z-index: 4; text-shadow: 0 1px 2px #000; }
+    .foeTag.shield { border-color: #6affd8; color: #c8fff0; } .foeTag.hit { border-color: #ffd24a; color: #fff2b0; background: #4a2a00dd; animation: foePulse .45s infinite; } @keyframes foePulse { 50% { box-shadow: 0 0 12px #ffd24a; } }
+    #taFoe { position: absolute; left: 50%; bottom: calc(150px + env(safe-area-inset-bottom, 0)); transform: translateX(-50%); width: max-content; max-width: calc(100vw - 32px); padding: 6px 12px; border-radius: 8px; background: #2a0a1ccc; border: 2px solid #ff9a5a; color: #ffe6d0; font-weight: 900; font-size: 15px; opacity: 0; transition: opacity .15s; pointer-events: none; }
+    #kjMove { position: fixed; inset: 0; z-index: 7; touch-action: none; } #kjMove.hidden { display: none; } #kjMove.m-aim { pointer-events: none; } #kjMove.m-elbow { background: transparent; }
+    #kjMove .gmHint { position: absolute; left: 50%; bottom: calc(170px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); width: max-content; max-width: 92vw; text-align: center; font-size: clamp(20px, 6.2vw, 32px); font-weight: 900; line-height: 1.1; color: #ffd24a; text-shadow: 0 3px 0 #5a2f80, 0 6px 14px #000; pointer-events: none; animation: gmPulse .45s infinite alternate; } #kjMove.go .gmHint { animation: none; }
+    #kjMove .gmBar { position: absolute; left: 50%; bottom: calc(132px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); width: min(300px, 80vw); height: 18px; border-radius: 9px; background: #2a1a3add; border: 2px solid #ffffff66; overflow: hidden; display: none; pointer-events: none; } #kjMove.bar .gmBar { display: block; } #kjMove.go .gmBar { display: none; }
+    #kjMove .gmBar b { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: #ffd24a; } #kjMove .gmBar b.hot { background: #7dff3a; box-shadow: 0 0 12px #7dff3a; } #kjMove .gmBar i { position: absolute; top: 0; bottom: 0; background: #7dff3a55; border-left: 2px solid #7dff3a; display: none; }
+    #kjMove .gmRing, #kjMove .gmTarget { position: absolute; left: 0; top: 0; width: 100px; height: 100px; margin: -50px 0 0 -50px; border-radius: 50%; display: none; pointer-events: none; box-sizing: border-box; } #kjMove.m-superkick:not(.go) .gmRing, #kjMove.m-superkick:not(.go) .gmTarget { display: block; }
+    #kjMove .gmRing { border: 5px solid #ffd24a; box-shadow: 0 0 14px #ffd24a; } #kjMove .gmRing.hot { border-color: #7dff3a; box-shadow: 0 0 20px #7dff3a; } #kjMove .gmTarget { border: 3px dashed #ffffffcc; }
+    @keyframes gmPulse { to { transform: translateX(-50%) scale(1.07); } }
     #kjMini.hidden { display: none; }
     #kjMini .panel { position: absolute; left: 50%; bottom: calc(70px + env(safe-area-inset-bottom, 0)); transform: translateX(-50%); width: min(340px, 90vw); padding: 10px 12px 14px; border-radius: 16px; background: #1a0f2ef0; border: 3px solid #ff7a3a; box-shadow: 0 0 20px #ff7a3a88; text-align: center; pointer-events: none; }
     #kjMini.m-roar .panel, #kjMini.m-spin .panel { border-color: #7dff3a; box-shadow: 0 0 20px #7dff3a88; }
@@ -110,15 +129,15 @@
 </head>
 <body class="booting">
   <div id="boot"><p class="bootKick">TORNADO TIME! BONUS GAME</p><h1>KAIJU<br>MADNESS</h1><div class="bootSpin"><i></i><i></i><i></i><i></i></div><div class="bootBar"><b></b></div><p class="bootLbl">BUILDING THE TOWN</p><p id="bootTip"></p></div>
-  <script>window.__bootTip = function () { var t = ["Eat people to grow. Bigger monsters flatten taller buildings.","Power bar full? Tap a spot to fire your special.","In a fight, tap the gold stars for critical hits.","Tap the red ! to counter a rival's swing.","Daze a rival, then spin and toss it or slam it.","Fire shrinks you. Walk out of napalm fast.","Tap a target's icon up top and your monster heads for it."]; document.getElementById('bootTip').textContent = 'TIP: ' + t[Math.floor(Math.random() * t.length)]; }; window.__bootTip();</script>
+  <script>window.__bootTip = function () { var t = ["Eat people to grow. Bigger monsters flatten taller buildings.","Power bar full? Tap a spot to fire your special.","In a fight, keep tapping for a combo, then flick to send the rival flying.","Red ring under a rival? Flick to dodge. Dodge late for a slow-motion counter.","Daze a rival, then spin and toss it or wrestle it with your finger.","Knock a rival through buildings: every one it smashes hurts it.","Fire shrinks you. Walk out of napalm fast.","Tap a target's icon up top and your monster heads for it."]; document.getElementById('bootTip').textContent = 'TIP: ' + t[Math.floor(Math.random() * t.length)]; }; window.__bootTip();</script>
   <canvas id="game"></canvas>
   <div id="ta" class="hidden">
     <div class="top">
       <div id="hudSize"><b id="taRank">HATCHLING</b><div id="taGrow"><div id="taGrowFill"></div><i class="tick" style="left:33.3%"><b>TITAN</b></i><i class="tick" style="left:66.6%"><b>COLOSSUS</b></i></div><span id="taTime">2:30</span></div>
       <div id="hudGoal"><span class="goalLbl">🎯 TARGETS<b id="taTargets"></b></span><div id="taPois"></div></div>
-      <div id="taSub"><span id="taLevel"></span><span id="taPct"></span><span id="taScore">0</span><span id="taCombo"></span></div>
+      <div id="taSub"><span id="taLevel"></span><span id="taScore">0</span><span id="taCombo"></span></div>
     </div>
-    <canvas id="taMap"></canvas>
+    <canvas id="taMap"></canvas><div id="taPct"></div><div id="taFoe"></div>
     <button id="taZoomIn" class="ghost zoomBtn">+</button><button id="taZoomOut" class="ghost zoomBtn">−</button>
     <button id="taPause" aria-label="Pause">❚❚</button>
     <div id="taStick"><div id="taKnob"></div></div>
