@@ -4,6 +4,8 @@ import { radioButton } from '../radioBox.js';
 // or, when your Power bar is full, casts your spell at what you tapped. One bar is your size and your health: the army,
 // napalm planes and rival kaiju drain it, and you shrink a stage (Colossus -> Titan -> Hatchling) when it drops below a
 // stage's line. Empty it as a Hatchling and the round's over. Two rival kaiju come for you at each stage. New kaiju are won in the end-of-round prize games.
+import { markWon } from '../progress.js';
+import { playerButton } from '../player.js';
 import * as THREE from 'three';
 import { generateMaze, buildCity, toWorld, toCell, findPath, CELL, mulberry32 } from '../city.js';
 import { makeCharacter, animateWalk } from '../poster/characters.js';
@@ -1058,7 +1060,7 @@ addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; if (mini &
 
 // ---------- flow ----------
 let state = 'start', died = false, roundId = 0; // roundId: delayed effects from an earlier round check it and stand down
-soundToggle($('taStart'), $('taPaused')); skipSongBtn($('ta')); eraPicker($('taLevels'), () => { level = unlockedLevel(); drawLevels(); }); seasonPicker($('eraRow')); // sound on/off on the start and pause screens
+soundToggle($('taStart'), $('taPaused')); playerButton($('taPaused'), $('taPaused').querySelector('.menuBtn')); skipSongBtn($('ta')); eraPicker($('taLevels'), () => { level = unlockedLevel(); drawLevels(); }); seasonPicker($('eraRow')); // sound on/off on the start and pause screens
 // the soundtrack starts on the first tap and keeps rotating songs for as long as you're on Kaiju Madness
 gameMusic($('taPaused'), SONGS_KAIJU); radioButton($('taPaused'), $('taPaused').querySelector('.menuBtn'));
 const fsMode = initFullscreen(() => state === 'play' || state === 'outro'); // full screen on play, back in after a browser drop-out, no page scrolling mid-round
@@ -1116,6 +1118,7 @@ function finishNow() {
   let best = 0; const bk = bestKey('kj', level); try { best = +localStorage.getItem(bk) || 0; if (score > best) { best = score; localStorage.setItem(bk, String(score)); } } catch { /* ignore */ }
   const pct = Math.round((bDone / totalB) * 100); const need = Math.min(L().need, poiOrder.length); const cleared = !died && pct >= L().goal && done.length >= need;
   const scoreCoins = Math.floor(score / 10000) / 100; if (scoreCoins > 0) addCoins(scoreCoins);
+  if (cleared) markWon('kj', level);
   if (cleared && level < LEVELS.length && unlockedLevel() <= level) { try { localStorage.setItem(levelKey('kj'), String(level + 1)); } catch { /* ignore */ } }
   $('taEndTitle').innerHTML = died ? 'KAIJU<br>DOWN' : cleared ? (level >= 5 ? L().name.toUpperCase().replace('THE ', '') + '<br>CRUSHED' : 'LEVEL ' + level + '<br>CRUSHED') : "TIME'S<br>UP";
   $('taAgain').textContent = cleared && level < LEVELS.length ? 'NEXT LEVEL' : cleared ? 'PLAY AGAIN' : 'TRY AGAIN'; $('taAgain').dataset.next = cleared && level < LEVELS.length ? '1' : '';

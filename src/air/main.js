@@ -7,6 +7,8 @@
 // GRAVE GIANTS rise out of the ground and throw chunks of buildings at you. Out of ammo, or hurt by the gloopers' acid? Fly
 // back over the airfield to reload and repair. The horde (and the giants) live in horde.js; the aircraft and the airfield
 // models in craft.js.
+import { markWon } from '../progress.js';
+import { playerButton } from '../player.js';
 import * as THREE from 'three';
 import { generateMaze, buildCity, toWorld, toCell, CELL, mulberry32 } from '../city.js';
 import { createFires } from '../fire.js';
@@ -572,7 +574,7 @@ const hudCache = {}; const setT = (id, v) => { v = String(v); if (hudCache[id] !
 const setW = (id, v) => { v = Math.max(0, Math.min(100, v)).toFixed(1) + '%'; if (hudCache['w' + id] !== v) { hudCache['w' + id] = v; $(id).style.width = v; } };
 const setC = (id, cls, on) => { const k = 'c' + id + cls; if (hudCache[k] !== on) { hudCache[k] = on; $(id).classList.toggle(cls, on); } };
 function updateHud(dt) { const c = craft, S = c.S, zl = horde.zombies;
-  setT('taRank', '🧟 ' + zl); setW('taGrowFill', zl / zStart * 100); setC('taRank', 'ok', zl <= goalN);
+  setT('taRank', '🧟 ' + zl); setW('taGrowFill', (zStart - zl) / zStart * 100); /* fills up as the horde goes down */ setC('taRank', 'ok', zl <= goalN);
   const m = Math.floor(tLeft / 60), s = Math.floor(tLeft % 60); setT('taTime', m + ':' + String(s).padStart(2, '0')); setC('taTime', 'low', tLeft < 20);
   setT('taTargets', horde.civs); setC('taTargets', 'low', horde.civs < civStart * 0.4); setW('arCollFill', coll); setC('arColl', 'warn', coll >= 70);
   setT('taScore', Math.max(0, Math.round(score)));
@@ -662,7 +664,7 @@ addEventListener('blur', () => { for (const k in keys) keys[k] = false; dropHeld
 
 // ---------- flow ----------
 let state = 'start', roundId = 0, roundN = 0;
-soundToggle($('taStart'), $('taPaused')); skipSongBtn($('ta')); eraPicker($('taLevels'), () => { level = unlocked(); drawLevels(); }); seasonPicker($('eraRow'));
+soundToggle($('taStart'), $('taPaused')); playerButton($('taPaused'), $('taPaused').querySelector('.menuBtn')); skipSongBtn($('ta')); eraPicker($('taLevels'), () => { level = unlocked(); drawLevels(); }); seasonPicker($('eraRow'));
 gameMusic($('taPaused'), SONGS_TORNADO); firstSong('ar', 'music/napalm-requiem.mp3'); /* (the first visit opens on Napalm Requiem) */ radioButton($('taPaused'), $('taPaused').querySelector('.menuBtn'));
 const fsMode = initFullscreen(() => state === 'play' || state === 'outro'); // full screen on play, back in after a browser drop-out, no page scrolling mid-round (and its button stays out of the way while the HUD still shows)
 function start() {
@@ -671,7 +673,7 @@ function start() {
   score = coll = kills = spitKills = savedN = civHit = turned = bHit = bLost = poiHit = acidHits = refills = multiBest = drops = shots = bumps = rockHits = crushed = gUp = gDown = 0; wpn = wLv = sup = nukes = supNuke = 0; played = 0; coll70 = false; endWhy = ''; dropHeld = false; botDrop = false; botKT = 0; stickOff(); touches.clear(); setWarn(null);
   gPlan = []; for (let i = 0; i < (L().giants || 0); i++) gPlan.push(GIANT.rise[0] + i * GIANT.rise[1]); // when each Grave Giant climbs out of the ground
   ROUND = +Q.get('time') || L().time; tLeft = ROUND; zStart = horde.zombies; goalN = Math.max(1, Math.round(zStart * L().goal)); civStart = horde.civs;
-  $('arGoalTick').style.left = (goalN / zStart * 100) + '%'; { const b = $('arDrop'), heli = craftKind === 'heli'; b.innerHTML = heli ? '<b>🚀</b><span>FIRE</span><i id="arDropN"></i>' : '<b>🔥</b><span>DROP</span><i id="arDropN"></i>'; b.setAttribute('aria-label', heli ? 'Fire rockets' : 'Drop napalm'); b.classList.remove('hidden'); } drawWpns(); /* the big button: DROP napalm, or FIRE rockets; beside it, the weapons the supplies unlock */ $('arAmmoIcon').textContent = craftKind === 'bomber' ? '🔥' : '🚀'; $('arCraftTag').textContent = CRAFTS[craftKind].icon + ' ' + CRAFTS[craftKind].tag;
+  $('arGoalTick').style.left = ((zStart - goalN) / zStart * 100) + '%'; { const b = $('arDrop'), heli = craftKind === 'heli'; b.innerHTML = heli ? '<b>🚀</b><span>FIRE</span><i id="arDropN"></i>' : '<b>🔥</b><span>DROP</span><i id="arDropN"></i>'; b.setAttribute('aria-label', heli ? 'Fire rockets' : 'Drop napalm'); b.classList.remove('hidden'); } drawWpns(); /* the big button: DROP napalm, or FIRE rockets; beside it, the weapons the supplies unlock */ $('arAmmoIcon').textContent = craftKind === 'bomber' ? '🔥' : '🚀'; $('arCraftTag').textContent = CRAFTS[craftKind].icon + ' ' + CRAFTS[craftKind].tag;
   for (const s of ['taStart', 'taEnd', 'taPaused', 'taPrize']) $(s).classList.add('hidden'); $('ta').classList.remove('hidden');
   state = 'play'; playSongs(); sfx.whoosh(); banner('LEVEL ' + level + ': ' + L().name.toUpperCase()); const rid = roundId; setTimeout(() => { if (state === 'play' && rid === roundId) banner('WIPE OUT THE HORDE!'); }, 2400);
   renderer.compile(scene, cam); $('taLevel').textContent = 'L' + level + ' · ' + L().name; measureHud(); for (const k in hudCache) delete hudCache[k]; baseArrow._c = undefined;
@@ -691,6 +693,7 @@ function finishNow() {
   let timeB = 0, civB = won ? alive * SC.civEnd : 0; /* everyone still alive is a bonus, for a town you saved */ if (won) { timeB = Math.round(tLeft) * SC.sec; } score = Math.max(0, Math.round(score + civB + timeB));
   let best = 0; const bk = bestKey('ar', level); try { best = +localStorage.getItem(bk) || 0; if (score > best) { best = score; localStorage.setItem(bk, String(score)); } } catch { /* ignore */ }
   const scoreCoins = Math.floor(score / 10000) / 100; if (scoreCoins > 0) addCoins(scoreCoins); // one coin per million points, as in the other games
+  if (won) markWon('ar', level);
   if (won && level < LEVELS.length && unlocked() <= level) { try { localStorage.setItem(levelKey('ar'), String(level + 1)); } catch { /* ignore */ } }
   const gotSkins = won && level >= LEVELS.length ? unlockCraftBonus('air') : []; /* beating The Sprawl (the last town) wins the Acid craft skins: said on the score screen below */
   const T = { win: level >= 5 ? L().name.toUpperCase().replace('THE ', '') + '<br>SAVED!' : 'TOWN<br>SAVED!', damage: 'TOO MUCH<br>DAMAGE', down: 'SHOT<br>DOWN', nociv: 'NO<br>SURVIVORS', time: "TIME'S<br>UP" };

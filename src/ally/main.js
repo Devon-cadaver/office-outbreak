@@ -2,6 +2,8 @@ import { radioButton } from '../radioBox.js';
 // Tornado Alley: you are the storm. Steer a tornado through town, rip up houses and towers, suck up the people,
 // and take out the big targets (power plant, water station, fairground and more on bigger maps). The more you wreck, the bigger you
 // grow, up to three times your starting size; tall towers only give way once you're big enough.
+import { markWon } from '../progress.js';
+import { playerButton } from '../player.js';
 import * as THREE from 'three';
 import { nukeBlast } from '../nuke.js';
 import { generateMaze, buildCity, toWorld, toCell, findPath, CELL, mulberry32 } from '../city.js';
@@ -596,7 +598,7 @@ function drawTwPicker() { const cur = equippedTornado(); $('twChosenName').textC
 $('twChoose').addEventListener('click', () => { $('taStart').classList.add('hidden'); $('twPickScr').classList.remove('hidden'); $('twPickScr').scrollTop = 0; drawTwPicker(); });
 $('twPickDone').addEventListener('click', () => { $('twPickScr').classList.add('hidden'); $('taStart').classList.remove('hidden'); drawTwPicker(); });
 drawTwPicker();
-soundToggle($('taStart'), $('taPaused')); skipSongBtn($('ta')); eraPicker($('taLevels'), () => { level = unlocked(); drawLevels(); }); seasonPicker($('eraRow')); // sound on/off on the start and pause screens
+soundToggle($('taStart'), $('taPaused')); playerButton($('taPaused'), $('taPaused').querySelector('.menuBtn')); skipSongBtn($('ta')); eraPicker($('taLevels'), () => { level = unlocked(); drawLevels(); }); seasonPicker($('eraRow')); // sound on/off on the start and pause screens
 // the soundtrack starts on the first tap and keeps rotating songs for as long as you're on Tornado Alley
 gameMusic($('taPaused'), SONGS_TORNADO); radioButton($('taPaused'), $('taPaused').querySelector('.menuBtn'));
 const fsMode = initFullscreen(() => state === 'play' || state === 'outro'); // full screen on play, back in after a browser drop-out, no page scrolling mid-round
@@ -634,6 +636,7 @@ function finishNow() {
   let best = 0; const bk = bestKey('ta', level); try { best = +localStorage.getItem(bk) || 0; if (score > best) { best = score; localStorage.setItem(bk, String(score)); } } catch { /* ignore */ }
   const pct = Math.round((bDone / totalB) * 100); const need = Math.min(L().need, poiOrder.length); const cleared = !absorbed && pct >= L().goal && done.length >= need;
   const scoreCoins = Math.floor(score / 10000) / 100; if (scoreCoins > 0) addCoins(scoreCoins); // one coin per million points
+  if (cleared) markWon('ta', level);
   if (cleared && level < LEVELS.length && unlocked() <= level) { try { localStorage.setItem(levelKey('ta'), String(level + 1)); } catch { /* ignore */ } }
   $('taEndTitle').innerHTML = cleared ? (level >= 5 ? L().name.toUpperCase().replace('THE ', '') + '<br>FLATTENED' : 'LEVEL ' + level + '<br>CLEARED') : "STORM'S<br>OVER";
   if (absorbed) $('taEndTitle').innerHTML = 'ABSORBED!';

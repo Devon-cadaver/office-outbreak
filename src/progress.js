@@ -15,3 +15,7 @@ export const lastKey = (game) => game + '_last' + (eraTag() && '_' + eraTag());
 const num = (k) => { try { return +localStorage.getItem(k) || 0; } catch { return 0; } };
 export function quickLevel(game) { const open = Math.max(1, Math.min(TOWNS.length, num(levelKey(game)))), last = num(lastKey(game)); return last >= 1 && last <= open ? last : open; }
 export function saveLast(game, n) { try { localStorage.setItem(lastKey(game), String(n)); } catch { /* ignore */ } }
+// towns cleared, recorded as 'game:era:town' (the PLAYER card's badges and level, player.js). Older clears are worked out
+// from the towns opened, so a save from before this still counts
+export function winsList() { try { const l = JSON.parse(localStorage.getItem('oo_wins') || '[]'); return Array.isArray(l) ? l : []; } catch { return []; } }
+export function markWon(game, n) { const k = game + ':' + getEra() + ':' + n, l = winsList(); if (l.includes(k)) return; l.push(k); try { localStorage.setItem('oo_wins', JSON.stringify(l)); } catch { /* ignore */ } try { dispatchEvent(new Event('oo-progress')); } catch { /* ignore */ } }
