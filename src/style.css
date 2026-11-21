@@ -265,3 +265,9 @@ button:disabled, button:disabled:active { transform: none; }
   #taStart .soundRow:has(.psBtn) { grid-template-columns: 0.7fr 1fr 1fr !important; gap: 6px !important; }
   #taStart .soundRow button { font-size: 11.5px; padding-left: 4px; padding-right: 4px; white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; letter-spacing: 0; }
 }
+/* in a round on a phone: a smaller mini map, with the short % badge over it, and the zoom row moved in beside it */
+@media (max-width: 760px) and (orientation: portrait) {
+  #ta #taMap { width: 96px !important; height: 96px !important; }
+  #ta #taPct { width: 96px !important; bottom: calc(112px + env(safe-area-inset-bottom, 0px)) !important; font-size: 12px; padding: 2px 4px; }
+  #ta #taZoomIn { left: 116px !important; } #ta #taZoomOut { left: 170px !important; } #ta .skipHud { left: 224px !important; }
+}

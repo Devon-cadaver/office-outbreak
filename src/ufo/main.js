@@ -91,6 +91,7 @@ const GRAB_R = 2.1, PULL_R = 4.6, PANIC_R = 7, LIFT_MAX = 9; // the beam grabs a
 const SPEED = 7.2, BEAM_SLOW = 0.55, BOOST = 1.6, ACC = 3.4; // flying speed, the share of it while beaming, a speed boost, and how quickly the ship answers the stick
 // the death ray is free. A tapped shot waits RAY_CD after the last one; the ray also fires by itself every AUTO_CD at the
 // nearest building within AUTO_R of the saucer's middle (measured to its walls), the way the tornado wrecks what it touches
+const AUTO_BEAM = 1; /* seconds people must stay in the circle under the saucer before the beam comes down by itself */
 const E_MAX = 100, RAY_CD = 0.3, RAY_RANGE = 30, AUTO_CD = 0.5, AUTO_R = 2.4;
 // big buildings are solid: one blocks the saucer when its roof is higher than the saucer's underside (under: how far below
 // its middle that is) less margin. rc: how far round its middle counts (less than its rim, so it fits down a street with a
@@ -190,7 +191,7 @@ const beam = makeBeam(); scene.add(beam.g);
 const reticle = (() => { const g = new THREE.Group(), c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 2, 32, 32, 32); gr.addColorStop(0, 'rgba(0,0,0,0.6)'); gr.addColorStop(0.7, 'rgba(0,0,0,0.28)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64);
   const sh = new THREE.Mesh(new THREE.CircleGeometry(1, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false })); sh.scale.setScalar(2.4); sh.renderOrder = 1; g.add(sh);
   const ring = new THREE.Mesh(new THREE.RingGeometry(GRAB_R - 0.12, GRAB_R + 0.05, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x7df0ff, transparent: true, opacity: 0.4, depthWrite: false })); ring.renderOrder = 2; g.add(ring); g.userData.ring = ring; g.position.y = 0.13; scene.add(g); return g; })();
-let energy = E_MAX, boostT = 0, nukeT = 0, hitT = 0, hurtSfx = 0, dmgPop = 0, dmgPopT = 0, hits = 0, lowWarned = false, lowAt = -9, beepT = 0, rayCd = 0, beamHeld = false, beamOn = false, moveTo = null, lastGrab = -9, grabChain = 0;
+let energy = E_MAX, boostT = 0, nukeT = 0, hitT = 0, hurtSfx = 0, dmgPop = 0, dmgPopT = 0, hits = 0, lowWarned = false, lowAt = -9, beepT = 0, rayCd = 0, beamHeld = false, beamOn = false, hoverT = 0, autoBeamT = 0, moveTo = null, lastGrab = -9, grabChain = 0;
 let blindT = 0, radarDown = false, radioDown = false, fireBoost = false, stink = false, bumpT = 0, autoT = 0, pend = null, botDrag = null;
 const hordeBodyNow = () => { const hs = hordeLook(); return hs ? hordeBody(hs) : null; }; // a graveyard zombie in one of the hordes worn (hordeSkins.js)
 function makePlayerShip() { if (ship.g) { scene.remove(ship.g); disposeTree(ship.g); } const root = new THREE.Group(), body = sk.dress(makeShip()); sk.beam(beam); rays.setColors(sk.rayColors()); body.scale.setScalar(SHIP_SCALE); root.add(body); scene.add(root);
@@ -526,7 +527,7 @@ function coachBU() {
   if (coachBusy()) return;
   if (!coachSeen('bu_move')) { if (played > 0.5) card('bu_move', { mode: 'drag', title: '🛸 FLY', text: 'Drag anywhere on the screen to fly your saucer. Or tap a spot: it flies there.' }); return; }
   if (!coachSeen('bu_bld') && bumpT <= 0 && cardIdle() > 0.5) { const b = bldAhead(1.4); if (b) { setWarn(b); card('bu_bld', { mode: 'ok', title: '🏢 BIG BUILDINGS ARE SOLID', text: 'Fly into one and it comes down, but it costs you a lot of energy. Watch for the red glow and BUILDING!, and fly round. Houses and small shops pass under you.', at: () => toScreen(b.pos, b.h * 0.6), done: () => { warnT = -9; } }); return; } } /* danger first, whatever else is still to learn (once it closes, BUILDING! pops up again when the real warning comes) */
-  if (!coachSeen('bu_beam')) { if (abd > 0) { markSeen('c_bu_beam'); return; } /* already beaming people up: nothing to teach */ const c = cardIdle() > 1 && !beamOn && nearestPerson(10); /* (not while the beam is already on) */ if (c && card('bu_beam', { mode: 'tap', title: '🔦 BEAM THEM UP', text: 'Press and HOLD on your saucer to beam up the people under it. Everyone you beam up fills your ENERGY. (The BEAM button works too.)', at: () => toScreen(ship.center, ship.y), done: () => { beamCoach = false; const n = nearestPerson(10) || c; goTo(n.position.x, n.position.z); } })) beamCoach = true; return; } /* once it is pressed the saucer glides over the nearest crowd, so the first try works */
+  if (!coachSeen('bu_beam')) { if (abd > 0) { markSeen('c_bu_beam'); return; } /* already beaming people up: nothing to teach */ const c = cardIdle() > 1 && !beamOn && nearestPerson(10); /* (not while the beam is already on) */ if (c && card('bu_beam', { mode: 'tap', title: '🔦 BEAM THEM UP', text: 'Hover over people for a second and the beam comes down by itself (or press and HOLD on your saucer). Everyone you beam up fills your ENERGY.', at: () => toScreen(ship.center, ship.y), done: () => { beamCoach = false; const n = nearestPerson(10) || c; goTo(n.position.x, n.position.z); } })) beamCoach = true; return; } /* once it is pressed the saucer glides over the nearest crowd, so the first try works */
   if (army.coachTick()) return;
   if (!coachSeen('bu_horn')) { const cn = foes.state.cannons.find((o) => inView(o.g.position, 0.8)); if (cn) { card('bu_horn', { mode: 'ok', title: '📢 HORN TRUCK', text: 'It charges, then blasts along its orange line: that drains your shield and throws you back. Get your shadow off the line! Tap the truck to zap it: twice, or once while it charges.', at: () => (foes.state.cannons.includes(cn) ? toScreen(cn.g.position, 0.8) : null) }); return; } }
   if (!coachSeen('bu_energy') && hits > 2 && cardIdle() > 2) { card('bu_energy', { mode: 'ok', title: '🛡 ENERGY', text: 'Your shield and your fuel are one bar. Army hits and crashes drain it, and so does flying. Beam people up to fill it. At zero your saucer goes down!', at: () => elMid($('buEnergy')) }); return; }
@@ -611,7 +612,7 @@ function start() {
   fsMode.play(); coachClear(); if (!noSave) saveLast('bu', level); crowd.clear(); unlockAudio(); roundId++; timers.length = 0; sk.clear(); /* (last round's baby twisters, freed while the twisters module still has them) */
   buildWorld(); makePlayerShip(); setupPoiHud();
   score = 0; chain = 0; lastHit = -9; tLeft = L().time; played = 0; abd = 0; stats = {}; sw = swLv = swNext = 0; swN = [0, 0]; drawSw(); energy = E_MAX; boostT = nukeT = hitT = hurtK = 0; hits = 0; lowWarned = false; rayCd = 0; moveTo = null; lastGrab = -9; grabChain = 0; dmgPop = 0; dmgPopT = hurtSfx = lowAt = -9; outro = null; beamCoach = false;
-  blindT = 0; radarDown = radioDown = fireBoost = stink = false; beamHeld = false; beamPress = mouseShip = botDrag = null; bumpT = autoT = 0; pend = null; warnT = -9; setWarn(null); curCard = null; cardUp = false; cardShutAt = -99; holdN = 0;
+  blindT = 0; radarDown = radioDown = fireBoost = stink = false; beamHeld = false; hoverT = autoBeamT = 0; beamPress = mouseShip = botDrag = null; bumpT = autoT = 0; pend = null; warnT = -9; setWarn(null); curCard = null; cardUp = false; cardShutAt = -99; holdN = 0;
   army.spawnTown();
   for (const s of ['taStart', 'taEnd', 'taPaused', 'taPrize']) $(s).classList.add('hidden'); $('ta').classList.remove('hidden');
   state = 'play'; playSongs(); sfx.whoosh(); banner('LEVEL ' + level + ': ' + L().name.toUpperCase());
@@ -664,7 +665,7 @@ function finishNow() {
 }
 const HOWTO = [
   ['🛸', 'Fly', 'Drag anywhere to fly your saucer. Tap a spot to fly there, or tap the minimap to cross town. On a computer: WASD or the arrow keys, or click.'],
-  ['🔦', 'Beam them up', 'Press and HOLD on your saucer to pull up the people under it. Slide your finger off the saucer to fly again. The BEAM button (SPACE on a computer) works too. Soldiers and cars can be beamed up as well.'],
+  ['🔦', 'Beam them up', 'Hover over people for a second and the beam comes down by itself. You can also press and HOLD on your saucer (SPACE on a computer), and slide your finger to steer while it beams. Soldiers and cars can be beamed up as well.'],
   ['⚡', 'Death ray', 'It zaps the buildings you fly over or beside by itself. Tap a building, a big target, a tank or a soldier: your saucer flies there and zaps it. Tap an aircraft, a missile or a truck: the ray zaps it where it is. It costs no energy. Tall buildings take two or three zaps. On a computer, F zaps the nearest attacker.'],
   ['🏢', 'Big buildings', 'Big buildings are solid. Fly into one and it comes down, but it costs a lot of energy. The red glow and BUILDING! warn you just before. Houses and small shops pass under you.'],
   ['🛡', 'Energy', 'Your shield and your fuel are one bar. Flying burns a little, army hits and crashes burn more, and everyone you beam up fills it again. Grab them one after another for a BEAM CHAIN: it fills faster.'],
@@ -701,7 +702,8 @@ function update(dt) {
   placed.length = 0; played += dt; tLeft -= dt; runTimers(dt); if (tLeft <= 0) { tLeft = 0; finish('time'); return; }
   if (cardUp && !coachBusy()) { cardUp = false; curCard = null; cardShutAt = played; } /* a first-time card has just been closed */
   coachBU(); if (played > 30) tip('bu_map', '🗺️ Tap the minimap to fly across town. Green dots are people.');
-  beamOn = (beamHeld || beamPress !== null || !!keys[' ']) && ship.alive; fly(dt); shipLook(dt); sk.tick(dt, ship);
+  /* the beam comes down by itself once people have stayed in the circle under the saucer for a second, and stays on while there are people about */ { let near = false; if (ship.alive && state === 'play') for (const c of people) if (Math.hypot(c.position.x - ship.x, c.position.z - ship.z) < PULL_R * 0.8) { near = true; break; } hoverT = near ? hoverT + dt : 0; autoBeamT = hoverT >= AUTO_BEAM ? 0.45 : Math.max(0, autoBeamT - dt); }
+  beamOn = (beamHeld || beamPress !== null || !!keys[' '] || autoBeamT > 0) && ship.alive; fly(dt); shipLook(dt); sk.tick(dt, ship);
   boostT -= dt; nukeT = Math.max(0, nukeT - dt); blindT = Math.max(0, blindT - dt); rayCd -= dt;
   energy -= fuelRate() * dt; if (energy <= 0) { energy = 0; finish('crash', 'fuel'); return; } // flying burns energy too: keep beaming people up
   const sx = ship.x, sz = ship.z, bl = ship.y - 0.42 * SHIP_SCALE; beam.g.position.set(sx, bl, sz); beam.update(dt, bl, GRAB_R, beamOn);
@@ -739,7 +741,7 @@ function update(dt) {
   setT('taScore', score); setT('taCombo', mult() > 1 && played - lastHit < 2.5 ? 'x' + mult() + ' COMBO' : grabChain >= 2 && played - lastGrab < 2.2 ? '👽 x' + (grabChain + 1) + ' CHAIN' : '');
   setT('buCount', '👽 ' + abd + '/' + L().abduct); setC('buCount', 'ok', abd >= L().abduct);
   { const k = Math.max(0, energy / E_MAX), w = (k * 100).toFixed(1) + '%'; if (hudCache.ew !== w) { hudCache.ew = w; $('buEnergyFill').style.width = w; } setT('buEnergyTxt', nukeT > 0 ? '☢️ NUCLEAR SHIELD ' + Math.ceil(nukeT) + 's' : '🛡 ENERGY ' + Math.ceil(k * 100) + '%'); setC('buEnergy', 'low', k < 0.25 && nukeT <= 0); setC('buEnergy', 'mid', k >= 0.25 && k < 0.5 && nukeT <= 0); setC('buEnergy', 'nuke', nukeT > 0); setC('buEnergy', 'hit', hitT > 0.05); }
-  { const p = pct(); setT('taPct', '🏚️ ' + p + '% DESTROYED'); setC('taPct', 'ok', p >= L().goal); }
+  { const p = pct(); setT('taPct', innerWidth < 761 ? '💥 ' + p + '%' : '🏚️ ' + p + '% DESTROYED'); setC('taPct', 'ok', p >= L().goal); }
   setC('buBeam', 'on', beamOn); setC('buBeam', 'hint', !beamOn && !!peopleNear(PULL_R + 1));
   let nDone = 0; for (const k of poiOrder) { const P = pois[k]; if (P.done) { nDone++; continue; } edgeArrow(P.arrow, P.center, true); if (P.mark) tickPoiMark(P.mark); } setT('taTargets', nDone + '/' + poiOrder.length);
   crowdLists[0][0] = people; crowdLists[1][0] = army.soldiers; crowd.sync(crowdLists, sx, sz, 4); syncGlows();

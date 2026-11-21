@@ -50,22 +50,24 @@
     /* the mission box: people still alive, and the collateral meter */
     #hudGoal { gap: 12px; } #taTargets.low { color: #ff7a5a; }
     #arColl { display: flex; flex-direction: column; gap: 3px; min-width: 0; } #arColl small { font-size: 11px; font-weight: 900; letter-spacing: .5px; color: #ffb4a8; white-space: nowrap; }
-    #arCollBar { width: min(170px, 40vw); height: 11px; border-radius: 6px; background: #ffffff1f; border: 1px solid #ffffff55; overflow: hidden; } #arCollFill { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #ffd24a, #ff3a2a); transition: width .2s; }
+    #arCollBar { width: min(150px, 26vw); height: 11px; border-radius: 6px; background: #ffffff1f; border: 1px solid #ffffff55; overflow: hidden; } #arCollFill { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #ffd24a, #ff3a2a); transition: width .2s; }
     #arColl.warn #arCollBar { border-color: #ff3a2a; animation: collWarn .45s infinite alternate; } @keyframes collWarn { to { box-shadow: 0 0 10px #ff3a2a; } }
     #arColl.bump #arCollBar { animation: collBump .45s; } @keyframes collBump { 30% { transform: scaleY(1.7); box-shadow: 0 0 14px #ff3a2a; } }
     #arCraftTag { color: #ffd24a; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
     /* the aircraft: health and ammo. At the bottom in the middle on a computer; on a phone beside the zoom buttons, above them */
-    #arCraft { position: absolute; left: 50%; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); width: 200px; box-sizing: border-box; padding: 5px 8px; border-radius: 10px; background: #0b1416c8; border: 2px solid #ffffff55; display: grid; gap: 4px; pointer-events: none; }
+    /* health, ammo and supplies: three thin bars in the top bar, beside COLLATERAL */
+    #arCraft { position: static; width: min(120px, 25vw); box-sizing: border-box; padding: 0; display: grid; gap: 3px; pointer-events: none; } #arCraft .arRow { gap: 4px; } #arCraft .arRow em { font-size: 10px; } #arCraft .arBar { height: 7px; } #arCraft #arAmmoTxt { font-size: 10px; min-width: 14px; }
+
     .arRow { display: flex; align-items: center; gap: 6px; } .arRow em { flex: none; width: 18px; font-style: normal; font-size: 13px; text-align: center; } .arRow b { flex: none; min-width: 18px; font-size: 13px; font-weight: 900; text-align: right; }
     .arBar { flex: 1; min-width: 0; height: 10px; border-radius: 5px; background: #ffffff1f; border: 1px solid #ffffff44; overflow: hidden; } .arBar i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #ff5a3a, #ffd24a 45%, #7dff3a); }
     .arBar.ammo i { background: linear-gradient(90deg, #ff8a2a, #ffd24a); } #arCraft.low { border-color: #ff5a3a; animation: craftLow .5s infinite alternate; } @keyframes craftLow { to { box-shadow: 0 0 12px #ff5a3a; } } #arCraft.empty .arBar.ammo { border-color: #ffd24a; }
     /* DROP: a big round button for the right thumb (hold it). Bottom right on a computer; on a phone above the zoom buttons */
-    #arDrop { position: absolute; right: 18px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); width: 108px; height: 108px; border-radius: 50%; padding: 0; margin: 0; pointer-events: auto; touch-action: none; -webkit-user-select: none; user-select: none;
+    #arDrop { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); width: 74px; height: 74px; border-radius: 50%; padding: 0; margin: 0; pointer-events: auto; touch-action: none; -webkit-user-select: none; user-select: none;
       display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; background: radial-gradient(circle at 50% 35%, #ffc05a, #ff5a1a 62%, #a02a0a) !important; border: 4px solid #ffe27a; color: #2a0a00; font-weight: 900; box-shadow: 0 0 18px #ff7a1a99, 0 6px 0 #5a1a06 !important; }
-    #arDrop b { font-size: 28px; line-height: 1; } #arDrop span { font-size: 17px; letter-spacing: 1px; line-height: 1; } #arDrop i { font-style: normal; font-size: 11px; line-height: 1.1; }
-    #arDrop.held { transform: translateY(4px) scale(0.95); box-shadow: 0 0 34px #ffc05a, 0 2px 0 #5a1a06 !important; } #arDrop.empty { filter: grayscale(0.85) brightness(0.75); }
+    #arDrop b { font-size: 20px; line-height: 1; } #arDrop span { font-size: 13px; letter-spacing: 1px; line-height: 1; } #arDrop i { font-style: normal; font-size: 9px; line-height: 1.1; }
+    #arDrop.held { transform: translateY(calc(-50% + 3px)) scale(0.95); box-shadow: 0 0 34px #ffc05a, 0 2px 0 #5a1a06 !important; } #arDrop.empty { filter: grayscale(0.85) brightness(0.75); }
     /* the weapons the supplies unlock: a column above DROP, faint until each is unlocked */
-    #arWpns { position: absolute; right: 22px; bottom: calc(136px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column-reverse; gap: 6px; pointer-events: none; z-index: 3; }
+    #arWpns { position: absolute; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column-reverse; gap: 6px; pointer-events: none; z-index: 3; }
     #arWpns button { position: relative; width: 48px; height: 48px; border-radius: 50%; padding: 0; margin: 0; pointer-events: auto; touch-action: none; background: #1a1206e6 !important; border: 3px solid #a8842a; box-shadow: none !important; } #arWpns button b { font-size: 22px; line-height: 1; }
     #arWpns button i { position: absolute; right: -6px; bottom: -4px; font-style: normal; font-size: 11px; font-weight: 900; color: #ffe27a; text-shadow: 0 1px 2px #000; } #arWpns button.sel { border-color: #ffe27a; box-shadow: 0 0 14px #ffc05a !important; transform: scale(1.12); } #arWpns button.lock { opacity: 0.22; pointer-events: none; filter: grayscale(1); }
     .arBar.sup i { background: linear-gradient(90deg, #6ab8ff, #ffe27a); }
@@ -83,11 +85,9 @@
     .giArrow em { border-color: #ff5a4a; box-shadow: 0 0 10px #ff5a4a88; } .giArrow i { color: #ff7a6a; }
     body.paused .giTag, body.paused .giArrow { visibility: hidden; }
     @media (max-width: 760px), (max-height: 520px) {
-      #arCraft { left: 148px; transform: none; bottom: calc(66px + env(safe-area-inset-bottom, 0px)); width: calc(100vw - 148px - 126px); min-width: 104px; max-width: 230px; padding: 4px 6px; }
-      #arDrop { right: 12px; bottom: calc(66px + env(safe-area-inset-bottom, 0px)); width: 100px; height: 100px; }
       #arBaseMsg { bottom: calc(176px + env(safe-area-inset-bottom, 0px)); font-size: 13px; }
-      #arWpns { right: 14px; bottom: calc(174px + env(safe-area-inset-bottom, 0px)); } #arWpns button { width: 44px; height: 44px; } }
-    @media (max-height: 520px) { #arWpns { flex-direction: row-reverse; right: 122px; bottom: calc(70px + env(safe-area-inset-bottom, 0px)); } }
+      #arWpns button { width: 44px; height: 44px; } }
+    @media (max-height: 520px) { #arWpns { flex-direction: row-reverse; } }
     @media (max-height: 520px) { #arBaseMsg { bottom: auto; top: 46%; } }
     /* the start screen: pick your aircraft, two cards side by side, each with the aircraft turning on it */
     #taStart h1 { font-size: clamp(34px, 11vw, 56px); } #taStart .tag { font-size: 16px; margin: -4px 0 0; }
@@ -109,16 +109,15 @@
 </head>
 <body class="booting">
   <div id="boot"><p class="bootKick">TORNADO TIME! BONUS GAME</p><h1>ZOMBIE<br>AIR RAID</h1><div class="bootSpin"><i></i><i></i><i></i><i></i></div><div class="bootBar"><b></b></div><p class="bootLbl">BUILDING THE TOWN</p><p id="bootTip"></p></div>
-  <script>window.__bootTip = function () { var t = ["Napalm burns for a few seconds. Drop it where the horde is heading.","The heli's rockets land on the circle ahead of it: turn the heli to aim, then hold FIRE.","Gloopers, the glowing green zombies, lob acid at low aircraft. Take them out first.","Out of ammo? Fly over the airfield to reload and repair.","Everyone a zombie catches becomes a zombie. Be quick!","Drop napalm down the middle of the street, away from the houses.","Tap the minimap to head across town.","The bomber never stops. Line it up on a long street before you drop.","Big buildings are solid. Watch for the red glow and steer round them.","A Grave Giant's red ring shows where its chunk is coming down. Get out from over it!"]; document.getElementById('bootTip').textContent = 'TIP: ' + t[Math.floor(Math.random() * t.length)]; }; window.__bootTip();</script>
+  <script>window.__bootTip = function () { var t = ["Napalm burns for a few seconds. Drop it where the horde is heading.","Tap a spot to fly there. Double tap it to drop napalm on it, or fire a rocket at it.","Gloopers, the glowing green zombies, lob acid at low aircraft. Take them out first.","Out of ammo? Fly over the airfield to reload and repair.","Everyone a zombie catches becomes a zombie. Be quick!","Drop napalm down the middle of the street, away from the houses.","Tap the minimap to head across town.","The bomber never stops. Line it up on a long street before you drop.","Big buildings are solid. Watch for the red glow and steer round them.","A Grave Giant's red ring shows where its chunk is coming down. Get out from over it!"]; document.getElementById('bootTip').textContent = 'TIP: ' + t[Math.floor(Math.random() * t.length)]; }; window.__bootTip();</script>
   <canvas id="game"></canvas>
   <div id="ta" class="hidden">
     <div class="top">
       <div id="hudSize"><b id="taRank">🧟 300</b><div id="taGrow"><div id="taGrowFill"></div><i class="tick" id="arGoalTick" style="left:10%"><b>GOAL</b></i></div><span id="taTime">3:00</span></div>
-      <div id="hudGoal"><span class="goalLbl">👥 PEOPLE<b id="taTargets">0</b></span><div id="arColl"><small>💥 COLLATERAL</small><div id="arCollBar"><i id="arCollFill"></i></div></div></div>
+      <div id="hudGoal"><span class="goalLbl">👥 PEOPLE<b id="taTargets">0</b></span><div id="arColl"><small>💥 COLLATERAL</small><div id="arCollBar"><i id="arCollFill"></i></div></div><div id="arCraft"><div class="arRow"><em>❤️</em><div class="arBar"><i id="arHpFill"></i></div></div><div class="arRow"><em id="arAmmoIcon">🔥</em><div class="arBar ammo"><i id="arAmmoFill"></i></div><b id="arAmmoTxt">8</b></div><div class="arRow"><em>📦</em><div class="arBar sup"><i id="arSupFill" style="width:0"></i></div></div></div></div>
       <div id="taSub"><span id="taLevel"></span><span id="arCraftTag"></span><span id="taScore">0</span><span id="taCombo"></span></div>
     </div>
     <canvas id="taMap"></canvas><div id="taPct"></div>
-    <div id="arCraft"><div class="arRow"><em>❤️</em><div class="arBar"><i id="arHpFill"></i></div></div><div class="arRow"><em id="arAmmoIcon">🔥</em><div class="arBar ammo"><i id="arAmmoFill"></i></div><b id="arAmmoTxt">8</b></div><div class="arRow"><em>📦</em><div class="arBar sup"><i id="arSupFill" style="width:0"></i></div></div></div>
     <div id="arWpns"></div>
     <button id="arDrop" class="hidden" aria-label="Drop napalm or fire rockets"><b>🔥</b><span>DROP</span><i id="arDropN">8 LEFT</i></button>
     <div id="arBaseMsg"></div>
