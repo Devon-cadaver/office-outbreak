@@ -1,6 +1,6 @@
 # Tornado Time! — itch.io page kit
 
-Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.38.2**. Upload `release/tornado-time-web-v1.38.2.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to. All the images below are in `release/itch/tornado-time/`.
+Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.39.0**. Upload `release/tornado-time-web-v1.39.0.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to. All the images below are in `release/itch/tornado-time/`.
 
 The game used to be called Dead City: Tornado Alley. From 1.28.0 it is **Tornado Time!**, with Kaiju Madness as its bonus game. Older zips keep their old `survive-dead-city-web` names.
 
@@ -15,7 +15,7 @@ The game used to be called Dead City: Tornado Alley. From 1.28.0 it is **Tornado
 | Short description / tagline | You are the tornado. Wreck six towns, swallow rival twisters, zap UFOs and blow up everything worth blowing up. |
 | Classification | Game |
 | Kind of project | **HTML** |
-| Uploads | `tornado-time-web-v1.38.2.zip` (about 40 MB, mostly the eleven songs). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
+| Uploads | `tornado-time-web-v1.39.0.zip` (about 40 MB, mostly the eleven songs). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
 | Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
 | Frame options | Leave SharedArrayBuffer off. No special headers needed. |
 | Pricing | Free (or "No payments"). |
@@ -123,6 +123,7 @@ Small browser games built fast, tested on a phone, and tuned by playing. Tornado
 
 ## Version history
 
+- **1.39.0** (2026-11-22): Zombie Air Raid: the horde now attacks buildings and cars as well as people, and what it wrecks fills your COLLATERAL. A small crowd slowly breaks into small buildings; a big horde wears down big ones too. Grave Giants come in every town now (more in the big ones), stamp houses flat as they walk and batter big buildings down.
 - **1.38.2** (2026-11-22): Beam 'Em Up! is much harder from Small Town on: more helicopters and tanks, sooner, fighter jets from the first town, tank columns of 3 to 10 rolling in together, and each person beamed up gives half the health. Fixed: the E badge now starts each round at the right level, and tapping a big target picks the gun it needs (a nuke takes one out in one go).
 - **1.38.1** (2026-11-22): Fixed: in Beam 'Em Up! the BEAM THEM UP card could not be closed. It now closes with a tap, like every other card.
 - **1.38.0** (2026-11-22): Beam 'Em Up!: the E level now has the tornado's F level look (a green badge and one bar with a tick at each level), your health is a small bar floating over your machine, big targets light up only once your gun can take them, the nukes recharge every 25 seconds, a speed boost lights everything up and fires the ray all round, and a town needs its big targets taken out too. Main menu: QUICK PLAY, then TORNADO TIME! and BONUS GAMES side by side (the bonus games have their own screen), with bigger icons; the quick-play screen fits the phone.

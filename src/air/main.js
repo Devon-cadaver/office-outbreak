@@ -66,12 +66,12 @@ const poiFx = createPoiFx(scene, fx, { jolt, popup: (...a) => popup(...a), flash
 // wears down a heli). giants: how many GRAVE GIANTS rise during the round, gHP: how much each can take (in rockets; a fire
 // patch is worth one and a half). Win: the horde down to the level's goal
 const LEVELS = [
-  { name: 'Small Town', size: 21, zombies: 300, time: 210, civ: 80, pois: 4, hordes: 7, drift: 0.05, goal: 0.2, smell: 2, preyR: 3.4, spit: 0.04, giants: 0, gHP: 0 },
-  { name: 'Suburbs', size: 27, zombies: 350, time: 225, civ: 88, pois: 5, hordes: 8, drift: 0.15, goal: 0.2, smell: 2, preyR: 3.8, spit: 0.05, giants: 0, gHP: 0 },
-  { name: 'Downtown', size: 33, zombies: 400, time: 220, civ: 96, pois: 6, hordes: 10, drift: 0.25, goal: 0.185, smell: 2, preyR: 4.0, spit: 0.055, giants: 1, gHP: 12 },
-  { name: 'Metro', size: 39, zombies: 450, time: 285, civ: 104, pois: 6, hordes: 10, drift: 0.35, bases: 2, goal: 0.195, smell: 3, preyR: 4.2, spit: 0.055, giants: 2, gHP: 15 },
-  { name: 'Megacity', size: 47, zombies: 525, time: 340, civ: 112, pois: 7, hordes: 11, drift: 0.45, bases: 2, goal: 0.2, smell: 3, preyR: 4.4, spit: 0.05, giants: 3, gHP: 18 },
-  { name: 'The Sprawl', size: 57, zombies: 600, time: 320, civ: 120, pois: 7, hordes: 12, drift: 0.5, bases: 4, goal: 0.2, smell: 3, preyR: 4.4, spit: 0.045, giants: 4, gHP: 21 }, // drift: how keenly the hordes head for people (more in the big towns, or they'd never meet)
+  { name: 'Small Town', size: 21, zombies: 300, time: 210, civ: 80, pois: 4, hordes: 7, drift: 0.05, goal: 0.2, smell: 2, preyR: 3.4, spit: 0.04, giants: 1, gHP: 8 },
+  { name: 'Suburbs', size: 27, zombies: 350, time: 225, civ: 88, pois: 5, hordes: 8, drift: 0.15, goal: 0.2, smell: 2, preyR: 3.8, spit: 0.05, giants: 1, gHP: 10 },
+  { name: 'Downtown', size: 33, zombies: 400, time: 220, civ: 96, pois: 6, hordes: 10, drift: 0.25, goal: 0.185, smell: 2, preyR: 4.0, spit: 0.055, giants: 2, gHP: 12 },
+  { name: 'Metro', size: 39, zombies: 450, time: 285, civ: 104, pois: 6, hordes: 10, drift: 0.35, bases: 2, goal: 0.195, smell: 3, preyR: 4.2, spit: 0.055, giants: 3, gHP: 15 },
+  { name: 'Megacity', size: 47, zombies: 525, time: 340, civ: 112, pois: 7, hordes: 11, drift: 0.45, bases: 2, goal: 0.2, smell: 3, preyR: 4.4, spit: 0.05, giants: 5, gHP: 18 },
+  { name: 'The Sprawl', size: 57, zombies: 600, time: 320, civ: 120, pois: 7, hordes: 12, drift: 0.5, bases: 4, goal: 0.2, smell: 3, preyR: 4.4, spit: 0.045, giants: 6, gHP: 21 }, // drift: how keenly the hordes head for people (more in the big towns, or they'd never meet)
 ];
 let level = 1; const L = () => LEVELS[level - 1];
 const Z_MAX = 900, zombiesIn = (lv) => Math.max(1, Math.min(Z_MAX, +Q.get('z') || lv.zombies)); // ?z=N (tests): that many zombies in every town instead, up to Z_MAX (horde.js CROWD_MAX has room for that many plus the townsfolk)
@@ -90,7 +90,7 @@ const BLD = { margin: 0.25, rc: { bomber: 0.55, heli: 0.5 }, dmg: 34, bump: 1.0,
 // into; hold: how long it holds the chunk up; cd: seconds between throws; dmg: a chunk that reaches the aircraft (a quarter of
 // full health); hitR: how much of the chunk's size counts for a hit; fire / rocket: what each new fire patch it touches and
 // each rocket take off its health; rise: when the first climbs out of the ground, then the gap; g: the chunk's gravity
-const GIANT = { range: 15, reach: 3.6, hold: 0.8, lock: 0.35, cd: [3.2, 4.6], grabR: 2.3, grab: 0.75, swipe: 0.55, hitK: 0.33, dmg: 25, hitR: 0.8, fire: 1.5, rocket: 1, rise: [16, 34], score: 5000, g: 15 }; // lock: how long before the throw its aim (the red ring) stops following you
+const GIANT = { range: 15, reach: 3.6, hold: 0.8, lock: 0.35, cd: [3.2, 4.6], grabR: 2.3, grab: 0.75, swipe: 0.55, hitK: 0.33, dmg: 25, hitR: 0.8, fire: 1.5, rocket: 1, rise: [14, 24], score: 5000, g: 15 }; // lock: how long before the throw its aim (the red ring) stops following you
 const COLL = { civ: 8, bHit: 2, bLost: 3, poi: 25 }; // what fills the collateral meter (100 = mission failed): about a dozen people, or twenty buildings
 const SC = { kill: 100, spit: 250, saved: 150, civ: -2000, bHit: -1000, bLost: -1000, poi: -10000, civEnd: 500, sec: 100 }; // points
 // the big landmarks are the town's pride: hit one and it goes up in its own way (poiFx), and that is a lot of collateral
@@ -574,7 +574,21 @@ function updateUfos(dt) { const c = craft, U = UFO_LV[level - 1] || UFO_LV[0]; i
 function clearUfos() { while (ufos.length) dropUfo(ufos[0]); ufoT = 0; gunT = 0; ufoDown = 0; }
 function hurtG(G, dmg) { if (!G.live || state !== 'play') return; const was = G.hp; if (horde.hurtGiant(G, dmg)) giantFelled(G); else if (Math.ceil(was / G.max * 4) !== Math.ceil(G.hp / G.max * 4)) sfx.groan(); }
 function giantFelled(G) { gDown++; score += GIANT.score; banner('💀 GRAVE GIANT DOWN!'); popup({ x: G.root.position.x, y: 4, z: G.root.position.z }, '+' + GIANT.score + ' GRAVE GIANT DOWN!', '#ffd24a'); sfx.wave(); setTimeout(() => sfx.power(), 300); }
-function onGiantStep(G, foot) { fx.dust({ x: foot.x, y: 0, z: foot.z }, 0.9); const v = toScreen(foot); if (v.on) { sfx.stomp(3); jolt(0.08); } }
+function onGiantStep(G, foot) { fx.dust({ x: foot.x, y: 0, z: foot.z }, 0.9); const v = toScreen(foot); if (v.on) { sfx.stomp(3); jolt(0.08); }
+  if (state !== 'play') return; for (const b of buildings) { if (b.done || Math.abs(foot.x - b.pos.x) > b.hw + 0.2 || Math.abs(foot.z - b.pos.z) > b.hd + 0.2) continue; /* a foot came down on it */
+    if (b.h <= SIEGE.big) { collapse(b, { from: foot, power: 1.1, fire: false }); zWrecked++; addColl(SIEGE.coll, b.pos, '💀 STOMPED!'); } else { if (b.zhp == null) b.zhp = SIEGE.bigHp; b.zhp -= SIEGE.stomp; fx.explode(foot.clone().setY(1), 0.8); if (b.zhp <= 0) { collapse(b, { from: foot, power: 1.2, fire: false }); zWrecked++; addColl(SIEGE.coll, b.pos, '💀 GIANT WRECKED IT!'); } } } }
+// ---------- THE SIEGE: zombies crowding round a building wear it down; round a parked car, they wreck it. Checked once a second.
+// small: hit points of a small building (zombie-seconds), bigHp a big one (taller than SIEGE.big); bigN: how big a crowd must be
+// to hurt a big building at all; rate: hit points each zombie takes off a second (rateS a small crowd, rateB a big one, rateBig
+// a big crowd on a big building); carT: seconds two or more zombies need on a car; coll: collateral for each one lost ----------
+const SIEGE = { every: 1, big: 3.6, smallHp: 38, bigHp: 200, bigN: 7, rateS: 1.1, rateB: 1.8, rateBig: 0.8, carT: 4, coll: 1.2, stomp: 60 };
+let siegeT = 0, zWrecked = 0;
+function updateSiege(dt) { siegeT -= dt; if (siegeT > 0 || state !== 'play') return; siegeT = SIEGE.every;
+  for (const b of buildings) { if (b.done) continue; const n = horde.count(b.pos.x, b.pos.z, Math.max(b.hw, b.hd) + 0.9); if (n < 2) continue; const big = b.h > SIEGE.big; if (big && n < SIEGE.bigN) continue;
+    const max = big ? SIEGE.bigHp : SIEGE.smallHp; if (b.zhp == null) b.zhp = max; b.zhp -= n * (big ? SIEGE.rateBig : n >= SIEGE.bigN ? SIEGE.rateB : SIEGE.rateS) * SIEGE.every;
+    if (!b.zWarn && b.zhp < max * 0.5 && toScreen(b.pos).on) { b.zWarn = true; popup(b.pos, "🧟 THEY'RE BREAKING IN!", '#ff9a6a'); }
+    if (b.zhp <= 0) { collapse(b, { power: 0.8, fire: false }); zWrecked++; addColl(SIEGE.coll, b.pos, '🧟 ZOMBIES WRECKED IT!'); } }
+  for (let i = cars.length - 1; i >= 0; i--) { const k = cars[i]; if (k.pr && k.pr.knocked) { cars.splice(i, 1); continue; } if (horde.count(k.p.x, k.p.z, 1.1) >= 2) { k.zt = (k.zt || 0) + SIEGE.every; if (k.zt >= SIEGE.carT) { const at = k.p.clone(); blowCar(i); addColl(1, at, '🧟 CAR WRECKED!'); } } else k.zt = 0; } }
 // down: it hits the ground full length. What it falls on is flattened (its doing, not yours)
 function onGiantThud(G) { const P = G.root.position, fw = G.root.rotation.y, seen = toScreen(P).on; jolt(seen ? 0.9 : 0.25); if (seen) { sfx.boom(); setTimeout(() => sfx.crunch(true), 120); } fx.shock(P, 5, 0xffe2b0, 0.5);
   for (let k = 0; k < 4; k++) { const d = 1 + k * 1.5, x = P.x + Math.sin(fw) * d, z = P.z + Math.cos(fw) * d; for (let j = 0; j < 3; j++) { const a = Math.random() * 6.28; fx.dust({ x: x + Math.cos(a) * 0.8, y: 0, z: z + Math.sin(a) * 0.8 }, 1.4, Math.cos(a) * 2.4, Math.sin(a) * 2.4); }
@@ -707,7 +721,7 @@ function start() { firstSong('ar', 'music/napalm-requiem.mp3'); /* (the first ro
   fsMode.play(); coachClear(); saveLast('ar', level); horde.crowd.clear(); if (state !== 'start' || roundN > 0) roundN++; roundId++;
   unlockAudio(); sk.clear(); buildWorld(); makeCraft(craftKind); setupMap(); /* (sk.clear first: it frees the last round's baby twisters while the twisters module still has them) */
   score = coll = kills = spitKills = savedN = civHit = turned = bHit = bLost = poiHit = acidHits = refills = multiBest = drops = shots = bumps = rockHits = crushed = gUp = gDown = 0; wpn = wLv = sup = nukes = supNuke = 0; played = 0; coll70 = false; endWhy = ''; dropHeld = false; botDrop = false; botKT = 0; stickOff(); touches.clear(); setWarn(null);
-  clearUfos();
+  clearUfos(); zWrecked = 0; siegeT = 1;
   gPlan = []; for (let i = 0; i < (L().giants || 0); i++) gPlan.push(GIANT.rise[0] + i * GIANT.rise[1]); // when each Grave Giant climbs out of the ground
   ROUND = +Q.get('time') || L().time; tLeft = ROUND; zStart = horde.zombies; goalN = Math.max(1, Math.round(zStart * L().goal)); civStart = horde.civs;
   $('arGoalTick').style.left = ((zStart - goalN) / zStart * 100) + '%'; { const b = $('arDrop'), heli = craftKind === 'heli'; b.innerHTML = heli ? '<b>🚀</b><span>FIRE</span><i id="arDropN"></i>' : '<b>🔥</b><span>DROP</span><i id="arDropN"></i>'; b.setAttribute('aria-label', heli ? 'Fire rockets' : 'Drop napalm'); b.classList.remove('hidden'); } drawWpns(); /* the big button: DROP napalm, or FIRE rockets; beside it, the weapons the supplies unlock */ $('arAmmoIcon').textContent = craftKind === 'bomber' ? '🔥' : '🚀'; $('arCraftTag').textContent = CRAFTS[craftKind].icon + ' ' + CRAFTS[craftKind].tag;
@@ -741,7 +755,7 @@ function finishNow() {
   $('taGoalLine').textContent = why[endWhy] || '';
   if (gotSkins.length) { const u = document.createElement('div'); u.style.cssText = 'margin-top:8px;padding:8px 10px;border-radius:10px;border:2px solid #7dff3a;background:#0e2a0acc;color:#7dff3a;font-weight:900;font-size:15px;box-shadow:0 0 14px #7dff3a66'; u.innerHTML = '🏆 BONUS SKINS UNLOCKED: <b>' + gotSkins.join(' AND ').toUpperCase() + '</b><br><small style="color:#cfe8c8;font-weight:700;font-size:11px">Put them on with CHOOSE SKIN, or in the skin shop.</small>'; $('taGoalLine').appendChild(u); }
   if (won && level < LEVELS.length) level++; saveLast('ar', level); drawLevels();
-  $('taStats').innerHTML = [['🧟 Zombies destroyed', kills + (spitKills ? ' (' + spitKills + ' gloopers)' : '')], ...(lv0.giants ? [['💀 Grave Giants downed', gDown + ' / ' + lv0.giants]] : []), ['Horde left', zl + ' (goal ' + goalN + ')'], [won ? '👥 People saved' : '👥 People alive', alive + ' / ' + civStart + (won ? '  +' + civB : '')], ['People turned', turned], ['People you hit', civHit], ['🏚️ Buildings hit', bHit + (bLost ? ' (' + bLost + ' destroyed)' : '')], ...(bumps ? [['✈️ Buildings flown into', bumps]] : []), ['💥 Collateral', Math.round(coll) + '%'],
+  $('taStats').innerHTML = [['🧟 Zombies destroyed', kills + (spitKills ? ' (' + spitKills + ' gloopers)' : '')], ...(lv0.giants ? [['💀 Grave Giants downed', gDown + ' / ' + lv0.giants]] : []), ['Horde left', zl + ' (goal ' + goalN + ')'], [won ? '👥 People saved' : '👥 People alive', alive + ' / ' + civStart + (won ? '  +' + civB : '')], ['People turned', turned], ['People you hit', civHit], ['🏚️ Buildings hit', bHit + (bLost ? ' (' + bLost + ' destroyed)' : '')], ...(zWrecked ? [['🧟 Lost to the horde', zWrecked]] : []), ...(bumps ? [['✈️ Buildings flown into', bumps]] : []), ['💥 Collateral', Math.round(coll) + '%'],
     ...(won ? [['⏱️ Time bonus', '+' + timeB]] : []), ['Aircraft', CRAFTS[craft.kind].name], ['Score', score], ['Score coins', '+' + scoreCoins + ' 🪙'], ['Best', best]].map(([a, b]) => '<tr><td>' + a + '</td><td>' + b + '</td></tr>').join('');
   const kept = won && alive >= civStart * 0.7, goes = Math.min(3, 1 + (won ? 1 : 0) + (kept ? 1 : 0));
   showPrizes($('taChests'), goes, ['1 go for flying the mission', won && '+1 for saving the town', kept && '+1 for keeping 70% of the people alive'].filter(Boolean).join(', '), () => { location.href = 'store.html?from=airraid'; }, craftPrize(craft.kind, won, goes), () => { $('taPrize').classList.add('hidden'); $('taEnd').classList.remove('hidden'); }, 'craft');
@@ -755,8 +769,9 @@ const HOWTO = [
   ['👥', 'Spare the people', 'Burning or blasting people, or setting buildings alight, fills the COLLATERAL meter. Fill it and the mission fails.'],
   ['📦', 'Supplies and new weapons', 'Every zombie you destroy adds to the SUPPLIES bar, and blowing up a big landmark (the fairground, the power plant...) adds a lot, at no cost. Fill the bar to unlock a bigger bomb, then a second new weapon, then the NUKE. Pick your weapon with the buttons on the right.'],
   ['🟢', 'Gloopers', 'Gloopers, the glowing green zombies, lob acid at aircraft that fly low. The heli is always low; the bomber dips low while it drops. Take them out first.'],
+  ['🏚️', 'The horde wrecks things too', 'Zombies crowding round a building break it down, and a crowd round a parked car wrecks it: that fills your COLLATERAL too, so stop them fast. A small crowd only wrecks small buildings (slowly); a big horde wears down big ones as well. Grave Giants stamp houses flat as they walk.'],
   ['🛸', 'UFOs', 'UFOs come after you, more of them in the bigger towns. When one points a red line at you, change course: its laser fires along it a moment later. Your tail gun shoots back by itself at any UFO close by.'],
-  ['💀', 'Grave Giants', 'From Downtown on, giant zombies climb out of the ground. They tear chunks off buildings and throw them at you: a red ring shows where one is coming, so fly clear. Get too close and it grabs or swipes you, costing a third of your health. Napalm and rockets bring them down, but it takes a lot.'],
+  ['💀', 'Grave Giants', 'Giant zombies climb out of the ground in every town, more in the bigger ones. They tear chunks off buildings and throw them at you: a red ring shows where one is coming, so fly clear. Get too close and it grabs or swipes you, costing a third of your health. Napalm and rockets bring them down, but it takes a lot.'],
   ['⛽', 'The airfield', 'Out of ammo or hurt? Fly over the airfield just outside town to reload and repair (nobody fires from inside its ring). Follow the ⛽ arrow at the edge of the screen.'],
   ['⌨️', 'On a computer', 'A and D (or the left and right arrows) always turn the aircraft to its own left and right: hold one to fly a circle. Hold SPACE to drop (bomber) or fire (heli). Heli: W and S (or up and down) fly forward and back. Click the town to fly there.'],
   ['🏆', 'Save the town', 'Save a town to open the next one. Everyone still alive at the end is a bonus.'],
@@ -819,7 +834,7 @@ function update(dt) {
   played += dt; tLeft -= dt; if (tLeft <= 0) { tLeft = 0; finish(horde.zombies <= goalN ? 'win' : 'time'); return; }
   coachAR(); if (coachBusy()) return; /* a prompt has just come up: the round waits from this moment (a building it is about stays lit up red) */ if (played > 30) tip('ar_map', '🗺️ Tap the minimap to fly across town.'); if (bot) botTick(dt);
   updateCraft(dt); const c = craft; craftView.pos.copy(c.pos); craftView.vel.copy(c.vel); craftView.r = c.S.r; craftView.alive = c.alive && !c.crash; craftView.safe = c.baseD < BASE_R + 1; craftView.stealth = c.stealth || 1; // the airfield is a safe zone: the acid (and the giants) can't reach it
-  horde.update(dt); updateGiants(dt); updateUfos(dt); updateRocks(dt); updateShards(dt); updateCans(dt); updateRockets(dt); updateBlasts(dt); updatePatches(dt); updateBuildingFires(dt); flushKills(dt);
+  horde.update(dt); updateGiants(dt); updateUfos(dt); updateSiege(dt); updateRocks(dt); updateShards(dt); updateCans(dt); updateRockets(dt); updateBlasts(dt); updatePatches(dt); updateBuildingFires(dt); flushKills(dt);
   if (state !== 'play') return; // something above ended the round
   if (horde.zombies <= goalN) { finish('win'); return; } if (horde.civs <= 0) { finish('nociv'); return; }
   updateHud(dt); mapT -= dt; if (mapT <= 0) { mapT = 0.1; drawMini(); }
@@ -859,7 +874,7 @@ else { buildWorld(); makeCraft(craftKind); camTarget.set(0, 0, 0); }
 requestAnimationFrame(frame); requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove('booting'))); // the start screen is ready now
 
 window.__ar = { start, finish, finishNow, tapAt, fireRocket, wreckPoi, igniteB, hitThings, setZoom, THREE, renderer, scene, cam, horde, fx, twisters, spawnGiant, blockerAt, bldAhead, collapse, BLD, GIANT, AIM_D,
-  get aim() { return craft && craft.kind === 'heli' ? aimPoint(craft, new THREE.Vector3()) : reticle.position.clone(); }, get giants() { return horde.giants; }, get ufos() { return ufos; }, get ufoDown() { return ufoDown; }, get rocks() { return rocks; }, get rings() { return rings; }, get warn() { return warnB; }, get bumps() { return bumps; }, get gDown() { return gDown; }, get gUp() { return gUp; }, get rockHits() { return rockHits; }, get crushed() { return crushed; }, get acidHits() { return acidHits; }, get shots() { return shots; }, get drops() { return drops; }, get refills() { return refills; }, get gPlan() { return gPlan; },
+  get aim() { return craft && craft.kind === 'heli' ? aimPoint(craft, new THREE.Vector3()) : reticle.position.clone(); }, get giants() { return horde.giants; }, get ufos() { return ufos; }, get zWrecked() { return zWrecked; }, get coll() { return coll; }, get ufoDown() { return ufoDown; }, get rocks() { return rocks; }, get rings() { return rings; }, get warn() { return warnB; }, get bumps() { return bumps; }, get gDown() { return gDown; }, get gUp() { return gUp; }, get rockHits() { return rockHits; }, get crushed() { return crushed; }, get acidHits() { return acidHits; }, get shots() { return shots; }, get drops() { return drops; }, get refills() { return refills; }, get gPlan() { return gPlan; },
   get state() { return state; }, get craft() { return craft; }, get level() { return level; }, set level(v) { level = v; drawLevels(); }, get craftKind() { return craftKind; }, set craftKind(k) { craftKind = k; drawCrafts(); },
   get bot() { return bot; }, set bot(v) { bot = !!v; }, get botInfo() { return { aim: botAim, run: +botRun.toFixed(2), drop: botDrop, kt: botKT }; }, set drop(v) { dropHeld = !!v; }, get score() { return score; }, get coll() { return coll; }, get zombies() { return horde.zombies; }, get civs() { return horde.civs; }, get goal() { return goalN; },
   get tLeft() { return tLeft; }, set tLeft(v) { tLeft = v; }, get kills() { return kills; }, get turned() { return turned; }, get civHit() { return civHit; }, get bHit() { return bHit; }, get bLost() { return bLost; }, get poiHit() { return poiHit; },
