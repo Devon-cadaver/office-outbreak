@@ -313,7 +313,7 @@ function updateLifted(dt) { const top = ship.y - 0.45;
 // someone is aboard: energy (more for a quick run of them), points, and the dome lights up
 function aboard(l) { const c = l.c, kind = l.kind, at = ship.center.clone().setY(ship.y + 0.6);
   if (played - lastGrab < 2.2) grabChain++; else grabChain = 0; lastGrab = played;
-  const gain = (kind === 'car' ? 1.5 : kind === 'soldier' ? 6 : kind === 'zombie' ? 2.5 : 4) + Math.min(grabChain, 8) * 0.75; addEnergy(gain);
+  const gain = (kind === 'car' ? 0.8 : kind === 'soldier' ? 3 : kind === 'zombie' ? 1.2 : 2) + Math.min(grabChain, 8) * 0.35; /* (half what it was: health is harder to win back) */ addEnergy(gain);
   if (kind !== 'car') abd++; addPower(EP[kind] || 1); { const key = { car: 'cars', soldier: 'soldiers', zombie: 'zombies', convict: 'convicts' }[kind] || 'people'; stats[key] = (stats[key] || 0) + 1; }
   const label = kind === 'car' ? 'CAR NAPPED' : kind === 'soldier' ? 'SOLDIER' : kind === 'zombie' ? 'ZOMBIE' : kind === 'convict' ? 'CONVICT' : '';
   award(kind === 'car' ? 150 : kind === 'soldier' ? 60 : kind === 'zombie' ? 80 : kind === 'convict' ? 90 : 30, at, label, true);
@@ -335,7 +335,7 @@ function pickAt(cx, cy) {
   let tgt = army.pick(sd, foes.targets().map((f) => hornTgt(f, 58)));
   if (!tgt) { let bt = Infinity;
     for (const k of poiOrder) { const P = pois[k]; if (P.done) continue; const h = zapRay.ray.intersectBox(P.box, hitV), onBadge = P.mark && sd(P.mark.userData.badge.getWorldPosition(tmp2)) < 46; // its floating badge is drawn on top of everything, so a tap on the badge wins
-      const t = onBadge ? 0 : h ? h.distanceTo(zapRay.ray.origin) : sd(P.center.clone().setY(1.2)) < 54 ? 1e6 : Infinity; if (t < bt) { bt = t; const at = h && !onBadge ? h.clone() : P.center.clone().setY(1.2); tgt = { kind: 'poi', pos: at, go: P.center, hit: () => hitPoi(k, at), ok: () => !P.done }; } }
+      const t = onBadge ? 0 : h ? h.distanceTo(zapRay.ray.origin) : sd(P.center.clone().setY(1.2)) < 54 ? 1e6 : Infinity; if (t < bt) { bt = t; const at = h && !onBadge ? h.clone() : P.center.clone().setY(1.2); tgt = { kind: 'poi', k, pos: at, go: P.center, hit: () => hitPoi(k, at), ok: () => !P.done }; } }
     for (const x of buildings) { if (x.done) continue; const h = zapRay.ray.intersectBox(x.box, hitV); if (!h) continue; const t = h.distanceTo(zapRay.ray.origin); if (t < bt) { bt = t; const at = h.clone(); tgt = { kind: 'building', pos: at, go: x.pos, hit: () => hitBuilding(x, at), ok: () => !x.done }; } } }
   const p = V3(); if (!zapRay.ray.intersectPlane(groundPlane, p)) return null; return { tgt, p }; }
 // a tap on the town (as in Tornado Time!): the saucer flies to the spot (to a building's or a big target's own spot, or a tank's
@@ -376,10 +376,12 @@ function drawSw() { const box = $('buWpns'); if (!box) return; if (!box.children
   SW.l.forEach((w, i) => { const b = box.children[i]; b.classList.toggle('lock', i > swLv || (i >= 3 && swN[i - 3] <= 0)); b.classList.toggle('sel', i === sw); b.querySelector('i').textContent = i >= 3 && swN[i - 3] <= 0 && i <= swLv ? Math.ceil(nukeCd[i - 3]) + 's' : 'E' + (i + 1); }); }
 function nukeTick(dt) { for (const k of [0, 1]) { if (swN[k] >= 1 || swLv < 3 + k) continue; const was = Math.ceil(nukeCd[k]); nukeCd[k] -= dt; if (nukeCd[k] <= 0) { swN[k] = 1; banner('☢️ ' + SW.l[3 + k].name.slice(3) + ' READY!'); sfx.power(); drawSw(); } else if (Math.ceil(nukeCd[k]) !== was) drawSw(); } }
 // a tap's shot at the picked level (the ray's own automatic shots stay plain)
-function swShot(tgt, to) { if (sw >= 3) { const k = sw - 3; if (swN[k] > 0) { swN[k]--; nukeCd[k] = SW.nukeCd; goNuke(to, k ? NUKE_R : SW.miniR); stats.nukes = (stats.nukes || 0) + 1; } sw = Math.min(swLv, 2); drawSw(); return; }
+// a tap on a big target picks the gun it needs by itself (the smallest one that will do, if you have it ready)
+function autoGun(need) { if (sw + 1 >= need && (sw < 3 || swN[sw - 3] > 0)) return; for (let i = need - 1; i <= swLv; i++) if (i < 3 || swN[i - 3] > 0) { if (sw !== i) { sw = i; drawSw(); } return; } }
+function swShot(tgt, to) { if (sw >= 3) { const k = sw - 3; if (swN[k] > 0) { swN[k]--; nukeCd[k] = SW.nukeCd; if (tgt.kind === 'poi' && !pois[tgt.k].done) wreckPoi(tgt.k); /* (a nuke takes a big target out in one go) */ goNuke(to, k ? NUKE_R : SW.miniR); stats.nukes = (stats.nukes || 0) + 1; } sw = Math.min(swLv, 2); drawSw(); return; }
   if (sw >= 1) { fx.glow(to, 3.2, 0xffffff, 0.5, 0.6); tgt.hit(); } /* the heavy ray: twice the damage */
   if (sw === 2) { let n = 0; for (const x of buildings) { if (n >= 2) break; if (x.done || x.pos.distanceTo(to) > 6 || x.pos.distanceTo(to) < 0.5) continue; const at = x.pos.clone().setY(Math.min(x.h * 0.6, 2.5)); rays.fire(eyePos(), at); hitBuilding(x, at); hitBuilding(x, at); n++; } } }
-function fireAt(tgt, o = {}) { if (tgt.ok && !tgt.ok()) return false; shotLv = o.auto ? 0 : sw; /* (the gun this shot is: a big target needs one of its E level) */ /* already gone (a waiting shot drops it) */ if (!o.auto) { if (rayCd > 0 || !inReach(tgt)) return false; rayCd = RAY_CD; stats.shots = (stats.shots || 0) + 1; } else stats.auto = (stats.auto || 0) + 1;
+function fireAt(tgt, o = {}) { if (tgt.ok && !tgt.ok()) return false; if (!o.auto && tgt.kind === 'poi') autoGun(poiNeed(tgt.k)); shotLv = o.auto ? 0 : sw; /* (the gun this shot is: a big target needs one of its E level) */ /* already gone (a waiting shot drops it) */ if (!o.auto) { if (rayCd > 0 || !inReach(tgt)) return false; rayCd = RAY_CD; stats.shots = (stats.shots || 0) + 1; } else stats.auto = (stats.auto || 0) + 1;
   const from = eyePos(), to = tgt.pos.clone(); rays.fire(from, to); (WALK() || sk.hit(to));
   // where every ray lands (taps and automatic shots alike)
   fx.flash(to, o.auto ? 0.6 : 0.9, 0xff9af0); fx.sparks(to, o.auto ? 7 : 12, { c: [0xffffff, 0xff5ae0], speed: 6, up: 4, life: 0.45 }); fx.glow(to, o.auto ? 1.4 : 2, 0xff3ad0, 0.4, 0.7);
@@ -461,7 +463,7 @@ function setupPoiHud() {
 }
 const poiGoal = () => Math.max(1, Math.ceil(poiOrder.length * 0.6)), poisDone = () => poiOrder.filter((k) => pois[k].done).length; // the big targets a town needs taken out
 const poiNeed = (k) => Math.max(2, Math.min(5, POI[k].hp - 1)); // the E level of gun a big target takes: the tougher the target, the bigger the gun
-function hitPoi(k, at) { const P = pois[k]; if (P.done) return; const need = poiNeed(k); if (shotLv + 1 < need && !P.nuked) { if (played - (P.noT || -9) > 1.2) { P.noT = played; popup(P.center.clone().setY(2.4), POI[k].icon + ' NEEDS E' + need + (swLv + 1 >= need ? ': PICK THE E' + need + ' GUN' : ''), '#ff9a8a'); sfx.ping(2); } fx.sparks(at, 6, { c: [0xffffff, 0xff9a8a], speed: 3, up: 2, life: 0.3 }); return; } P.hp--; fx.ignite(at.clone(), 0.7, 6); fx.explode(at.clone(), 0.5); jolt(0.2); sfx.crunch(true);
+function hitPoi(k, at) { const P = pois[k]; if (P.done) return; const need = poiNeed(k); if (shotLv + 1 < need && !P.nuked) { if (played - (P.noT || -9) > 1.2) { P.noT = played; popup(P.center.clone().setY(2.4), POI[k].icon + (swLv + 1 >= need ? ' E' + need + ' GUN RECHARGING' : ' NEEDS E' + need), '#ff9a8a'); sfx.ping(2); } fx.sparks(at, 6, { c: [0xffffff, 0xff9a8a], speed: 3, up: 2, life: 0.3 }); return; } P.hp--; fx.ignite(at.clone(), 0.7, 6); fx.explode(at.clone(), 0.5); jolt(0.2); sfx.crunch(true);
   if (P.chip) P.chip.querySelector('b').textContent = String(Math.max(0, P.hp)); if (P.hp > 0) { drawBadge(k); popup(P.center.clone().setY(2), POI[k].icon + ' ' + P.hp + ' MORE!', '#ffd24a'); return; }
   wreckPoi(k); }
 // a big target goes up: its own special blast, its neighbours knocked flat, a speed boost and a big refill for the ship, and something happens in town
@@ -652,7 +654,7 @@ const setC = (id, cls, on) => { const k = id + '.' + cls; if (hudCache[k] !== on
 function start() { firstSong('bu', 'music/beam-beam-baby.mp3'); /* (the first round ever opens on Beam Beam Baby) */
   fsMode.play(); coachClear(); if (!noSave) saveLast('bu', level); crowd.clear(); unlockAudio(); roundId++; timers.length = 0; sk.clear(); /* (last round's baby twisters, freed while the twisters module still has them) */
   buildWorld(); makePlayerShip(); setupPoiHud();
-  score = 0; chain = 0; lastHit = -9; tLeft = L().time; played = 0; abd = 0; stats = {}; sw = swLv = swNext = 0; power = SW.start * SW.at[0] * L().abduct; swN = [0, 0]; nukeCd[0] = nukeCd[1] = 0; drawSw(); energy = E_MAX; boostT = nukeT = hitT = hurtK = 0; hits = 0; lowWarned = false; rayCd = 0; moveTo = null; lastGrab = -9; grabChain = 0; dmgPop = 0; dmgPopT = hurtSfx = lowAt = -9; outro = null; beamCoach = false;
+  score = 0; chain = 0; lastHit = -9; tLeft = L().time; played = 0; abd = 0; stats = {}; sw = swLv = swNext = 0; power = SW.start * SW.at[0] * L().abduct; swN = [0, 0]; nukeCd[0] = nukeCd[1] = 0; drawSw(); swCheck(); energy = E_MAX; /* (the E badge and bar start from this round's level, not the last one's) */ boostT = nukeT = hitT = hurtK = 0; hits = 0; lowWarned = false; rayCd = 0; moveTo = null; lastGrab = -9; grabChain = 0; dmgPop = 0; dmgPopT = hurtSfx = lowAt = -9; outro = null; beamCoach = false;
   blindT = 0; radarDown = radioDown = fireBoost = stink = false; beamHeld = false; hoverT = autoBeamT = 0; beamPress = mouseShip = botDrag = null; bumpT = autoT = 0; pend = null; warnT = -9; setWarn(null); curCard = null; cardUp = false; cardShutAt = -99; holdN = 0;
   army.spawnTown();
   for (const s of ['taStart', 'taEnd', 'taPaused', 'taPrize']) $(s).classList.add('hidden'); $('ta').classList.remove('hidden');

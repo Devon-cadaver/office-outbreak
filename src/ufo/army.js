@@ -26,7 +26,7 @@ const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z), rnd = (a, b) => a
 const turnTo = (cur, want, max) => { let d = want - cur; d = Math.atan2(Math.sin(d), Math.cos(d)); return cur + Math.max(-max, Math.min(max, d)); };
 const gunGeo = new THREE.BoxGeometry(0.12, 0.14, 0.6), gunMat = new THREE.MeshLambertMaterial({ color: 0x22262a });
 const glowGeo = new THREE.SphereGeometry(0.5, 10, 8), lineGeo = new THREE.BoxGeometry(1, 1, 1).translate(0, 0, 0.5);
-export const ARMY_FIRST = { ship: 1, jet: 2, jetPair: 3, jetMissile: 4, launcher: 4 }; // the town each kind first turns up in
+export const ARMY_FIRST = { ship: 1, jet: 1, jetPair: 2, jetMissile: 3, launcher: 3 }; // the town each kind first turns up in
 // a jet's strafing run: warn (seconds the lane shows before the jet comes), speed, half (how far from the lane's middle it
 // starts), hw (half the lane's width: where its tracers go), hitR (how close a tracer must pass the saucer to hit it), every
 // (seconds between tracers), from / to (where along the lane, from its middle, the guns fire)
@@ -35,10 +35,12 @@ const JET = { warn: 1.5, speed: 30, half: 30, hw: 2.4, hitR: 1.8, every: 0.075, 
 export function createArmy(E) {
   const { scene, fx, twisters } = E;
   let soldiers = [], tanks = [], ships = [], launchers = [], jets = [], runs = []; const falling = [], shots = [], wrecks = []; /* wrecks: aircraft down and done ploughing, waiting to leave the scene (updateFalling) */
-  const T = { ship: 0, reinf: 0, tank: 0, jet: 0 }; // seconds until the next helicopters, reinforcements, tank, jet run
+  const T = { ship: 0, reinf: 0, tank: 0, jet: 0, column: 0 };
+  // a TANK COLUMN: a group of 3 to 10 tanks rolling in together from one part of town (bigger in the later towns)
+  function tankColumn() { const L = E.level, n = Math.max(3, Math.min(10, 3 + Math.floor((L - 1) * 1.3 + Math.random() * 2))), at = farRoad(20).w; for (let k = 0; k < n; k++) addTank(14, 1 + k * 0.5, at, 7); E.banner('🪖 TANK COLUMN: ' + n + ' TANKS!'); sfx.whoosh(); } // seconds until the next helicopters, reinforcements, tank, jet run
   const ramp = () => Math.min(1, (E.level - 1) / 5); // 0 in Small Town, 1 in The Sprawl
   const easy = () => 1 - ramp(); // 1 in Small Town, 0 in The Sprawl: the first towns start calmer and their soldiers shoot less often and less straight
-  const maxTanks = () => (E.level > 1 ? 1 + E.level : 1); /* tanks in town at once: just the one in Small Town, where the death ray is new */
+  const maxTanks = () => 2 + E.level; /* tanks in town at once: just the one in Small Town, where the death ray is new */
   const mkArrow = (txt, col) => { const a = document.createElement('div'); a.className = 'planeArrow foeArrow'; a.textContent = txt; a.style.color = col; document.body.appendChild(a); return a; };
   const seen = (pos, y = 0) => E.toScreen(pos, y).on;
 
@@ -86,7 +88,7 @@ export function createArmy(E) {
       else animateWalk(s, dt, 0); } }
 
   // ---------- tanks ----------
-  function addTank(min, wait = 0) { const { c, w } = farRoad(min); const t = isPast() ? buildCannon() : makeTank(isFuture()); if (isFuture()) hoverize(futureTank(t), 0xff4fd8); t.position.set(w.x, 0, w.z); scene.add(t);
+  function addTank(min, wait = 0, near = null, maxD = 1e9) { const { c, w } = farRoad(min, near, maxD); const t = isPast() ? buildCannon() : makeTank(isFuture()); if (isFuture()) hoverize(futureTank(t), 0xff4fd8); t.position.set(w.x, 0, w.z); scene.add(t);
     const glow = new THREE.Mesh(glowGeo, new THREE.MeshBasicMaterial({ color: 0xff7a2a, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending })); glow.visible = false; glow.renderOrder = 6; scene.add(glow);
     tanks.push({ g: t, cell: c, path: [], cd: rnd(2.5, 4.5) + wait, repath: 0, charge: 0, glow, arrow: mkArrow('💣', '#ff7a5a') }); }
   const muzzleOf = (t) => V(0, 0.64, 1.25).applyMatrix4(t.g.userData.turret.matrixWorld);
@@ -105,8 +107,8 @@ export function createArmy(E) {
   // ---------- helicopters (every town) ----------
   // by town: n (how many come together), v (top speed), cd (seconds between rockets), dmg (a rocket's hit), rv (rocket speed),
   // life (seconds before they fly off), gap (seconds after they go before the next ones). Small Town's is slow and weak: the death ray is new there
-  const heli = () => { const L = E.level, rk = ramp(); return L === 1 ? { n: 1, v: 5.2, cd: 6.2, dmg: 2.5, rv: 9.5, life: 34, gap: [44, 54] } : L === 2 ? { n: Math.random() < 0.5 ? 1 : 2, v: 7.5, cd: 4.8, dmg: 3.5, rv: 11, life: 38, gap: [36, 46] }
-    : { n: L >= 6 ? 3 : L >= 5 ? (Math.random() < 0.5 ? 2 : 3) : 2, v: 10, cd: 3.6 - 0.9 * rk, dmg: 4 + 2 * rk, rv: 13, life: 40, gap: [36 - 8 * rk, 48 - 8 * rk] }; };
+  const heli = () => { const L = E.level, rk = ramp(); return L === 1 ? { n: Math.random() < 0.5 ? 1 : 2, v: 6.8, cd: 4.6, dmg: 3, rv: 10.5, life: 36, gap: [22, 30] } : L === 2 ? { n: 2, v: 8.5, cd: 4, dmg: 4, rv: 12, life: 40, gap: [22, 30] }
+    : { n: L >= 6 ? 4 : L >= 5 ? 3 : Math.random() < 0.5 ? 2 : 3, v: 10.5, cd: 3.4 - 0.9 * rk, dmg: 4.5 + 2 * rk, rv: 13, life: 42, gap: [24 - 6 * rk, 34 - 6 * rk] }; }; /* (harder from the start: more of them, sooner, faster) */
   function spawnShips() { const b = E.town.lim, a0 = Math.random() * 6.28, R0 = Math.max(b.x, b.z) + 9, H = heli(), n = H.n;
     for (let k = 0; k < n; k++) { const g = makeGunship(), a = a0 + k * 0.3, y0 = 5.4 + k * 0.5; g.position.set(Math.cos(a) * R0, y0, Math.sin(a) * R0); scene.add(g); ships.push({ g, ph: a0 + Math.PI + k * (Math.PI * 2 / n), y0, head: Math.atan2(-Math.cos(a), -Math.sin(a)), life: H.life, cd: 3 + k * 1.3, vel: V(), v: H.v, cdB: H.cd, dmg: H.dmg, rv: H.rv, arrow: mkArrow('🚁', '#9fe8ff') }); }
     T.ship = rnd(H.gap[0], H.gap[1]); E.banner(n > 1 ? '🚁 HELICOPTERS INCOMING!' : '🚁 HELICOPTER INCOMING!'); sfx.whoosh(); }
@@ -194,12 +196,13 @@ export function createArmy(E) {
   // ---------- who turns up, and when ----------
   function spawnTown() { const L = E.level, ez = easy(); for (let i = 0; i < 3 + 2 * (L - 1); i++) addSquad(11 + 6 * ez); for (let i = 0; i < maxTanks(); i++) addTank(16 + 6 * ez, 5 * ez); /* the first towns: the army starts further off, and its tanks take a moment */
     if (L >= ARMY_FIRST.launcher) { const P = E.poiCenters(); for (let i = 0; i < Math.min(P.length, L - 3); i++) addLauncher(P[i]); }
-    T.ship = [60, 38, 26, 26, 24, 22][L - 1] || 22; T.jet = L === 2 ? 40 : L === 3 ? 32 : 26; T.reinf = 20; T.tank = 40; } /* the first helicopter: about a minute into Small Town, sooner later on */
+    T.ship = [25, 22, 18, 18, 16, 15][L - 1] || 15; T.jet = L === 1 ? 34 : L === 2 ? 28 : 22; T.reinf = 14; T.tank = 22; T.column = L === 1 ? 45 : 32; } /* the first helicopter: about a minute into Small Town, sooner later on */
   function schedule(dt) { const L = E.level, rk = ramp();
-    if (!E.radioDown) { T.reinf -= dt; if (T.reinf <= 0) { T.reinf = 22 - 8 * rk; if (soldiers.length < 9 + 6 * L) { addSquad(20); if (Math.random() < 0.5) E.popup(E.ship.pos, 'REINFORCEMENTS!', '#ff9a7a'); } }
-      T.tank -= dt; if (T.tank <= 0) { T.tank = 42 - 12 * rk; if (tanks.length < maxTanks()) addTank(22); } }
+    if (!E.radioDown) { T.reinf -= dt; if (T.reinf <= 0) { T.reinf = 17 - 6 * rk; if (soldiers.length < 12 + 6 * L) { addSquad(20); if (Math.random() < 0.5) E.popup(E.ship.pos, 'REINFORCEMENTS!', '#ff9a7a'); } }
+      T.tank -= dt; if (T.tank <= 0) { T.tank = 30 - 10 * rk; if (tanks.length < maxTanks()) addTank(22); }
+      T.column -= dt; if (T.column <= 0) { T.column = 70 - 6 * L; if (tanks.length < maxTanks() + 12) tankColumn(); } }
     if (L >= ARMY_FIRST.ship && !E.radarDown && !ships.length) { T.ship -= dt; if (T.ship <= 0) spawnShips(); } /* (spawnShips sets the gap to the next ones) */
-    if (L >= ARMY_FIRST.jet && !E.radarDown && E.blind <= 0 && !runs.length) { T.jet -= dt; if (T.jet <= 0) { T.jet = L === 2 ? rnd(24, 32) : L === 3 ? rnd(20, 28) : rnd(16, 24) - 3 * rk; startRun(); } } } /* in a blackout the jets can't find you */
+    if (L >= ARMY_FIRST.jet && !E.radarDown && E.blind <= 0 && !runs.length) { T.jet -= dt; if (T.jet <= 0) { T.jet = L === 1 ? rnd(24, 32) : L === 2 ? rnd(20, 28) : L === 3 ? rnd(16, 24) : rnd(13, 20) - 3 * rk; startRun(); } } } /* in a blackout the jets can't find you */
   function update(dt) { if (E.ship.alive) schedule(dt); /* nothing new turns up once the round is over */ updateSoldiers(dt); updateTanks(dt); updateShips(dt); updateJets(dt); updateLaunchers(dt); updateFalling(dt); updateShots(dt); }
 
   // ---------- the death ray's targets: what is under the player's finger. sd(pos) = how far the tap is from pos on screen,
