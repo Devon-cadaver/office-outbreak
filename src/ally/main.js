@@ -595,7 +595,7 @@ function drawTwPicker() { const cur = equippedTornado(); $('twChosenName').textC
     b.innerHTML = '<canvas width="150" height="150"></canvas><b>' + twName(k) + '</b>' + (open ? '' : '<span>' + (S.bonus ? '🏆 bonus' : '🪙 ' + S.price + ' in the shop') + '</span>'); twThumb(k, b.querySelector('canvas'));
     b.addEventListener('click', () => { if (!open) { $('twPickInfo').textContent = S.bonus ? twName(k) + ': ' + S.bonus + ' to unlock it.' : twName(k) + ' costs ' + S.price + ' coins in the skin shop. You can also win it in the prize games.'; for (const c of box.children) c.classList.remove('want'); b.classList.add('want'); return; } equip('tornado', k ? 'tornado:' + k : null); drawTwPicker(); }); box.appendChild(b); } } // a locked storm still shows, turning, in full colour: tapping it says how to get it
 
-$('twChoose').addEventListener('click', () => { $('taStart').classList.add('hidden'); $('twPickScr').classList.remove('hidden'); $('twPickScr').scrollTop = 0; drawTwPicker(); });
+$('twChoose').addEventListener('click', () => { location.href = 'store.html?from=alley'; }); /* (the skin shop, on the tornadoes: pick one, or buy one, right there) */
 $('twPickDone').addEventListener('click', () => { $('twPickScr').classList.add('hidden'); $('taStart').classList.remove('hidden'); drawTwPicker(); });
 drawTwPicker();
 soundToggle($('taStart'), $('taPaused')); playerButton($('taPaused'), $('taPaused').querySelector('.menuBtn')); skipSongBtn($('ta')); eraPicker($('taLevels'), () => { level = unlocked(); drawLevels(); }); seasonPicker($('eraRow')); // sound on/off on the start and pause screens

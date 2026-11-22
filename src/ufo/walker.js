@@ -23,19 +23,25 @@ function sizePart(p, len, w) { p.userData.tube.scale.set(w, len, w); for (const 
 export function makeWalker(pal = WALKER_PAL.base) { const [cBody, cLeg, cGlow, cBeam] = pal, g = new THREE.Group(), legM = L(cLeg, 0x050608), bodyM = L(cBody, 0x0a0c0e), glowM = G(cGlow), darkM = L(0x14161a);
   // the head: the whole upper body, which turns to face the way it walks
   const head = new THREE.Group(); g.add(head);
-  const dome = new THREE.Mesh(sph, bodyM); dome.scale.set(0.82, 1.25, 0.72); dome.position.y = 1.05; head.add(dome); // the egg-shaped body
-  for (let i = 0; i < 5; i++) { const r = new THREE.Mesh(ringG, darkM), y = 0.25 + i * 0.26, k = Math.sqrt(Math.max(0, 1 - ((y - 1.05) / 1.25) ** 2)); r.rotation.x = Math.PI / 2; r.scale.set(0.84 * k, 0.74 * k, 0.6); r.position.y = y; head.add(r); } // armour bands
-  const hood = new THREE.Mesh(new THREE.SphereGeometry(1, 18, 10, 0, Math.PI * 2, 0, Math.PI * 0.55), bodyM); hood.scale.set(1.05, 0.9, 0.98); hood.position.set(0, 1.75, -0.12); hood.rotation.x = -0.25; head.add(hood); // a hood over the top and back
-  for (const s of [-1, 1]) { const fin = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.9, 4), darkM); fin.position.set(s * 0.95, 1.55, -0.05); fin.rotation.z = s * -1.15; head.add(fin); } // swept fins either side of the hood
+  const shell = new THREE.Mesh(sph, bodyM); shell.scale.set(0.82, 0.95, 0.72); shell.position.y = 0.8; head.add(shell); // the egg-shaped body
+  // a see-through bulb on top, like the saucer's dome, with the driver inside
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(0.62, 20, 14), new THREE.MeshLambertMaterial({ color: 0x9affd0, emissive: 0x1a6a4a, transparent: true, opacity: 0.45, depthWrite: false })); dome.position.y = 1.95; dome.renderOrder = 2; head.add(dome);
+  const collar = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.07, 6, 24), darkM); collar.rotation.x = Math.PI / 2; collar.position.y = 1.62; head.add(collar);
+  const driver = new THREE.Group(); driver.position.y = 1.78; head.add(driver); const skinM = L(0x7dd84a, 0x0e2a08), blackM = G(0x0a0a12);
+  { const bodyD = new THREE.Mesh(sph, L(0x5a3a8a)); bodyD.scale.set(0.26, 0.16, 0.22); driver.add(bodyD); const hd = new THREE.Mesh(sph, skinM); hd.scale.set(0.24, 0.22, 0.22); hd.position.y = 0.24; driver.add(hd);
+    for (const x of [-0.08, 0.08]) { const e = new THREE.Mesh(sph, blackM); e.scale.set(0.07, 0.09, 0.04); e.position.set(x, 0.26, 0.19); e.rotation.z = x > 0 ? -0.5 : 0.5; driver.add(e); } const ant = new THREE.Mesh(cyl, skinM); ant.scale.set(0.012, 0.14, 0.012); ant.position.y = 0.6; driver.add(ant); const tip = new THREE.Mesh(sph, G(0xffd24a)); tip.scale.setScalar(0.04); tip.position.y = 0.6; driver.add(tip); }
+  for (let i = 0; i < 4; i++) { const r = new THREE.Mesh(ringG, darkM), y = 0.2 + i * 0.28, k = Math.sqrt(Math.max(0, 1 - ((y - 0.8) / 0.95) ** 2)); r.rotation.x = Math.PI / 2; r.scale.set(0.84 * k, 0.74 * k, 0.6); r.position.y = y; head.add(r); } // armour bands
+  
+  for (const s of [-1, 1]) { const fin = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.9, 4), darkM); fin.position.set(s * 0.8, 1.35, -0.05); fin.rotation.z = s * -1.15; head.add(fin); } // swept fins either side of the hood
   const skirt = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 0.6, 0.38, 12), darkM); skirt.position.y = 0.02; head.add(skirt); // where the legs join
   const c = document.createElement('canvas'); c.width = 64; c.height = 8; const x2 = c.getContext('2d'); x2.fillStyle = '#0a0c0a'; x2.fillRect(0, 0, 64, 8); x2.fillStyle = '#ffffff'; x2.fillRect(6, 1, 18, 6);
   const tex = new THREE.CanvasTexture(c); tex.wrapS = THREE.RepeatWrapping; tex.repeat.set(8, 1); tex.colorSpace = THREE.SRGBColorSpace;
   const ring = new THREE.Mesh(new THREE.TorusGeometry(0.97, 0.05, 6, 40), new THREE.MeshBasicMaterial({ map: tex, color: cGlow })); ring.rotation.x = Math.PI / 2; ring.position.y = 0.2; head.add(ring); // a band of running lights round the waist
   const pilot = new THREE.Group(); head.add(pilot); // the face: the big eye, a lamp each side, the searchlight
-  const eye = new THREE.Mesh(new THREE.CircleGeometry(0.28, 22), glowM); eye.position.set(0, 1.25, 0.73); pilot.add(eye);
+  const eye = new THREE.Mesh(new THREE.CircleGeometry(0.28, 22), glowM); eye.position.set(0, 0.95, 0.72); pilot.add(eye);
   const eyeRim = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.05, 6, 22), darkM); eyeRim.position.copy(eye.position); pilot.add(eyeRim);
-  for (const s of [-1, 1]) { const lampL = new THREE.Mesh(sph, glowM); lampL.scale.setScalar(0.12); lampL.position.set(s * 0.55, 0.95, 0.55); pilot.add(lampL); }
-  const lamp = new THREE.Group(); lamp.position.set(0, 1.2, 0.78); pilot.add(lamp);
+  for (const s of [-1, 1]) { const lampL = new THREE.Mesh(sph, glowM); lampL.scale.setScalar(0.12); lampL.position.set(s * 0.52, 0.72, 0.56); pilot.add(lampL); }
+  const lamp = new THREE.Group(); lamp.position.set(0, 0.92, 0.78); pilot.add(lamp);
   const beamM = new THREE.MeshBasicMaterial({ color: cBeam, transparent: true, opacity: 0.16, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
   const searchlight = new THREE.Mesh(cone, beamM); searchlight.renderOrder = 3; lamp.add(searchlight);
   // two tentacle arms hanging from the sides, a chain of short parts each, swaying as it walks
@@ -51,7 +57,7 @@ export function makeWalker(pal = WALKER_PAL.base) { const [cBody, cLeg, cGlow, c
     for (const p of [thigh, shin]) p.userData.rings.forEach((r, j, a2) => { r.userData.k = (j + 1) / (a2.length + 1); });
     kb.scale.setScalar(0.16); foot.scale.set(0.24, 0.18, 0.24); knee.add(kb, shin); hip.add(thigh, knee); g.add(foot);
     legs.push({ a, hip, thigh, knee, shin, foot, at: new THREE.Vector3(), from: new THREE.Vector3(), to: new THREE.Vector3(), t: 1, i }); }
-  g.userData = { walker: true, head, dome, ring, pilot, eye, pods, shield, legs, arms, searchlight, lamp, beamM, phase: 0, look: pal };
+  g.userData = { walker: true, head, dome, driver, ring, pilot, eye, pods, shield, legs, arms, searchlight, lamp, beamM, phase: 0, look: pal };
   return g; }
 
 const v = new THREE.Vector3(), w = new THREE.Vector3(), DOWN = new THREE.Vector3(0, -1, 0), q = new THREE.Quaternion();

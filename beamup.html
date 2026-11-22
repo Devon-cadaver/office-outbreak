@@ -62,6 +62,17 @@
     @media (max-width: 760px), (max-height: 520px) { #taZoomIn { left: 148px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important; top: auto !important; right: auto !important; } #taZoomOut { left: 202px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important; top: auto !important; right: auto !important; } #ta .skipHud { left: 256px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important; top: auto !important; right: auto !important; } }
     @media (min-width: 761px) and (min-height: 521px) { #buBeam { right: 24px; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); width: 108px; height: 108px; } #buBeam i::after { content: ' · SPACE'; } }
     /* the death ray's levels: a column above BEAM, faint until each is unlocked */
+    /* the E level: a pill that fills toward the next level */
+    #buE { flex: none; --k: 0; padding: 3px 9px; border-radius: 11px; font-size: 15px; font-weight: 900; color: #120a1f; background: linear-gradient(90deg, #3af0ff calc(var(--k) * 100%), #3af0ff55 calc(var(--k) * 100%)); border: 2px solid #b8fff0; letter-spacing: .5px; }
+    #buCrafts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: var(--w); }
+    .craftCard { display: grid; gap: 3px; align-content: start; padding: 6px 6px 8px; margin: 0; border-radius: 14px; background: #1a0f2e; border: 3px solid #5a2f80; color: #fff; text-align: center; box-shadow: none; background-image: none; }
+    .craftCard canvas { width: 100%; height: 104px; object-fit: cover; border-radius: 10px; background: radial-gradient(circle at 50% 40%, #2e3a50, #120a1f 75%); }
+    .craftCard b { font-size: 13px; color: #9affc8; letter-spacing: .3px; } .craftCard span { font-size: 11px; color: #e8dcff; line-height: 1.25; font-weight: 700; }
+    .craftCard i.skHint { font-style: normal; font-size: 9.5px; font-weight: 900; color: #c9a6ff; letter-spacing: .5px; } .craftCard:not(.on) i.skHint { visibility: hidden; }
+    .craftCard.on { border-color: #7dff3a; box-shadow: 0 0 14px #7dff3a88; } .craftCard:active { transform: translateY(2px); }
+    #buCrafts canvas { object-fit: contain; } /* (the walker is tall: show the whole picture, not a slice of it) */
+    @media (max-height: 860px) { #buCrafts canvas { height: 78px; } #buCrafts span { display: none; } }
+    @media (max-width: 600px) and (orientation: portrait) { #buCrafts canvas { height: 64px; } #buCrafts span { display: none; } }
     #buPick { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: var(--w); } #buPick .eraBtn { padding: 8px 4px; font-size: 13px; margin: 0; }
     #buWpns { position: absolute; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column-reverse; gap: 5px; pointer-events: none; z-index: 3; }
     #buWpns button { position: relative; width: 44px; height: 44px; border-radius: 50%; padding: 0; margin: 0; pointer-events: auto; touch-action: none; background: #0a1a16e6 !important; border: 3px solid #3aa890; box-shadow: none !important; } #buWpns button b { font-size: 20px; line-height: 1; }
@@ -97,7 +108,7 @@
   <canvas id="game"></canvas>
   <div id="ta" class="hidden">
     <div class="top">
-      <div id="buBar"><b id="buCount">👽 0/30</b><div id="buEnergy"><div id="buEnergyFill"></div><span id="buEnergyTxt">🛡 ENERGY 100%</span></div><span id="taTime">2:30</span></div>
+      <div id="buBar"><b id="buCount">👽 0/30</b><b id="buE" title="Your E level: beam people up and wreck the town to power up; hits power you down">E1</b><div id="buEnergy"><div id="buEnergyFill"></div><span id="buEnergyTxt">🛡 ENERGY 100%</span></div><span id="taTime">2:30</span></div>
       <div id="hudGoal"><span class="goalLbl">🎯 TARGETS<b id="taTargets"></b></span><div id="taPois"></div></div>
       <div id="taSub"><span id="taLevel"></span><span id="taScore">0</span><span id="taCombo"></span></div>
     </div>
@@ -116,7 +127,8 @@
     <h1>BEAM <br>'EM UP!</h1>
     <p>You are the UFO. Beam up the town!</p>
     <p class="buKeys">Drag to fly · Tap to go and zap<br><i> · </i>Hold on the saucer to beam</p>
-    <div id="buChosen" class="chosenCard"><canvas id="buShipCv" width="150" height="150"></canvas><div><small>YOUR SAUCER</small><b>THE BEAMER</b><span>A tractor beam, a death ray, and a shield that runs on people. The army will not like it.</span></div></div>
+    <div id="buCrafts"></div>
+    <div id="buChosen" class="chosenCard" style="display:none"><canvas id="buShipCv" width="150" height="150"></canvas><div><small>YOUR SAUCER</small><b>THE BEAMER</b><span>A tractor beam, a death ray, and a shield that runs on people. The army will not like it.</span></div></div>
     <div id="taLevels"></div>
     <button id="taPlay">PLAY</button>
     <div class="howRow"><button id="taHow" class="ghost">HOW TO PLAY</button><button class="ghost menuBtn" onclick="location.href='menu.html'">MAIN MENU</button></div>

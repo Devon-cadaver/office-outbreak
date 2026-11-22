@@ -93,7 +93,9 @@
     #taStart h1 { font-size: clamp(34px, 11vw, 56px); } #taStart .tag { font-size: 16px; margin: -4px 0 0; }
     #arCrafts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: var(--w); }
     .craftCard { display: grid; gap: 3px; align-content: start; padding: 6px 6px 8px; margin: 0; border-radius: 14px; background: #1a0f2e; border: 3px solid #5a2f80; color: #fff; text-align: center; box-shadow: none; background-image: none; }
+    @media (min-width: 601px) and (max-height: 860px) { #arCrafts .craftCard canvas { height: 72px; } #arCrafts span, #arCrafts small { display: none; } #taStart h1 { font-size: 40px !important; } #taStart h1 br { display: none; } #taStart > p.small:not(#taGoalLine) { display: none; } #taStart .tag { font-size: 13px !important; margin: 0 !important; } #taStart { gap: 8px !important; } }
     .craftCard canvas { width: 100%; height: 104px; object-fit: cover; border-radius: 10px; background: radial-gradient(circle at 50% 40%, #2e3a50, #120a1f 75%); }
+    .craftCard i.skHint { font-style: normal; font-size: 9.5px; font-weight: 900; color: #c9a6ff; letter-spacing: .5px; } .craftCard:not(.on) i.skHint { visibility: hidden; }
     .craftCard b { font-size: 13px; color: #ffd24a; letter-spacing: .3px; } .craftCard span { font-size: 11px; color: #e8dcff; line-height: 1.25; font-weight: 700; } .craftCard small { font-size: 10px; color: #c9e8b8; font-weight: 700; line-height: 1.2; }
     /* the end of the start screen: room enough (an element, not only padding, which some browsers leave out) to scroll the
        last row clear of the FULL SCREEN button in the corner */
@@ -104,7 +106,7 @@
     @media (max-height: 520px) and (orientation: landscape) { #taStart { gap: 8px; padding-top: 12px; } #taStart > p.small, #taStart .tag { display: none; } #taStart h1 { font-size: 30px; margin: 0; } .craftCard canvas { height: 66px; } .craftCard small { display: none; } }
     /* RESTART asks twice: the second time it is red, so it is plain that one more tap restarts */
     #taRestart.armed { background-color: #d8302a; background-image: linear-gradient(#ffffff26, #ffffff00 55%); color: #fff; border-color: #ff8a7a; font-size: 17px; box-shadow: 0 5px 0 #5a0e0a, 0 0 14px #ff5a3a88; }
-    .craftCard.on { border-color: #7dff3a; box-shadow: 0 0 14px #7dff3a88; } .craftCard.on b::after { content: ' ✔'; color: #7dff3a; } .craftCard:active { transform: translateY(2px); }
+    .craftCard.on { border-color: #7dff3a; box-shadow: 0 0 14px #7dff3a88; } .craftCard:active { transform: translateY(2px); }
   </style>
 </head>
 <body class="booting">

@@ -92,7 +92,7 @@ const unlocked = () => { let n = 1; try { n = +localStorage.getItem(levelKey('bu
 // the machine: the saucer, or the LONGSHANKS walker (walker.js). WALK_HOLD: seconds in the walker's searchlight before it is
 // beamed up; WALK_REACH: how far ahead the light reaches; WALK_SPD: its walking speed as a share of the saucer's
 let craftKind = (() => { try { return localStorage.getItem('bu_craft') === 'walker' ? 'walker' : 'ufo'; } catch { return 'ufo'; } })(); const WALK = () => craftKind === 'walker';
-const WALK_HOLD = 3, WALK_REACH = 8.5, WALK_SPD = 0.72;
+const WALK_HOLD = 3, WALK_REACH = 8.5, WALK_SPD = 0.47;
 const SHIP_SCALE = 0.95, SHIELD_R = 2.7 * SHIP_SCALE, flyY = () => L().fly; // the saucer's size, its shield, and how high it flies in this town (LEVELS)
 const GRAB_R = 2.1, PULL_R = 4.6, PANIC_R = 7, LIFT_MAX = 9; // the beam grabs anyone this close to the spot under the ship, and drags in anyone in PULL_R
 const SPEED = 7.2, BEAM_SLOW = 0.55, BOOST = 1.6, ACC = 3.4; // flying speed, the share of it while beaming, a speed boost, and how quickly the ship answers the stick
@@ -223,6 +223,7 @@ function fly(dt) {
   ship.y += (shipY() - ship.y) * Math.min(1, dt * 2);
   // big buildings: a warning just before (the building glows red, BUILDING!), then the crash
   if (state === 'play' && ship.alive && !WALK()) { bumpT = Math.max(0, bumpT - dt); const hb = blockerAt(ship.x, ship.z, BLD.rc); if (hb) { if (bumpT <= 0) crashInto(hb); else pushOut(hb); } if (!bldCard()) setWarn(bumpT <= 0 ? bldAhead(moveTo ? 0.4 : BLD.warn) : null); } /* (on its way to a tapped spot it steers round them itself: only a hit that is really coming is warned of. The BIG BUILDINGS card keeps its own building lit) */
+  if (warnB && (WALK() || warnB.done) && !bldCard()) setWarn(null); /* (no warning for the walker, which steps over buildings, and none left on a building that has come down) */
   ship.center.set(ship.x, ship.y, ship.z); }
 
 // ---------- big buildings are solid (BLD). bAt: the solid building on each street square, if any ----------
@@ -313,7 +314,7 @@ function updateLifted(dt) { const top = ship.y - 0.45;
 function aboard(l) { const c = l.c, kind = l.kind, at = ship.center.clone().setY(ship.y + 0.6);
   if (played - lastGrab < 2.2) grabChain++; else grabChain = 0; lastGrab = played;
   const gain = (kind === 'car' ? 1.5 : kind === 'soldier' ? 6 : kind === 'zombie' ? 2.5 : 4) + Math.min(grabChain, 8) * 0.75; addEnergy(gain);
-  if (kind !== 'car') { abd++; swCheck(); } { const key = { car: 'cars', soldier: 'soldiers', zombie: 'zombies', convict: 'convicts' }[kind] || 'people'; stats[key] = (stats[key] || 0) + 1; }
+  if (kind !== 'car') abd++; addPower(EP[kind] || 1); { const key = { car: 'cars', soldier: 'soldiers', zombie: 'zombies', convict: 'convicts' }[kind] || 'people'; stats[key] = (stats[key] || 0) + 1; }
   const label = kind === 'car' ? 'CAR NAPPED' : kind === 'soldier' ? 'SOLDIER' : kind === 'zombie' ? 'ZOMBIE' : kind === 'convict' ? 'CONVICT' : '';
   award(kind === 'car' ? 150 : kind === 'soldier' ? 60 : kind === 'zombie' ? 80 : kind === 'convict' ? 90 : 30, at, label, true);
   popup(at, '+' + Math.round(gain) + '⚡' + (label ? ' ' + label : '') + (grabChain >= 2 ? '  x' + (grabChain + 1) : ''), grabChain >= 2 ? '#c8ff6a' : '#7dff3a');
@@ -353,18 +354,25 @@ const inReach = (tgt) => Math.hypot(tgt.pos.x - ship.x, tgt.pos.z - ship.z) <= R
 // the one place the death ray is fired from, taps and automatic shots alike (o.auto: the ray's own shot, no cooldown, quieter)
 // the ray's levels: unlocked at these shares of the town's people goal (L().abduct); the nukes are one shot each, and come
 // back with every SW.more of the goal beamed up after that
-const SW = { at: [0.25, 0.5, 0.75, 1], more: 0.3, miniR: 7, l: [{ icon: '🔫', name: 'S1 RAY' }, { icon: '⚡', name: 'S2 HEAVY RAY' }, { icon: '🔱', name: 'S3 TRIPLE RAY' }, { icon: '💥', name: 'S4 MINI NUKE' }, { icon: '☢️', name: 'S5 BIG NUKE' }] };
-let sw = 0, swLv = 0, swN = [0, 0], swNext = 0;
-function swCheck() { const g = L().abduct; let ch = false; while (swLv < 4 && abd >= SW.at[swLv] * g) { swLv++; ch = true; if (swLv >= 3) swN[swLv - 3] = 1; if (swLv === 4) swNext = abd + SW.more * g; sw = swLv; banner('⬆ ' + SW.l[swLv].name + ' UNLOCKED!'); sfx.wave(); }
-  if (swLv === 4 && abd >= swNext) { swNext += SW.more * g; if (swN[0] < 1 || swN[1] < 1) { swN[0] = 1; swN[1] = 1; ch = true; banner('☢️ NUKES RELOADED!'); } } if (ch) drawSw(); }
-function drawSw() { const box = $('buWpns'); if (!box) return; if (!box.children.length) SW.l.forEach((w, i) => { const b = document.createElement('button'); b.innerHTML = '<b>' + w.icon + '</b><i>S' + (i + 1) + '</i>'; b.setAttribute('aria-label', w.name);
+// E LEVELS: POWER (EP: per person beamed up, building wrecked, big target) sets the level; at: the share of the town's
+// people goal (L().abduct) of power each level needs; lose: power lost per point of damage taken
+const SW = { at: [0.15, 0.35, 0.6, 0.9], more: 0.3, miniR: 7, lose: 0.15, l: [{ icon: '🔫', name: 'E1 RAY' }, { icon: '⚡', name: 'E2 HEAVY RAY' }, { icon: '🔱', name: 'E3 TRIPLE RAY' }, { icon: '💥', name: 'E4 MINI NUKE' }, { icon: '☢️', name: 'E5 BIG NUKE' }] };
+const EP = { person: 1, soldier: 2, car: 2, zombie: 1, convict: 1, building: 0.5, poi: 6 };
+let sw = 0, swLv = 0, swN = [0, 0], swNext = 0, power = 0, shotLv = 0;
+function addPower(n) { if (state !== 'play') return; power = Math.max(0, power + n); swCheck(); }
+function swCheck() { const g = L().abduct; let ch = false; while (swLv < 4 && power >= SW.at[swLv] * g) { swLv++; ch = true; if (swLv >= 3 && swN[swLv - 3] < 1) swN[swLv - 3] = 1; if (swLv === 4) swNext = power + SW.more * g; sw = swLv; banner('⬆ E' + (swLv + 1) + ': ' + SW.l[swLv].name.slice(3) + '!'); sfx.wave(); }
+  while (swLv > 0 && power < SW.at[swLv - 1] * g) { swLv--; ch = true; banner('⬇ E' + (swLv + 1) + ': TOO MANY HITS!'); sfx.hurt(); } if (sw > swLv) sw = swLv;
+  if (swLv === 4 && power >= swNext) { swNext += SW.more * g; if (swN[0] < 1 || swN[1] < 1) { swN[0] = 1; swN[1] = 1; ch = true; banner('☢️ NUKES RELOADED!'); } }
+  const nx = swLv < 4 ? SW.at[swLv] * g : 0, pv0 = swLv ? SW.at[swLv - 1] * g : 0, el = $('buE'); if (el) { el.textContent = 'E' + (swLv + 1); el.style.setProperty('--k', swLv < 4 ? Math.max(0, Math.min(1, (power - pv0) / (nx - pv0))).toFixed(2) : 1); }
+  if (ch) drawSw(); }
+function drawSw() { const box = $('buWpns'); if (!box) return; if (!box.children.length) SW.l.forEach((w, i) => { const b = document.createElement('button'); b.innerHTML = '<b>' + w.icon + '</b><i>E' + (i + 1) + '</i>'; b.setAttribute('aria-label', w.name);
     b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); if (state !== 'play' || i > swLv || (i >= 3 && swN[i - 3] <= 0)) return; sw = i; drawSw(); popup(ship.center, w.name, '#ffd24a'); }); box.appendChild(b); });
   SW.l.forEach((w, i) => { const b = box.children[i]; b.classList.toggle('lock', i > swLv || (i >= 3 && swN[i - 3] <= 0)); b.classList.toggle('sel', i === sw); }); }
 // a tap's shot at the picked level (the ray's own automatic shots stay plain)
 function swShot(tgt, to) { if (sw >= 3) { const k = sw - 3; if (swN[k] > 0) { swN[k]--; goNuke(to, k ? NUKE_R : SW.miniR); stats.nukes = (stats.nukes || 0) + 1; } sw = Math.min(swLv, 2); drawSw(); return; }
   if (sw >= 1) { fx.glow(to, 3.2, 0xffffff, 0.5, 0.6); tgt.hit(); } /* the heavy ray: twice the damage */
   if (sw === 2) { let n = 0; for (const x of buildings) { if (n >= 2) break; if (x.done || x.pos.distanceTo(to) > 6 || x.pos.distanceTo(to) < 0.5) continue; const at = x.pos.clone().setY(Math.min(x.h * 0.6, 2.5)); rays.fire(eyePos(), at); hitBuilding(x, at); hitBuilding(x, at); n++; } } }
-function fireAt(tgt, o = {}) { if (tgt.ok && !tgt.ok()) return false; /* already gone (a waiting shot drops it) */ if (!o.auto) { if (rayCd > 0 || !inReach(tgt)) return false; rayCd = RAY_CD; stats.shots = (stats.shots || 0) + 1; } else stats.auto = (stats.auto || 0) + 1;
+function fireAt(tgt, o = {}) { if (tgt.ok && !tgt.ok()) return false; shotLv = o.auto ? 0 : sw; /* (the gun this shot is: a big target needs one of its E level) */ /* already gone (a waiting shot drops it) */ if (!o.auto) { if (rayCd > 0 || !inReach(tgt)) return false; rayCd = RAY_CD; stats.shots = (stats.shots || 0) + 1; } else stats.auto = (stats.auto || 0) + 1;
   const from = eyePos(), to = tgt.pos.clone(); rays.fire(from, to); (WALK() || sk.hit(to));
   // where every ray lands (taps and automatic shots alike)
   fx.flash(to, o.auto ? 0.6 : 0.9, 0xff9af0); fx.sparks(to, o.auto ? 7 : 12, { c: [0xffffff, 0xff5ae0], speed: 6, up: 4, life: 0.45 }); fx.glow(to, o.auto ? 1.4 : 2, 0xff3ad0, 0.4, 0.7);
@@ -391,7 +399,7 @@ function hitBuilding(x, at) { if (x.done) return; x.hp--;
   if (T.city.knock(at.x, at.z, 1.2, 0, 0)) T.freeKnocked(); }
 const free = (o) => T.free(o);
 // a building comes down: it cracks, then bursts into pieces of itself, and the people inside run out into the street
-function crumble(x, from, label = '') {
+function crumble(x, from, label = '') { addPower(EP.building);
   free(x.obj); x.done = true; bDone++; dropObstacle(x.pos); if (x.b.userData.edges) x.b.userData.edges.visible = false; const ex = x.obj === x.b ? (x.b.userData.extras || []).filter((m) => m.parent) : [];
   twisters.tear(x.obj, x.pos, new THREE.Box3().setFromObject(x.obj).getSize(V3()), null, [], ex, { collapse: true, from: from || null, power: 1 });
   fx.puff('smoke', V3(x.pos.x, 0.8, x.pos.z), 1.2 + x.h * 0.15); for (let i = 0; i < 6; i++) { const a = (i / 6) * 6.28 + Math.random(); fx.dust({ x: x.pos.x + Math.cos(a) * 1.1, y: 0, z: x.pos.z + Math.sin(a) * 1.1 }, 0.8 + x.h * 0.12, Math.cos(a) * 2, Math.sin(a) * 2); }
@@ -419,7 +427,7 @@ function updateBurning(dt) { for (const x of buildings) { if (x.done || x.burnT 
 // ---------- energy: the shield and the fuel, one bar ----------
 function hurt(dmg, kind, at) { if (state !== 'play' || !ship.alive) return;
   if (nukeT > 0) { if (played - dmgPopT > 0.3) { dmgPopT = played; popup(ship.center, 'BLOCKED!', '#ffd24a'); } fx.sparks(at, 8, { c: [0xffffff, 0xffd24a], speed: 5, up: 2, life: 0.4 }); return; } // the nuclear shield: nothing gets through
-  energy -= dmg; hits++; stats.dmg = (stats.dmg || 0) + dmg; stats['d_' + kind] = (stats['d_' + kind] || 0) + dmg; /* (by who did it: for the balance robot) */ hitT = Math.min(0.35, hitT + 0.1 + dmg * 0.02); hurtK = Math.min(1, hurtK + 0.15 + dmg * 0.06); jolt(Math.min(0.55, 0.05 + dmg * 0.045));
+  energy -= dmg; hits++; addPower(-dmg * SW.lose); stats.dmg = (stats.dmg || 0) + dmg; stats['d_' + kind] = (stats['d_' + kind] || 0) + dmg; /* (by who did it: for the balance robot) */ hitT = Math.min(0.35, hitT + 0.1 + dmg * 0.02); hurtK = Math.min(1, hurtK + 0.15 + dmg * 0.06); jolt(Math.min(0.55, 0.05 + dmg * 0.045));
   if (played - hurtSfx > 0.13) { hurtSfx = played; sfx.hurt(); } dmgPop += dmg; if (played - dmgPopT > 0.35 || dmg >= 4) { popup(ship.center.clone().setY(ship.y - 1), '-' + Math.max(1, Math.round(dmgPop)), '#ff6a5a'); dmgPop = 0; dmgPopT = played; } // small hits add up into one number
   if (energy <= 0) { energy = 0; finish('crash', kind === 'building' ? 'building' : undefined); } }
 
@@ -437,18 +445,19 @@ function goToPoi(k) { const P = pois[k]; if (state !== 'play' || !P || P.done) r
 function setupPoiHud() {
   poiOrder = Object.keys(pois).sort((a, b) => POI[a].hp - POI[b].hp || POI[a].pts - POI[b].pts);
   $('taPois').style.setProperty('--n', poiOrder.length); /* the chips share one line: more targets, smaller chips */
-  $('taPois').innerHTML = poiOrder.map((k) => '<span class="poiChip ready" id="poi_' + k + '"><em>' + POI[k].icon + '</em><b>' + POI[k].hp + '</b><i></i></span>').join('');
+  $('taPois').innerHTML = poiOrder.map((k) => '<span class="poiChip ready" id="poi_' + k + '"><em>' + POI[k].icon + '</em><b>E' + poiNeed(k) + '</b><i></i></span>').join('');
   for (const el of document.querySelectorAll('.poiArrow')) el.remove();
   for (const k of poiOrder) { const a = document.createElement('div'); a.className = 'poiArrow ready'; a.innerHTML = '<i>➤</i><em>' + POI[k].icon + '</em>'; document.body.appendChild(a); pois[k].arrow = a; pois[k].chip = $('poi_' + k); pois[k].chip.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); goToPoi(k); }); }
   addPoiMarks();
   const c = document.createElement('canvas'); c.width = T.cols * 4; c.height = T.rows * 4; const g = c.getContext('2d'); g.fillStyle = '#24403c'; g.fillRect(0, 0, c.width, c.height); g.fillStyle = '#8fb0aa';
   for (let y = 0; y < T.rows; y++) for (let x = 0; x < T.cols; x++) if (!T.maze[y][x]) g.fillRect(x * 4, y * 4, 4, 4); mapBase = c; mapT = 0;
 }
-function hitPoi(k, at) { const P = pois[k]; if (P.done) return; P.hp--; fx.ignite(at.clone(), 0.7, 6); fx.explode(at.clone(), 0.5); jolt(0.2); sfx.crunch(true);
+const poiNeed = (k) => Math.max(2, Math.min(5, POI[k].hp - 1)); // the E level of gun a big target takes: the tougher the target, the bigger the gun
+function hitPoi(k, at) { const P = pois[k]; if (P.done) return; const need = poiNeed(k); if (shotLv + 1 < need && !P.nuked) { if (played - (P.noT || -9) > 1.2) { P.noT = played; popup(P.center.clone().setY(2.4), POI[k].icon + ' NEEDS E' + need + (swLv + 1 >= need ? ': PICK THE E' + need + ' GUN' : ''), '#ff9a8a'); sfx.ping(2); } fx.sparks(at, 6, { c: [0xffffff, 0xff9a8a], speed: 3, up: 2, life: 0.3 }); return; } P.hp--; fx.ignite(at.clone(), 0.7, 6); fx.explode(at.clone(), 0.5); jolt(0.2); sfx.crunch(true);
   if (P.chip) P.chip.querySelector('b').textContent = String(Math.max(0, P.hp)); if (P.hp > 0) { drawBadge(k); popup(P.center.clone().setY(2), POI[k].icon + ' ' + P.hp + ' MORE!', '#ffd24a'); return; }
   wreckPoi(k); }
 // a big target goes up: its own special blast, its neighbours knocked flat, a speed boost and a big refill for the ship, and something happens in town
-function wreckPoi(k) {
+function wreckPoi(k) { addPower(EP.poi);
   const P = pois[k]; P.done = true; P.hp = 0; if (P.mark) { scene.remove(P.mark); disposeTree(P.mark); P.mark = null; } const g = new THREE.Group(); g.position.copy(P.center); scene.add(g);
   for (const hz of P.hz) { T.live(hz); for (const part of hz.parts || []) if (part.parent) g.attach(part); dropObstacle(hz.pos); }
   twisters.tear(g, P.center, new THREE.Box3().setFromObject(g).getSize(V3()), null, [], [], { collapse: true, now: true, from: V3(ship.x, 0, ship.z), power: 1.5 });
@@ -544,14 +553,14 @@ const nearestPerson = (r) => { let best = null, bd = r; for (const p of people) 
 // been switched on there a few times)
 const holdEl = $('buHold'); let holdN = 0, holdOn = false;
 const peopleUnder = () => people.some((p) => Math.abs(p.position.x - ship.x) < GRAB_R + 0.6 && Math.hypot(p.position.x - ship.x, p.position.z - ship.z) < GRAB_R + 0.6);
-function holdHint() { const want = state === 'play' && ship.alive && !beamOn && holdN < 6 && bumpT <= 0 && peopleUnder(); /* (not just after a crash or a blast: its words would crowd the popups there) */ if (want !== holdOn) { if (holdOn && beamOn) holdN++; holdOn = want; holdEl.style.display = want ? 'block' : 'none'; } if (!want) return;
+function holdHint() { const want = false && state === 'play' && ship.alive && !beamOn && holdN < 6 && bumpT <= 0 && peopleUnder(); /* (not just after a crash or a blast: its words would crowd the popups there) */ if (want !== holdOn) { if (holdOn && beamOn) holdN++; holdOn = want; holdEl.style.display = want ? 'block' : 'none'; } if (!want) return;
   const s = toScreen(ship.center, ship.y), d = Math.round(shipPx() * 1.5); holdEl.style.width = holdEl.style.height = d + 'px'; holdEl.style.transform = 'translate(' + Math.round(s.x) + 'px,' + Math.round(s.y) + 'px) translate(-50%,-50%)'; }
 // The cards about the army and the dangers say how to beat them and wait for a tap (mode 'ok': that tap never reaches the game)
 function coachBU() {
   if (coachBusy()) return;
   if (!coachSeen('bu_move')) { if (played > 0.5) card('bu_move', { mode: 'drag', title: '🛸 FLY', text: 'Drag anywhere on the screen to fly your saucer. Or tap a spot: it flies there.' }); return; }
   if (!coachSeen('bu_bld') && bumpT <= 0 && cardIdle() > 0.5) { const b = bldAhead(1.4); if (b) { setWarn(b); card('bu_bld', { mode: 'ok', title: '🏢 BIG BUILDINGS ARE SOLID', text: 'Fly into one and it comes down, but it costs you a lot of energy. Watch for the red glow and BUILDING!, and fly round. Houses and small shops pass under you.', at: () => toScreen(b.pos, b.h * 0.6), done: () => { warnT = -9; } }); return; } } /* danger first, whatever else is still to learn (once it closes, BUILDING! pops up again when the real warning comes) */
-  if (!coachSeen('bu_beam')) { if (abd > 0) { markSeen('c_bu_beam'); return; } /* already beaming people up: nothing to teach */ const c = cardIdle() > 1 && !beamOn && nearestPerson(10); /* (not while the beam is already on) */ if (c && card('bu_beam', { mode: 'tap', title: '🔦 BEAM THEM UP', text: WALK() ? 'Two beams: stand over people or cars for three seconds (or HOLD on the walker) and the beam underneath takes them; anything in your searchlight for three seconds is beamed up too.' : 'Hover over people or cars for three seconds and the beam comes down by itself (or press and HOLD on your saucer to beam right away). Everyone you beam up fills your ENERGY.', at: () => toScreen(ship.center, ship.y), done: () => { beamCoach = false; const n = nearestPerson(10) || c; goTo(n.position.x, n.position.z); } })) beamCoach = true; return; } /* once it is pressed the saucer glides over the nearest crowd, so the first try works */
+  if (!coachSeen('bu_beam')) { if (abd > 0) { markSeen('c_bu_beam'); return; } /* already beaming people up: nothing to teach */ const c = cardIdle() > 1 && !beamOn && nearestPerson(10); /* (not while the beam is already on) */ if (c && card('bu_beam', { mode: 'tap', title: '🔦 BEAM THEM UP', text: WALK() ? 'Two beams: stand over people or cars for three seconds and the beam underneath takes them; anything in your searchlight for three seconds is beamed up too.' : 'Hover over people or cars for three seconds and the beam comes down by itself. Everyone you beam up fills your ENERGY.', at: () => toScreen(ship.center, ship.y), done: () => { beamCoach = false; const n = nearestPerson(10) || c; goTo(n.position.x, n.position.z); } })) beamCoach = true; return; } /* once it is pressed the saucer glides over the nearest crowd, so the first try works */
   if (army.coachTick()) return;
   if (!coachSeen('bu_horn')) { const cn = foes.state.cannons.find((o) => inView(o.g.position, 0.8)); if (cn) { card('bu_horn', { mode: 'ok', title: '📢 HORN TRUCK', text: 'It charges, then blasts along its orange line: that drains your shield and throws you back. Get your shadow off the line! Tap the truck to zap it: twice, or once while it charges.', at: () => (foes.state.cannons.includes(cn) ? toScreen(cn.g.position, 0.8) : null) }); return; } }
   if (!coachSeen('bu_energy') && hits > 2 && cardIdle() > 2) { card('bu_energy', { mode: 'ok', title: '🛡 ENERGY', text: 'Your shield and your fuel are one bar. Army hits and crashes drain it, and so does flying. Beam people up to fill it. At zero your saucer goes down!', at: () => elMid($('buEnergy')) }); return; }
@@ -572,7 +581,7 @@ const stick = { id: null, cx: 0, cy: 0, x: 0, y: 0, moved: 0, aim: null, card: f
 // still on; a steering finger that comes onto the saucer turns the beam on too. Lifting the finger ends both
 const SLIDE_PX = 22; let beamPress = null, mouseShip = null; /* beamPress: the press holding the beam on ('t' + a touch's id, or 'm' for the mouse) */
 const shipPx = () => Math.max(64, 2.05 * SHIP_SCALE * innerHeight / (cam.top - cam.bottom) + 26);
-function onShip(x, y) { if (state !== 'play' || !ship.alive || !ship.g || !ship.g.visible) return false; const s = toScreen(ship.center, ship.y); return Math.hypot(s.x - x, s.y - y) < shipPx(); }
+function onShip(x, y) { return false; /* (no holding on the saucer to beam: the beam comes down by itself) */ if (state !== 'play' || !ship.alive || !ship.g || !ship.g.visible) return false; const s = toScreen(ship.center, ship.y); return Math.hypot(s.x - x, s.y - y) < shipPx(); }
 const closing = () => coachBusy() || coachIdle() < 0.25; /* a press that closes a first-time card: it never taps (no zap, no flying off) */
 function sDown(id, x, y) { if (stick.id !== null || state !== 'play') return; stick.id = id; stick.cx = x; stick.cy = y; stick.x = stick.y = 0; stick.moved = 0; stickEl.style.left = x + 'px'; stickEl.style.top = y + 'px'; stickEl.style.display = 'none'; knobEl.style.transform = 'translate(-50%,-50%)'; }
 function sMove(id, x, y) { if (id !== stick.id) return; const dx = x - stick.cx, dy = y - stick.cy, d = Math.hypot(dx, dy) || 1, m = Math.min(d, 55); stick.moved = Math.max(stick.moved, d); if (stick.moved < 10) return; stickEl.style.display = 'block'; moveTo = null; stick.x = dx / d * m / 55; stick.y = dy / d * m / 55; knobEl.style.transform = 'translate(calc(-50% + ' + stick.x * 36 + 'px), calc(-50% + ' + stick.y * 36 + 'px))'; }
@@ -628,14 +637,14 @@ addEventListener('blur', () => { beamHeld = false; beamPress = mouseShip = null;
 let state = 'start', roundId = 0, outro = null; // roundId: delayed effects from an earlier round check it and stand down
 const pct = () => Math.round((bDone / totalB) * 100);
 soundToggle($('taStart'), $('taPaused')); playerButton($('taPaused'), $('taPaused').querySelector('.menuBtn')); skipSongBtn($('ta')); eraPicker($('taLevels'), () => { level = unlocked(); drawLevels(); }); seasonPicker($('eraRow'));
-gameMusic($('taPaused'), SONGS_ALL); firstSong('bu', 'music/beam-beam-baby.mp3'); /* (the first visit opens on Beam Beam Baby) */ radioButton($('taPaused'), $('taPaused').querySelector('.menuBtn'));
+gameMusic($('taPaused'), SONGS_ALL); radioButton($('taPaused'), $('taPaused').querySelector('.menuBtn'));
 const fsMode = initFullscreen(() => state === 'play' || state === 'outro'); // full screen on play, back in after a browser drop-out, no page scrolling mid-round (the outro is still the round)
 const hudCache = {}; const setT = (id, v) => { v = String(v); if (hudCache[id] !== v) { hudCache[id] = v; $(id).textContent = v; } };
 const setC = (id, cls, on) => { const k = id + '.' + cls; if (hudCache[k] !== on) { hudCache[k] = on; $(id).classList.toggle(cls, on); } };
-function start() {
+function start() { firstSong('bu', 'music/beam-beam-baby.mp3'); /* (the first round ever opens on Beam Beam Baby) */
   fsMode.play(); coachClear(); if (!noSave) saveLast('bu', level); crowd.clear(); unlockAudio(); roundId++; timers.length = 0; sk.clear(); /* (last round's baby twisters, freed while the twisters module still has them) */
   buildWorld(); makePlayerShip(); setupPoiHud();
-  score = 0; chain = 0; lastHit = -9; tLeft = L().time; played = 0; abd = 0; stats = {}; sw = swLv = swNext = 0; swN = [0, 0]; drawSw(); energy = E_MAX; boostT = nukeT = hitT = hurtK = 0; hits = 0; lowWarned = false; rayCd = 0; moveTo = null; lastGrab = -9; grabChain = 0; dmgPop = 0; dmgPopT = hurtSfx = lowAt = -9; outro = null; beamCoach = false;
+  score = 0; chain = 0; lastHit = -9; tLeft = L().time; played = 0; abd = 0; stats = {}; sw = swLv = swNext = power = 0; swN = [0, 0]; drawSw(); energy = E_MAX; boostT = nukeT = hitT = hurtK = 0; hits = 0; lowWarned = false; rayCd = 0; moveTo = null; lastGrab = -9; grabChain = 0; dmgPop = 0; dmgPopT = hurtSfx = lowAt = -9; outro = null; beamCoach = false;
   blindT = 0; radarDown = radioDown = fireBoost = stink = false; beamHeld = false; hoverT = autoBeamT = 0; beamPress = mouseShip = botDrag = null; bumpT = autoT = 0; pend = null; warnT = -9; setWarn(null); curCard = null; cardUp = false; cardShutAt = -99; holdN = 0;
   army.spawnTown();
   for (const s of ['taStart', 'taEnd', 'taPaused', 'taPrize']) $(s).classList.add('hidden'); $('ta').classList.remove('hidden');
@@ -690,8 +699,9 @@ function finishNow() {
 }
 const HOWTO = [
   ['🛸', 'Fly', 'Drag anywhere to fly your saucer. Tap a spot to fly there, or tap the minimap to cross town. On a computer: WASD or the arrow keys, or click.'],
-  ['🦿', 'The Longshanks', 'Pick the WALKER on the start screen instead of the saucer. It walks on three long legs and stamps on the buildings its feet come down on. Its death ray works like the saucer’s, and it has two beams: the saucer’s beam underneath (stand over people or cars for three seconds, or HOLD on it), and a searchlight that shines the way it walks (anyone or any car in it for three seconds is beamed up).'],
-  ['🔦', 'Beam them up', 'Hover over people or cars for three seconds and the beam comes down by itself. You can also press and HOLD on your saucer (SPACE on a computer), and slide your finger to steer while it beams. Soldiers and cars can be beamed up as well.'],
+  ['⚡', 'E levels', 'Beaming people up and wrecking the town powers you up from E1 to E5 (the pill beside your people count fills toward the next). Each level opens a bigger gun on the right: E2 heavy ray, E3 triple ray, E4 mini nuke, E5 big nuke. Every hit you take drains power, so take too many and you drop a level. Each big target needs a gun of its level: its chip shows which (E2 to E5).'],
+  ['🦿', 'The Longshanks', 'Pick the WALKER on the start screen instead of the saucer. It walks on three long legs and stamps on the buildings its feet come down on. Its death ray works like the saucer’s, and it has two beams: the saucer’s beam underneath (stand over people or cars for three seconds), and a searchlight that shines the way it walks (anyone or any car in it for three seconds is beamed up).'],
+  ['🔦', 'Beam them up', 'Hover over people or cars for three seconds and the beam comes down by itself. Keep them in the circle under you. Soldiers and cars can be beamed up as well.'],
   ['⚡', 'Death ray', 'It zaps the buildings you fly over or beside by itself. Tap a building, a big target, a tank or a soldier: your saucer flies there and zaps it. Tap an aircraft, a missile or a truck: the ray zaps it where it is. It costs no energy. Tall buildings take two or three zaps. On a computer, F zaps the nearest attacker.'],
   ['🏢', 'Big buildings', 'Big buildings are solid. Fly into one and it comes down, but it costs a lot of energy. The red glow and BUILDING! warn you just before. Houses and small shops pass under you.'],
   ['🛡', 'Energy', 'Your shield and your fuel are one bar. Flying burns a little, army hits and crashes burn more, and everyone you beam up fills it again. Grab them one after another for a BEAM CHAIN: it fills faster.'],
@@ -716,17 +726,19 @@ $('taPause').addEventListener('click', togglePause); $('taResume').addEventListe
     reset(); $('taPaused').classList.add('hidden'); playNow(); }); }
 // the saucer on the start screen: live, hovering and turning, its beam on (livePreview.js)
 const pv = createPreviews({ perFrame: 1, cam: [0, 2.1, 6.4], look: [0, -0.35, 0], fov: 34 });
-let pvKey; function drawShipPv() { pv.clear(); if (WALK()) { const wk = craftSkinKey('walker'); pvKey = 'w:' + wk; pv.add($('buShipCv'), () => craftPreview('walker', wk, { fitTo: 3.9 }), (dt, t, o) => o.userData.tick(dt, t)); return; } const ck = craftSkinKey('ufo'); pvKey = ck; /* (a saucer skin shows on the start screen too) */
-pv.add($('buShipCv'), ck ? () => craftPreview('ufo', ck, { fitTo: 3.9 }) : () => { const g = new THREE.Group(), s = makeShip(), b = makeBeam(); s.scale.setScalar(0.95); g.add(s); b.g.position.y = -0.45; g.add(b.g); g.userData = { s, b }; return g; },
-  ck ? (dt, t, o) => o.userData.tick(dt, t) : (dt, t, o) => { const { s, b } = o.userData; s.position.y = Math.sin(t * 2) * 0.08; s.rotation.z = Math.sin(t * 1.3) * 0.06; s.userData.ring.material.map.offset.x += dt * 0.8; s.userData.pilot.rotation.y = Math.sin(t * 0.7) * 0.9; b.update(dt, 1.9, 1.1, Math.sin(t * 0.9) > -0.3); }); }
-const pvNow = () => (WALK() ? 'w:' + craftSkinKey('walker') : craftSkinKey('ufo'));
-function skinBtn() { const old = $('taStart').querySelector('.psBtn'); if (old) old.remove(); craftSkinButton($('taStart'), craftKind, () => { if (pvNow() === pvKey) return; drawShipPv(); if (state !== 'play' && ship.g) makePlayerShip(); }); }
-function pickCraft(k) { if (k === craftKind) return; craftKind = k; try { localStorage.setItem('bu_craft', k); } catch { /* ignore */ } drawCraftPick(); drawShipPv(); skinBtn(); if (state !== 'play' && ship.g) makePlayerShip(); }
-function drawCraftPick() { const c = $('buChosen'); c.querySelector('small').textContent = 'YOUR MACHINE'; c.querySelector('b').textContent = WALK() ? 'THE LONGSHANKS' : 'THE BEAMER';
-  c.querySelector('span').textContent = WALK() ? 'Walks on three long legs and stamps on buildings. Its searchlight beams up anyone caught in it for three seconds.' : 'A tractor beam, a death ray, and a shield that runs on people. The army will not like it.';
-  let row = $('buPick'); if (!row) { row = document.createElement('div'); row.id = 'buPick'; c.after(row); for (const [k, t] of [['ufo', '🛸 SAUCER'], ['walker', '🦿 WALKER']]) { const b = document.createElement('button'); b.className = 'ghost eraBtn'; b.dataset.k = k; b.textContent = t; b.addEventListener('click', (e) => { e.stopPropagation(); pickCraft(k); }); row.appendChild(b); } }
-  for (const b of row.children) b.classList.toggle('on', b.dataset.k === craftKind); }
-drawCraftPick(); drawShipPv(); skinBtn(); /* (nothing to rebuild when the same skin is picked) */
+const onDouble = (el, fn) => { let t0 = 0; el.addEventListener('click', () => { const t = performance.now(); if (t - t0 < 380) { t0 = 0; fn(); } else t0 = t; }); };
+function shopBtn() { const host = $('taStart'), row = host.querySelector('.soundRow'); let b = host.querySelector('.psBtn'); if (b) b.remove(); b = document.createElement('button'); b.className = 'ghost psBtn'; b.textContent = '🎨 SKINS'; b.addEventListener('click', (e) => { e.stopPropagation(); location.href = 'store.html?from=beamup'; }); if (row) { row.insertBefore(b, row.firstChild); row.style.display = 'grid'; row.style.gridTemplateColumns = 'repeat(3, minmax(0, 1fr))'; b.style.margin = '0'; } else host.appendChild(b); }
+// the two machines, as cards: a tap picks one; a double tap opens the skin shop on its skins (SKINS beside SOUND does the same)
+const BU_CRAFTS = [['ufo', '🛸 THE BEAMER', 'A saucer: a tractor beam, a death ray, and a shield that runs on people.'], ['walker', '🦿 THE LONGSHANKS', 'A walker: stamps on buildings, a beam underneath and a searchlight ahead.']];
+function shipPv(k) { const ck = craftSkinKey(k); if (k === 'walker') return [() => craftPreview('walker', ck, { fitTo: 2.6 }), (dt, t, o) => o.userData.tick(dt, t)];
+  return ck ? [() => craftPreview('ufo', ck, { fitTo: 2.7 }), (dt, t, o) => o.userData.tick(dt, t)] : [() => { const g = new THREE.Group(), s0 = makeShip(), b = makeBeam(); s0.scale.setScalar(0.62); g.add(s0); b.g.position.y = -0.45; g.add(b.g); g.userData = { s: s0, b }; return g; },
+    (dt, t, o) => { const { s: s0, b } = o.userData; s0.position.y = Math.sin(t * 2) * 0.08; s0.rotation.z = Math.sin(t * 1.3) * 0.06; s0.userData.ring.material.map.offset.x += dt * 0.8; s0.userData.pilot.rotation.y = Math.sin(t * 0.7) * 0.9; b.update(dt, 1.9, 1.1, Math.sin(t * 0.9) > -0.3); }]; }
+function drawShipPv() { const box = $('buCrafts'); box.innerHTML = ''; pv.clear(); shopBtn();
+  for (const [k, name, desc] of BU_CRAFTS) { const b = document.createElement('button'); b.className = 'craftCard' + (k === craftKind ? ' on' : ''); b.innerHTML = '<canvas width="150" height="150"></canvas><b>' + name + '</b><i class="skHint">DOUBLE TAP: SKINS</i><span>' + desc + '</span>'; box.appendChild(b);
+    const [mk, tk] = shipPv(k); pv.add(b.querySelector('canvas'), mk, tk);
+    b.addEventListener('click', () => { if (k === craftKind) return; craftKind = k; try { localStorage.setItem('bu_craft', k); } catch { /* ignore */ } box.querySelectorAll('.craftCard').forEach((x, i) => x.classList.toggle('on', BU_CRAFTS[i][0] === k)); if (state !== 'play' && ship.g) makePlayerShip(); });
+    onDouble(b, () => { try { localStorage.setItem('bu_craft', k); } catch { /* ignore */ } location.href = 'store.html?from=beamup'; }); } }
+drawShipPv();
 
 // the saucer skin's looks, followers and quirks (craftSkins.js). With no skin worn, every call does nothing
 const sk = ufoSkin({ scene, fx, twisters, popup, sfx, jolt, people: () => people, buildings: () => buildings, army, addPerson, collide: collidePerson, played: () => played, beamOn: () => beamOn, lim: () => (T ? T.lim : null) });
@@ -736,7 +748,7 @@ function update(dt) {
   if (cardUp && !coachBusy()) { cardUp = false; curCard = null; cardShutAt = played; } /* a first-time card has just been closed */
   coachBU(); if (played > 30) tip('bu_map', '🗺️ Tap the minimap to fly across town. Green dots are people.');
   /* the beam comes down by itself once people have stayed in the circle under the saucer for a second, and stays on while there are people about */ { let near = false; if (ship.alive && state === 'play') for (const c of people) if (Math.hypot(c.position.x - ship.x, c.position.z - ship.z) < PULL_R * 0.8) { near = true; break; } if (!near && ship.alive && state === 'play') for (const d of drivers) if (Math.hypot(d.g.position.x - ship.x, d.g.position.z - ship.z) < PULL_R * 0.8) { near = true; break; } /* (a car counts too) */ hoverT = near ? hoverT + dt : 0; autoBeamT = hoverT >= AUTO_BEAM ? 0.45 : Math.max(0, autoBeamT - dt); }
-  beamOn = (beamHeld || beamPress !== null || !!keys[' '] || autoBeamT > 0) && ship.alive; if (WALK() && ship.alive) walkerBeam(dt); fly(dt); shipLook(dt); (WALK() || sk.tick(dt, ship));
+  beamOn = (beamHeld || autoBeamT > 0) && ship.alive; if (WALK() && ship.alive) walkerBeam(dt); fly(dt); shipLook(dt); (WALK() || sk.tick(dt, ship));
   boostT -= dt; nukeT = Math.max(0, nukeT - dt); blindT = Math.max(0, blindT - dt); rayCd -= dt;
   energy -= fuelRate() * dt; if (energy <= 0) { energy = 0; finish('crash', 'fuel'); return; } // flying burns energy too: keep beaming people up
   const sx = ship.x, sz = ship.z, bl = ship.y - 0.42 * SHIP_SCALE; beam.g.position.set(sx, bl, sz); beam.update(dt, bl, GRAB_R, beamOn);

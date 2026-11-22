@@ -701,9 +701,9 @@ addEventListener('blur', () => { for (const k in keys) keys[k] = false; dropHeld
 // ---------- flow ----------
 let state = 'start', roundId = 0, roundN = 0;
 soundToggle($('taStart'), $('taPaused')); playerButton($('taPaused'), $('taPaused').querySelector('.menuBtn')); skipSongBtn($('ta')); eraPicker($('taLevels'), () => { level = unlocked(); drawLevels(); }); seasonPicker($('eraRow'));
-gameMusic($('taPaused'), SONGS_TORNADO); firstSong('ar', 'music/napalm-requiem.mp3'); /* (the first visit opens on Napalm Requiem) */ radioButton($('taPaused'), $('taPaused').querySelector('.menuBtn'));
+gameMusic($('taPaused'), SONGS_TORNADO); radioButton($('taPaused'), $('taPaused').querySelector('.menuBtn'));
 const fsMode = initFullscreen(() => state === 'play' || state === 'outro'); // full screen on play, back in after a browser drop-out, no page scrolling mid-round (and its button stays out of the way while the HUD still shows)
-function start() {
+function start() { firstSong('ar', 'music/napalm-requiem.mp3'); /* (the first round ever opens on Napalm Requiem) */
   fsMode.play(); coachClear(); saveLast('ar', level); horde.crowd.clear(); if (state !== 'start' || roundN > 0) roundN++; roundId++;
   unlockAudio(); sk.clear(); buildWorld(); makeCraft(craftKind); setupMap(); /* (sk.clear first: it frees the last round's baby twisters while the twisters module still has them) */
   score = coll = kills = spitKills = savedN = civHit = turned = bHit = bLost = poiHit = acidHits = refills = multiBest = drops = shots = bumps = rockHits = crushed = gUp = gDown = 0; wpn = wLv = sup = nukes = supNuke = 0; played = 0; coll70 = false; endWhy = ''; dropHeld = false; botDrop = false; botKT = 0; stickOff(); touches.clear(); setWarn(null);
@@ -774,11 +774,15 @@ $('taPause').addEventListener('click', togglePause); $('taResume').addEventListe
     reset(); $('taPaused').classList.add('hidden'); playNow(); }); }
 // ---------- pick your aircraft: two cards, each with the aircraft turning on it (livePreview.js) ----------
 const pv = createPreviews({ perFrame: 2, cam: [0, 2.3, 4.7], look: [0, 0.1, 0], fov: 34 });
-function drawCrafts() { const box = $('arCrafts'); box.innerHTML = ''; pv.clear(); craftSkinButton($('taStart'), craftKind, () => { if (state === 'start' && craft && (craft.kind !== craftKind || (craft.g.userData.skinKey || null) !== craftSkinKey(craftKind))) { const old = craft; makeCraft(craftKind); disposeCraft(old.g, old.kind); } drawCrafts(); }); /* (a new pick re-dresses the craft circling behind the title; the old one is freed) */
-  for (const k of ['bomber', 'heli']) { const S = CRAFTS[k], b = document.createElement('button'); b.className = 'craftCard' + (k === craftKind ? ' on' : ''); b.innerHTML = '<canvas width="150" height="150"></canvas><b>' + S.icon + ' ' + S.name + '</b><span>' + S.desc + '</span><small>' + S.best + '</small>'; box.appendChild(b);
+const onDouble = (el, fn) => { let t0 = 0; el.addEventListener('click', () => { const t = performance.now(); if (t - t0 < 380) { t0 = 0; fn(); } else t0 = t; }); };
+function shopBtn() { const host = $('taStart'), row = host.querySelector('.soundRow'); let b = host.querySelector('.psBtn'); if (b) b.remove(); b = document.createElement('button'); b.className = 'ghost psBtn'; b.textContent = '🎨 SKINS'; b.addEventListener('click', (e) => { e.stopPropagation(); location.href = 'store.html?from=airraid'; }); if (row) { row.insertBefore(b, row.firstChild); row.style.display = 'grid'; row.style.gridTemplateColumns = 'repeat(3, minmax(0, 1fr))'; b.style.margin = '0'; } else host.appendChild(b); }
+// the craft cards: a tap picks one; a double tap opens the skin shop on its skins (SKINS beside SOUND does the same)
+function drawCrafts() { const box = $('arCrafts'); box.innerHTML = ''; pv.clear(); shopBtn();
+  for (const k of ['bomber', 'heli']) { const S = CRAFTS[k], b = document.createElement('button'); b.className = 'craftCard' + (k === craftKind ? ' on' : ''); b.innerHTML = '<canvas width="150" height="150"></canvas><b>' + S.icon + ' ' + S.name + '</b><i class="skHint">DOUBLE TAP: SKINS</i><span>' + S.desc + '</span><small>' + S.best + '</small>'; box.appendChild(b);
     const ck = craftSkinKey(k); pv.add(b.querySelector('canvas'), ck ? () => craftPreview(k, ck, { fitTo: 2.7 }) : () => { const g = k === 'heli' ? makeHeli() : makeBomber(), o = new THREE.Group(), bb = new THREE.Box3().setFromObject(g), sz = bb.getSize(new THREE.Vector3()); g.scale.multiplyScalar(2.7 / Math.max(sz.x, sz.z)); bb.setFromObject(g); g.position.sub(bb.getCenter(new THREE.Vector3())); o.add(g); o.userData.g = g; return o; },
       ck ? (dt, t, o) => o.userData.tick(dt, t) : (dt, t, o) => { const g = o.userData.g; o.rotation.y = 0.6 + t * 0.5; o.rotation.z = Math.sin(t * 0.9) * 0.08; o.position.y = Math.sin(t * 1.6) * 0.06; for (const p of g.userData.props || []) { if (k === 'heli') p.rotation.y += dt * 25; else p.rotation.z += dt * 40; } if (g.userData.tail) g.userData.tail.rotation.x += dt * 30; });
-    b.addEventListener('click', () => { craftKind = k; try { localStorage.setItem('ar_craft', k); } catch { /* ignore */ } drawCrafts(); }); } }
+    b.addEventListener('click', () => { if (craftKind === k) return; craftKind = k; try { localStorage.setItem('ar_craft', k); } catch { /* ignore */ } box.querySelectorAll('.craftCard').forEach((x, i) => x.classList.toggle('on', ['bomber', 'heli'][i] === k)); if (state === 'start' && craft) { const old = craft; makeCraft(craftKind); disposeCraft(old.g, old.kind); } });
+    onDouble(b, () => { try { localStorage.setItem('ar_craft', k); } catch { /* ignore */ } location.href = 'store.html?from=airraid'; }); } }
 drawCrafts();
 
 // ---------- the autopilot (a test hook: __ar.bot = true flies the round by itself, through the same controls) ----------
