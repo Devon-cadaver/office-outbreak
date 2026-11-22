@@ -28,7 +28,7 @@ export function quietWhilePaused(o) { for (const k of Object.keys(o)) { const f 
 // 🔊 / 🔇 button on the given screens (placed above their tutorial / menu buttons), all kept in step
 export function soundToggle(...hosts) {
   const btns = [];
-  const draw = () => { for (const b of btns) { const m = b.dataset.k === 'm', off = m ? musicMuted : muted; b.innerHTML = '<i class="sIc">' + (m ? '🎵' : off ? '🔇' : '🔊') + '</i><span class="sTx">' + (m ? 'MUSIC' : 'SOUND') + ': ' + (off ? 'OFF' : 'ON') + '</span>'; b.classList.toggle('off', off); } }; /* (a big icon and a short word, so ON and OFF are the same size) */
+  const draw = () => { for (const b of btns) { const m = b.dataset.k === 'm', off = m ? musicMuted : muted; b.innerHTML = '<i class="sIc">' + (m ? '🎵' : '🔊') + '</i><span class="sTx">' + (m ? 'MUSIC' : 'SOUND') + ': ' + (off ? 'OFF' : 'ON') + '</span>'; b.classList.toggle('off', off); } }; /* (a big icon and a short word, so ON and OFF are the same size) */
   for (const h of hosts) { if (!h) continue; const row = document.createElement('div'); row.className = 'soundRow';
     const b = document.createElement('button'); b.className = 'ghost soundBtn';
     b.addEventListener('click', (e) => { e.stopPropagation(); unlockAudio(); setMuted(!muted); if (!muted) sfx.pickup(); draw(); });
