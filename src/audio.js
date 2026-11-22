@@ -145,7 +145,7 @@ const FRAME = (() => { try { return window.parent !== window && window.parent.__
 // ---------- the radio: one shuffled station of every song, on every page (the menu, both games, the shop). Each page is a
 // fresh load, so the station carries over in sessionStorage: same song, same spot, same shuffle. It tries to play straight
 // away (fine on a computer once you've been on the site); phones and tablets pick it up at the first tap ----------
-export const SONGS_ALL = ['music/tornado-alley.mp3', 'music/twister-vs-army.mp3', 'music/clean-slate.mp3', 'music/feeding-ground.mp3', 'music/stomp-the-block.mp3', 'music/saving-you-the-trouble.mp3', 'music/tatsumaki-justice.mp3', 'music/my-little-disaster.mp3', 'music/my-little-disaster-2.mp3', 'music/napalm-requiem.mp3', 'music/beam-beam-baby.mp3'];
+export const SONGS_ALL = ['music/tornado-alley.mp3', 'music/twister-vs-army.mp3', 'music/clean-slate.mp3', 'music/feeding-ground.mp3', 'music/stomp-the-block.mp3', 'music/saving-you-the-trouble.mp3', 'music/tatsumaki-justice.mp3', 'music/my-little-disaster.mp3', 'music/my-little-disaster-2.mp3', 'music/napalm-requiem.mp3', 'music/beam-beam-baby.mp3', 'music/little-green-man-at-the-rodeo.mp3'];
 export const SONGS_TORNADO = SONGS_ALL, SONGS_KAIJU = SONGS_ALL;
 const VOLS = [['LOW', 0.25], ['MED', 0.55], ['FULL BLAST', 0.95]];
 let SONGS = SONGS_ALL, volV = null, radioPaused = false, order = [], song = null, songGain = null, songI = -1, repeat = false, volI = 0, resumeAt = 0; /* the songs start at LOW until you change it */
