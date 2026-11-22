@@ -1,6 +1,6 @@
 # Tornado Time! — itch.io page kit
 
-Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.40.1**. Upload `release/tornado-time-web-v1.40.1.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to. All the images below are in `release/itch/tornado-time/`.
+Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.40.2**. Upload `release/tornado-time-web-v1.40.2.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to. All the images below are in `release/itch/tornado-time/`.
 
 The game used to be called Dead City: Tornado Alley. From 1.28.0 it is **Tornado Time!**, with Kaiju Madness as its bonus game. Older zips keep their old `survive-dead-city-web` names.
 
@@ -15,7 +15,7 @@ The game used to be called Dead City: Tornado Alley. From 1.28.0 it is **Tornado
 | Short description / tagline | You are the tornado. Wreck six towns, swallow rival twisters, zap UFOs and blow up everything worth blowing up. |
 | Classification | Game |
 | Kind of project | **HTML** |
-| Uploads | `tornado-time-web-v1.40.1.zip` (about 40 MB, mostly the eleven songs). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
+| Uploads | `tornado-time-web-v1.40.2.zip` (about 40 MB, mostly the eleven songs). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
 | Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
 | Frame options | Leave SharedArrayBuffer off. No special headers needed. |
 | Pricing | Free (or "No payments"). |
@@ -123,6 +123,7 @@ Small browser games built fast, tested on a phone, and tuned by playing. Tornado
 
 ## Version history
 
+- **1.40.2** (2026-11-22): The SOUND and MUSIC buttons show a bigger icon with smaller words and stay the same size whether they are on or off; on the main menu they always sit side by side.
 - **1.40.1** (2026-11-22): Zombie Air Raid: Grave Giants only grab or swipe at you when you are in front of them. Come in from behind and you can bomb them safely.
 - **1.40.0** (2026-11-22): Zombie Air Raid: three-legged walkers stride in after you from Suburbs on and fire lasers up at you (rockets and napalm at their feet bring them down). Your tail gun's shots now show, so you can see what brings the UFOs down. The camera sits a little further back, and swoops in while the bomber dives to drop.
 - **1.39.0** (2026-11-22): Zombie Air Raid: the horde now attacks buildings and cars as well as people, and what it wrecks fills your COLLATERAL. A small crowd slowly breaks into small buildings; a big horde wears down big ones too. Grave Giants come in every town now (more in the big ones), stamp houses flat as they walk and batter big buildings down.

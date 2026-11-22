@@ -271,3 +271,7 @@ button:disabled, button:disabled:active { transform: none; }
   #ta #taPct { width: 96px !important; bottom: calc(112px + env(safe-area-inset-bottom, 0px)) !important; font-size: 12px; padding: 2px 4px; }
   #ta #taZoomIn { left: 116px !important; } #ta #taZoomOut { left: 170px !important; } #ta .skipHud { left: 224px !important; }
 }
+
+/* SOUND and MUSIC: a big icon, the words beside it; the button keeps its size whether it says ON or OFF */
+.soundRow button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; } .soundRow button .sIc { font-style: normal; font-size: 1.45em; line-height: 1; } .soundRow button .sTx { font-size: 0.82em; letter-spacing: .5px; min-width: 6.2em; text-align: left; } .soundRow button.off { opacity: .8; }
+#menu .soundRow { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: min(88vw, 360px); } #menu .soundRow button { margin: 0; min-width: 0; padding-left: 6px; padding-right: 6px; }
