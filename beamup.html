@@ -63,7 +63,16 @@
     @media (min-width: 761px) and (min-height: 521px) { #buBeam { right: 24px; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); width: 108px; height: 108px; } #buBeam i::after { content: ' · SPACE'; } }
     /* the death ray's levels: a column above BEAM, faint until each is unlocked */
     /* the E level: a pill that fills toward the next level */
-    #buE { flex: none; --k: 0; padding: 3px 9px; border-radius: 11px; font-size: 15px; font-weight: 900; color: #120a1f; background: linear-gradient(90deg, #3af0ff calc(var(--k) * 100%), #3af0ff55 calc(var(--k) * 100%)); border: 2px solid #b8fff0; letter-spacing: .5px; }
+    /* the E level: the tornado's F level look (a green pill and one bar with a tick at each level) */
+    #buE { flex: none; min-width: 30px; padding: 3px 9px; border-radius: 10px; background: #7dff3a; color: #12240a; font-size: 20px; font-weight: 900; line-height: 1.15; text-align: center; box-shadow: 0 3px 0 #3f9a1f, 0 0 10px #7dff3a66; }
+    #buE.bump { animation: rankBump .7s; }
+    #buGrow { position: relative; flex: 1; min-width: 0; height: 8px; margin-bottom: 10px; background: #ffffff26; border-radius: 4px; }
+    #buGrowFill { height: 100%; width: 0; border-radius: 4px; background: linear-gradient(90deg, #7dff3a, #ffd24a, #ff5a3a); transition: width .2s; }
+    #buGrow .tick { position: absolute; top: -2px; width: 2px; height: 12px; background: #ffffffcc; transform: translateX(-1px); } #buGrow .tick b { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); font-size: 9px; font-weight: 900; color: #fff; text-shadow: 0 1px 2px #000; } #buGrow .tick.got b { color: #7dff3a; }
+    /* health: a slim bar on its own line under the E level */
+    /* health: a small bar that floats over your machine */
+    #buEnergy { position: fixed !important; left: 0; top: 0; flex: none !important; width: 78px; height: 9px !important; border-width: 1.5px !important; border-radius: 5px !important; transform: translate(-50%, -100%); pointer-events: none; z-index: 2; } #buEnergyTxt { display: none !important; } #buEnergy.off { display: none; }
+    #buGrow.low { box-shadow: 0 0 10px #ff3a2a; animation: eLow .45s ease-in-out infinite alternate; } #buGrow.low #buGrowFill { background: #ff3a2a; } #buGrow.nuke #buGrowFill { background: linear-gradient(90deg, #ffd24a, #fff6a0); }
     #buCrafts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: var(--w); }
     .craftCard { display: grid; gap: 3px; align-content: start; padding: 6px 6px 8px; margin: 0; border-radius: 14px; background: #1a0f2e; border: 3px solid #5a2f80; color: #fff; text-align: center; box-shadow: none; background-image: none; }
     .craftCard canvas { width: 100%; height: 104px; object-fit: cover; border-radius: 10px; background: radial-gradient(circle at 50% 40%, #2e3a50, #120a1f 75%); }
@@ -108,7 +117,7 @@
   <canvas id="game"></canvas>
   <div id="ta" class="hidden">
     <div class="top">
-      <div id="buBar"><b id="buCount">👽 0/30</b><b id="buE" title="Your E level: beam people up and wreck the town to power up; hits power you down">E1</b><div id="buEnergy"><div id="buEnergyFill"></div><span id="buEnergyTxt">🛡 ENERGY 100%</span></div><span id="taTime">2:30</span></div>
+      <div id="buBar"><b id="buCount">👽 0/30</b><b id="buE" title="Your E level: beam people up and wreck the town to power up; hits power you down">E1</b><div id="buGrow"><div id="buGrowFill"></div></div><div id="buEnergy"><div id="buEnergyFill"></div><span id="buEnergyTxt"></span></div><span id="taTime">2:30</span></div>
       <div id="hudGoal"><span class="goalLbl">🎯 TARGETS<b id="taTargets"></b></span><div id="taPois"></div></div>
       <div id="taSub"><span id="taLevel"></span><span id="taScore">0</span><span id="taCombo"></span></div>
     </div>

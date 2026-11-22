@@ -54,11 +54,17 @@
     .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: min(88vw, 360px); }
     .pair .choice { width: auto; min-width: 0; margin: 0; padding: 9px 10px !important; } .pair .choice b { font-size: 13.5px !important; letter-spacing: .3px; white-space: nowrap; } .pair .choice span { font-size: 10.5px !important; }
     #menu > .choice:not(.quick) { padding: 8px 14px !important; } #menu > .choice:not(.quick) b { font-size: 14px !important; } #menu > .choice:not(.quick) span { display: none; } /* SAVE CODE: one small line */
+    /* the two big ways in, under QUICK PLAY: Tornado Time! itself, and the bonus games' own screen */
+    /* the paired buttons: a big icon on the left, the words beside it */
+    .pair .choice { display: grid !important; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 8px; align-items: center; text-align: left !important; } .pair .choice i.ic { grid-row: 1 / 3; font-style: normal; font-size: 32px; line-height: 1; }
+    .pair .choice b, .pair .choice span { grid-column: 2; min-width: 0; } .pair .choice b { white-space: normal !important; line-height: 1.1; } .choice.big b { font-size: 13.5px !important; letter-spacing: .3px; }
+    .choice.bonus { border-color: #ff5ae0 !important; box-shadow: 0 4px 0 #5a1a4a !important; } .choice.bonus b { color: #ff9af0; }
+    #quickBox .game.kj { border-color: #ff7a3a; } #quickBox .game.ar { border-color: #b8d84a; } #quickBox .game.ar b { color: #d8f06a; } #quickBox .game.bu { border-color: #7dffb0; } #quickBox .game.bu b { color: #9affc8; }
     /* QUICK PLAY's own screen: pick a game and you're in */
     #quickBox { position: fixed; inset: 0; z-index: 30; display: flex; flex-direction: column; align-items: center; justify-content: safe center; gap: 12px; padding: 16px; background: #1a0f2ef4; text-align: center; overflow-y: auto; }
     #quickBox.hidden { display: none; } #quickBox h2 { margin: 0; font-size: 30px; letter-spacing: 2px; color: #7dff3a; text-shadow: 0 2px 0 #5a2f80; } #quickBox p { margin: 0; font-size: 14px; color: #c9a6ff; }
     #quickBox .game { width: min(88vw, 360px); margin: 0; padding: 16px 14px; display: grid; gap: 3px; text-align: center; border: 3px solid #7dff3a; background-color: #24133f; color: #fff; border-radius: 16px; box-shadow: 0 6px 0 #0e0618, 0 8px 12px #0007; }
-    #quickBox .game i { font-style: normal; font-size: 44px; line-height: 1.1; } #quickBox .game b { font-size: 22px; letter-spacing: 1px; color: #7dff3a; } #quickBox .game span { font-size: 13px; font-weight: 700; color: #ffd24a; }
+    #quickBox .game { grid-template-columns: 44px 1fr; grid-template-rows: auto auto; column-gap: 10px; row-gap: 1px; padding: 9px 12px !important; text-align: left !important; align-items: center; } #quickBox .game i { grid-row: 1 / 3; font-style: normal; font-size: 32px; line-height: 1; text-align: center; } #quickBox .game b { font-size: 17px; letter-spacing: 1px; color: #7dff3a; } #quickBox .game span { font-size: 11px; font-weight: 700; color: #ffd24a; }
     #quickBox .game.kj { border-color: #ff7a3a; } #quickBox .game.kj b { color: #ff9a5a; }
     .credits { order: 99; margin: auto 0 0 !important; max-width: min(88vw, 360px); font-size: 9.5px !important; line-height: 1.3; color: #a898c8; opacity: .8; text-align: center; }
       .exitBtn { order: 2; } .screen::after { order: 3; } /* EXIT sits last, under the sound buttons */
@@ -71,17 +77,12 @@
   <div id="menu" class="screen">
     <button class="choice quick" id="quickBtn"><b>▶ QUICK PLAY</b><span>Straight into a round, right where you left off.</span></button>
     <div class="pair">
-      <button class="choice" onclick="location.href='tornado.html'"><b>🌪️ TORNADO TIME!</b><span>Towns, eras and storms</span></button>
-      <button class="choice" onclick="location.href='kaiju.html'" style="border-color:#ff7a3a;box-shadow:0 4px 0 #5a2a1a !important"><b style="color:#ff9a5a">🦖 KAIJU MADNESS</b><span>Bonus game: 60 monsters</span></button>
-    </div>
-    <!-- the two newest bonus games -->
-    <div class="pair">
-      <button class="choice" onclick="location.href='airraid.html'" style="border-color:#b8d84a;box-shadow:0 4px 0 #3a4a1a !important"><b style="color:#d8f06a">🧟 ZOMBIE AIR RAID</b><span>Bonus: save the town</span></button>
-      <button class="choice" onclick="location.href='beamup.html'" style="border-color:#7dffb0;box-shadow:0 4px 0 #1a5a3a !important"><b style="color:#9affc8">🛸 BEAM &#39;EM UP!</b><span>Bonus: be the UFO</span></button>
+      <button class="choice big" onclick="location.href='tornado.html'"><i class="ic">🌪️</i><b>TORNADO TIME!</b><span>Towns, eras, storms</span></button>
+      <button class="choice big bonus" id="bonusBtn"><i class="ic">🎁</i><b>BONUS GAMES</b><span>Three more games</span></button>
     </div>
     <div class="pair">
-      <button class="choice" onclick="location.href='store.html'" style="border-color:#ffd24a;box-shadow:0 4px 0 #5a4a1a !important"><b style="color:#ffd24a">🎨 SKIN SHOP</b><span class="saved" id="coins">Spend your coins</span></button>
-      <button class="choice" id="radioBtn" style="border-color:#3af0ff;box-shadow:0 4px 0 #1a4a5a !important"><b style="color:#3af0ff">📻 RADIO</b><span>Pick your songs</span></button>
+      <button class="choice" onclick="location.href='store.html'" style="border-color:#ffd24a;box-shadow:0 4px 0 #5a4a1a !important"><i class="ic">🎨</i><b style="color:#ffd24a">SKIN SHOP</b><span class="saved" id="coins">Spend your coins</span></button>
+      <button class="choice" id="radioBtn" style="border-color:#3af0ff;box-shadow:0 4px 0 #1a4a5a !important"><i class="ic">📻</i><b style="color:#3af0ff">RADIO</b><span>Pick your songs</span></button>
     </div>
     <button class="exitBtn" onclick="exitGame()">✖ EXIT GAME</button>
     <!-- Survival and Extract are hidden for now; the pages still work and can come back by removing hidden -->
@@ -118,20 +119,20 @@
     // left off in (someone new starts in town 1). The game pages read ?quick and skip their own menu
     import { TOWNS, quickLevel } from './src/progress.js';
     let box = null;
-    function open() {
-      if (!box) { box = document.createElement('div'); box.id = 'quickBox';
-        box.innerHTML = '<h2>▶ QUICK PLAY</h2><p>Pick a game. You go straight in.</p>'
-          + '<button class="game" data-go="tornado.html"><i>🌪️</i><b>TORNADO TIME!</b><span data-g="ta"></span></button>'
-          + '<button class="game kj" data-go="kaiju.html"><i>🦖</i><b>KAIJU MADNESS</b><span data-g="kj"></span></button>'
-          + '<button class="game" data-go="airraid.html"><i>🧟</i><b>ZOMBIE AIR RAID</b><span data-g="ar"></span></button>'
-          + '<button class="game" data-go="beamup.html"><i>🛸</i><b>BEAM &#39;EM UP!</b><span data-g="bu"></span></button><button class="ghost back">◀ BACK</button>';
-        document.body.appendChild(box);
-        for (const b of box.querySelectorAll('.game')) b.addEventListener('click', () => { location.href = b.dataset.go + '?quick=1'; });
-        box.querySelector('.back').addEventListener('click', () => box.classList.add('hidden')); }
+    // the bonus games (add new ones here): [page, icon, name, what it is, save prefix, card style]
+    const BONUS = [['kaiju.html', '🦖', 'KAIJU MADNESS', 'Be the monster: 60 to choose from', 'kj', 'kj'], ['airraid.html', '🧟', 'ZOMBIE AIR RAID', 'Burn the horde from the air', 'ar', 'ar'], ['beamup.html', '🛸', 'BEAM &#39;EM UP!', 'Be the UFO, or the walker', 'bu', 'bu']];
+    const card = (go, icon, name, sub, g, cls, quick) => '<button class="game ' + cls + '" data-go="' + go + '" data-q="' + (quick ? 1 : '') + '"><i>' + icon + '</i><b>' + name + '</b><span' + (quick ? ' data-g="' + g + '"' : '') + '>' + sub + '</span></button>';
+    function open(bonus) {
+      if (!box) { box = document.createElement('div'); box.id = 'quickBox'; document.body.appendChild(box); }
+      box.innerHTML = bonus ? '<h2>🎁 BONUS GAMES</h2><p>More ways to wreck the town.</p>' + BONUS.map((b) => card(b[0], b[1], b[2], b[3], b[4], b[5], false)).join('') + '<button class="ghost back">◀ BACK</button>'
+        : '<h2>▶ QUICK PLAY</h2><p>Pick a game. You go straight in.</p>' + card('tornado.html', '🌪️', 'TORNADO TIME!', '', 'ta', '', true) + BONUS.map((b) => card(b[0], b[1], b[2], '', b[4], b[5], true)).join('') + '<button class="ghost back">◀ BACK</button>';
+      for (const b of box.querySelectorAll('.game')) b.addEventListener('click', () => { location.href = b.dataset.go + (b.dataset.q ? '?quick=1' : ''); });
+      box.querySelector('.back').addEventListener('click', () => box.classList.add('hidden'));
       for (const el of box.querySelectorAll('[data-g]')) { const n = quickLevel(el.dataset.g); el.textContent = 'LEVEL ' + n + ' · ' + TOWNS[n - 1].toUpperCase(); }
       box.classList.remove('hidden');
     }
-    document.getElementById('quickBtn').addEventListener('click', open);
+    document.getElementById('quickBtn').addEventListener('click', () => open(false));
+    document.getElementById('bonusBtn').addEventListener('click', () => open(true));
   </script>
   <script>
     try { if (localStorage.getItem('oo_save_dc')) document.getElementById('dcSaved').textContent = 'Saved game: night ' + (JSON.parse(localStorage.getItem('oo_save_dc')).night + 1); } catch (e) {}
