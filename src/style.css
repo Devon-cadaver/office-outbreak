@@ -275,3 +275,5 @@ button:disabled, button:disabled:active { transform: none; }
 /* SOUND and MUSIC: a big icon, the words beside it; the button keeps its size whether it says ON or OFF */
 .soundRow button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; } .soundRow button .sIc { font-style: normal; font-size: 1.45em; line-height: 1; } .soundRow button .sTx { font-size: 0.82em; letter-spacing: .5px; min-width: 6.2em; text-align: left; } .soundRow button.off { opacity: .8; }
 #menu .soundRow { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: min(88vw, 360px); } #menu .soundRow button { margin: 0; min-width: 0; padding-left: 6px; padding-right: 6px; }
+/* MUSIC: OFF gets a red line through its note (SOUND: OFF already has its crossed-out speaker) */
+.soundRow button .sIc { position: relative; display: inline-block; } .soundRow button[data-k="m"].off .sIc::after { content: ''; position: absolute; left: -12%; right: -12%; top: 50%; height: 3px; border-radius: 2px; background: #ff3a2a; transform: rotate(-45deg); box-shadow: 0 0 2px #000; }
