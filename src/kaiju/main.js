@@ -14,7 +14,7 @@ import { isFuture, isPast, hoverize, futurePlane, pastPlane, buildCannon, buildC
 import { createTwisters } from '../tornado.js';
 import { createFires } from '../fire.js';
 import { unlockAudio, soundToggle, setMusicDuck, setSfxPaused, skipSongBtn, sfx, stopMusic, setPlaneEngine, setStormLevel, stormBoost, playSongs, songState, gameMusic, SONGS_KAIJU } from '../audio.js';
-import { armySkin, townSkin, equippedSkin, skinnedCarArgs, addCoins, CHAR_SKINS, getEquipped, totalReward, pauseSkinRow } from '../skins.js';
+import { armySkin, townSkin, equippedSkin, skinnedCarArgs, addCoins, CHAR_SKINS, getEquipped, totalReward, getOwned, equip } from '../skins.js';
 import { forceSeason, seasonChoice, seasonPicker } from '../season.js';
 import { showPrizes } from '../prizes.js';
 import { nukeBlast } from '../nuke.js';
@@ -181,6 +181,22 @@ function cullChunks() { const vc = viewCam(); vc.updateMatrixWorld(); projM.mult
 // ---------- you ----------
 let me = null, mass = 0, meF = 0.15, meScale = 1.5, stage = 1, topStage = 1, power = 0, slowT = 0, boostT = 0, meleeCd = 0, leap = null, faceY = 0;
 function makeMe() { if (me) scene.remove(me.g); me = buildKaiju(pick, getEquipped()['kj_' + pick] || false); me.g.position.set(0, 0, 0); scene.add(me.g); mass = massTarget * 0.25; meF = 0.25; meScale = scaleOf(meF); me.g.scale.setScalar(meScale); stage = 1; topStage = 1; power = 0.4; leap = null; }
+// ---------- TAG TEAM: swap your monster mid-round. The new one walks in from the side, both slap hands (TAG!), and the new one
+// takes over at your size, stage and power while the old one walks off. tag: the swap under way (the round waits for it) ----------
+let tag = null;
+const tagBusy = () => !me || leap || grabbed || mini || finishing || meToss || gm || (rival && rival.toss);
+function startTag(id) { if (!me || tag) return; togglePause(); const nu = buildKaiju(id, getEquipped()['kj_' + id] || false), P = me.g.position, side = me.g.rotation.y + Math.PI / 2, d = meScale * 1.3;
+  nu.g.scale.setScalar(meScale); nu.g.position.set(P.x + Math.sin(side) * (d + meScale * 3), 0, P.z + Math.cos(side) * (d + meScale * 3)); scene.add(nu.g); moveTo = null;
+  tag = { id, nu, t: 0, from: nu.g.position.clone(), to: new THREE.Vector3(P.x + Math.sin(side) * d, 0, P.z + Math.cos(side) * d), slapped: false, out: null }; banner('🤼 TAG TEAM: ' + KAIJU[id].name + '!'); sfx.whoosh(); }
+function tagTick(dt) { const T = tag, nu = T.nu, old = me; T.t += dt; const P = old.g.position;
+  if (T.t < 1.3) { const k = Math.min(1, T.t / 1.3); nu.g.position.lerpVectors(T.from, T.to, k); nu.g.rotation.y = Math.atan2(P.x - nu.g.position.x, P.z - nu.g.position.z); old.g.rotation.y = Math.atan2(nu.g.position.x - P.x, nu.g.position.z - P.z); nu.anim(dt, 1); old.anim(dt, 0); return; }
+  if (!T.slapped) { T.slapped = true; nu.act && nu.act('hit'); old.act && old.act('hit'); const mid = P.clone().lerp(nu.g.position, 0.5).setY(meScale * 1.6); fx.sparks(mid, 26, { c: [0xffffff, 0xffd24a], speed: 6, up: 3, life: 0.5 }); fx.flash(mid, 1.6, 0xffe27a); popup(mid, '👋 TAG!', '#ffd24a'); sfx.hit(); jolt(0.35);
+    T.out = new THREE.Vector3(P.x - (nu.g.position.x - P.x) * 4, 0, P.z - (nu.g.position.z - P.z) * 4); }
+  nu.anim(dt, 0); if (T.t < 1.7) { old.anim(dt, 0); return; }
+  /* the swap: the new one takes over where you stood, at your size; the old one walks away and is gone */
+  if (!T.swapped) { T.swapped = true; T.oldG = old; me = nu; pick = T.id; try { localStorage.setItem('kj_pick', pick); } catch { /* ignore */ } nu.g.position.copy(P); faceY = nu.g.rotation.y; }
+  const o = T.oldG, dx = T.out.x - o.g.position.x, dz = T.out.z - o.g.position.z, dd = Math.hypot(dx, dz) || 1; o.g.rotation.y = Math.atan2(dx, dz); o.g.position.x += dx / dd * meScale * 1.4 * dt; o.g.position.z += dz / dd * meScale * 1.4 * dt; o.anim(dt, 1);
+  if (T.t > 3.1) { scene.remove(o.g); tag = null; } }
 const reach = () => 0.55 + meScale * 0.5; // how far your stomps and jaws reach
 function grow(m) { if (m > 0) m *= [1, 1.5, 1.2, 1][stage]; mass = Math.min(massTarget, mass + m); } // a hatchling grows fast
 const ARMY_DMG = [0, 0.4, 0.75, 1]; // army damage by stage: small kaiju get off lightly
@@ -1068,7 +1084,7 @@ function start() {
   fsMode.play();
   megaT = 0; megaUsed = false; megaDropT = 25 + Math.random() * 15; if (megaDrop) scene.remove(megaDrop.g); megaDrop = null; megaArrow.style.display = 'none'; megaEl.className = 'hidden'; megaBtn.classList.add('hidden'); for (const b of blasts) b.remove(); blasts.length = 0; camK = 1; roundId++;
   clearAnims();
-  coachClear(); saveLast('kj', level); crowd.clear(); mvx = mvz = 0; shake = hitStop = slowMo = 0; fightFit = 1; if (gm) endGMove(); if (aimS) endAim(false); combo = 0; counterT = 0;
+  coachClear(); saveLast('kj', level); crowd.clear(); mvx = mvz = 0; shake = hitStop = slowMo = 0; fightFit = 1; if (gm) endGMove(); if (tag) { scene.remove(tag.nu.g); if (tag.oldG) scene.remove(tag.oldG.g); tag = null; } if (aimS) endAim(false); combo = 0; counterT = 0;
   unlockAudio(); buildWorld(); makeMe(); trip = 0; tripAt.copy(me.g.position); spells.clear(); score = 0; totalD = 0; camHold = false; bike = null; bout = null; meToss = null; finishing = false; grabbed = false; rangedBusy = false; rangedCd = 0; rangedBtn.classList.add('hidden'); clearDots(); fightEdge.classList.add('hidden'); finishBtn.classList.add('hidden'); /* a new round: the camera follows again after a ride-off; no fight carries over */ chain = 0; lastHit = -9; tLeft = L().time; played = 0; peopleN = carsN = bDone = 0; ko = 0; died = false; moveTo = null; slowT = 0; boostT = 0;
   for (const pl of planes) { scene.remove(pl.g); pl.arrow.remove(); } planes = []; planeT = 50 + Math.random() * 10; noPlanes = false; for (const b of bombs) scene.remove(b.m); bombs.length = 0; for (const f of fires) scene.remove(f.ring); fires.length = 0;
   if (rival) scene.remove(rival.g); rival = null; mini = null; lastMini = ''; miniEl.className = 'hidden'; rivalQueue = []; rivalWait = 0; queueRivals(1); sinking.length = 0; gulps.length = 0;
@@ -1078,7 +1094,21 @@ function start() {
 }
 // a new look from the pause menu: the same monster, size and place
 function swapMe() { if (!me) return; const old = me, nu = buildKaiju(pick, getEquipped()['kj_' + pick] || false); nu.g.position.copy(old.g.position); nu.g.rotation.copy(old.g.rotation); nu.g.scale.copy(old.g.scale); scene.remove(old.g); scene.add(nu.g); me = nu; }
-const drawPauseSkins = () => pauseSkinRow($('taPaused'), '👹', 'kj_' + pick, Object.keys(KAIJU_SKINS[pick]).map((lk) => ['kaiju:' + pick + ':' + lk, KAIJU_SKINS[pick][lk].short || KAIJU_SKINS[pick][lk].name.split(' ')[0]]), swapMe);
+// the pause menu's CHANGE KAIJU button: its menu has SKIN (Default plus the skins you own for this monster, put on live) and
+// TAG IN (the other monsters you own: one walks in, slaps hands and takes over; not in the middle of a move or grab)
+function drawPauseSkins() { const host = $('taPaused'); let b = host.querySelector('.psBtn'); if (!b) { b = document.createElement('button'); b.className = 'ghost psBtn'; host.insertBefore(b, host.querySelector('.soundRow')); }
+  const slot = 'kj_' + pick, owned = getOwned(), skins = [[null, 'Default'], ...Object.keys(KAIJU_SKINS[pick] || {}).map((lk) => ['kaiju:' + pick + ':' + lk, KAIJU_SKINS[pick][lk].short || KAIJU_SKINS[pick][lk].name.split(' ')[0]]).filter(([id]) => owned.includes(id))];
+  const cur = getEquipped()[slot] || null; b.textContent = '👹 CHANGE KAIJU (' + KAIJU[pick].name + ')';
+  b.onclick = (e) => { e.stopPropagation(); const m = document.createElement('div'); m.className = 'psMenu'; const box = document.createElement('div'); box.className = 'psBox'; m.appendChild(box); const add = (el) => box.appendChild(el);
+    box.innerHTML = '<h2>👹 CHANGE KAIJU</h2><p class="psSub">' + KAIJU[pick].name + ': SKIN</p>' + (skins.length < 2 ? '<p class="psHint">No skins yet for this one. Win them in TOTAL DESTRUCTION and prize games, or buy them in the skin shop.</p>' : '');
+    for (const [id, name] of skins) { const o = document.createElement('button'); o.className = 'ghost psOpt' + (id === cur ? ' on' : ''); o.textContent = (id === cur ? '✓ ' : '') + name;
+      o.onclick = (ev) => { ev.stopPropagation(); equip(slot, id); swapMe(); m.remove(); drawPauseSkins(); }; add(o); }
+    const others = unlockedKaiju().filter((id) => id !== pick && KAIJU[id]); const h = document.createElement('p'); h.className = 'psSub'; h.textContent = '🤼 TAG IN A NEW KAIJU'; add(h);
+    if (!others.length) { const t = document.createElement('p'); t.className = 'psHint'; t.textContent = 'Win more monsters in the prize games to tag them in.'; add(t); }
+    for (const id of others) { const o = document.createElement('button'); o.className = 'ghost psOpt'; o.textContent = KAIJU[id].name;
+      o.onclick = (ev) => { ev.stopPropagation(); if (tagBusy()) { o.textContent = 'NOT IN THE MIDDLE OF A MOVE'; return; } m.remove(); startTag(id); }; add(o); }
+    const back = document.createElement('button'); back.className = 'psBack'; back.textContent = 'BACK'; back.onclick = (ev) => { ev.stopPropagation(); m.remove(); }; add(back);
+    m.addEventListener('pointerdown', (ev) => ev.stopPropagation()); document.body.appendChild(m); }; }
 function togglePause() { if (state === 'play') { state = 'paused'; drawPauseSkins(); setPlaneEngine(0); stopMusic(); $('taPaused').classList.remove('hidden'); } else if (state === 'paused') { state = 'play'; $('taPaused').classList.add('hidden'); playSongs(); setStormLevel(stage * 2 - 1); } }
 function die() { if (died) return; died = true; me.act('ko'); banner('KAIJU DOWN!'); sfx.over(); setTimeout(finishNow, 1800); state = 'dying'; }
 // time's up: the monster burrows back into the ground (flyers take off into the sky) and the city goes quiet, then the
@@ -1208,6 +1238,7 @@ function coachKJ() {
 }
 const hudCache = {}; const setT = (id, v) => { v = String(v); if (hudCache[id] !== v) { hudCache[id] = v; $(id).textContent = v; } };
 function update(dt) {
+  if (tag) { tagTick(dt); if (tag && !tag.swapped) return; } /* (the round waits while the new monster comes in; once it has taken over you can go) */
   played += dt; if (!(totalD && rival)) tLeft -= dt; /* town destroyed: the clock waits for a fight to finish */ if (tLeft <= 0) { tLeft = 0; finish(); return; }
   coachKJ();
   const g = me.g, K = KAIJU[me.id];
