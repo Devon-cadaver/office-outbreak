@@ -195,6 +195,13 @@ button:disabled, button:disabled:active { transform: none; }
 /* pause menus: the same centred column, sound and music buttons two to a row */
 #taPaused { --w: min(100%, 400px); gap: 10px; padding-left: 16px; padding-right: 16px; }
 #taPaused > button, #taPaused .soundRow { width: var(--w); box-sizing: border-box; margin: 0; }
+/* the pause menu's one SOUNDS button, and the menu it opens (audio.js soundsMenu): the same rows the pause menu used to hold */
+#taPaused button.sndOne { display: block !important; }
+.sndMenu .soundRow { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; } .sndMenu .soundRow button { padding: 10px 4px; font-size: 14px; white-space: nowrap; min-width: 0; margin: 0; } .sndMenu .soundRow button:nth-child(3) { grid-column: 1 / -1; } .sndMenu .psBox > button { margin: 0; } .sndMenu .psBox > .psBack { margin-top: 6px; }
+/* a game's own screens sit above everything in the round (its arrows, tags and HUD use levels 2 to 7), and below the menus that open over them (30 and up) */
+#taStart, #taPaused, #taPrize, #taEnd, #kjPickScr { z-index: 20; }
+/* nothing floats over a pause menu: the arrows, tags, pop-ups, bars and tips that sit over the town are hidden while it is up (each game sets body.paused) */
+body.paused .foeTag, body.paused .planeArrow, body.paused .poiArrow, body.paused .pop, body.paused #taFoe, body.paused #taBanner, body.paused .baseArrow, body.paused .giTag, body.paused .giArrow, body.paused #arLock, body.paused #arBaseMsg, body.paused #buHold, body.paused #buEnergy, body.paused #comboBox, body.paused #bossBar, body.paused .gameTip, body.paused #kjMega { visibility: hidden !important; }
 #taPaused .soundRow { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; } #taPaused .soundRow button { padding: 10px 4px; font-size: 14px; white-space: nowrap; min-width: 0; margin: 0; } #taPaused .soundRow button:nth-child(3) { grid-column: 1 / -1; }
 #taPaused #taResume { padding: 14px; font-size: 24px; letter-spacing: 2px; }
 .psBox { width: min(calc(100vw - 32px), 400px); } .psOpt.on { box-shadow: 0 5px 0 #3f9a1f, 0 7px 10px #0007; }

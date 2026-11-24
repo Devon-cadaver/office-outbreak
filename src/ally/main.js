@@ -14,7 +14,7 @@ import { createTwisters, TWISTER_SKINS, hordeLooksReady, zombieBody, useHordeLoo
 import * as hordeLooks from '../hordeSkins.js';
 useHordeLooks(hordeLooks); // the Zombienado's zombies wear the hordes from the first storm on
 import { createFires } from '../fire.js';
-import { unlockAudio, soundToggle, setMusicDuck, setSfxPaused, skipSongBtn, sfx, stopMusic, setPlaneEngine, planeEngineLevel, setWind, windLevel, setStormLevel, stormBoost, stormMusicState, playSongs, songState, gameMusic, SONGS_TORNADO } from '../audio.js';
+import { unlockAudio, soundToggle, setMusicDuck, setSfxPaused, skipSongBtn, sfx, stopMusic, setPlaneEngine, planeEngineLevel, setWind, windLevel, setStormLevel, stormBoost, stormMusicState, playSongs, songState, gameMusic, SONGS_TORNADO, soundsMenu } from '../audio.js';
 import { armySkin, townSkin, equippedSkin, equippedTornado, skinnedCarArgs, addCoins, grantSkin, equip, CHAR_SKINS, totalReward, pauseSkinRow, getOwned, getEquipped } from '../skins.js';
 import { forceSeason, seasonChoice, seasonPicker } from '../season.js';
 import { showPrizes } from '../prizes.js';
@@ -602,7 +602,7 @@ $('twPickDone').addEventListener('click', () => { $('twPickScr').classList.add('
 drawTwPicker();
 soundToggle($('taStart'), $('taPaused')); playerButton($('taPaused'), $('taPaused').querySelector('.menuBtn')); tipsSetup('ta', $('taPaused'), $('taPaused').querySelector('.menuBtn')); diffPicker($('seasonRow') || $('taLevels'), 'ta'); skipSongBtn($('ta')); eraPicker($('taLevels'), () => { level = unlocked(); drawLevels(); }); seasonPicker($('eraRow')); // sound on/off on the start and pause screens
 // the soundtrack starts on the first tap and keeps rotating songs for as long as you're on Tornado Alley
-gameMusic($('taPaused'), SONGS_TORNADO); radioButton($('taPaused'), $('taPaused').querySelector('.menuBtn'));
+gameMusic($('taPaused'), SONGS_TORNADO); radioButton($('taPaused'), $('taPaused').querySelector('.menuBtn')); soundsMenu($('taPaused'));
 const fsMode = initFullscreen(() => state === 'play' || state === 'outro'); // full screen on play, back in after a browser drop-out, no page scrolling mid-round
 function start() {
   if (MODE === 'streak') level = streakLevel(LEVELS.length); if (MODE === 'endless') { level = LEVELS.length; waves.reset(); dyingT = 0; } rebuilder.clear(); RK = roundK('ta'); boss = null; bossBeat = bossCame = false; bossBar(null); comboHud(1, 0); clearMeteors(); events.reset(); fsMode.play();

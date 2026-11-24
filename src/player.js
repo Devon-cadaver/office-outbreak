@@ -96,7 +96,7 @@ const CSS = `#pbCard { position: fixed; inset: 0; z-index: 60; background: #0b06
 #pbCard .pbMedal.lock .pbDisc { filter: grayscale(1) brightness(.45); box-shadow: none; } #pbCard .pbMedal.lock b { color: #ffffff77; }
 #pbCard .pbDisc i { position: absolute; right: -4px; bottom: -4px; font-style: normal; font-size: 18px; filter: none; }
 #pbCard .pbSets { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px; font-size: 12px; } #pbCard .pbSets div { padding: 6px 8px; border-radius: 10px; background: #1a0f2ecc; border: 1px solid #3a2a5a; }
-.pbChip { display: inline-flex; align-items: center; gap: 6px; } .pbChip svg { flex: none; }`;
+.pbChip { display: inline-flex; align-items: center; justify-content: center; gap: 6px; } .pbChip svg { flex: none; }`;
 function style() { if (document.getElementById('pbCss')) return; const s = document.createElement('style'); s.id = 'pbCss'; s.textContent = CSS; document.head.appendChild(s); }
 
 // the full card: the emblem and level, the towns cleared in every game and era, the skin collections, every badge

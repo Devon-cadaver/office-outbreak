@@ -210,6 +210,18 @@ export function gameMusic(host, list) {
   mk('🔉 MUSIC VOL: ' + (FRAME ? FRAME.volName : volName()), (b) => { b.textContent = '🔉 MUSIC VOL: ' + (FRAME ? FRAME.cycleVol() : cycleVol()); });
   host.insertBefore(row, host.querySelector('.soundRow'));
 }
+// The pause menus keep every sound and music control behind one SOUNDS button: SOUND and MUSIC on / off, SKIP SONG, REPEAT,
+// MUSIC VOL and RADIO STATION. Call it once soundToggle, gameMusic and radioButton have put theirs on `host`: their rows are
+// moved into a menu of their own (they keep working as they were). The button carries the .soundRow class itself, so whatever
+// goes in "before the sound row" later (CHOOSE SKIN) still lands in the right place
+export function soundsMenu(host) { if (!host) return; const rows = [...host.querySelectorAll(':scope > .soundRow')], radioB = [...host.querySelectorAll(':scope > button')].find((b) => /RADIO STATION/.test(b.textContent)); if (!rows.length) return;
+  const open = document.createElement('button'); open.className = 'ghost soundRow sndOne'; open.textContent = '🔊 SOUNDS'; host.insertBefore(open, rows[0]);
+  const m = document.createElement('div'); m.className = 'psMenu sndMenu'; m.style.display = 'none'; const box = document.createElement('div'); box.className = 'psBox'; box.innerHTML = '<h2>🔊 SOUNDS</h2>'; m.appendChild(box);
+  const onOff = rows.find((r) => r.querySelector('[data-k="m"]')); for (const r of [onOff, ...rows.filter((r) => r !== onOff)]) if (r) box.appendChild(r); /* SOUND and MUSIC first, then the song's own buttons */
+  if (radioB) { box.appendChild(radioB); radioB.addEventListener('click', () => { m.style.display = 'none'; }); } /* (the radio opens over the pause menu, as it always did) */
+  const back = document.createElement('button'); back.className = 'psBack'; back.textContent = 'BACK'; box.appendChild(back);
+  back.addEventListener('click', (e) => { e.stopPropagation(); m.style.display = 'none'; }); open.addEventListener('click', (e) => { e.stopPropagation(); unlockAudio(); m.style.display = 'flex'; });
+  for (const ev of ['pointerdown', 'pointerup', 'touchstart']) m.addEventListener(ev, (e) => e.stopPropagation()); document.body.appendChild(m); }
 // the in-game SKIP SONG button: a small round button under the zoom buttons that jumps to the next song on the radio
 export function skipSongBtn(host) { const b = document.createElement('button'); b.className = 'skipHud'; b.title = 'Skip song'; b.textContent = '⏭';
   b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); unlockAudio(); if (musicMuted) setMusicMuted(false); nextSong(); b.classList.remove('skipBump'); void b.offsetWidth; b.classList.add('skipBump'); }); host.appendChild(b); return b; }

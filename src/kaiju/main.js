@@ -13,7 +13,7 @@ import { makeCar } from '../car.js';
 import { isFuture, isPast, hoverize, futurePlane, pastPlane, buildCannon, buildChaserCoach, eraPicker, levelKey, bestKey, futureTank, laserBolt } from '../era.js';
 import { createTwisters } from '../tornado.js';
 import { createFires } from '../fire.js';
-import { unlockAudio, soundToggle, setMusicDuck, setSfxPaused, skipSongBtn, sfx, stopMusic, setPlaneEngine, setStormLevel, stormBoost, playSongs, songState, gameMusic, SONGS_KAIJU } from '../audio.js';
+import { unlockAudio, soundToggle, setMusicDuck, setSfxPaused, skipSongBtn, sfx, stopMusic, setPlaneEngine, setStormLevel, stormBoost, playSongs, songState, gameMusic, SONGS_KAIJU, soundsMenu } from '../audio.js';
 import { armySkin, townSkin, equippedSkin, skinnedCarArgs, addCoins, CHAR_SKINS, getEquipped, totalReward, getOwned, equip } from '../skins.js';
 import { forceSeason, seasonChoice, seasonPicker } from '../season.js';
 import { showPrizes } from '../prizes.js';
@@ -1106,7 +1106,7 @@ addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; if (mini &
 let state = 'start', died = false, roundId = 0; // roundId: delayed effects from an earlier round check it and stand down
 soundToggle($('taStart'), $('taPaused')); playerButton($('taPaused'), $('taPaused').querySelector('.menuBtn')); tipsSetup('kj', $('taPaused'), $('taPaused').querySelector('.menuBtn')); diffPicker($('taLevels'), 'kj'); skipSongBtn($('ta')); eraPicker($('taLevels'), () => { level = unlockedLevel(); drawLevels(); }); seasonPicker($('eraRow')); // sound on/off on the start and pause screens
 // the soundtrack starts on the first tap and keeps rotating songs for as long as you're on Kaiju Madness
-gameMusic($('taPaused'), SONGS_KAIJU); radioButton($('taPaused'), $('taPaused').querySelector('.menuBtn'));
+gameMusic($('taPaused'), SONGS_KAIJU); radioButton($('taPaused'), $('taPaused').querySelector('.menuBtn')); soundsMenu($('taPaused'));
 const fsMode = initFullscreen(() => state === 'play' || state === 'outro'); // full screen on play, back in after a browser drop-out, no page scrolling mid-round
 function start() {
   if (MODE === 'streak') level = streakLevel(LEVELS.length); if (MODE === 'endless') { level = LEVELS.length; waves.reset(); } rebuilder.clear(); RK = roundK('kj'); boss = null; bossBeat = bossCame = false; bossBar(null); comboHud(1, 0); clearMeteors(); events.reset(); fsMode.play();
@@ -1363,8 +1363,10 @@ function update(dt) {
 
 addEventListener('resize', () => renderer.setSize(innerWidth, innerHeight, false)); renderer.setSize(innerWidth, innerHeight, false);
 const camTarget = new THREE.Vector3(); let last = performance.now();
+let pausedShown = false;
 function frame(now) {
   requestAnimationFrame(frame); const dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = now;
+  { const pz = state === 'paused'; if (pz !== pausedShown) { pausedShown = pz; document.body.classList.toggle('paused', pz); } } // the tags and arrows that float over the town step aside for the pause menu (style.css)
   setSfxPaused(state === 'paused'); { const rb = document.getElementById('radioBox'); setMusicDuck(state === 'play' || state === 'outro' ? 1 : state === 'paused' && !(rb && !rb.classList.contains('hidden')) ? 0 : 0.5); } // music: full in a round, paused on pause (unless the radio is open), half on menus
   const hold = coachFrame(state === 'play'); if (hold) $('taBanner').style.opacity = 0; // a first-time prompt is up: the round waits for the player
   let dtU = dt; if (hitStop > 0) { hitStop -= dt; dtU = 0; } else if (slowMo > 0) { slowMo -= dt; dtU = dt * 0.35; }

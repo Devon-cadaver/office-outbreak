@@ -14,7 +14,7 @@ import { generateMaze, buildCity, toWorld, toCell, CELL, mulberry32 } from '../c
 import { createFires } from '../fire.js';
 import { createTwisters } from '../tornado.js';
 import { createPoiFx } from '../ally/poiFx.js';
-import { unlockAudio, soundToggle, setMusicDuck, setSfxPaused, skipSongBtn, sfx, stopMusic, setPlaneEngine, playSongs, gameMusic, SONGS_TORNADO, firstSong } from '../audio.js';
+import { unlockAudio, soundToggle, setMusicDuck, setSfxPaused, skipSongBtn, sfx, stopMusic, setPlaneEngine, playSongs, gameMusic, SONGS_TORNADO, firstSong, soundsMenu } from '../audio.js';
 import { radioButton } from '../radioBox.js';
 import { addCoins, townSkin } from '../skins.js';
 import { forceSeason, seasonChoice, seasonPicker } from '../season.js';
@@ -845,7 +845,7 @@ addEventListener('blur', () => { for (const k in keys) keys[k] = false; dropHeld
 // ---------- flow ----------
 let state = 'start', roundId = 0, roundN = 0;
 soundToggle($('taStart'), $('taPaused')); playerButton($('taPaused'), $('taPaused').querySelector('.menuBtn')); tipsSetup('ar', $('taPaused'), $('taPaused').querySelector('.menuBtn')); diffPicker($('taLevels'), 'ar'); skipSongBtn($('ta')); eraPicker($('taLevels'), () => { level = unlocked(); drawLevels(); }); seasonPicker($('eraRow'));
-gameMusic($('taPaused'), SONGS_TORNADO); radioButton($('taPaused'), $('taPaused').querySelector('.menuBtn'));
+gameMusic($('taPaused'), SONGS_TORNADO); radioButton($('taPaused'), $('taPaused').querySelector('.menuBtn')); soundsMenu($('taPaused'));
 const fsMode = initFullscreen(() => state === 'play' || state === 'outro'); // full screen on play, back in after a browser drop-out, no page scrolling mid-round (and its button stays out of the way while the HUD still shows)
 function start() { if (MODE === 'streak') level = streakLevel(LEVELS.length); if (MODE === 'endless') { level = LEVELS.length; waves.reset(); waveKills = 0; riseT = 6; } RK = roundK('ar'); firstSong('ar', 'music/napalm-requiem.mp3'); /* (the first round ever opens on Napalm Requiem) */
   fsMode.play(); coachClear(); saveLast('ar', level); horde.crowd.clear(); if (state !== 'start' || roundN > 0) roundN++; roundId++;
