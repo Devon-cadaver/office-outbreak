@@ -221,8 +221,8 @@ export function createFoes(E) {
   }
 
   // ---------- who turns up, and when ----------
-  function schedule(dt) { const lv = E.level, late = lv >= 6 ? 0.7 : 1, about = (rival ? 1 : 0) + (ships.length ? 1 : 0) + (ufo ? 1 : 0), room = about < (lv >= 6 ? 2 : 1);
-    if (on('cannon') && cannons.length < (lv >= 5 ? 2 : 1)) { T.cannon -= dt; if (T.cannon <= 0) { T.cannon = rnd(24, 34) * late; spawnCannon(); } }
+  function schedule(dt) { const lv = E.level, late = lv >= 6 ? 0.7 : 1, about = (rival ? 1 : 0) + (ships.length ? 1 : 0) + (ufo ? 1 : 0), more = Math.floor(((E.foeK ? E.foeK() : 1) - 1) * 2.5), room = about < (lv >= 6 ? 2 : 1) + more; /* (more: a harder round, or a later wave of an endless one, lets more of them in at once) */
+    if (on('cannon') && cannons.length < (lv >= 5 ? 2 : 1) + Math.min(3, more)) { T.cannon -= dt; if (T.cannon <= 0) { T.cannon = rnd(24, 34) * late; spawnCannon(); } }
     if (!room) return;
     if (on('ufo') && !ufo && !falling.some((f) => f.o.flat)) { T.ufo -= dt; if (T.ufo <= 0) { T.ufo = rnd(55, 75) * late; spawnUfo(); return; } }
     if (on('ship') && !ships.length && !E.radarDown) { T.ship -= dt; if (T.ship <= 0) { spawnShips(); T.ship *= late; return; } }

@@ -47,7 +47,7 @@ export function createArmy(E) {
   function tankColumn() { const L = E.level, n = Math.max(3, Math.min(10, 3 + Math.floor((L - 1) * 1.3 + Math.random() * 2))), at = farRoad(20).w; for (let k = 0; k < n; k++) addTank(14, 1 + k * 0.5, at, 7); E.banner('🪖 TANK COLUMN: ' + n + ' TANKS!'); sfx.whoosh(); } // seconds until the next helicopters, reinforcements, tank, jet run
   const ramp = () => Math.min(1, (E.level - 1) / 5); // 0 in Small Town, 1 in The Sprawl
   const easy = () => 1 - ramp(); // 1 in Small Town, 0 in The Sprawl: the first towns start calmer and their soldiers shoot less often and less straight
-  const maxTanks = () => 2 + E.level; /* tanks in town at once: just the one in Small Town, where the death ray is new */
+  const maxTanks = () => 2 + E.level + (E.foeK ? Math.floor((E.foeK() - 1) * 6) : 0); /* (more of them in a harder round, or a later wave of an endless one) */ /* tanks in town at once: just the one in Small Town, where the death ray is new */
   const mkArrow = (txt, col) => { const a = document.createElement('div'); a.className = 'planeArrow foeArrow'; a.textContent = txt; a.style.color = col; document.body.appendChild(a); return a; };
   const seen = (pos, y = 0) => E.toScreen(pos, y).on;
 

@@ -128,6 +128,8 @@ export function createHorde(E) { // E: { scene, fx, popup, collide(o), craft(), 
 
   // ---------- the town fills up: hordes of zombies here and there, stragglers everywhere, and little groups of people
   // as far from the hordes as the streets allow. o: { zombies, spitShare, civs, hordes, roads: [[x, y]...], rng } ----------
+  // more of them climb out of the ground round (x, z) in the middle of a round (the ENDLESS rounds): up to n, while the crowd has room. Returns how many
+  function wave(n, x, z, room = 900) { let k = 0; for (; k < n && Z.length + turning < room && Z.length + C.length < CROWD_MAX - 30; k++) { const o = addZombie(x + (Math.random() - 0.5) * 5, z + (Math.random() - 0.5) * 5, Math.random() < 0.05); o.userData.st = 'rise'; o.userData.t = 0; } return k; }
   function spawn(o) { clear(); const rng = o.rng || Math.random, roads = o.roads, W = (c) => toWorld(c[0], c[1], cols, rows), key = (c) => c[1] * cols + c[0];
     const spread = (n, avoid) => { const out = []; for (let k = 0; k < n; k++) { let best = null, bd = -1; for (let t = 0; t < 24; t++) { const c = roads[(rng() * roads.length) | 0]; if (avoid && avoid.has(key(c))) continue; const d = out.length ? Math.min(...out.map((q) => Math.abs(q[0] - c[0]) + Math.abs(q[1] - c[1]))) : 99; if (d > bd) { bd = d; best = c; } } if (best) out.push(best); } return out; };
     // people: little groups of two to five, spread round town
@@ -340,6 +342,6 @@ export function createHorde(E) { // E: { scene, fx, popup, collide(o), craft(), 
   function count(x, z, r, list = Z) { let n = 0; for (const o of list) if (Math.hypot(o.position.x - x, o.position.z - z) < r) n++; return n; }
   function eachDot(fn) { for (const o of C) fn(o.position, o.userData.st === 'turn' ? 3 : 1); for (const o of Z) fn(o.position, o.userData.spit ? 2 : 0); }
 
-  return { tune: TUNE, setTown, spawn, update, sync, clear, blast, densest, nearestZombie, count, eachDot, crowd, Z, C, B, D, blobs, giants: GI, addGiant, hurtGiant, giantGrab, handsOf,
+  return { tune: TUNE, setTown, spawn, wave, update, sync, clear, blast, densest, nearestZombie, count, eachDot, crowd, Z, C, B, D, blobs, giants: GI, addGiant, hurtGiant, giantGrab, handsOf,
     get zombies() { return Z.length + turning; }, get civs() { return civLive; }, get turning() { return turning; }, get fields() { return { zF, cF }; }, get hordes() { return H; } };
 }

@@ -26,7 +26,7 @@ import { initFullscreen } from '../fullscreen.js';
 import { showHowTo, tip, clearTips } from '../howto.js';
 import { coach, coachSeen, coachIdle, coachBusy, coachFrame, coachClear, tipsSetup } from '../coach.js';
 import { makeDreadnought } from './boss.js';
-import { FUN, MODE, funInit, diffPicker, roundK, starTag, awardStars, comboHud, bossBar, bossDue, makeEvents, meteorShower, clearMeteors, funTick, buzz, dailyLevel, dailyWon, endlessLevel, endlessEnd, endlessLine } from '../fun.js';
+import { FUN, MODE, funInit, diffPicker, roundK, starTag, awardStars, comboHud, bossBar, bossDue, makeEvents, meteorShower, clearMeteors, funTick, buzz, dailyLevel, dailyWon, streakLevel, streakEnd, streakLine, makeWaves, endlessOver } from '../fun.js';
 import { autoResolution, mergeStatic, bakeMovable, bakeUnits, setBakedGlow } from '../perf.js';
 import { rides, spinners } from '../landmarks.js';
 import { nukeBlast } from '../nuke.js';
@@ -241,7 +241,7 @@ let score = 0, coll = 0, kills = 0, spitKills = 0, savedN = 0, civHit = 0, turne
 let biteT = 0, turnT = 0, savedT = 0, spitT = 0, coll70 = false, endZ = 0, endCiv = 0;
 const now = () => performance.now() / 1000;
 function addColl(v, at, label) { if (state !== 'play') return; coll = Math.min(100, coll + v); popup(at, label || 'COLLATERAL!', '#ff5a4a'); sfx.hurt(); const el = $('arColl'); el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
-  if (coll >= 100) { finish('damage'); return; } if (coll >= 70 && !coll70) { coll70 = true; banner('⚠ COLLATERAL 70%! CAREFUL'); sfx.ping(0); } }
+  if (coll >= 100 && MODE !== 'endless') { finish('damage'); return; } if (coll >= 70 && !coll70 && MODE !== 'endless') { coll70 = true; banner('⚠ COLLATERAL 70%! CAREFUL'); sfx.ping(0); } }
 // kills close together pop up as one: "+700 x7". Six or more in one go is a MULTI-KILL with a bonus
 const buckets = new Map();
 function addKill(p, pts, spit) { const k = Math.round(p.x / 4) + ',' + Math.round(p.z / 4); let b = buckets.get(k); if (!b) buckets.set(k, (b = { x: p.x, z: p.z, n: 0, pts: 0, spit: 0, t: 0.35 })); b.n++; b.pts += pts; if (spit) b.spit++; }
@@ -390,7 +390,10 @@ function updateCraft(dt) { const c = craft, S = c.S; c.t += dt; sk.tick(dt, c); 
   const st = steerIn(); let nb = bases[0], nd = 1e9; for (const b of bases) { const d = Math.hypot(b.pos.x - c.pos.x, b.pos.z - c.pos.z); if (d < nd) { nd = d; nb = b; } } c.base = nb; c.baseD = nd;
   const over = nd < BASE_R, need = c.ammo < S.ammo || c.hp < S.hp; if (over && need) c.orbit = true; else if (!need || nd > BASE_R + 5) { c.orbit = false; c.orbS = 0; }
   if (c.kind === 'bomber') {
-    let want = c.head, rate = S.turn; const kt = keyTurn(); if (lockLive()) { const P = lockP(lock); c.way = new THREE.Vector3(P.x, 0, P.z); c.wayT = 0; c.dropAt = null; } /* locked on: it turns after its target */
+    let want = c.head, rate = S.turn; const kt = keyTurn(); if (lockLive()) { const P = lockP(lock), dx = P.x - c.pos.x, dz = P.z - c.pos.z, d = Math.hypot(dx, dz); let a = Math.atan2(dx, dz) - c.head; a = Math.atan2(Math.sin(a), Math.cos(a)); /* locked on: it turns after its target */
+      /* a walker or the Mothership barely moves, so a bomber turning in on one from close by would only circle it. A STRAFING RUN: too close to turn onto, it flies straight on out, then comes back in for another pass */
+      if (!(lock.root || lock.boss)) c.strafe = null; else if (!c.strafe) { if (d < 9 && Math.abs(a) > 0.95) c.strafe = { t: 0 }; } else { c.strafe.t += dt; if (d > 18 || c.strafe.t > 3.4) c.strafe = null; }
+      c.way = c.strafe ? new THREE.Vector3(c.pos.x + Math.sin(c.head) * 12, 0, c.pos.z + Math.cos(c.head) * 12) : new THREE.Vector3(P.x, 0, P.z); c.wayT = 0; c.dropAt = null; } else c.strafe = null;
     if (kt) c.way = null; else if (st.mag > 0.12) { want = Math.atan2(st.x, st.z); rate *= Math.min(1, 0.3 + st.mag); c.way = null; }
     else if (c.way) { const dx = c.way.x - c.pos.x, dz = c.way.z - c.pos.z; c.wayT += dt; if (dx * dx + dz * dz < 2.4 * 2.4 || c.wayT > 7) c.way = null; else want = Math.atan2(dx, dz); }
     else if (c.orbit) { const ph = Math.atan2(c.pos.x - nb.pos.x, c.pos.z - nb.pos.z), aim = (s) => { const ta = ph + s * 0.9; return Math.atan2(nb.pos.x + Math.sin(ta) * 4.4 - c.pos.x, nb.pos.z + Math.cos(ta) * 4.4 - c.pos.z); }, off = (s) => Math.abs(Math.atan2(Math.sin(aim(s) - c.head), Math.cos(aim(s) - c.head)));
@@ -613,7 +616,7 @@ function spawnUfo() { const c = craft, U = UFO_LV[level - 1] || UFO_LV[0], a = M
   const line = new THREE.Mesh(laserGeo, glowM(0xff3a2a, 0.5)), beam = new THREE.Mesh(laserGeo, glowM(0x7dff3a, 0.95)); line.visible = beam.visible = false; line.renderOrder = beam.renderOrder = 4; scene.add(line, beam);
   ufos.push({ g, line, beam, hp: U.hp, U, st: 'come', t: 0, cd: 2 + Math.random(), orb: Math.random() < 0.5 ? 1 : -1, life: 34, aim: new THREE.Vector3(), flash: 0 }); banner('🛸 UFO INCOMING! TAP IT TO LOCK ON'); sfx.wave(); }
 function dropUfo(u) { scene.remove(u.g, u.line, u.beam); u.line.material.dispose(); u.beam.material.dispose(); const i = ufos.indexOf(u); if (i >= 0) ufos.splice(i, 1); }
-// ---------- THE FUN PACK (fun.js). RK: this round's numbers (difficulty, a daily twist, or how deep an endless run is).
+// ---------- THE FUN PACK (fun.js). RK: this round's numbers (difficulty, a daily twist, or how deep a town streak is).
 // chainAR: kills in a row with less than 3 seconds between them; every 15 is another x on the points.
 // BOSS: THE MOTHERSHIP, in the last town once the horde is down to the goal. It is a UFO like the others (so the lock and
 // the nose gun work on it) but huge: it circles the middle of town, fires a heavier laser and sends out escorts. time: the
@@ -632,6 +635,14 @@ const events = makeEvents([
   { can: () => !!craft && craft.alive && !craft.crash, run() { const c = craft; c.ammo = c.S.ammo; setPods(c.g, c.ammo); addSup(Math.round(zStart * 0.05)); banner('📦 AIR DROP: REARMED + SUPPLIES!'); popup(c.pos, '📦 REARMED!', '#7dff3a', c.pos); sfx.power(); } },
   { can: () => !(pois.power && pois.power.done), run() { const rid = roundId; lights(0.08); banner('🌑 BLACKOUT!'); setTimeout(() => { if (rid === roundId && !(pois.power && pois.power.done)) lights(1); }, 14000); } },
 ]);
+// ---------- ENDLESS (fun.js): The Sprawl with no clock and no goal. The dead keep rising: the town is topped up to a head count
+// that grows with the waves. A new WAVE starts when you have killed enough of the last one (need), and brings more Grave
+// Giants, and UFOs and walkers that come sooner and hit harder (RK.foe, RK.hurt). Only being shot down ends it ----------
+const waves = makeWaves({ manual: true }); let waveKills = 0, riseT = 0; const waveNeed = () => 200 + 30 * waves.n;
+function endlessTick(dt) { waves.tick(dt); const c = craft;
+  if (kills - waveKills >= waveNeed()) { waveKills = kills; waves.next(); RK.foe = waves.foe; RK.hurt = waves.hurt; const n = waves.n; banner('🌊 WAVE ' + n + '!\nMORE OF THEM, AND MEANER'); sfx.wave(); jolt(0.4); $('taLevel').textContent = '♾️ ENDLESS · WAVE ' + n;
+    const more = Math.min(3, Math.floor((n + 1) / 2)); for (let i = 0; i < more; i++) { gPlan.push(played + 4 + i * 7); gTotal++; } gPlan.sort((a, b) => a - b); }
+  riseT -= dt; if (riseT <= 0) { riseT = 3.5; const want = Math.min(840, 480 + 45 * waves.n); if (horde.zombies < want - 50 && c) { let at = null; for (let k = 0; k < 30 && !at; k++) { const r = roads[(Math.random() * roads.length) | 0], w = toWorld(r[0], r[1], cols, rows); if (Math.hypot(w.x - c.pos.x, w.z - c.pos.z) > 16) at = w; } if (at && horde.wave(60, at.x, at.z) && toScreen(at).on) popup(at, '🧟 MORE RISE!', '#b4ff5a'); } } }
 function updateUfos(dt) { const c = craft, U = UFO_LV[level - 1] || UFO_LV[0]; if (state === 'play' && c && c.alive && played >= U.first && !boss) { ufoT -= dt; if (ufoT <= 0) { ufoT = U.every / RK.foe * (0.85 + Math.random() * 0.3); if (ufos.filter((u) => u.st !== 'fall').length < U.max) spawnUfo(); } }
   gunT -= dt;
   for (let i = ufos.length - 1; i >= 0; i--) { const u = ufos[i], P = u.g.position, U = u.U; /* (its own numbers: the Mothership's are not the town's) */ u.t += dt; u.life -= dt; u.flash = Math.max(0, u.flash - dt); if (!u.boss) u.g.rotation.y += dt * 2.2; u.g.userData.ring.material.color.setRGB(u.flash > 0 ? 1 : 0.62, u.flash > 0 ? 0.3 : 1, u.flash > 0 ? 0.3 : 0.69);
@@ -683,7 +694,7 @@ function updateWalkers(dt) { const c = craft, W = WK_LV[level - 1]; if (W && sta
         const ax = w.aim.x - eye.x, ay = w.aim.y - eye.y, az = w.aim.z - eye.z, al = Math.hypot(ax, ay, az) || 1, qx = c.pos.x - eye.x, qy = c.alt - eye.y, qz = c.pos.z - eye.z, along = (qx * ax + qy * ay + qz * az) / al, off = Math.hypot(qx - ax / al * along, qy - ay / al * along, qz - az / al * along);
         if (along > 0 && off < c.S.r * 0.8 + 0.3) hurtCraft(W.dmg, 'walker', '-' + W.dmg + ' LASER!', '#ff7a5a'); } }
     if (w.st === 'fire' && w.t > 0.22) { w.beam.visible = false; w.st = 'walk'; w.cd = 3 + Math.random() * 1.5; }
-    /* the nose gun reaches it too */ if (noseShot(c, w, eye)) hurtWalker(w, NOSE.dmg[c.kind] * 1.2, eye); } }
+    /* the nose gun reaches it too */ if (noseShot(c, w, eye)) hurtWalker(w, NOSE.dmg[c.kind] * (c.kind === 'bomber' ? 2.2 : 1.2), eye); } } /* (the bomber only has it in its sights for a moment on each pass, so its rounds count for more) */
 function clearWalkers() { while (walkers.length) dropWalker(walkers[0]); wkT = 0; wkDown = 0; }
 function clearUfos() { lock = null; boss = null; bossBar(null); while (ufos.length) dropUfo(ufos[0]); ufoT = 0; gunT = 0; ufoDown = 0; clearWalkers(); for (const t of tracers) { t.t = 0; t.m.visible = false; } }
 function hurtG(G, dmg) { if (!G.live || state !== 'play') return; const was = G.hp; if (horde.hurtGiant(G, dmg)) giantFelled(G); else if (Math.ceil(was / G.max * 4) !== Math.ceil(G.hp / G.max * 4)) sfx.groan(); }
@@ -738,11 +749,11 @@ const hudCache = {}; const setT = (id, v) => { v = String(v); if (hudCache[id] !
 const setW = (id, v) => { v = Math.max(0, Math.min(100, v)).toFixed(1) + '%'; if (hudCache['w' + id] !== v) { hudCache['w' + id] = v; $(id).style.width = v; } };
 const setC = (id, cls, on) => { const k = 'c' + id + cls; if (hudCache[k] !== on) { hudCache[k] = on; $(id).classList.toggle(cls, on); } };
 function updateHud(dt) { const c = craft, S = c.S, zl = horde.zombies;
-  setT('taRank', '🧟 ' + zl); setW('taGrowFill', (zStart - zl) / zStart * 100); /* fills up as the horde goes down */ setC('taRank', 'ok', zl <= goalN);
-  const m = Math.floor(tLeft / 60), s = Math.floor(tLeft % 60); setT('taTime', m + ':' + String(s).padStart(2, '0')); setC('taTime', 'low', tLeft < 20);
+  setT('taRank', '🧟 ' + zl); setW('taGrowFill', MODE === 'endless' ? (kills - waveKills) / waveNeed() * 100 : (zStart - zl) / zStart * 100); /* fills up as the horde goes down (endless: toward the next wave) */ setC('taRank', 'ok', MODE !== 'endless' && zl <= goalN);
+  const tS = MODE === 'endless' ? played : tLeft, m = Math.floor(tS / 60), s = Math.floor(tS % 60); setT('taTime', m + ':' + String(s).padStart(2, '0')); setC('taTime', 'low', MODE !== 'endless' && tLeft < 20); /* (endless: the clock counts up) */
   setT('taTargets', horde.civs); setC('taTargets', 'low', horde.civs < civStart * 0.4); setW('arCollFill', coll); setC('arColl', 'warn', coll >= 70);
   setT('taScore', Math.max(0, Math.round(score)));
-  { const pct = Math.max(0, Math.min(100, Math.round((zStart - zl) / Math.max(1, zStart - goalN) * 100))); setT('taPct', innerWidth < 761 ? '☣️ ' + pct + '%' : '☣️ ' + pct + '% CLEARED'); setC('taPct', 'ok', pct >= 100); }
+  { const pct = MODE === 'endless' ? Math.min(99, Math.round((kills - waveKills) / waveNeed() * 100)) : Math.max(0, Math.min(100, Math.round((zStart - zl) / Math.max(1, zStart - goalN) * 100))); setT('taPct', innerWidth < 761 ? '☣️ ' + pct + '%' : '☣️ ' + pct + '% CLEARED'); setC('taPct', 'ok', pct >= 100); }
   setW('arHpFill', c.hp / S.hp * 100); setC('arCraft', 'low', c.hp < S.hp * 0.35); setW('arAmmoFill', c.ammo / S.ammo * 100); setT('arAmmoTxt', c.ammo); setC('arCraft', 'empty', c.ammo <= 0);
   setW('arSupFill', Math.max(0, Math.min(100, supPct())));
   setT('arDropN', c.ammo > 0 ? c.ammo + ' LEFT' : 'RELOAD'); setC('arDrop', 'empty', c.ammo <= 0); setC('arDrop', 'held', dropping() || firing()); // DROP (the bomber) or FIRE (the heli)
@@ -836,17 +847,17 @@ let state = 'start', roundId = 0, roundN = 0;
 soundToggle($('taStart'), $('taPaused')); playerButton($('taPaused'), $('taPaused').querySelector('.menuBtn')); tipsSetup('ar', $('taPaused'), $('taPaused').querySelector('.menuBtn')); diffPicker($('taLevels'), 'ar'); skipSongBtn($('ta')); eraPicker($('taLevels'), () => { level = unlocked(); drawLevels(); }); seasonPicker($('eraRow'));
 gameMusic($('taPaused'), SONGS_TORNADO); radioButton($('taPaused'), $('taPaused').querySelector('.menuBtn'));
 const fsMode = initFullscreen(() => state === 'play' || state === 'outro'); // full screen on play, back in after a browser drop-out, no page scrolling mid-round (and its button stays out of the way while the HUD still shows)
-function start() { if (MODE === 'endless') level = endlessLevel(LEVELS.length); RK = roundK('ar'); firstSong('ar', 'music/napalm-requiem.mp3'); /* (the first round ever opens on Napalm Requiem) */
+function start() { if (MODE === 'streak') level = streakLevel(LEVELS.length); if (MODE === 'endless') { level = LEVELS.length; waves.reset(); waveKills = 0; riseT = 6; } RK = roundK('ar'); firstSong('ar', 'music/napalm-requiem.mp3'); /* (the first round ever opens on Napalm Requiem) */
   fsMode.play(); coachClear(); saveLast('ar', level); horde.crowd.clear(); if (state !== 'start' || roundN > 0) roundN++; roundId++;
   unlockAudio(); sk.clear(); buildWorld(); makeCraft(craftKind); setupMap(); /* (sk.clear first: it frees the last round's baby twisters while the twisters module still has them) */
   score = coll = kills = spitKills = savedN = civHit = turned = bHit = bLost = poiHit = acidHits = refills = multiBest = drops = shots = bumps = rockHits = crushed = gUp = gDown = 0; wpn = wLv = sup = nukes = supNuke = 0; played = 0; coll70 = false; endWhy = ''; dropHeld = false; botDrop = false; botKT = 0; stickOff(); touches.clear(); setWarn(null);
   clearUfos(); resetRepair(); clearMeteors(); events.reset(); bossBeat = false; chainAR = 0; lastKillT = -9; comboHud(1, 0); zWrecked = 0; siegeT = 1; for (const o of smokes) o.m.visible = false;
-  gPlan = []; gTotal = L().giants ? Math.max(1, Math.round(L().giants * RK.foe)) : 0; for (let i = 0; i < gTotal; i++) gPlan.push(GIANT.rise[0] + i * GIANT.rise[1]); // when each Grave Giant climbs out of the ground
+  gPlan = []; gTotal = L().giants ? Math.max(1, Math.round(L().giants * RK.foe)) : 0; if (MODE === 'endless') gTotal = 2; /* (an endless round opens with two; each wave brings more) */ for (let i = 0; i < gTotal; i++) gPlan.push(GIANT.rise[0] + i * GIANT.rise[1]); // when each Grave Giant climbs out of the ground
   ROUND = Math.round((+Q.get('time') || L().time) * RK.time); tLeft = ROUND; zStart = horde.zombies; goalN = Math.max(1, Math.round(zStart * L().goal)); civStart = horde.civs;
   $('arGoalTick').style.left = ((zStart - goalN) / zStart * 100) + '%'; { const b = $('arDrop'), heli = craftKind === 'heli'; b.innerHTML = heli ? '<b>🚀</b><span>FIRE</span><i id="arDropN"></i>' : '<b>🔥</b><span>DROP</span><i id="arDropN"></i>'; b.setAttribute('aria-label', heli ? 'Fire rockets' : 'Drop napalm'); b.classList.remove('hidden'); } drawWpns(); /* the big button: DROP napalm, or FIRE rockets; beside it, the weapons the supplies unlock */ $('arAmmoIcon').textContent = craftKind === 'bomber' ? '🔥' : '🚀'; $('arCraftTag').textContent = CRAFTS[craftKind].icon + ' ' + CRAFTS[craftKind].tag;
   for (const s of ['taStart', 'taEnd', 'taPaused', 'taPrize']) $(s).classList.add('hidden'); $('ta').classList.remove('hidden');
-  state = 'play'; playSongs(); sfx.whoosh(); banner('LEVEL ' + level + ': ' + L().name.toUpperCase()); const rid = roundId; setTimeout(() => { if (state === 'play' && rid === roundId) banner('WIPE OUT THE HORDE!'); }, 2400);
-  renderer.compile(scene, cam); $('taLevel').textContent = 'L' + level + ' · ' + L().name + (RK.tag ? ' · ' + RK.tag : ''); measureHud(); for (const k in hudCache) delete hudCache[k]; baseArrow._c = undefined;
+  state = 'play'; playSongs(); sfx.whoosh(); banner(MODE === 'endless' ? '♾️ ENDLESS: ' + L().name.toUpperCase() : 'LEVEL ' + level + ': ' + L().name.toUpperCase()); const rid = roundId; setTimeout(() => { if (state === 'play' && rid === roundId) banner(MODE === 'endless' ? 'THEY NEVER STOP COMING.\nHOW LONG CAN YOU LAST?' : 'WIPE OUT THE HORDE!'); }, 2400);
+  renderer.compile(scene, cam); $('taLevel').textContent = MODE === 'endless' ? '♾️ ENDLESS · WAVE 1' : 'L' + level + ' · ' + L().name + (RK.tag ? ' · ' + RK.tag : ''); measureHud(); for (const k in hudCache) delete hudCache[k]; baseArrow._c = undefined;
   camTarget.set(craft.pos.x, 0, craft.pos.z);
 }
 function togglePause() { if (state === 'play') { state = 'paused'; setPlaneEngine(0); stopMusic(); dropHeld = false; stickOff(); touches.clear(); $('taPaused').classList.remove('hidden'); } else if (state === 'paused') { state = 'play'; $('taPaused').classList.add('hidden'); playSongs(); } }
@@ -886,8 +897,8 @@ function outroTick(dt) { outroT += dt; horde.update(dt); if (craft) sk.tick(dt, 
 function finishNow() {
   state = 'over'; setPlaneEngine(0); stopMusic(); clearTips(); baseArrow.style.display = 'none'; for (const m of rings) m.visible = false; /* (no red ring frozen on behind the prize and score screens) */ const won = endWhy === 'win', alive = endCiv, zl = endZ, lv0 = L(); // (as it stood when the round ended: the outro doesn't count)
   let timeB = 0, civB = won ? alive * SC.civEnd : 0; /* everyone still alive is a bonus, for a town you saved */ if (won) { timeB = Math.round(tLeft) * SC.sec; } score = Math.max(0, Math.round(score + civB + timeB)); const lvN = level;
-  if (endlessEnd(won, score, () => start())) return; /* an endless run goes straight on to the next town */
-  let best = 0; const bk = bestKey('ar', level); try { best = +localStorage.getItem(bk) || 0; if (score > best) { best = score; localStorage.setItem(bk, String(score)); } } catch { /* ignore */ }
+  if (streakEnd(won, score, () => start())) return; /* a town streak goes straight on to the next town */
+  let best = 0; const bk = MODE === 'endless' ? 'ar_best_endless' : bestKey('ar', level); try { best = +localStorage.getItem(bk) || 0; if (score > best) { best = score; localStorage.setItem(bk, String(score)); } } catch { /* ignore */ }
   const scoreCoins = Math.floor(score * RK.coins / 10000) / 100; if (scoreCoins > 0) addCoins(scoreCoins); // one coin per million points, as in the other games (MAYHEM pays half as much again)
   if (won) markWon('ar', level);
   if (won && level < LEVELS.length && unlocked() <= level) { try { localStorage.setItem(levelKey('ar'), String(level + 1)); } catch { /* ignore */ } }
@@ -899,7 +910,7 @@ function finishNow() {
     down: { acid: "The gloopers' acid brought you down. Take the glowing green ones out first, and fly back to the airfield to repair when you are hurt.", building: 'You flew into one building too many. Big buildings are solid: watch for the red glow and BUILDING!, and steer round them.', grab: 'A Grave Giant caught you when you were already badly hurt. Each grab or swipe costs a third of your health: repair at the airfield before you go back for it.', walker: 'A walker\'s laser brought you down. When a red line points at you from one, change course; rockets and napalm at its feet bring it down.', ufo: 'A UFO\'s laser brought you down. When a red line points at you, change course: the laser fires along it a moment later. Tap a UFO to lock on and shoot it down first.', giant: "A Grave Giant's throw brought you down. When a red ring shows where a chunk is coming, fly clear of it." }[(craft && craft.lastHit) || 'acid'], nociv: 'The horde caught everyone. Go for the zombies closest to people first.', time: 'Bring the horde down to ' + goalN + ' or fewer before time runs out (there were ' + zl + ' left).' };
   $('taGoalLine').textContent = why[endWhy] || '';
   if (gotSkins.length) { const u = document.createElement('div'); u.style.cssText = 'margin-top:8px;padding:8px 10px;border-radius:10px;border:2px solid #7dff3a;background:#0e2a0acc;color:#7dff3a;font-weight:900;font-size:15px;box-shadow:0 0 14px #7dff3a66'; u.innerHTML = '🏆 BONUS SKINS UNLOCKED: <b>' + gotSkins.join(' AND ').toUpperCase() + '</b><br><small style="color:#cfe8c8;font-weight:700;font-size:11px">Put them on with CHOOSE SKIN, or in the skin shop.</small>'; $('taGoalLine').appendChild(u); }
-  { const host = $('taGoalLine'), last = lvN >= LEVELS.length; awardStars('ar', lvN, [['Save the town', won], ['Keep collateral under 35%', won && coll < 35], last ? ['Destroy the Mothership in time', won && bossBeat] : ['Keep 70% of the people alive', won && alive >= civStart * 0.7]], host); if (won) dailyWon(host); endlessLine(host); }
+  { const host = $('taGoalLine'), last = lvN >= LEVELS.length; awardStars('ar', lvN, [['Save the town', won], ['Keep collateral under 35%', won && coll < 35], last ? ['Destroy the Mothership in time', won && bossBeat] : ['Keep 70% of the people alive', won && alive >= civStart * 0.7]], host); if (won) dailyWon(host); streakLine(host); endlessOver(host, waves.n, played, score); }
   if (won && level < LEVELS.length && MODE === 'normal') level++; saveLast('ar', level); drawLevels();
   $('taStats').innerHTML = [['🧟 Zombies destroyed', kills + (spitKills ? ' (' + spitKills + ' gloopers)' : '')], ...(lv0.giants ? [['💀 Grave Giants downed', gDown + ' / ' + gTotal]] : []), ['Horde left', zl + ' (goal ' + goalN + ')'], [won ? '👥 People saved' : '👥 People alive', alive + ' / ' + civStart + (won ? '  +' + civB : '')], ['People turned', turned], ['People you hit', civHit], ['🏚️ Buildings hit', bHit + (bLost ? ' (' + bLost + ' destroyed)' : '')], ...(zWrecked ? [['🧟 Lost to the horde', zWrecked]] : []), ...(repaired ? [['🔧 Buildings repaired', repaired]] : []), ...(bumps ? [['✈️ Buildings flown into', bumps]] : []), ['💥 Collateral', Math.round(coll) + '%'],
     ...(won ? [['⏱️ Time bonus', '+' + timeB]] : []), ['Aircraft', CRAFTS[craft.kind].name], ['Score', score], ['Score coins', '+' + scoreCoins + ' 🪙'], ['Best', best]].map(([a, b]) => '<tr><td>' + a + '</td><td>' + b + '</td></tr>').join('');
@@ -979,13 +990,13 @@ function hoverSpot(t, c) { const dx = c.pos.x - t.x, dz = c.pos.z - t.z, d = Mat
 
 // ---------- update ----------
 function update(dt) {
-  played += dt; funTick(dt); if (boss) { if (bossTick(dt)) return; } else tLeft -= dt; /* (a boss fight: the town's clock stops, the boss clock runs) */ if (tLeft <= 0) { tLeft = 0; finish(horde.zombies <= goalN ? 'win' : 'time'); return; }
+  played += dt; funTick(dt); if (boss) { if (bossTick(dt)) return; } else if (MODE === 'endless') endlessTick(dt); else tLeft -= dt; /* (a boss fight: the town's clock stops, the boss clock runs) */ if (tLeft <= 0) { tLeft = 0; finish(horde.zombies <= goalN ? 'win' : 'time'); return; }
   events.tick(dt, !boss && tLeft > 12 && played > 20); comboHud(multAR(), 1 - (played - lastKillT) / 3);
   coachAR(); if (coachBusy()) return; /* a prompt has just come up: the round waits from this moment (a building it is about stays lit up red) */ if (played > 30) tip('ar_map', '🗺️ Tap the minimap to fly across town.'); if (bot) botTick(dt);
   updateCraft(dt); const c = craft; craftView.pos.copy(c.pos); craftView.vel.copy(c.vel); craftView.r = c.S.r; craftView.alive = c.alive && !c.crash; craftView.safe = c.baseD < BASE_R + 1; craftView.stealth = c.stealth || 1; // the airfield is a safe zone: the acid (and the giants) can't reach it
   horde.update(dt); updateGiants(dt); updateUfos(dt); updateWalkers(dt); updateLock(dt); updateRepair(dt); updateTracers(dt); updateSiege(dt); updateRocks(dt); updateShards(dt); updateCans(dt); updateRockets(dt); updateBlasts(dt); updatePatches(dt); updateBuildingFires(dt); flushKills(dt);
   if (state !== 'play') return; // something above ended the round
-  if (!boss && horde.zombies <= goalN) { if (bossDue(level, LEVELS.length) && !bossBeat) startBoss(); else { finish('win'); return; } } if (horde.civs <= 0) { finish('nociv'); return; }
+  if (MODE !== 'endless') { if (!boss && horde.zombies <= goalN) { if (bossDue(level, LEVELS.length) && !bossBeat) startBoss(); else { finish('win'); return; } } if (horde.civs <= 0) { finish('nociv'); return; } } /* (an endless round has no goal, and losing the townsfolk does not end it) */
   updateHud(dt); mapT -= dt; if (mapT <= 0) { mapT = 0.1; drawMini(); }
 }
 // the title screen: the town behind it, the horde about its business and a bomber circling overhead
@@ -1020,11 +1031,11 @@ function frame(nowMs) {
 // QUICK PLAY on the main menu comes in with ?quick: no title screen, straight into the town you left off in. Otherwise the
 // town behind the title screen, with a bomber circling
 if (Q.has('quick')) { if (!(import.meta.env.DEV && +Q.get('level'))) level = quickLevel('ar'); drawLevels(); start(); }
-else if (MODE === 'daily') { level = dailyLevel(unlocked()); drawLevels(); start(); } else if (MODE === 'endless') start(); /* a daily challenge or an endless run: straight in */
+else if (MODE === 'daily') { level = dailyLevel(unlocked()); drawLevels(); start(); } else if (MODE === 'streak' || MODE === 'endless') start(); /* a daily challenge or a town streak: straight in */
 else { buildWorld(); makeCraft(craftKind); camTarget.set(0, 0, 0); }
 requestAnimationFrame(frame); requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove('booting'))); // the start screen is ready now
 
-window.__ar = { start, startBoss, get boss() { return boss; }, get RK() { return RK; }, events, get mult() { return multAR(); }, finish, finishNow, tapAt, spawnUfo, toScreen, get lock() { return lock; }, get balloons() { return balloons; }, get repaired() { return repaired; }, get rebuilds() { return rebuilds; }, addColl, fireRocket, wreckPoi, igniteB, hitThings, setZoom, THREE, renderer, scene, cam, horde, fx, twisters, spawnGiant, blockerAt, bldAhead, collapse, BLD, GIANT, AIM_D,
+window.__ar = { waves, get waveKills() { return waveKills; }, set kills(v) { kills = v; }, start, startBoss, get boss() { return boss; }, get RK() { return RK; }, events, get mult() { return multAR(); }, finish, finishNow, tapAt, spawnUfo, toScreen, get lock() { return lock; }, get balloons() { return balloons; }, get repaired() { return repaired; }, get rebuilds() { return rebuilds; }, addColl, fireRocket, wreckPoi, igniteB, hitThings, setZoom, THREE, renderer, scene, cam, horde, fx, twisters, spawnGiant, blockerAt, bldAhead, collapse, BLD, GIANT, AIM_D,
   get aim() { return craft && craft.kind === 'heli' ? aimPoint(craft, new THREE.Vector3()) : reticle.position.clone(); }, get giants() { return horde.giants; }, get ufos() { return ufos; }, get walkers() { return walkers; }, spawnWalker, get zWrecked() { return zWrecked; }, get coll() { return coll; }, get ufoDown() { return ufoDown; }, get rocks() { return rocks; }, get rings() { return rings; }, get warn() { return warnB; }, get bumps() { return bumps; }, get gDown() { return gDown; }, get gUp() { return gUp; }, get rockHits() { return rockHits; }, get crushed() { return crushed; }, get acidHits() { return acidHits; }, get shots() { return shots; }, get drops() { return drops; }, get refills() { return refills; }, get gPlan() { return gPlan; },
   get state() { return state; }, get craft() { return craft; }, get level() { return level; }, set level(v) { level = v; drawLevels(); }, get craftKind() { return craftKind; }, set craftKind(k) { craftKind = k; drawCrafts(); },
   get bot() { return bot; }, set bot(v) { bot = !!v; }, get botInfo() { return { aim: botAim, run: +botRun.toFixed(2), drop: botDrop, kt: botKT }; }, set drop(v) { dropHeld = !!v; }, get score() { return score; }, get coll() { return coll; }, get zombies() { return horde.zombies; }, get civs() { return horde.civs; }, get goal() { return goalN; },

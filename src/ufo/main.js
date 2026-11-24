@@ -27,7 +27,8 @@ import { stampVersion } from '../version.js';
 import { initFullscreen } from '../fullscreen.js';
 import { showHowTo, tip, clearTips, markSeen } from '../howto.js';
 import { coach, coachSeen, coachIdle, coachBusy, coachFrame, coachClear, tipsSetup } from '../coach.js';
-import { FUN, MODE, funInit, diffPicker, roundK, starTag, awardStars, comboHud, bossBar, bossDue, makeEvents, meteorShower, clearMeteors, funTick, buzz, dailyLevel, dailyWon, endlessLevel, endlessEnd, endlessLine } from '../fun.js';
+import { FUN, MODE, funInit, diffPicker, roundK, starTag, awardStars, comboHud, bossBar, bossDue, makeEvents, meteorShower, clearMeteors, funTick, buzz, dailyLevel, dailyWon, streakLevel, streakEnd, streakLine, makeWaves, endlessOver } from '../fun.js';
+import { makeRebuilder } from '../rebuild.js';
 import { levelKey, bestKey, quickLevel, saveLast } from '../progress.js';
 import { createCrowd } from '../crowd.js';
 import { autoResolution, setBakedGlow, mergeParts } from '../perf.js';
@@ -410,7 +411,7 @@ function hitBuilding(x, at) { if (x.done) return; x.hp--;
 const free = (o) => T.free(o);
 // a building comes down: it cracks, then bursts into pieces of itself, and the people inside run out into the street
 function crumble(x, from, label = '') { addPower(EP.building);
-  free(x.obj); x.done = true; bDone++; dropObstacle(x.pos); if (x.b.userData.edges) x.b.userData.edges.visible = false; const ex = x.obj === x.b ? (x.b.userData.extras || []).filter((m) => m.parent) : [];
+  free(x.obj); if (MODE === 'endless') rebuilder.wrecked(x, played); x.done = true; bDone++; dropObstacle(x.pos); if (x.b.userData.edges) x.b.userData.edges.visible = false; const ex = x.obj === x.b ? (x.b.userData.extras || []).filter((m) => m.parent) : [];
   twisters.tear(x.obj, x.pos, new THREE.Box3().setFromObject(x.obj).getSize(V3()), null, [], ex, { collapse: true, from: from || null, power: 1 });
   fx.puff('smoke', V3(x.pos.x, 0.8, x.pos.z), 1.2 + x.h * 0.15); for (let i = 0; i < 6; i++) { const a = (i / 6) * 6.28 + Math.random(); fx.dust({ x: x.pos.x + Math.cos(a) * 1.1, y: 0, z: x.pos.z + Math.sin(a) * 1.1 }, 0.8 + x.h * 0.12, Math.cos(a) * 2, Math.sin(a) * 2); }
   jolt(Math.min(0.45, 0.1 + x.h * 0.05)); award(x.pts, x.pos, label); sfx.crunch(x.h > 5); if (x.h > 5) { sfx.boom(); flashT = Math.max(flashT, 0.08); }
@@ -526,7 +527,7 @@ function answerCard() { const c = curCard; curCard = null; if (c) markSeen('c_' 
 const bldCard = () => coachBusy() && !!curCard && curCard.key === 'bu_bld'; /* the BIG BUILDINGS card is up: the building it points at stays lit red (fly, holdQuiet) */
 
 // ---------- the army (army.js) ----------
-// ---------- THE FUN PACK (fun.js). RK: this round's numbers (difficulty, a daily twist, or how deep an endless run is).
+// ---------- THE FUN PACK (fun.js). RK: this round's numbers (difficulty, a daily twist, or how deep a town streak is).
 // BOSS: THE IRON MAMMOTH rolls in on the last town once all three goals are met: the town's clock stops and the boss clock
 // runs. Stop it in time for the bonus and the star; if the clock runs out it pulls back and the town is cleared all the same ----------
 let RK = { time: 1, foe: 1, hurt: 1, coins: 1, tag: '' }, boss = null, bossBeat = false; const BOSS = { time: 90, hp: 18, score: 25000, name: '👑 THE IRON MAMMOTH' };
@@ -538,6 +539,15 @@ const events = makeEvents([
   { can: () => ship.alive, run() { addEnergy(35); boostT = Math.max(boostT, 7); banner('⚡ POWER SURGE!\n+HEALTH AND A SPEED BOOST'); popup(ship.center, '+35 ❤️', '#7dff3a'); sfx.power(); } },
   { can: () => blindT <= 0, run() { blindT = 14; banner("🌑 BLACKOUT! THE ARMY CAN'T SEE YOU"); sfx.wave(); } },
 ]);
+// ---------- ENDLESS (fun.js, rebuild.js): The Sprawl with no clock and no goal. People keep arriving (a crowd each wave, a few
+// every twelve seconds between), crews put wrecked buildings back after about a minute, and a WAVE every 45 seconds raises
+// RK.foe and RK.hurt: the army comes sooner, with more tanks, and hits harder. It ends when the saucer's health is gone ----------
+const waves = makeWaves({ every: 45 }); let arriveT = 12;
+const rebuilder = makeRebuilder({ scene, fx, delay: 60, build: 4, max: 3, done(x, G) { T.city.group.attach(G); x.done = false; x.obj = x.b = G; bDone = Math.max(0, bDone - 1); if (toScreen(x.pos).on) popup(x.pos, '🏗️ REBUILT', '#ffd24a'); } });
+function arrive(n) { for (let g = 0; g < Math.ceil(n / 5) && people.length < 480; g++) { const [x, y] = T.roads[(Math.random() * T.roads.length) | 0], w = toWorld(x, y, T.cols, T.rows); for (let i = 0; i < 5; i++) addPerson(w.x + rnd(-0.8, 0.8), w.z + rnd(-0.8, 0.8)); } }
+function endlessTick(dt) {
+  if (waves.tick(dt)) { RK.foe = waves.foe; RK.hurt = waves.hurt; banner('🌊 WAVE ' + waves.n + '!\nMORE OF THEM, AND MEANER'); sfx.wave(); jolt(0.4); $('taLevel').textContent = '♾️ ENDLESS · WAVE ' + waves.n; arrive(20 + 4 * waves.n); }
+  arriveT -= dt; if (arriveT <= 0) { arriveT = 12; arrive(6); } rebuilder.tick(dt, played); }
 const army = createArmy({ foeK: () => RK.foe, bossDown: (q) => bossDown(q), gunPow: () => 1 + (shotLv || 0) * 0.5, scene, fx, twisters, toScreen, edgeArrow, popup, banner, award, jolt, coach: card, coachSeen, inView: (...a) => inView(...a), flash: (v) => { flashT = Math.max(flashT, v); },
   hurt: (d, k, p) => hurt(d, k, p), groundHit: (p, k) => groundHit(p, k), blast: (c, r, o) => blast(c, r, o), collide: (c) => collidePerson(c), status, after, free: (o) => { if (T) T.free(o); },
   stat: (k) => { stats[k] = (stats[k] || 0) + 1; }, poiCenters: () => poiOrder.filter((k) => !pois[k].done).map((k) => pois[k].center),
@@ -664,7 +674,7 @@ gameMusic($('taPaused'), SONGS_ALL); radioButton($('taPaused'), $('taPaused').qu
 const fsMode = initFullscreen(() => state === 'play' || state === 'outro'); // full screen on play, back in after a browser drop-out, no page scrolling mid-round (the outro is still the round)
 const hudCache = {}; const setT = (id, v) => { v = String(v); if (hudCache[id] !== v) { hudCache[id] = v; $(id).textContent = v; } };
 const setC = (id, cls, on) => { const k = id + '.' + cls; if (hudCache[k] !== on) { hudCache[k] = on; $(id).classList.toggle(cls, on); } };
-function start() { if (MODE === 'endless') level = endlessLevel(LEVELS.length); RK = roundK('bu'); boss = null; bossBeat = false; bossBar(null); comboHud(1, 0); clearMeteors(); events.reset(); firstSong('bu', 'music/beam-beam-baby.mp3'); /* (the first round ever opens on Beam Beam Baby) */
+function start() { if (MODE === 'streak') level = streakLevel(LEVELS.length); if (MODE === 'endless') { level = LEVELS.length; waves.reset(); arriveT = 12; } rebuilder.clear(); RK = roundK('bu'); boss = null; bossBeat = false; bossBar(null); comboHud(1, 0); clearMeteors(); events.reset(); firstSong('bu', 'music/beam-beam-baby.mp3'); /* (the first round ever opens on Beam Beam Baby) */
   fsMode.play(); coachClear(); if (!noSave) saveLast('bu', level); crowd.clear(); unlockAudio(); roundId++; timers.length = 0; sk.clear(); /* (last round's baby twisters, freed while the twisters module still has them) */
   buildWorld(); makePlayerShip(); setupPoiHud();
   score = 0; chain = 0; lastHit = -9; tLeft = Math.round(L().time * RK.time); played = 0; abd = 0; stats = {}; sw = swLv = swNext = 0; power = SW.start * SW.at[0] * L().abduct; swN = [0, 0]; nukeCd[0] = nukeCd[1] = 0; drawSw(); swCheck(); energy = E_MAX; /* (the E badge and bar start from this round's level, not the last one's) */ boostT = nukeT = hitT = hurtK = 0; hits = 0; lowWarned = false; rayCd = 0; moveTo = null; lastGrab = -9; grabChain = 0; dmgPop = 0; dmgPopT = hurtSfx = lowAt = -9; outro = null; beamCoach = false;
@@ -672,9 +682,9 @@ function start() { if (MODE === 'endless') level = endlessLevel(LEVELS.length); 
   army.spawnTown();
   for (const s of ['taStart', 'taEnd', 'taPaused', 'taPrize']) $(s).classList.add('hidden'); $('ta').classList.remove('hidden');
   state = 'play'; playSongs(); sfx.whoosh(); banner('LEVEL ' + level + ': ' + L().name.toUpperCase());
-  after(2.4, () => banner('BEAM UP ' + L().abduct + ' PEOPLE\nWRECK ' + L().goal + '% OF TOWN\nTAKE OUT ' + poiGoal() + ' BIG TARGETS'));
+  after(2.4, () => banner(MODE === 'endless' ? '♾️ ENDLESS\nTHEY KEEP COMING.\nHOW LONG CAN YOU LAST?' : 'BEAM UP ' + L().abduct + ' PEOPLE\nWRECK ' + L().goal + '% OF TOWN\nTAKE OUT ' + poiGoal() + ' BIG TARGETS'));
   renderer.compile(scene, cam); // compile every material in the new town now, not mid-play
-  $('taLevel').textContent = 'L' + level + ' · ' + L().name + (RK.tag ? ' · ' + RK.tag : ''); for (const k in hudCache) delete hudCache[k]; measureHud(); camTarget.set(0, flyY() * 0.5, 0);
+  $('taLevel').textContent = MODE === 'endless' ? '♾️ ENDLESS · WAVE 1' : 'L' + level + ' · ' + L().name + (RK.tag ? ' · ' + RK.tag : ''); for (const k in hudCache) delete hudCache[k]; measureHud(); camTarget.set(0, flyY() * 0.5, 0);
 }
 function togglePause() { if (state === 'play') { state = 'paused'; beamHeld = false; beamPress = mouseShip = null; setPlaneEngine(0); setWind(0); stopMusic(); $('taPaused').classList.remove('hidden'); } else if (state === 'paused') { state = 'play'; $('taPaused').classList.add('hidden'); playSongs(); } }
 // the round is over. kind: 'win' (both goals met), 'crash' (no energy left), 'time' (the clock ran out)
@@ -697,8 +707,8 @@ function outroTick(dt) { const o = outro; o.t += dt; runTimers(dt); army.update(
   if (k >= 1 && o.t >= 2.6) finishNow(); }
 function finishNow() {
   state = 'over'; stopMusic(); setPlaneEngine(0); setWind(0); clearTips(); army.clear(); /* its arrows and tags go too */ for (const o of pops) { o.t = 0; o.el.style.display = 'none'; } crowdLists[0][0] = people; crowdLists[1][0] = army.soldiers; crowd.sync(crowdLists, ship.x, ship.z, 4); const done = poiOrder.filter((k) => pois[k].done), kind = outro ? outro.kind : 'time', cleared = kind === 'win', p = pct(), lv = level, fuelOut = kind === 'crash' && outro.why === 'fuel' && (stats.dmg || 0) < 30;
-  if (endlessEnd(cleared, score, () => start())) return; /* an endless run goes straight on to the next town */
-  let best = 0; const bk = bestKey('bu', level); try { best = +localStorage.getItem(bk) || 0; if (score > best) { best = score; if (!noSave) localStorage.setItem(bk, String(score)); } } catch { /* ignore */ }
+  if (streakEnd(cleared, score, () => start())) return; /* a town streak goes straight on to the next town */
+  let best = 0; const bk = MODE === 'endless' ? 'bu_best_endless' : bestKey('bu', level); try { best = +localStorage.getItem(bk) || 0; if (score > best) { best = score; if (!noSave) localStorage.setItem(bk, String(score)); } } catch { /* ignore */ }
   const scoreCoins = Math.floor(score * RK.coins / 10000) / 100; if (scoreCoins > 0 && !noSave) addCoins(scoreCoins); // one coin per million points (MAYHEM pays half as much again)
   const gotSkins = cleared && level >= LEVELS.length && !noSave ? unlockCraftBonus('ufo') : []; // beating The Sprawl (the last town) wins the Acid Saucer
   if (cleared && !noSave) markWon('bu', level);
@@ -709,7 +719,7 @@ function finishNow() {
   $('taGoalLine').textContent = cleared ? (level < LEVELS.length ? 'Level ' + (level + 1) + ' unlocked: ' + LEVELS[level].name + '.' : 'Every town beamed up. The whole planet is yours.')
     : kind === 'crash' ? (fuelOut ? 'Your energy ran out. Flying uses it up: beam people up to keep flying' : rammed ? 'You flew into a big building. Watch for the red glow and BUILDING!, and fly round them' : 'Your shield ran out. Keep moving so the shots miss, and beam people up to fill it') + ' (' + abd + ' of ' + L().abduct + ' people, ' + p + '% of the town destroyed, goal ' + L().goal + '%).'
     : 'Beam up ' + L().abduct + ' people and wreck ' + L().goal + '% of ' + L().name + ' to clear it (you got ' + abd + ' and ' + p + '%).';
-  { const host = $('taGoalLine'), last = lv >= LEVELS.length; if (!noSave) awardStars('bu', lv, [['Clear the town', cleared], ['Finish with half your health', cleared && energy >= E_MAX * 0.5], last ? ['Destroy the Iron Mammoth in time', cleared && bossBeat] : ['Wreck every big target', cleared && done.length >= poiOrder.length]], host); if (cleared) dailyWon(host); endlessLine(host); }
+  { const host = $('taGoalLine'), last = lv >= LEVELS.length; if (!noSave) awardStars('bu', lv, [['Clear the town', cleared], ['Finish with half your health', cleared && energy >= E_MAX * 0.5], last ? ['Destroy the Iron Mammoth in time', cleared && bossBeat] : ['Wreck every big target', cleared && done.length >= poiOrder.length]], host); if (cleared) dailyWon(host); streakLine(host); if (MODE === 'endless') { host.textContent = 'Your health ran out. Keep moving so the shots miss, and beam people up to refill it.'; endlessOver(host, waves.n, played, score); } }
   if (cleared && level < LEVELS.length && MODE === 'normal') level++; if (!noSave) saveLast('bu', level); /* the next town is picked right away, wherever you go from here */
   drawLevels();
   if (gotSkins.length) { const u = document.createElement('div'); u.style.cssText = 'margin-top:8px;padding:8px 10px;border-radius:10px;border:2px solid #7dff3a;background:#0e2a0acc;color:#7dff3a;font-weight:900;font-size:15px;box-shadow:0 0 14px #7dff3a66'; u.innerHTML = '🏆 BONUS SKIN UNLOCKED: <b>' + gotSkins.join(' AND ').toUpperCase() + '</b><br><small style="color:#cfe8c8;font-weight:700;font-size:11px">Put it on with CHOOSE SKIN, or in the skin shop.</small>'; $('taGoalLine').appendChild(u); }
@@ -769,7 +779,7 @@ drawShipPv();
 const sk = ufoSkin({ scene, fx, twisters, popup, sfx, jolt, people: () => people, buildings: () => buildings, army, addPerson, collide: collidePerson, played: () => played, beamOn: () => beamOn, lim: () => (T ? T.lim : null) });
 // ---------- update ----------
 function update(dt) {
-  placed.length = 0; played += dt; funTick(dt); if (boss) { if (bossTick(dt)) return; } else tLeft -= dt; /* (a boss fight: the town's clock stops, the boss clock runs) */ runTimers(dt); if (tLeft <= 0) { tLeft = 0; finish('time'); return; }
+  placed.length = 0; played += dt; funTick(dt); if (boss) { if (bossTick(dt)) return; } else if (MODE === 'endless') endlessTick(dt); else tLeft -= dt; /* (a boss fight: the town's clock stops, the boss clock runs) */ runTimers(dt); if (tLeft <= 0) { tLeft = 0; finish('time'); return; }
   events.tick(dt, !boss && tLeft > 12 && played > 20 && ship.alive); comboHud(mult(), 1 - (played - lastHit) / 2.5);
   if (cardUp && !coachBusy()) { cardUp = false; curCard = null; cardShutAt = played; } /* a first-time card has just been closed */
   coachBU(); if (played > 30) tip('bu_map', '🗺️ Tap the minimap to fly across town. Green dots are people.');
@@ -813,9 +823,9 @@ function update(dt) {
   const lowE = energy < 25; if (lowE && !lowWarned) { lowWarned = true; lowAt = played; banner('⚠ SHIELD LOW! BEAM SOMEONE UP!'); } else if (energy > 40) lowWarned = false;
   if (lowE) { beepT -= dt; if (beepT <= 0) { beepT = energy < 12 ? 0.45 : 0.9; sfx.ping(12); } if (played - lowAt > 2.3) status(energy < 12 ? '⚠ SHIELD CRITICAL! BEAM PEOPLE UP!' : '⚠ SHIELD LOW!'); } /* the banner says it first */
   // HUD
-  const m = Math.floor(tLeft / 60), s = Math.floor(tLeft % 60); setT('taTime', m + ':' + String(s).padStart(2, '0')); setC('taTime', 'red', tLeft < 15);
+  const tS = MODE === 'endless' ? played : tLeft, m = Math.floor(tS / 60), s = Math.floor(tS % 60); setT('taTime', m + ':' + String(s).padStart(2, '0')); setC('taTime', 'red', MODE !== 'endless' && tLeft < 15); /* (endless: the clock counts up) */
   setT('taScore', score); setT('taCombo', !FUN.combo && mult() > 1 && played - lastHit < 2.5 ? 'x' + mult() + ' COMBO' : grabChain >= 2 && played - lastGrab < 2.2 ? '👽 x' + (grabChain + 1) + ' CHAIN' : '');
-  setT('buCount', '👽 ' + abd + '/' + L().abduct); setC('buCount', 'ok', abd >= L().abduct);
+  setT('buCount', MODE === 'endless' ? '👽 ' + abd : '👽 ' + abd + '/' + L().abduct); setC('buCount', 'ok', MODE !== 'endless' && abd >= L().abduct);
   drawEBar(); if (frameN % 15 === 0) poiReady(); if (nukeT > 0) setT('buE', '☢️'); else if ($('buE').textContent === '☢️') $('buE').textContent = 'E' + (swLv + 1); { const hb = $('buEnergy'), sp2 = toScreen(ship.center, ship.y + (WALK() ? 2.7 : 1.3)); hb.classList.toggle('off', !ship.alive || !sp2.on); hb.style.left = Math.round(sp2.x) + 'px'; hb.style.top = Math.round(sp2.y - 8) + 'px'; } /* (the health bar floats over the machine) */
   { const k = Math.max(0, energy / E_MAX), w = (k * 100).toFixed(1) + '%'; if (hudCache.ew !== w) { hudCache.ew = w; $('buEnergyFill').style.width = w; } setT('buEnergyTxt', nukeT > 0 ? '☢️ NUCLEAR SHIELD ' + Math.ceil(nukeT) + 's' : '❤️ HEALTH ' + Math.ceil(k * 100) + '%'); setC('buEnergy', 'low', k < 0.25 && nukeT <= 0); setC('buEnergy', 'mid', k >= 0.25 && k < 0.5 && nukeT <= 0); setC('buEnergy', 'nuke', nukeT > 0); setC('buEnergy', 'hit', hitT > 0.05); }
   { const p = pct(); setT('taPct', innerWidth < 761 ? '💥 ' + p + '%' : '🏚️ ' + p + '% DESTROYED'); setC('taPct', 'ok', p >= L().goal); }
@@ -823,7 +833,7 @@ function update(dt) {
   let nDone = 0; for (const k of poiOrder) { const P = pois[k]; if (P.done) { nDone++; continue; } edgeArrow(P.arrow, P.center, true); if (P.mark) tickPoiMark(P.mark); } setT('taTargets', nDone + '/' + poiGoal()); setC('taTargets', 'ok', nDone >= poiGoal());
   crowdLists[0][0] = people; crowdLists[1][0] = army.soldiers; crowd.sync(crowdLists, sx, sz, 4); syncGlows();
   mapT -= dt; if (mapT <= 0) { mapT = 0.1; drawMini(); } if (frameN % 60 === 0) measureHud();
-  if (!boss && abd >= L().abduct && pct() >= L().goal && poisDone() >= poiGoal()) { if (bossDue(level, LEVELS.length) && !bossBeat) startBoss(); else finish('win'); } // all three goals met: mission complete (in the last town, the boss comes first)
+  if (MODE !== 'endless' && !boss && abd >= L().abduct && pct() >= L().goal && poisDone() >= poiGoal()) { if (bossDue(level, LEVELS.length) && !bossBeat) startBoss(); else finish('win'); } // all three goals met: mission complete (in the last town, the boss comes first)
 }
 
 // a first-time card is up and the round is holding still: the beam's hum and the wind stop, and the beam fades out
@@ -862,10 +872,10 @@ function sim(secs, bot, every = 0.25) { const dt = 1 / 30; let acc = 0; noSave =
 // QUICK PLAY on the main menu comes in with ?quick: no title screen, straight into the town you left off in. Otherwise a
 // quiet town behind the title screen, with the saucer cruising over it
 if (params.has('quick')) { level = quickLevel('bu'); if (devLevel >= 1 && devLevel <= LEVELS.length) level = devLevel; drawLevels(); start(); }
-else if (MODE === 'daily') { level = dailyLevel(unlocked()); drawLevels(); start(); } else if (MODE === 'endless') start(); /* a daily challenge or an endless run: straight in */
+else if (MODE === 'daily') { level = dailyLevel(unlocked()); drawLevels(); start(); } else if (MODE === 'streak' || MODE === 'endless') start(); /* a daily challenge or a town streak: straight in */
 else { buildWorld(); makePlayerShip(); setupPoiHud(); for (const k of poiOrder) pois[k].arrow.style.display = 'none'; }
 requestAnimationFrame(frame); requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove('booting'))); // the start screen is ready now
-window.__bu = { startBoss, get boss() { return boss; }, get RK() { return RK; }, events, army, stomp: (p) => stomp(p), get sw() { return [sw, swLv, swN.slice(), swNext, abd, L().abduct]; }, start, finish, tapAt, fireAt, zapKey, sim, L, LEVELS, wreckPoi, hitPoi, hitBuilding, crumble, blast, hurt, setZoom, THREE, renderer, scene, cam, army, crowd, fx, toScreen, foes, goTo, blockerAt, bldAhead, onShip, shipPx, answerCard, BLD, flyY,
+window.__bu = { waves, rebuilder, crumble, get people() { return people; }, get buildings() { return buildings; }, hurtShip: (d) => hurt(d, 'test', ship.center), startBoss, get boss() { return boss; }, get RK() { return RK; }, events, army, stomp: (p) => stomp(p), get sw() { return [sw, swLv, swN.slice(), swNext, abd, L().abduct]; }, start, finish, tapAt, fireAt, zapKey, sim, L, LEVELS, wreckPoi, hitPoi, hitBuilding, crumble, blast, hurt, setZoom, THREE, renderer, scene, cam, army, crowd, fx, toScreen, foes, goTo, blockerAt, bldAhead, onShip, shipPx, answerCard, BLD, flyY,
   get card() { return curCard; }, get beamPress() { return beamPress; }, get warnB() { return warnB; }, get bumpT() { return bumpT; }, get pend() { return pend; }, get bAt() { return bAt; }, drag(d) { botDrag = d ? { x: d.x, z: d.z } : null; },
   get state() { return state; }, get level() { return level; }, set level(v) { level = v; }, get ship() { return ship; }, get energy() { return energy; }, set energy(v) { energy = v; }, get abd() { return abd; }, set abd(v) { abd = v; },
   get beamOn() { return beamOn; }, set beam(v) { beamHeld = !!v; }, get moveTo() { return moveTo; }, set moveTo(v) { moveTo = v; }, get tLeft() { return tLeft; }, set tLeft(v) { tLeft = v; }, get score() { return score; }, get stats() { return stats; },

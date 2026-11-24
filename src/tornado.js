@@ -1,4 +1,4 @@
-// Tornado visuals and wreckage: a swirling streaked funnel under a dark cloud cap with a dust skirt, junk tumbling up
+// Tornado visuals and wreckage: a swirling, banded funnel that flares out into a wide wispy swirl of cloud at the top, with a swirl of dust at its foot, junk tumbling up
 // the vortex, lightning crackling out of it, and buildings it hits lifted, torn into chunks, spun round and flung as rubble.
 import * as THREE from 'three';
 import { createBolts } from './bolt.js';
@@ -6,6 +6,22 @@ import { createWreckage } from './wreck.js';
 import { makeCharacter } from './poster/characters.js';
 
 const box = new THREE.BoxGeometry(1, 1, 1), puffGeo = new THREE.IcosahedronGeometry(1, 1);
+// the wispy swirl of cloud (the storm's top, and the dust at its foot): a thin haze, five arms of different lengths, fine streaks
+// drawn round (so the turning shows), brightest round the eye, feathered away at the edge and open in the middle. White on
+// nothing: each material tints it. One texture for every storm
+let wispTex = null; function wispTexture() { if (wispTex) return wispTex; const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'); let sd = 7; const R = () => (sd = (sd * 16807) % 2147483647) / 2147483647;
+  const blob = (x, y, r, a) => { const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(255,255,255,' + a + ')'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, 6.283); g.fill(); };
+  for (let i = 0; i < 90; i++) { const a = R() * 6.283, r = 66 + R() * 50; blob(128 + Math.cos(a) * r, 128 + Math.sin(a) * r, 9 + R() * 12, 0.1 + R() * 0.16); }
+  for (let k = 0; k < 5; k++) { const a0 = (k / 5) * 6.283 + R() * 0.5, sweep = 1.6 + R() * 1.3, far = 40 + R() * 8; for (let j = 0; j < 40; j++) { const t = j / 39, a = a0 + t * sweep, r = 70 + t * far; blob(128 + Math.cos(a) * r, 128 + Math.sin(a) * r, 15 - t * 9, 0.4 * (1 - t * 0.75)); } }
+  g.lineCap = 'round'; for (let i = 0; i < 46; i++) { const a = R() * 6.283, r = 68 + R() * 52; g.strokeStyle = 'rgba(255,255,255,' + (0.18 + R() * 0.3).toFixed(2) + ')'; g.lineWidth = 1 + R() * 2.4; g.beginPath(); g.arc(128, 128, r, a, a + 0.4 + R() * 0.9); g.stroke(); }
+  for (let i = 0; i < 40; i++) { const a = (i / 40) * 6.283; blob(128 + Math.cos(a) * 71, 128 + Math.sin(a) * 71, 13, 0.35); }
+  g.globalCompositeOperation = 'destination-out'; let gr = g.createRadialGradient(128, 128, 98, 128, 128, 128); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,1)'); g.fillStyle = gr; g.fillRect(0, 0, 256, 256);
+  gr = g.createRadialGradient(128, 128, 52, 128, 128, 66); gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.beginPath(); g.arc(128, 128, 66, 0, 6.283); g.fill();
+  wispTex = new THREE.CanvasTexture(c); return wispTex; }
+// the bold bands round the funnel: a few broken, slanting bars on nothing, tinted dark by their material
+let bandTex = null; function bandTexture() { if (bandTex) return bandTex; const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); let sd = 11; const R = () => (sd = (sd * 16807) % 2147483647) / 2147483647; g.fillStyle = 'rgba(255,255,255,0.95)';
+  for (let i = 0; i < 4; i++) { const y = (i + R() * 0.5) * 32, h = 9 + R() * 7, x0 = R() * 128, w = 60 + R() * 60; g.save(); g.translate(0, y); g.transform(1, -0.3, 0, 1, 0, 0); for (const dx of [0, -128, 128]) g.fillRect(x0 + dx, 0, w, h); g.restore(); }
+  bandTex = new THREE.CanvasTexture(c); bandTex.wrapS = bandTex.wrapT = THREE.RepeatWrapping; return bandTex; }
 const tmpM = new THREE.Matrix4(), tmpQ = new THREE.Quaternion(), tmpE = new THREE.Euler(), tmpS = new THREE.Vector3(), tmpP = new THREE.Vector3(), tmpC = new THREE.Color();
 
 // ---------- tornado skins: funnel colours, glowing lights, lightning colours, an effect, and things riding the vortex ----------
@@ -113,8 +129,6 @@ function streakTexture() {
 export function createTwisters(scene, { onBolt, onToss } = {}) {
   const tex = streakTexture();
   const layerMats = [[0x55555f, 0.6], [0x8b8b98, 0.38], [0xb0a48c, 0.2]].map(([c, o]) => { const t = tex.clone(); t.needsUpdate = true; t.repeat.set(3, 2); return new THREE.MeshBasicMaterial({ color: c, map: t, transparent: true, opacity: o, depthWrite: false, side: THREE.DoubleSide }); });
-  const cloudMat = new THREE.MeshLambertMaterial({ color: 0x3a3a46, transparent: true, opacity: 0.62, depthWrite: false });
-  const dustMat = new THREE.MeshBasicMaterial({ color: 0x9c8c70, transparent: true, opacity: 0.32, depthWrite: false });
   const junkMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
   const JUNK = [0x7a5a3a, 0x5a3a26, 0x3a3a40, 0xd8d0c0, 0x8a8f96, 0xa04030, 0x2f6f8a, 0x6a7a40];
   const twisters = [], chunks = [], zaps = createBolts(scene), wreck = createWreckage(scene), UPV = new THREE.Vector3(0, 1, 0), DOWN = new THREE.Vector3(0, -1, 0); let fx = null; // fx: the game's fire and smoke (set with setFx), for dust, sparks and burning wreckage
@@ -139,21 +153,30 @@ export function createTwisters(scene, { onBolt, onToss } = {}) {
     for (let q = 0; q < A.length; q += 3) { const b = bendAt(tw, B[q + 1]); A[q] = B[q] + b.x * ca - b.z * sa; A[q + 2] = B[q + 2] + b.x * sa + b.z * ca; } P.needsUpdate = true; }
   function make(big, extras = [], skinKey = null, opts = {}) {
     const H = big ? 11 : 4.5, r0 = big ? 0.35 : 0.18, r1 = big ? 3.6 : 1.3; const skin = opts.skin || TWISTER_SKINS[skinKey] || null; /* opts.skin: a look of its own that isn't in the shop (the rogue twister) */
-    const g = new THREE.Group(); const tw = { g, big, H, r0, r1, t: Math.random() * 10, layers: [], junk: null, items: [], boltT: 1, k: 1, skin, skinKey, fxT: 0, baby: !!opts.baby, quiet: !!opts.quiet, tossT: 1.2 + Math.random() * 1.5, gT: 0, babyT: 1.5, bx: 0, bz: 0, wob: big ? 1 : 0.45, lut: new Float32Array(66), prev: null, flash: 0, dustT: 0, capHex: skin ? skin.cloud : 0x3a3a46 };
+    const g = new THREE.Group(); const tw = { g, big, H, r0, r1, t: Math.random() * 10, layers: [], junk: null, items: [], boltT: 1, k: 1, skin, skinKey, fxT: 0, baby: !!opts.baby, quiet: !!opts.quiet, tossT: 1.2 + Math.random() * 1.5, gT: 0, babyT: 1.5, bx: 0, bz: 0, wob: big ? 1 : 0.45, lut: new Float32Array(66), prev: null, flash: 0, dustT: 0, capHex: 0 };
     const mats = layerMats.map((m, i) => { const c = m.clone(); c.map = m.map.clone(); c.map.needsUpdate = true; if (skin) { c.color.setHex(skin.layers[i]); c.opacity = skin.op[i]; if (skin.glow && i > 0) c.blending = THREE.AdditiveBlending; } return c; });
-    const capMat = skin ? cloudMat.clone() : cloudMat; if (skin) capMat.color.setHex(skin.cloud); const skirtMat = skin ? dustMat.clone() : dustMat; if (skin) skirtMat.color.setHex(skin.dust);
-    const junkCols = skin ? skin.junk : JUNK; tw.own = [...mats, ...(skin ? [capMat, skirtMat] : [])]; if (skin && skin.items && !opts.baby) extras = [...extras, ...skin.items().map((o) => { o.scale.multiplyScalar(big ? 1.9 : 1.2); return o; })];
+    const junkCols = skin ? skin.junk : JUNK; tw.own = [...mats]; if (skin && skin.items && !opts.baby) extras = [...extras, ...skin.items().map((o) => { o.scale.multiplyScalar(big ? 1.9 : 1.2); return o; })];
     // three nested funnel layers, each a lathe with streaks scrolling round it
     [1, 1.12, 1.3].forEach((s, i) => { const pts = []; for (let j = 0; j <= 14; j++) { const y = (j / 14) * H; pts.push(new THREE.Vector2(radiusAt(tw, y) * s, y)); } const m = new THREE.Mesh(new THREE.LatheGeometry(pts, 28), mats[i]); m.renderOrder = 2; m.frustumCulled = false; g.add(m); tw.layers.push(m); });
     // a funnel painted by height and angle (a rainbow, a spiral) rather than one colour a layer
     if (skin && skin.paint) tw.layers.forEach((L, i) => { const P = L.geometry.attributes.position, col = new Float32Array(P.count * 3); for (let q = 0; q < P.count; q++) { const c = skin.paint(P.getY(q) / H, Math.atan2(P.getZ(q), P.getX(q)), i, tmpC); col[q * 3] = c.r; col[q * 3 + 1] = c.g; col[q * 3 + 2] = c.b; } L.geometry.setAttribute('color', new THREE.BufferAttribute(col, 3)); L.material.vertexColors = true; L.material.color.setHex(0xffffff); L.material.needsUpdate = true; });
-    // dark cloud cap and a dust skirt, as instanced puffs
-    // (the big storm's cap is two rings: the thick wall cloud round the funnel's mouth, and a wider, flatter shelf above it)
-    const capIn = big ? 16 : 6, capN = big ? 24 : 6; const cap = new THREE.InstancedMesh(puffGeo, capMat, capN); tw.cap = cap; tw.capP = [];
-    for (let i = 0; i < capN; i++) { const out = i >= capIn, a = (i / (out ? capN - capIn : capIn)) * Math.PI * 2 + (out ? 0.3 : 0), rr = out ? 4.2 + Math.random() * 1.4 : (big ? 2 : 0.8) + Math.random() * (big ? 3 : 1.2); tw.capP.push({ a, rr, y: H + (out ? 0.9 + Math.random() * 0.7 : Math.random() * 0.8), s: out ? 1.3 + Math.random() * 0.7 : (big ? 1.2 : 0.6) + Math.random() * (big ? 1 : 0.4) }); }
-    cap.frustumCulled = false; g.add(cap);
-    const dustN = big ? 14 : 6; const dust = new THREE.InstancedMesh(puffGeo, skirtMat, dustN); tw.dust = dust; tw.dustP = []; for (let i = 0; i < dustN; i++) tw.dustP.push({ a: Math.random() * 6.28, rr: (big ? 1 : 0.4) + Math.random() * (big ? 1.6 : 0.6), s: (big ? 0.5 : 0.25) + Math.random() * 0.4, v: 3 + Math.random() * 3 });
-    dust.frustumCulled = false; g.add(dust);
+    // the cloud top: the funnel opens out at its mouth like the bell of a horn, in the storm's cloud colour (lightened a little toward
+    // the funnel's own, so a dark storm's top still shows its streaks). One more funnel layer: it scrolls, turns and bends with the rest.
+    // tw.cap: this layer; tw.capHex: its colour (lightning flashes it white and lets it fall back)
+    { const mouth = r1 * 1.3, k0 = big ? 1 : 0.36, pts = []; for (let j = 0; j <= 10; j++) { const u = j / 10; pts.push(new THREE.Vector2(mouth * 0.97 + 2.2 * k0 * u * u, H - 0.3 * k0 + k0 * Math.sqrt(u))); }
+      const fm = mats[0].clone(); fm.map = mats[0].map.clone(); fm.map.needsUpdate = true; fm.map.repeat.set(5, 1); fm.color.setHex(skin ? skin.cloud : 0x5a5a68); if (skin) fm.color.lerp(tmpC.setHex(skin.layers[1]), 0.3); tw.capHex = fm.color.getHex(); fm.opacity = 0.85; fm.blending = THREE.NormalBlending; fm.vertexColors = false;
+      const m = new THREE.Mesh(new THREE.LatheGeometry(pts, 32), fm); m.renderOrder = 2; m.frustumCulled = false; g.add(m); tw.layers.push(m); tw.own.push(fm); tw.cap = m;
+      // over the flare, a wide wispy swirl of cloud in two layers (shallow dishes with the swirl laid flat over them from above): the
+      // lower one darker and wider, the upper one lighter and quicker. tw.wisps (userData: sp its turn, hex its colour)
+      const cA = new THREE.Color(skin ? skin.cloud : 0x5a5a68), cB = cA.clone().lerp(new THREE.Color(skin ? skin.layers[1] : 0xc8c8d8), 0.6); tw.wisps = [];
+      const dish = (rin, rout, y0, rise) => { const dp = []; for (let j = 0; j <= 6; j++) { const u = j / 6; dp.push(new THREE.Vector2(rin + (rout - rin) * u, y0 + rise * Math.pow(u, 0.6))); } const geo = new THREE.LatheGeometry(dp, 40), P = geo.attributes.position, U = geo.attributes.uv; for (let q = 0; q < P.count; q++) U.setXY(q, P.getX(q) / (2 * rout) + 0.5, P.getZ(q) / (2 * rout) + 0.5); return geo; };
+      for (const [rout, y0, rise, col, op, sp] of [[mouth + 5.2 * k0, H + 0.55 * k0, 0.7 * k0, cA, 0.85, 0.5], [mouth + 3.6 * k0, H + 0.8 * k0, 0.75 * k0, cB, 0.7, 0.95]]) { const wm = new THREE.MeshBasicMaterial({ color: col, map: wispTexture(), transparent: true, opacity: op, depthWrite: false, side: THREE.DoubleSide }), w = new THREE.Mesh(dish(rout * 0.45, rout, y0, rise), wm); w.renderOrder = 3; w.frustumCulled = false; w.userData.sp = sp; w.userData.hex = col.getHex(); g.add(w); tw.wisps.push(w); }
+      // bold dark bands round the funnel (one more funnel layer, just outside the others)
+      { const bp = []; for (let j = 0; j <= 14; j++) { const y = (j / 14) * H; bp.push(new THREE.Vector2(radiusAt(tw, y) * 1.36, y)); } const bm = new THREE.MeshBasicMaterial({ color: new THREE.Color(skin ? skin.layers[0] : 0x55555f).multiplyScalar(0.22), map: bandTexture().clone(), transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide }); bm.map.needsUpdate = true; bm.map.repeat.set(2, 1.5);
+        const b = new THREE.Mesh(new THREE.LatheGeometry(bp, 28), bm); b.renderOrder = 2; b.frustumCulled = false; g.add(b); tw.layers.push(b); tw.own.push(bm); } }
+    // a flat swirl of dust on the ground round the funnel's foot (tw.ground), turning fast
+    { const R0 = big ? 5.4 : 2, geo = new THREE.RingGeometry(R0 * 0.06, R0, 36, 4).rotateX(-Math.PI / 2), P = geo.attributes.position, U = geo.attributes.uv; for (let q = 0; q < P.count; q++) { const x = P.getX(q), z = P.getZ(q), r = Math.hypot(x, z) || 1e-6, ft = (0.5 + 0.5 * r / R0) * 0.5; U.setXY(q, 0.5 + x / r * ft, 0.5 + z / r * ft); } /* (the swirl's open eye squeezed in to the foot) */
+      const gm = new THREE.MeshBasicMaterial({ color: new THREE.Color(skin ? skin.dust : 0x9c8c70).lerp(new THREE.Color(0xffffff), 0.25), map: wispTexture(), transparent: true, depthWrite: false, side: THREE.DoubleSide }), m = new THREE.Mesh(geo, gm); m.position.y = 0.09; m.renderOrder = 1; m.frustumCulled = false; g.add(m); tw.ground = m; }
     // junk riding the vortex
     const jn = big ? 60 : 16; const junk = new THREE.InstancedMesh(box, junkMat, jn); junk.frustumCulled = false; tw.junk = junk; tw.junkP = [];
     for (let i = 0; i < jn; i++) { const plank = Math.random() < 0.5; tw.junkP.push({ a: Math.random() * 6.28, y: Math.random() * H * 0.9, sz: plank ? [0.5 + Math.random() * 0.5, 0.06, 0.12] : [0.12 + Math.random() * 0.2, 0.12 + Math.random() * 0.2, 0.1 + Math.random() * 0.2], spin: [Math.random() * 6, Math.random() * 6, Math.random() * 6], jit: Math.random() * 0.5 }); junk.setColorAt(i, tmpC.set(junkCols[(Math.random() * junkCols.length) | 0])); }
@@ -178,7 +201,7 @@ export function createTwisters(scene, { onBolt, onToss } = {}) {
 
   function remove(g, gone) { const i = twisters.findIndex((t) => t.g === g); if (i >= 0) { if (gone) dispose(twisters[i]); twisters.splice(i, 1); } if (g.parent) g.parent.remove(g); } // gone: it is never coming back, so its GPU resources go too
   // free a twister's own GPU resources (babies come and go all round)
-  function dispose(tw) { for (const m of tw.own || []) { if (m.map) m.map.dispose(); m.dispose(); } for (const L of [...tw.layers, ...(tw.neon || []), ...(tw.wire ? [tw.wire] : [])]) L.geometry.dispose(); for (const m of [tw.cap, tw.dust, tw.junk, tw.lights]) if (m) m.dispose(); }
+  function dispose(tw) { for (const m of tw.own || []) { if (m.map) m.map.dispose(); m.dispose(); } for (const L of [...tw.layers, ...(tw.neon || []), ...(tw.wire ? [tw.wire] : [])]) L.geometry.dispose(); for (const m of [tw.junk, tw.lights]) if (m) m.dispose(); for (const m of [...(tw.wisps || []), ...(tw.ground ? [tw.ground] : [])]) { m.geometry.dispose(); m.material.dispose(); } /* (their swirl texture is shared: it stays) */ }
 
   // baby tornadoes (Acid Storm): spin off the storm, circle it, wander out across town and fade away
   const babies = []; let bounds = null;
@@ -259,9 +282,8 @@ export function createTwisters(scene, { onBolt, onToss } = {}) {
       g.rotation.z = Math.sin(t * 0.7) * 0.03; g.rotation.x = Math.cos(t * 0.53) * 0.025;
       if (tw.wire) { tw.wire.rotation.y -= dt * 1.2; bendMesh(tw, tw.wire, tw.wire.rotation.y); }
       if (tw.skin && tw.skin.glitch) { tw.gT -= dt; if (tw.gT <= 0) { tw.gT = 0.05 + Math.random() * 0.14; for (const L of tw.layers) { L.visible = Math.random() > 0.12; L.scale.set(1 + (Math.random() - 0.5) * 0.16, 1, 1 + (Math.random() - 0.5) * 0.16); L.userData.gx = (Math.random() - 0.5) * 0.6; L.userData.gz = (Math.random() - 0.5) * 0.3; } } for (const L of tw.layers) { L.position.x += L.userData.gx || 0; L.position.z += L.userData.gz || 0; } } // it tears: each layer jumps sideways, stretches, and now and then drops out
-      if (tw.flash > 0 || tw.capLit) { tw.flash = Math.max(0, tw.flash - dt * 5); tw.capLit = tw.flash > 0; tw.cap.material.color.setHex(tw.capHex).lerp(WHITE, tw.flash * 0.75); } // lightning lights the cloud up from inside
-      tw.capP.forEach((p, i) => { p.a += dt * 0.35; { const b = bendAt(tw, tw.H); tmpP.set(Math.cos(p.a) * p.rr + b.x, p.y + Math.sin(t + i) * 0.15, Math.sin(p.a) * p.rr + b.z); } tmpS.set(p.s * 1.6, p.s * 0.55, p.s); tmpM.compose(tmpP, tmpQ.identity(), tmpS); tw.cap.setMatrixAt(i, tmpM); }); tw.cap.instanceMatrix.needsUpdate = true;
-      tw.dustP.forEach((p, i) => { p.a += dt * p.v; const pulse = 1 + Math.sin(t * 3 + i) * 0.25; tmpP.set(Math.cos(p.a) * p.rr, p.s * 0.6, Math.sin(p.a) * p.rr); tmpS.setScalar(p.s * pulse); tmpM.compose(tmpP, tmpQ.identity(), tmpS); tw.dust.setMatrixAt(i, tmpM); }); tw.dust.instanceMatrix.needsUpdate = true;
+      if (tw.flash > 0 || tw.capLit) { tw.flash = Math.max(0, tw.flash - dt * 5); tw.capLit = tw.flash > 0; tw.cap.material.color.setHex(tw.capHex).lerp(WHITE, tw.flash * 0.75); for (const m of tw.wisps) m.material.color.setHex(m.userData.hex).lerp(WHITE, tw.flash * 0.6); } // lightning lights the cloud up from inside
+      { const b = bendAt(tw, tw.H); for (const m of tw.wisps) { m.rotation.y += dt * m.userData.sp; m.position.x = b.x; m.position.z = b.z; } tw.ground.rotation.y += dt * 2.2; } /* the cloud swirl follows the funnel's top as it bends; the dust swirl turns faster */
       tw.junkP.forEach((p, i) => { p.y += dt * (1.2 + p.jit); if (p.y > tw.H * 0.95) p.y = 0.1; p.a += dt * (5.5 - (p.y / tw.H) * 3); const r = radiusAt(tw, p.y) * (0.95 + p.jit * 0.5);
         { const b = bendAt(tw, p.y); tmpP.set(Math.cos(p.a) * r + b.x, p.y, Math.sin(p.a) * r + b.z); } tmpE.set(t * p.spin[0], t * p.spin[1], t * p.spin[2]); tmpQ.setFromEuler(tmpE); tmpS.set(p.sz[0], p.sz[1], p.sz[2]); tmpM.compose(tmpP, tmpQ, tmpS); tw.junk.setMatrixAt(i, tmpM); }); tw.junk.instanceMatrix.needsUpdate = true;
       for (const it of tw.items) { it.a += dt * 2.2; it.y += dt * 0.6; if (it.y > tw.H * 0.85) it.y = tw.H * 0.2; const o = it.o, u = o.userData, r = radiusAt(tw, it.y) * (u.out || 1.05); { const b = bendAt(tw, it.y); o.position.set(Math.cos(it.a) * r + b.x, it.y, Math.sin(it.a) * r + b.z); }

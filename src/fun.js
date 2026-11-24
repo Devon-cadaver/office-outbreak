@@ -1,11 +1,11 @@
 // THE FUN PACK: what all four games share for difficulty, star ratings, the combo meter, boss fights, random events, the daily
-// challenge, endless runs and the phone's buzz. Each game calls funInit(game) once, roundK(game) as a round starts (the numbers
+// challenge, town streaks, endless rounds and the phone's buzz. Each game calls funInit(game) once, roundK(game) as a round starts (the numbers
 // that round is played with), and the pieces below as it goes.
 //   FUN: one switch per feature. Set one to false and that feature is gone from every game (the quick way to take one back out).
 import * as THREE from 'three';
 import { getEra } from './progress.js';
 import { addCoins } from './skins.js';
-export const FUN = { stars: true, diff: true, daily: true, combo: true, boss: true, endless: true, events: true, buzz: true };
+export const FUN = { stars: true, diff: true, daily: true, combo: true, boss: true, streak: true, endless: true, events: true, buzz: true };
 const Q = new URLSearchParams(location.search), rnd = (a, b) => a + Math.random() * (b - a);
 const ls = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch { return d; } }, put = (k, v) => { try { localStorage.setItem(k, v); } catch { /* ignore */ } };
 const css = `
@@ -30,9 +30,9 @@ body.cine #comboBox, body.cine #bossBar { visibility: hidden !important; }
 let styled = false; function style() { if (styled) return; styled = true; const st = document.createElement('style'); st.textContent = css; document.head.appendChild(st); }
 const el = (tag, id, html) => { const e = document.createElement(tag); if (id) e.id = id; if (html) e.innerHTML = html; return e; };
 
-// ---------- which kind of round this page is playing: 'normal', 'daily' (?daily, on today's game only) or 'endless' (?endless) ----------
+// ---------- which kind of round this page is playing: 'normal', 'daily' (?daily, on today's game only) 'streak' (?streak: TOWN STREAK, town after town) or 'endless' (?endless: one round that never ends) ----------
 export let MODE = 'normal'; let GAME = '';
-export function funInit(game) { GAME = game; style(); MODE = FUN.daily && Q.has('daily') && daily().game === game ? 'daily' : FUN.endless && Q.has('endless') ? 'endless' : 'normal'; return MODE; }
+export function funInit(game) { GAME = game; style(); MODE = FUN.daily && Q.has('daily') && daily().game === game ? 'daily' : FUN.streak && Q.has('streak') ? 'streak' : FUN.endless && Q.has('endless') ? 'endless' : 'normal'; return MODE; }
 
 // ---------- difficulty: CHILL, NORMAL or MAYHEM, kept game by game. time: the round's clock; foe: how many enemies and how
 // often; hurt: what each hit costs you; coins: the score coins a round pays ----------
@@ -44,7 +44,8 @@ export function diffPicker(after, game = GAME) { if (!FUN.diff || MODE !== 'norm
   draw(); after.insertAdjacentElement('afterend', row); }
 // the numbers this round is played with, and a short tag for the HUD's level line ('' on NORMAL)
 export function roundK(game = GAME) {
-  if (MODE === 'endless') { const n = run().n; return { time: Math.max(0.7, 1 - 0.03 * n), foe: 1 + 0.12 * n, hurt: 1 + 0.08 * n, coins: 1, tag: '♾️ ' + (n + 1) }; }
+  if (MODE === 'streak') { const n = run().n; return { time: Math.max(0.7, 1 - 0.03 * n), foe: 1 + 0.12 * n, hurt: 1 + 0.08 * n, coins: 1, tag: '🔥 ' + (n + 1) }; }
+  if (MODE === 'endless') return { time: 1, foe: 0.6, hurt: 0.6, coins: 1, tag: '♾️ WAVE 1' }; /* (the game raises foe and hurt itself, wave by wave) */
   if (MODE === 'daily') { const t = daily().twist; return { time: t.time || 1, foe: t.foe || 1, hurt: t.hurt || 1, coins: 1, tag: '📅 ' + t.name }; }
   const d = DIFF[getDiff(game)]; return { time: d.time, foe: d.foe, hurt: d.hurt, coins: d.coins, tag: d === DIFF.normal ? '' : d.icon + ' ' + d.name }; }
 
@@ -104,16 +105,31 @@ export function dailyWon(host) { if (MODE !== 'daily') return; const d = daily()
   else { const streak = d.streak + 1, coins = 1 + (streak % 7 === 0 ? 3 : streak % 3 === 0 ? 1 : 0); put('daily', JSON.stringify({ done: d.day, last: d.day, streak })); addCoins(coins); say = '📅 DAILY CHALLENGE BEATEN! <b>+' + coins + ' 🪙</b><br>' + streak + ' day' + (streak > 1 ? 's' : '') + ' in a row. Every 3rd day pays extra, every 7th pays big.'; }
   if (host) { const u = el('div', null, say); u.className = 'funLine'; host.appendChild(u); } }
 
-// ---------- endless runs: town after town, each harder than the last, until you lose one. The run lives for this visit only;
+// ---------- ENDLESS: one round in the biggest town that never ends. It comes in WAVES, each harder than the last, until the
+// player goes down. makeWaves({ every, manual }): n the wave (from 1), secs the time survived, foe / hurt what the wave
+// multiplies the enemies and their hits by; tick(dt) is true on the frame a new wave starts (every `every` seconds; manual:
+// only when the game calls next()). endlessOver(): the run is over: the record (wave, then time), the coins (a fifth of a
+// coin for every wave got through) and the line for the score screen ----------
+export function makeWaves(o = {}) { const every = o.every || 45; let n = 1, t = 0, left = every;
+  return { get n() { return n; }, get secs() { return t; }, get foe() { return 0.6 + 0.16 * (n - 1); }, get hurt() { return 0.6 + 0.07 * (n - 1); }, /* (the first wave is gentler than the town's own round: it is the hardest town, and anyone may walk in. About level by wave 3 for enemies and wave 7 for their hits, and on up from there) */ reset() { n = 1; t = 0; left = every; }, next() { n++; left = every; },
+    tick(dt) { t += dt; if (o.manual) return false; left -= dt; if (left > 0) return false; left = every; n++; return true; } }; }
+const mmss = (s) => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+export const clockText = mmss;
+export function endlessBest(game = GAME) { try { const r = JSON.parse(ls('waves_best_' + game, '') || 'null'); return r && r.wave > 0 ? r : null; } catch { return null; } }
+export function endlessOver(host, wave, secs, score) { if (MODE !== 'endless') return; const through = Math.max(0, wave - 1), coins = Math.round(through * 20) / 100; if (coins > 0) addCoins(coins);
+  const old = endlessBest(), rec = !old || wave > old.wave || (wave === old.wave && secs > old.secs); if (rec) put('waves_best_' + GAME, JSON.stringify({ wave, secs: Math.round(secs), score }));
+  if (host) { const u = el('div', null, '♾️ ENDLESS: you reached <b>WAVE ' + wave + '</b> and lasted <b>' + mmss(secs) + '</b>.' + (coins > 0 ? ' <b>+' + coins + ' 🪙</b> for the waves you got through.' : '') + '<br>' + (rec ? '🏆 A NEW RECORD!' : 'Your best: wave ' + old.wave + ', ' + mmss(old.secs) + '.')); u.className = 'funLine'; host.appendChild(u); } }
+
+// ---------- TOWN STREAK: town after town, each harder than the last, until you lose one. The run lives for this visit only;
 // the record (towns, then score) is kept game by game ----------
-const run = () => { try { return JSON.parse(sessionStorage.getItem('endless_' + GAME) || '') || { n: 0, score: 0 }; } catch { return { n: 0, score: 0 }; } }, saveRun = (r) => { try { sessionStorage.setItem('endless_' + GAME, JSON.stringify(r)); } catch { /* ignore */ } };
-export const endlessLevel = (max) => { const n = run().n; return n < max ? n + 1 : max - 2 + ((n - max) % 3); }; // every town in turn, then round the three biggest
-export function endlessBest(game = GAME) { try { const r = JSON.parse(ls('endless_best_' + game, '') || 'null'); return r && r.towns > 0 ? r : null; } catch { return null; } }
+const run = () => { try { return JSON.parse(sessionStorage.getItem('streak_' + GAME) || '') || { n: 0, score: 0 }; } catch { return { n: 0, score: 0 }; } }, saveRun = (r) => { try { sessionStorage.setItem('streak_' + GAME, JSON.stringify(r)); } catch { /* ignore */ } };
+export const streakLevel = (max) => { const n = run().n; return n < max ? n + 1 : max - 2 + ((n - max) % 3); }; // every town in turn, then round the three biggest
+export function streakBest(game = GAME) { try { const r = JSON.parse(ls('streak_best_' + game, '') || ls('endless_best_' + game, '') || 'null'); /* (endless_best_: what this mode was called in v1.44.0) */ return r && r.towns > 0 ? r : null; } catch { return null; } }
 let card = null; function showCard(html, secs, then) { style(); if (!card) { card = el('div', 'funCard'); document.body.appendChild(card); } card.innerHTML = '<div>' + html + '</div>'; card.classList.add('show'); setTimeout(() => { card.classList.remove('show'); then(); }, secs * 1000); }
 // called as a round ends. Won: the run goes on (a card, then next() starts the next town) and this returns true, so the game
-// skips its score screen. Lost: the run is over; returns false and endlessLine() has what to say on the score screen
+// skips its score screen. Lost: the run is over; returns false and streakLine() has what to say on the score screen
 let lastRun = null;
-export function endlessEnd(won, score, next) { if (MODE !== 'endless') return false; const r = run();
-  if (won) { r.n++; r.score += score; saveRun(r); showCard('<h2>♾️ TOWN ' + r.n + ' CLEARED!</h2><p>Run score <b>' + r.score + '</b><br>The next town is harder.</p>', 2.6, next); return true; }
-  const towns = r.n, total = r.score + score, old = endlessBest(), record = towns > 0 && (!old || towns > old.towns || (towns === old.towns && total > old.score)); /* (a run that cleared no town is no record) */ if (record) put('endless_best_' + GAME, JSON.stringify({ towns, score: total })); saveRun({ n: 0, score: 0 }); lastRun = { towns, total, record, old }; return false; }
-export function endlessLine(host) { if (MODE !== 'endless' || !lastRun || !host) return; const r = lastRun, u = el('div', null, '♾️ ENDLESS RUN OVER: <b>' + r.towns + ' town' + (r.towns === 1 ? '' : 's') + '</b>, run score <b>' + r.total + '</b>.<br>' + (r.record ? '🏆 A NEW RECORD!' : r.old ? 'Your record: ' + r.old.towns + ' town' + (r.old.towns === 1 ? '' : 's') + ', ' + r.old.score + '.' : 'Clear a town to set a record.')); u.className = 'funLine'; host.appendChild(u); }
+export function streakEnd(won, score, next) { if (MODE !== 'streak') return false; const r = run();
+  if (won) { r.n++; r.score += score; saveRun(r); showCard('<h2>🔥 ' + r.n + ' TOWN' + (r.n === 1 ? '' : 'S') + ' IN A ROW!</h2><p>Streak score <b>' + r.score + '</b><br>The next town is harder.</p>', 2.6, next); return true; }
+  const towns = r.n, total = r.score + score, old = streakBest(), record = towns > 0 && (!old || towns > old.towns || (towns === old.towns && total > old.score)); /* (a run that cleared no town is no record) */ if (record) put('streak_best_' + GAME, JSON.stringify({ towns, score: total })); saveRun({ n: 0, score: 0 }); lastRun = { towns, total, record, old }; return false; }
+export function streakLine(host) { if (MODE !== 'streak' || !lastRun || !host) return; const r = lastRun, u = el('div', null, '🔥 TOWN STREAK OVER: <b>' + r.towns + ' town' + (r.towns === 1 ? '' : 's') + ' in a row</b>, streak score <b>' + r.total + '</b>.<br>' + (r.record ? '🏆 A NEW RECORD!' : r.old ? 'Your record: ' + r.old.towns + ' town' + (r.old.towns === 1 ? '' : 's') + ', ' + r.old.score + '.' : 'Clear a town to set a record.')); u.className = 'funLine'; host.appendChild(u); }
