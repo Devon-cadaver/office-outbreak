@@ -4,6 +4,7 @@
 // with the emblem and level) and from each game's pause screen (the PLAYER button).
 import { ERAS, TOWNS, winsList } from './progress.js';
 import { SKINS, getOwned } from './skins.js';
+import { FUN, totalStars } from './fun.js';
 
 export const GAMES = [
   { k: 'ta', name: 'Tornado Time!', icon: '🌪️', word: 'TORNADO', col: '#7dff3a' },
@@ -102,7 +103,7 @@ function style() { if (document.getElementById('pbCss')) return; const s = docum
 export function openPlayerCard() { style(); const pl = player(), S = pl.S; let el = document.getElementById('pbCard'); if (!el) { el = document.createElement('div'); el.id = 'pbCard'; document.body.appendChild(el); }
   const games = GAMES.map((g) => '<div class="pbGame" style="border-color:' + g.col + '66"><b style="color:' + g.col + '">' + g.icon + ' ' + g.name + '</b>' + ERAS.map(([e, en]) => '<div class="pbEra"><em>' + ERA_ICON[e] + ' ' + en + '</em><div class="pbDots">' + S.P[g.k][e].map((y, i) => '<i class="' + (y ? 'y' : '') + '">' + (y ? '✓' : i + 1) + '</i>').join('') + '</div></div>').join('') + '</div>').join('');
   const sets = S.sets.map((s) => '<div>' + s.icon + ' ' + s.name + ': <b>' + s.have + ' / ' + s.all + '</b></div>').join('');
-  el.innerHTML = '<div class="pbIn"><button class="ghost pbClose">✕ CLOSE</button><div class="pbHead">' + emblemSVG(pl, 92) + '<div><h2>' + pl.title + '</h2><p><b style="color:#fff">PLAYER LEVEL ' + pl.level + '</b><br>' + S.beaten + ' / ' + S.total + ' towns cleared · ' + S.skins + ' / ' + S.skinTotal + ' skins · ' + pl.got + ' / ' + pl.B.length + ' badges</p><p>Clear all the towns of a game to add it to your emblem.</p></div></div>' +
+  el.innerHTML = '<div class="pbIn"><button class="ghost pbClose">✕ CLOSE</button><div class="pbHead">' + emblemSVG(pl, 92) + '<div><h2>' + pl.title + '</h2><p><b style="color:#fff">PLAYER LEVEL ' + pl.level + '</b><br>' + S.beaten + ' / ' + S.total + ' towns cleared · ' + S.skins + ' / ' + S.skinTotal + ' skins · ' + pl.got + ' / ' + pl.B.length + ' badges' + (FUN.stars ? ' · ⭐ ' + totalStars() + ' / ' + GAMES.length * ERAS.length * TOWNS.length * 3 + ' stars' : '') + '</p><p>Clear all the towns of a game to add it to your emblem.</p></div></div>' +
     '<h3>TOWNS CLEARED</h3>' + games + '<h3>SKINS</h3><div class="pbSets">' + sets + '</div><h3>BADGES · ' + pl.got + ' / ' + pl.B.length + '</h3><div class="pbGrid">' + [...pl.B.filter((b) => b.got), ...pl.B.filter((b) => !b.got)].map(medal).join('') + '</div></div>';
   el.classList.remove('hidden'); el.style.display = 'block'; el.querySelector('.pbClose').addEventListener('click', (e) => { e.stopPropagation(); el.style.display = 'none'; });
   el.addEventListener('pointerdown', (e) => e.stopPropagation()); el.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true }); }

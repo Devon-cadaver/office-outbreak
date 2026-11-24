@@ -80,6 +80,10 @@
       <button class="choice big" onclick="location.href='tornado.html'"><i class="ic">🌪️</i><b>TORNADO TIME!</b><span>Towns, eras, storms</span></button>
       <button class="choice big bonus" id="bonusBtn"><i class="ic">🎁</i><b>BONUS GAMES</b><span>Three more games</span></button>
     </div>
+    <div class="pair" id="funRow">
+      <button class="choice" id="dailyBtn" style="border-color:#ff9a3a;box-shadow:0 4px 0 #5a2f1a !important"><i class="ic">📅</i><b style="color:#ffb05a">DAILY CHALLENGE</b><span id="dailySub">A new twist every day</span></button>
+      <button class="choice" id="endlessBtn" style="border-color:#c9a6ff;box-shadow:0 4px 0 #3a2a5a !important"><i class="ic">♾️</i><b style="color:#c9a6ff">ENDLESS RUN</b><span>How far can you get?</span></button>
+    </div>
     <div class="pair">
       <button class="choice" onclick="location.href='store.html'" style="border-color:#ffd24a;box-shadow:0 4px 0 #5a4a1a !important"><i class="ic">🎨</i><b style="color:#ffd24a">SKIN SHOP</b><span class="saved" id="coins">Spend your coins</span></button>
       <button class="choice" id="radioBtn" style="border-color:#3af0ff;box-shadow:0 4px 0 #1a4a5a !important"><i class="ic">📻</i><b style="color:#3af0ff">RADIO</b><span>Pick your songs</span></button>
@@ -123,7 +127,7 @@
     const BONUS = [['kaiju.html', '🦖', 'KAIJU MADNESS', 'Be the monster: 60 to choose from', 'kj', 'kj'], ['airraid.html', '🧟', 'ZOMBIE AIR RAID', 'Burn the horde from the air', 'ar', 'ar'], ['beamup.html', '🛸', 'BEAM &#39;EM UP!', 'Be the UFO, or the walker', 'bu', 'bu']];
     const card = (go, icon, name, sub, g, cls, quick) => '<button class="game ' + cls + '" data-go="' + go + '" data-q="' + (quick ? 1 : '') + '"><i>' + icon + '</i><b>' + name + '</b><span' + (quick ? ' data-g="' + g + '"' : '') + '>' + sub + '</span></button>';
     function open(bonus) {
-      if (!box) { box = document.createElement('div'); box.id = 'quickBox'; document.body.appendChild(box); }
+      if (!box) box = document.getElementById('quickBox'); if (!box) { box = document.createElement('div'); box.id = 'quickBox'; document.body.appendChild(box); }
       box.innerHTML = bonus ? '<h2>🎁 BONUS GAMES</h2><p>More ways to wreck the town.</p>' + BONUS.map((b) => card(b[0], b[1], b[2], b[3], b[4], b[5], false)).join('') + '<button class="ghost back">◀ BACK</button>'
         : '<h2>▶ QUICK PLAY</h2><p>Pick a game. You go straight in.</p>' + card('tornado.html', '🌪️', 'TORNADO TIME!', '', 'ta', '', true) + BONUS.map((b) => card(b[0], b[1], b[2], '', b[4], b[5], true)).join('') + '<button class="ghost back">◀ BACK</button>';
       for (const b of box.querySelectorAll('.game')) b.addEventListener('click', () => { location.href = b.dataset.go + (b.dataset.q ? '?quick=1' : ''); });
@@ -133,6 +137,19 @@
     }
     document.getElementById('quickBtn').addEventListener('click', () => open(false));
     document.getElementById('bonusBtn').addEventListener('click', () => open(true));
+  </script>
+  <script type="module">
+    // DAILY CHALLENGE (one game a day, with a twist; winning it pays coins) and ENDLESS RUN (town after town until you lose one): fun.js
+    import { FUN, daily, endlessBest, GAMES4 } from './src/fun.js';
+    const row = document.getElementById('funRow'), db = document.getElementById('dailyBtn'), eb = document.getElementById('endlessBtn'), CLS = { ta: '', kj: 'kj', ar: 'ar', bu: 'bu' };
+    const box = () => { let b = document.getElementById('quickBox'); if (!b) { b = document.createElement('div'); b.id = 'quickBox'; document.body.appendChild(b); } b.classList.remove('hidden'); return b; };
+    const back = (b) => b.querySelector('.back').addEventListener('click', () => b.classList.add('hidden'));
+    if (!FUN.daily) db.remove(); else { const d = daily(); document.getElementById('dailySub').textContent = (d.done ? '✓ DONE · ' : '') + d.icon + ' ' + d.twist.name + (d.streak ? ' · 🔥' + d.streak : '');
+      db.addEventListener('click', () => { const b = box(); b.innerHTML = '<h2>📅 DAILY CHALLENGE</h2><p>Today: <b style="color:#fff">' + d.icon + ' ' + d.title + '</b><br><b style="color:#ffb05a">' + d.twist.icon + ' ' + d.twist.name + '</b>: ' + d.twist.text + '<br>' + (d.done ? 'You have beaten today&#39;s. Play it again for fun, and come back tomorrow for more coins.' : 'Win it for coins. Days in a row pay more' + (d.streak ? ' (you are on ' + d.streak + ').' : '.')) + '</p><button class="game ' + CLS[d.game] + '"><i>' + d.icon + '</i><b>▶ PLAY TODAY&#39;S</b><span>' + d.twist.name + '</span></button><button class="ghost back">◀ BACK</button>';
+        b.querySelector('.game').addEventListener('click', () => { location.href = d.page + '?daily=1'; }); back(b); }); }
+    if (!FUN.endless) eb.remove(); else eb.addEventListener('click', () => { const b = box(); b.innerHTML = '<h2>♾️ ENDLESS RUN</h2><p>Town after town, each one harder, until you lose one. Pick a game.</p>' + GAMES4.map(([g, page, icon, name]) => { const r = endlessBest(g); return '<button class="game ' + CLS[g] + '" data-go="' + page + '"><i>' + icon + '</i><b>' + name.replace("'", '&#39;') + '</b><span>' + (r ? 'RECORD: ' + r.towns + ' TOWN' + (r.towns === 1 ? '' : 'S') + ' · ' + r.score : 'No record yet') + '</span></button>'; }).join('') + '<button class="ghost back">◀ BACK</button>';
+      for (const g of b.querySelectorAll('.game')) g.addEventListener('click', () => { location.href = g.dataset.go + '?endless=1'; }); back(b); });
+    if (!row.children.length) row.remove();
   </script>
   <script>
     try { if (localStorage.getItem('oo_save_dc')) document.getElementById('dcSaved').textContent = 'Saved game: night ' + (JSON.parse(localStorage.getItem('oo_save_dc')).night + 1); } catch (e) {}

@@ -32,10 +32,17 @@ export const ARMY_FIRST = { ship: 1, jet: 1, jetPair: 2, jetMissile: 3, launcher
 // (seconds between tracers), from / to (where along the lane, from its middle, the guns fire)
 const JET = { warn: 1.5, speed: 30, half: 30, hw: 2.4, hitR: 1.8, every: 0.075, from: -23, to: 1 };
 
+import { makeMammoth } from './boss.js';
 export function createArmy(E) {
   const { scene, fx, twisters } = E;
   let soldiers = [], tanks = [], ships = [], launchers = [], jets = [], runs = []; const falling = [], shots = [], wrecks = []; /* wrecks: aircraft down and done ploughing, waiting to leave the scene (updateFalling) */
   const T = { ship: 0, reinf: 0, tank: 0, jet: 0, column: 0 };
+  // THE BOSS: the Iron Mammoth is a tank like the others here (so taps, rays and blasts reach it) with hit points: it comes
+  // straight for the saucer, fires both barrels in turn, harder and from further off, and takes hp hits to stop
+  let boss = null;
+  function addBoss(hp) { const { c, w } = farRoad(22), g = makeMammoth(); g.position.set(w.x, 0, w.z); scene.add(g); const glow = new THREE.Mesh(glowGeo, new THREE.MeshBasicMaterial({ color: 0xff7a2a, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending })); glow.visible = false; glow.renderOrder = 6; scene.add(glow);
+    boss = { g, cell: c, path: [], cd: 3, repath: 0, charge: 0, glow, arrow: mkArrow('👑', '#ff5a4a'), boss: true, hp, max: hp, immune: 0, side: 1, smoke: 0 }; tanks.push(boss); return boss; }
+  function dropBoss() { const t = boss; boss = null; if (!t) return; const i = tanks.indexOf(t); if (i >= 0) tanks.splice(i, 1); scene.remove(t.glow); t.glow.material.dispose(); t.arrow.remove(); scene.remove(t.g); }
   // a TANK COLUMN: a group of 3 to 10 tanks rolling in together from one part of town (bigger in the later towns)
   function tankColumn() { const L = E.level, n = Math.max(3, Math.min(10, 3 + Math.floor((L - 1) * 1.3 + Math.random() * 2))), at = farRoad(20).w; for (let k = 0; k < n; k++) addTank(14, 1 + k * 0.5, at, 7); E.banner('🪖 TANK COLUMN: ' + n + ' TANKS!'); sfx.whoosh(); } // seconds until the next helicopters, reinforcements, tank, jet run
   const ramp = () => Math.min(1, (E.level - 1) / 5); // 0 in Small Town, 1 in The Sprawl
@@ -91,18 +98,22 @@ export function createArmy(E) {
   function addTank(min, wait = 0, near = null, maxD = 1e9) { const { c, w } = farRoad(min, near, maxD); const t = isPast() ? buildCannon() : makeTank(isFuture()); if (isFuture()) hoverize(futureTank(t), 0xff4fd8); t.position.set(w.x, 0, w.z); scene.add(t);
     const glow = new THREE.Mesh(glowGeo, new THREE.MeshBasicMaterial({ color: 0xff7a2a, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending })); glow.visible = false; glow.renderOrder = 6; scene.add(glow);
     tanks.push({ g: t, cell: c, path: [], cd: rnd(2.5, 4.5) + wait, repath: 0, charge: 0, glow, arrow: mkArrow('💣', '#ff7a5a') }); }
-  const muzzleOf = (t) => V(0, 0.64, 1.25).applyMatrix4(t.g.userData.turret.matrixWorld);
+  const muzzleOf = (t) => V(t.boss ? t.side * 0.3 : 0, 0.64, t.boss ? 1.8 : 1.25).applyMatrix4(t.g.userData.turret.matrixWorld);
   function updateTanks(dt) { const S = E.ship, rk = ramp(), RANGE = 16 + 3 * rk;
     for (let i = tanks.length - 1; i >= 0; i--) { const t = tanks[i], p = t.g.position, dx = S.pos.x - p.x, dz = S.pos.z - p.z, d = Math.hypot(dx, dz);
-      t.repath -= dt; if (t.repath <= 0) { t.repath = 2; t.path = d > 13 ? roadPathTo(t.cell, S.pos.x, S.pos.z, false) : d < 5 ? roadPathTo(t.cell, S.pos.x, S.pos.z, true) : []; } if (!t.charge) followPath(t, 1.8, dt);
+      t.repath -= dt; if (t.repath <= 0) { t.repath = 2; t.path = d > (t.boss ? 8 : 13) ? roadPathTo(t.cell, S.pos.x, S.pos.z, false) : d < 5 && !t.boss ? roadPathTo(t.cell, S.pos.x, S.pos.z, true) : []; } if (!t.charge) followPath(t, t.boss ? (d > 20 ? 2.6 : 1.3) : 1.8, dt); /* (the boss hurries until it is in range) */
+      if (t.boss) { const u = t.g.userData; u.dish.rotation.y += dt * 2.4; u.eye.material.color.setHex(performance.now() < t.immune ? 0xffffff : 0xff3a2a); t.smoke -= dt; if (t.smoke <= 0) { t.smoke = 0.35; fx.puff('smoke', V(p.x - Math.sin(t.g.rotation.y) * 1.9, 2.2, p.z - Math.cos(t.g.rotation.y) * 1.9), 0.5); } }
       const tur = t.g.userData.turret, want = Math.atan2(dx, dz) - t.g.rotation.y; tur.rotation.y += Math.atan2(Math.sin(want - tur.rotation.y), Math.cos(want - tur.rotation.y)) * Math.min(1, dt * 4);
-      t.cd -= dt; if (!t.charge && d < RANGE && t.cd <= 0 && S.alive) { t.charge = 0.8; t.glow.visible = true; } // the barrel glows first: that is the warning
+      t.cd -= dt; if (!t.charge && d < (t.boss ? 26 : RANGE) && t.cd <= 0 && S.alive) { t.charge = 0.8; t.glow.visible = true; } // the barrel glows first: that is the warning
       if (t.charge) { t.charge = Math.max(0, t.charge - dt); t.g.updateMatrixWorld(true); const mz = muzzleOf(t), k = 1 - t.charge / 0.8; t.glow.position.copy(mz); t.glow.scale.setScalar(0.25 + k * 0.5); t.glow.material.opacity = 0.4 + k * 0.55; t.glow.material.color.setHex(k > 0.7 ? 0xff3a2a : 0xff9a3a);
-        if (t.charge <= 0) { t.glow.visible = false; t.cd = (3.8 - 1.3 * rk) * rnd(0.85, 1.25); const sp = 10.5 + 3 * rk, aim = S.pos.clone().add(V(rnd(-0.6, 0.6), 0, rnd(-0.6, 0.6)).multiplyScalar(E.blind > 0 ? 4 : 1)); shoot('shell', mz, aim.sub(mz).normalize().multiplyScalar(sp), { dmg: 6 + 2.5 * rk, life: 3.2 }); fx.puff('flame', mz, 0.7); fx.puff('smoke', mz, 0.8); if (seen(p)) { sfx.boom(); E.jolt(0.12); } } }
+        if (t.charge <= 0) { t.glow.visible = false; t.cd = t.boss ? rnd(1.8, 2.5) : (3.8 - 1.3 * rk) * rnd(0.85, 1.25); if (t.boss) t.side = -t.side; const sp = t.boss ? 14 : 10.5 + 3 * rk, aim = S.pos.clone().add(V(rnd(-0.6, 0.6), 0, rnd(-0.6, 0.6)).multiplyScalar(E.blind > 0 ? 4 : 1)); shoot('shell', mz, aim.sub(mz).normalize().multiplyScalar(sp), { dmg: t.boss ? 9 : 6 + 2.5 * rk, life: 3.2 }); fx.puff('flame', mz, 0.7); fx.puff('smoke', mz, 0.8); if (seen(p)) { sfx.boom(); E.jolt(0.12); } } }
       E.edgeArrow(t.arrow, p, d < 24 && S.alive); } }
   function tankBoom(q) { const at = q.clone().setY(0.6); fx.explode(at, 2.4); fx.shock(q, 5.5, 0xffb060, 0.5); fx.glow(q, 6, 0xffa040, 1, 0.5); fx.scorch(q, 2.4); fx.sparks(at, 26, { speed: 9, up: 8, life: 0.9 }); E.flash(0.18); E.jolt(0.6); sfx.boom();
     for (let k = 0; k < 4; k++) { const a = k * 1.57 + Math.random(), o = V(q.x + Math.cos(a) * 1.3, 0.5, q.z + Math.sin(a) * 1.3); E.after(0.09 + k * 0.07, () => fx.explode(o, 1.1)); } E.after(0.16, () => sfx.boom()); } // its ammunition cooks off in a ring of smaller blasts
-  function killTank(t, how) { const i = tanks.indexOf(t); if (i < 0) return; tanks.splice(i, 1); scene.remove(t.glow); t.glow.material.dispose(); t.arrow.remove(); const q = t.g.position.clone(); E.free(t.g); twisters.scatter([t.g], q.clone(), 7); tankBoom(q); E.award(250, q, 'TANK'); E.stat('tanks'); if (how !== 'quiet') E.blast(q, 2, { from: q }); } /* quiet: a skin's moon or twister, which must not knock the town down */
+  function killTank(t, how, dmg = 0) { const i = tanks.indexOf(t); if (i < 0) return;
+    if (t.boss) { const now = performance.now(); if (now < t.immune) return; t.immune = now + 260; const q0 = t.g.position, d = dmg || (E.gunPow ? E.gunPow() : 1); t.hp -= d; fx.sparks(q0.clone().setY(1.5), 16, { c: [0xffe08a, 0xff5a3a], speed: 7, up: 4, life: 0.5 }); fx.explode(q0.clone().setY(1.3), 0.8); E.popup(q0.clone().setY(2.6), '-' + d, '#ffb02a'); sfx.boom(); E.jolt(0.25);
+      if (t.hp > 0) return; boss = null; const q1 = q0.clone(); for (let k = 0; k < 3; k++) E.after(0.25 + k * 0.3, () => tankBoom(V(q1.x + rnd(-1.2, 1.2), 0, q1.z + rnd(-1.2, 1.2)))); if (E.bossDown) E.bossDown(q1); } /* the boss: each hit takes some off; the last one sets off the whole machine */
+    tanks.splice(i, 1); scene.remove(t.glow); t.glow.material.dispose(); t.arrow.remove(); const q = t.g.position.clone(); E.free(t.g); twisters.scatter([t.g], q.clone(), 7); tankBoom(q); E.award(250, q, 'TANK'); E.stat('tanks'); if (how !== 'quiet') E.blast(q, 2, { from: q }); } /* quiet: a skin's moon or twister, which must not knock the town down */
 
   // ---------- helicopters (every town) ----------
   // by town: n (how many come together), v (top speed), cd (seconds between rockets), dmg (a rocket's hit), rv (rocket speed),
@@ -203,7 +214,7 @@ export function createArmy(E) {
       T.column -= dt; if (T.column <= 0) { T.column = 70 - 6 * L; if (tanks.length < maxTanks() + 12) tankColumn(); } }
     if (L >= ARMY_FIRST.ship && !E.radarDown && !ships.length) { T.ship -= dt; if (T.ship <= 0) spawnShips(); } /* (spawnShips sets the gap to the next ones) */
     if (L >= ARMY_FIRST.jet && !E.radarDown && E.blind <= 0 && !runs.length) { T.jet -= dt; if (T.jet <= 0) { T.jet = L === 1 ? rnd(24, 32) : L === 2 ? rnd(20, 28) : L === 3 ? rnd(16, 24) : rnd(13, 20) - 3 * rk; startRun(); } } } /* in a blackout the jets can't find you */
-  function update(dt) { if (E.ship.alive) schedule(dt); /* nothing new turns up once the round is over */ updateSoldiers(dt); updateTanks(dt); updateShips(dt); updateJets(dt); updateLaunchers(dt); updateFalling(dt); updateShots(dt); }
+  function update(dt) { if (E.ship.alive) schedule(dt * (E.foeK ? E.foeK() : 1)); /* (foeK: a harder round sends the army in faster) */ /* nothing new turns up once the round is over */ updateSoldiers(dt); updateTanks(dt); updateShips(dt); updateJets(dt); updateLaunchers(dt); updateFalling(dt); updateShots(dt); }
 
   // ---------- the death ray's targets: what is under the player's finger. sd(pos) = how far the tap is from pos on screen,
   // in pixels. The closest within its reach wins; returns { kind, pos, hit(), ok(), stay } or null. ok(): it is still there
@@ -216,7 +227,7 @@ export function createArmy(E) {
     for (const s of ships) consider('gunship', s.g.position, 64, () => zapShip(s), () => ships.includes(s), true);
     for (const sh of shots) if (sh.kind === 'missile' || sh.kind === 'shell') consider(sh.kind, sh.p, 44, () => { const i = shots.indexOf(sh); if (i < 0) return; shots.splice(i, 1); fx.explode(sh.p.clone(), 0.7); E.award(sh.kind === 'missile' ? 200 : 100, sh.p, sh.kind === 'missile' ? 'MISSILE DOWN' : 'SHELL DOWN'); }, () => shots.includes(sh), true);
     for (const l of launchers) consider('launcher', l.g.position.clone().setY(0.8), 52, () => hitLauncher(l), () => launchers.includes(l), true);
-    for (const t of tanks) consider('tank', t.g.position.clone().setY(0.5), 48, () => killTank(t), () => tanks.includes(t));
+    for (const t of tanks) consider('tank', t.g.position.clone().setY(t.boss ? 1.4 : 0.5), t.boss ? 92 : 48, () => killTank(t), () => tanks.includes(t));
     for (const s of soldiers) consider('soldier', s.position.clone().setY(0.35), 28, () => killSoldier(s, s.position.clone()), () => soldiers.includes(s));
     return best; }
   // for SPACE-free aiming on a computer (F): the nearest thing shooting at the ship
@@ -227,7 +238,7 @@ export function createArmy(E) {
   // a blast on the ground (a building coming down, a crash, the nuclear plant): the army caught in it is done for
   function hitArea(c, r, o = {}) { let n = 0; // o.quiet: the tanks and trucks it kills go up without blasting the town round them
     for (let i = soldiers.length - 1; i >= 0; i--) { const s = soldiers[i]; if (Math.hypot(s.position.x - c.x, s.position.z - c.z) < r) { killSoldier(s, c); n++; } }
-    for (const t of tanks.slice()) if (Math.hypot(t.g.position.x - c.x, t.g.position.z - c.z) < r + 0.6) { killTank(t, o.quiet ? 'quiet' : undefined); n++; }
+    for (const t of tanks.slice()) if (Math.hypot(t.g.position.x - c.x, t.g.position.z - c.z) < r + 0.6) { killTank(t, o.quiet ? 'quiet' : undefined, r >= 5 ? 4 : r >= 3 ? 2 : 1); n++; } /* (the boss: a bigger blast takes more off it) */
     for (const l of launchers.slice()) if (Math.hypot(l.g.position.x - c.x, l.g.position.z - c.z) < r + 0.6) { l.hp = 1; hitLauncher(l, !!o.quiet); n++; }
     return n; }
   function eachDot(fn) { for (const t of tanks) fn(t.g.position, 'tank'); for (const l of launchers) fn(l.g.position, 'launcher'); for (const s of ships) fn(s.g.position, 'gunship'); for (const j of jets) fn(j.g.position, 'jet'); }
@@ -241,11 +252,11 @@ export function createArmy(E) {
   // the old round's army goes, and lets go of its GPU buffers (the shared gun, glow and shot shapes stay)
   const drop = (o) => { scene.remove(o); o.traverse((m) => { if (m.geometry && m.geometry !== gunGeo && m.geometry !== glowGeo) m.geometry.dispose(); if (m.material && !Array.isArray(m.material) && m.material !== gunMat) m.material.dispose(); }); };
   function clear() {
-    for (const s of soldiers) drop(s); soldiers = []; for (const t of tanks) { drop(t.g); scene.remove(t.glow); t.glow.material.dispose(); t.arrow.remove(); } tanks = [];
+    for (const s of soldiers) drop(s); soldiers = []; for (const t of tanks) { drop(t.g); scene.remove(t.glow); t.glow.material.dispose(); t.arrow.remove(); } tanks = []; boss = null;
     for (const s of ships) { drop(s.g); s.arrow.remove(); } ships = []; for (const l of launchers) { drop(l.g); scene.remove(l.line); l.line.material.dispose(); l.arrow.remove(); } launchers = [];
     for (const j of jets) { scene.remove(j.g); j.arrow.remove(); } jets = []; for (const r of runs.slice()) dropRun(r); runs = []; /* (jets share one model's shapes and paint: nothing to let go of) */
     for (const f of [...falling, ...wrecks]) unWreck(f); falling.length = wrecks.length = 0; shots.length = 0; for (const k in KIND) KIND[k].mesh.count = 0; }
-  return { spawnTown, update, pick, nearest, hitArea, eachDot, coachTick, clear, killSoldier, killTank,
+  return { spawnTown, update, pick, nearest, hitArea, eachDot, coachTick, clear, killSoldier, killTank, addBoss, dropBoss, get boss() { return boss; },
     get soldiers() { return soldiers; }, get tanks() { return tanks; }, get ships() { return ships; }, get launchers() { return launchers; }, get shots() { return shots; }, get falling() { return falling; }, get jets() { return jets; }, get runs() { return runs; },
     // for tests
     spawn(k) { if (k === 'ship') spawnShips(); else if (k === 'tank') addTank(10); else if (k === 'squad') addSquad(6); else if (k === 'launcher') addLauncher(E.ship.pos); else if (k === 'jet') startRun(); }, zapShip, zapJet, hitLauncher, T, JET };

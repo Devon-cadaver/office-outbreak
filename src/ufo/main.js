@@ -27,6 +27,7 @@ import { stampVersion } from '../version.js';
 import { initFullscreen } from '../fullscreen.js';
 import { showHowTo, tip, clearTips, markSeen } from '../howto.js';
 import { coach, coachSeen, coachIdle, coachBusy, coachFrame, coachClear, tipsSetup } from '../coach.js';
+import { FUN, MODE, funInit, diffPicker, roundK, starTag, awardStars, comboHud, bossBar, bossDue, makeEvents, meteorShower, clearMeteors, funTick, buzz, dailyLevel, dailyWon, endlessLevel, endlessEnd, endlessLine } from '../fun.js';
 import { levelKey, bestKey, quickLevel, saveLast } from '../progress.js';
 import { createCrowd } from '../crowd.js';
 import { autoResolution, setBakedGlow, mergeParts } from '../perf.js';
@@ -62,7 +63,7 @@ const GLOW_MAX = 700, glows = (() => { const c = document.createElement('canvas'
 function syncGlows() { const a = glows.instanceMatrix.array, col = glows.instanceColor.array; let n = 0;
   for (const [list, r, g, b] of [[people, 0.35, 1, 0.18], [army.soldiers, 1, 0.42, 0.12]]) for (const c of list) { if (n >= GLOW_MAX) break; if (c.userData.far && c.userData.frz) continue; a[n * 16 + 12] = c.position.x; a[n * 16 + 14] = c.position.z; col[n * 3] = r; col[n * 3 + 1] = g; col[n * 3 + 2] = b; n++; }
   glows.count = n; glows.instanceMatrix.clearUpdateRanges(); glows.instanceMatrix.addUpdateRange(0, Math.max(1, n) * 16); glows.instanceMatrix.needsUpdate = true; glows.instanceColor.clearUpdateRanges(); glows.instanceColor.addUpdateRange(0, Math.max(1, n) * 3); glows.instanceColor.needsUpdate = true; }
-let shake = 0; const jolt = (v) => { shake = Math.max(shake, v); }; // camera shake (0..1)
+let shake = 0; const jolt = (v) => { shake = Math.max(shake, v); buzz(v); }; funInit('bu'); // camera shake (0..1), and the phone's buzz
 let flashT = 0; const flashEl = document.createElement('div'); flashEl.style.cssText = 'position:fixed;inset:0;background:#dfeaff;opacity:0;pointer-events:none;z-index:5'; document.body.appendChild(flashEl);
 let hurtK = 0; const hurtEl = document.createElement('div'); hurtEl.style.cssText = 'position:fixed;inset:0;box-shadow:inset 0 0 60px 10px #ff2a2a;opacity:0;pointer-events:none;z-index:5'; document.body.appendChild(hurtEl); // the red edge when the ship is hit
 const twisters = createTwisters(scene); twisters.setFx(fx); // only its wreckage is used here: buildings breaking into real pieces of themselves
@@ -436,7 +437,7 @@ function updateBurning(dt) { for (const x of buildings) { if (x.done || x.burnT 
 // ---------- energy: the shield and the fuel, one bar ----------
 function hurt(dmg, kind, at) { if (state !== 'play' || !ship.alive) return;
   if (nukeT > 0) { if (played - dmgPopT > 0.3) { dmgPopT = played; popup(ship.center, 'BLOCKED!', '#ffd24a'); } fx.sparks(at, 8, { c: [0xffffff, 0xffd24a], speed: 5, up: 2, life: 0.4 }); return; } // the nuclear shield: nothing gets through
-  energy -= dmg; hits++; power = Math.max(0, power - dmg * SW.lose); swCheck(); /* (a hit costs health, and some power: enough hits drop your E level) */ stats.dmg = (stats.dmg || 0) + dmg; stats['d_' + kind] = (stats['d_' + kind] || 0) + dmg; /* (by who did it: for the balance robot) */ hitT = Math.min(0.35, hitT + 0.1 + dmg * 0.02); hurtK = Math.min(1, hurtK + 0.15 + dmg * 0.06); jolt(Math.min(0.55, 0.05 + dmg * 0.045));
+  dmg *= RK.hurt; energy -= dmg; hits++; power = Math.max(0, power - dmg * SW.lose); swCheck(); /* (a hit costs health, and some power: enough hits drop your E level) */ stats.dmg = (stats.dmg || 0) + dmg; stats['d_' + kind] = (stats['d_' + kind] || 0) + dmg; /* (by who did it: for the balance robot) */ hitT = Math.min(0.35, hitT + 0.1 + dmg * 0.02); hurtK = Math.min(1, hurtK + 0.15 + dmg * 0.06); jolt(Math.min(0.55, 0.05 + dmg * 0.045));
   if (played - hurtSfx > 0.13) { hurtSfx = played; sfx.hurt(); } dmgPop += dmg; if (played - dmgPopT > 0.35 || dmg >= 4) { popup(ship.center.clone().setY(ship.y - 1), '-' + Math.max(1, Math.round(dmgPop)), '#ff6a5a'); dmgPop = 0; dmgPopT = played; } // small hits add up into one number
   if (energy <= 0) { energy = 0; finish('crash', kind === 'building' ? 'building' : undefined); } }
 
@@ -525,7 +526,19 @@ function answerCard() { const c = curCard; curCard = null; if (c) markSeen('c_' 
 const bldCard = () => coachBusy() && !!curCard && curCard.key === 'bu_bld'; /* the BIG BUILDINGS card is up: the building it points at stays lit red (fly, holdQuiet) */
 
 // ---------- the army (army.js) ----------
-const army = createArmy({ scene, fx, twisters, toScreen, edgeArrow, popup, banner, award, jolt, coach: card, coachSeen, inView: (...a) => inView(...a), flash: (v) => { flashT = Math.max(flashT, v); },
+// ---------- THE FUN PACK (fun.js). RK: this round's numbers (difficulty, a daily twist, or how deep an endless run is).
+// BOSS: THE IRON MAMMOTH rolls in on the last town once all three goals are met: the town's clock stops and the boss clock
+// runs. Stop it in time for the bonus and the star; if the clock runs out it pulls back and the town is cleared all the same ----------
+let RK = { time: 1, foe: 1, hurt: 1, coins: 1, tag: '' }, boss = null, bossBeat = false; const BOSS = { time: 90, hp: 18, score: 25000, name: '👑 THE IRON MAMMOTH' };
+function startBoss() { const t = army.addBoss(BOSS.hp); boss = { t, left: BOSS.time, dead: false }; banner('⚠️ BOSS: THE IRON MAMMOTH!\nTAP IT TO FIRE'); sfx.wave(); jolt(0.6); flashT = Math.max(flashT, 0.3); }
+function bossDown(q) { if (!boss || boss.dead) return; boss.dead = true; boss.left = 3.2; bossBeat = true; score += BOSS.score; banner('💥 IRON MAMMOTH DESTROYED!\n+' + BOSS.score); jolt(1); flashT = Math.max(flashT, 0.5); }
+function bossTick(dt) { const b = boss; b.left -= dt; if (b.left <= 0) { boss = null; bossBar(null); if (!b.dead) { popup(ship.center, 'THE IRON MAMMOTH PULLED BACK!', '#ff9a8a'); army.dropBoss(); } finish('win'); return true; } if (b.dead) bossBar(null); else bossBar(BOSS.name, b.t.hp / b.t.max, b.left); return false; }
+const events = makeEvents([
+  { can: () => army.tanks.length + army.soldiers.length > 2, run() { banner('☄️ METEOR SHOWER ON THE ARMY!'); sfx.wave(); meteorShower(scene, 6, () => { const l = [...army.tanks.map((t) => t.g.position), ...army.soldiers.map((o) => o.position)]; if (!l.length) return null; const q = l[(Math.random() * l.length) | 0]; return { x: q.x, z: q.z }; }, (x, z) => { if (state !== 'play') return; const at = V3(x, 0.5, z); fx.explode(at, 1.4); fx.scorch(V3(x, 0, z), 1.5); army.hitArea(at, 2.2, { quiet: true }); sfx.boom(); if (toScreen(at).on) jolt(0.3); }); } },
+  { can: () => ship.alive, run() { addEnergy(35); boostT = Math.max(boostT, 7); banner('⚡ POWER SURGE!\n+HEALTH AND A SPEED BOOST'); popup(ship.center, '+35 ❤️', '#7dff3a'); sfx.power(); } },
+  { can: () => blindT <= 0, run() { blindT = 14; banner("🌑 BLACKOUT! THE ARMY CAN'T SEE YOU"); sfx.wave(); } },
+]);
+const army = createArmy({ foeK: () => RK.foe, bossDown: (q) => bossDown(q), gunPow: () => 1 + (shotLv || 0) * 0.5, scene, fx, twisters, toScreen, edgeArrow, popup, banner, award, jolt, coach: card, coachSeen, inView: (...a) => inView(...a), flash: (v) => { flashT = Math.max(flashT, v); },
   hurt: (d, k, p) => hurt(d, k, p), groundHit: (p, k) => groundHit(p, k), blast: (c, r, o) => blast(c, r, o), collide: (c) => collidePerson(c), status, after, free: (o) => { if (T) T.free(o); },
   stat: (k) => { stats[k] = (stats[k] || 0) + 1; }, poiCenters: () => poiOrder.filter((k) => !pois[k].done).map((k) => pois[k].center),
   get ship() { return shipState; }, get town() { return T; }, get level() { return level; }, get played() { return played; }, get blind() { return blindT; }, get radarDown() { return radarDown; }, get radioDown() { return radioDown; } });
@@ -646,27 +659,27 @@ addEventListener('blur', () => { beamHeld = false; beamPress = mouseShip = null;
 // ---------- flow ----------
 let state = 'start', roundId = 0, outro = null; // roundId: delayed effects from an earlier round check it and stand down
 const pct = () => Math.round((bDone / totalB) * 100);
-soundToggle($('taStart'), $('taPaused')); playerButton($('taPaused'), $('taPaused').querySelector('.menuBtn')); tipsSetup('bu', $('taPaused'), $('taPaused').querySelector('.menuBtn')); skipSongBtn($('ta')); eraPicker($('taLevels'), () => { level = unlocked(); drawLevels(); }); seasonPicker($('eraRow'));
+soundToggle($('taStart'), $('taPaused')); playerButton($('taPaused'), $('taPaused').querySelector('.menuBtn')); tipsSetup('bu', $('taPaused'), $('taPaused').querySelector('.menuBtn')); diffPicker($('taLevels'), 'bu'); skipSongBtn($('ta')); eraPicker($('taLevels'), () => { level = unlocked(); drawLevels(); }); seasonPicker($('eraRow'));
 gameMusic($('taPaused'), SONGS_ALL); radioButton($('taPaused'), $('taPaused').querySelector('.menuBtn'));
 const fsMode = initFullscreen(() => state === 'play' || state === 'outro'); // full screen on play, back in after a browser drop-out, no page scrolling mid-round (the outro is still the round)
 const hudCache = {}; const setT = (id, v) => { v = String(v); if (hudCache[id] !== v) { hudCache[id] = v; $(id).textContent = v; } };
 const setC = (id, cls, on) => { const k = id + '.' + cls; if (hudCache[k] !== on) { hudCache[k] = on; $(id).classList.toggle(cls, on); } };
-function start() { firstSong('bu', 'music/beam-beam-baby.mp3'); /* (the first round ever opens on Beam Beam Baby) */
+function start() { if (MODE === 'endless') level = endlessLevel(LEVELS.length); RK = roundK('bu'); boss = null; bossBeat = false; bossBar(null); comboHud(1, 0); clearMeteors(); events.reset(); firstSong('bu', 'music/beam-beam-baby.mp3'); /* (the first round ever opens on Beam Beam Baby) */
   fsMode.play(); coachClear(); if (!noSave) saveLast('bu', level); crowd.clear(); unlockAudio(); roundId++; timers.length = 0; sk.clear(); /* (last round's baby twisters, freed while the twisters module still has them) */
   buildWorld(); makePlayerShip(); setupPoiHud();
-  score = 0; chain = 0; lastHit = -9; tLeft = L().time; played = 0; abd = 0; stats = {}; sw = swLv = swNext = 0; power = SW.start * SW.at[0] * L().abduct; swN = [0, 0]; nukeCd[0] = nukeCd[1] = 0; drawSw(); swCheck(); energy = E_MAX; /* (the E badge and bar start from this round's level, not the last one's) */ boostT = nukeT = hitT = hurtK = 0; hits = 0; lowWarned = false; rayCd = 0; moveTo = null; lastGrab = -9; grabChain = 0; dmgPop = 0; dmgPopT = hurtSfx = lowAt = -9; outro = null; beamCoach = false;
+  score = 0; chain = 0; lastHit = -9; tLeft = Math.round(L().time * RK.time); played = 0; abd = 0; stats = {}; sw = swLv = swNext = 0; power = SW.start * SW.at[0] * L().abduct; swN = [0, 0]; nukeCd[0] = nukeCd[1] = 0; drawSw(); swCheck(); energy = E_MAX; /* (the E badge and bar start from this round's level, not the last one's) */ boostT = nukeT = hitT = hurtK = 0; hits = 0; lowWarned = false; rayCd = 0; moveTo = null; lastGrab = -9; grabChain = 0; dmgPop = 0; dmgPopT = hurtSfx = lowAt = -9; outro = null; beamCoach = false;
   blindT = 0; radarDown = radioDown = fireBoost = stink = false; beamHeld = false; hoverT = autoBeamT = 0; beamPress = mouseShip = botDrag = null; bumpT = autoT = 0; pend = null; warnT = -9; setWarn(null); curCard = null; cardUp = false; cardShutAt = -99; holdN = 0;
   army.spawnTown();
   for (const s of ['taStart', 'taEnd', 'taPaused', 'taPrize']) $(s).classList.add('hidden'); $('ta').classList.remove('hidden');
   state = 'play'; playSongs(); sfx.whoosh(); banner('LEVEL ' + level + ': ' + L().name.toUpperCase());
   after(2.4, () => banner('BEAM UP ' + L().abduct + ' PEOPLE\nWRECK ' + L().goal + '% OF TOWN\nTAKE OUT ' + poiGoal() + ' BIG TARGETS'));
   renderer.compile(scene, cam); // compile every material in the new town now, not mid-play
-  $('taLevel').textContent = 'L' + level + ' · ' + L().name; for (const k in hudCache) delete hudCache[k]; measureHud(); camTarget.set(0, flyY() * 0.5, 0);
+  $('taLevel').textContent = 'L' + level + ' · ' + L().name + (RK.tag ? ' · ' + RK.tag : ''); for (const k in hudCache) delete hudCache[k]; measureHud(); camTarget.set(0, flyY() * 0.5, 0);
 }
 function togglePause() { if (state === 'play') { state = 'paused'; beamHeld = false; beamPress = mouseShip = null; setPlaneEngine(0); setWind(0); stopMusic(); $('taPaused').classList.remove('hidden'); } else if (state === 'paused') { state = 'play'; $('taPaused').classList.add('hidden'); playSongs(); } }
 // the round is over. kind: 'win' (both goals met), 'crash' (no energy left), 'time' (the clock ran out)
 let timeBonus = 0;
-function finish(kind, why) { if (state !== 'play') return; state = 'outro'; outro = { kind, why, t: 0 }; beamHeld = false; beamPress = mouseShip = null; sUp(stick.id); clearTips(); moveTo = null; pend = null; setWarn(null); wayMark.visible = false; holdOn = false; holdEl.style.display = 'none'; foes.clear(); setPlaneEngine(0); setWind(0);
+function finish(kind, why) { if (state !== 'play') return; state = 'outro'; outro = { kind, why, t: 0 }; bossBar(null); comboHud(1, 0); beamHeld = false; beamPress = mouseShip = null; sUp(stick.id); clearTips(); moveTo = null; pend = null; setWarn(null); wayMark.visible = false; holdOn = false; holdEl.style.display = 'none'; foes.clear(); setPlaneEngine(0); setWind(0);
   for (const k of poiOrder) if (pois[k].arrow) pois[k].arrow.style.display = 'none';
   if (kind === 'win') { timeBonus = Math.round(tLeft) * 60; score += timeBonus; banner('🛸 MISSION COMPLETE!'); if (timeBonus) popup(ship.center, '+' + timeBonus + ' TIME BONUS', '#ffd24a'); sfx.power(); after(0.4, () => sfx.wave()); }
   else if (kind === 'crash') { ship.alive = false; WALK() || sk.crash(ship.center.clone()); banner(why === 'fuel' ? '⚡ OUT OF POWER!' : why === 'building' ? '💥 CRASHED!' : '💥 SHIP DOWN!'); sfx.over(); const d = Math.hypot(ship.vel.x, ship.vel.z) > 0.5 ? Math.atan2(ship.vel.x, ship.vel.z) : Math.random() * 6.28; ship.fall = { t: 0, vy: 0, head: d, sp: Math.max(3, Math.hypot(ship.vel.x, ship.vel.z)), sm: 0 };
@@ -684,8 +697,9 @@ function outroTick(dt) { const o = outro; o.t += dt; runTimers(dt); army.update(
   if (k >= 1 && o.t >= 2.6) finishNow(); }
 function finishNow() {
   state = 'over'; stopMusic(); setPlaneEngine(0); setWind(0); clearTips(); army.clear(); /* its arrows and tags go too */ for (const o of pops) { o.t = 0; o.el.style.display = 'none'; } crowdLists[0][0] = people; crowdLists[1][0] = army.soldiers; crowd.sync(crowdLists, ship.x, ship.z, 4); const done = poiOrder.filter((k) => pois[k].done), kind = outro ? outro.kind : 'time', cleared = kind === 'win', p = pct(), lv = level, fuelOut = kind === 'crash' && outro.why === 'fuel' && (stats.dmg || 0) < 30;
+  if (endlessEnd(cleared, score, () => start())) return; /* an endless run goes straight on to the next town */
   let best = 0; const bk = bestKey('bu', level); try { best = +localStorage.getItem(bk) || 0; if (score > best) { best = score; if (!noSave) localStorage.setItem(bk, String(score)); } } catch { /* ignore */ }
-  const scoreCoins = Math.floor(score / 10000) / 100; if (scoreCoins > 0 && !noSave) addCoins(scoreCoins); // one coin per million points
+  const scoreCoins = Math.floor(score * RK.coins / 10000) / 100; if (scoreCoins > 0 && !noSave) addCoins(scoreCoins); // one coin per million points (MAYHEM pays half as much again)
   const gotSkins = cleared && level >= LEVELS.length && !noSave ? unlockCraftBonus('ufo') : []; // beating The Sprawl (the last town) wins the Acid Saucer
   if (cleared && !noSave) markWon('bu', level);
   if (cleared && level < LEVELS.length && unlocked() <= level) { if (noSave) memOpen = level + 1; else try { localStorage.setItem(levelKey('bu'), String(level + 1)); } catch { /* ignore */ } }
@@ -695,7 +709,8 @@ function finishNow() {
   $('taGoalLine').textContent = cleared ? (level < LEVELS.length ? 'Level ' + (level + 1) + ' unlocked: ' + LEVELS[level].name + '.' : 'Every town beamed up. The whole planet is yours.')
     : kind === 'crash' ? (fuelOut ? 'Your energy ran out. Flying uses it up: beam people up to keep flying' : rammed ? 'You flew into a big building. Watch for the red glow and BUILDING!, and fly round them' : 'Your shield ran out. Keep moving so the shots miss, and beam people up to fill it') + ' (' + abd + ' of ' + L().abduct + ' people, ' + p + '% of the town destroyed, goal ' + L().goal + '%).'
     : 'Beam up ' + L().abduct + ' people and wreck ' + L().goal + '% of ' + L().name + ' to clear it (you got ' + abd + ' and ' + p + '%).';
-  if (cleared && level < LEVELS.length) level++; if (!noSave) saveLast('bu', level); /* the next town is picked right away, wherever you go from here */
+  { const host = $('taGoalLine'), last = lv >= LEVELS.length; if (!noSave) awardStars('bu', lv, [['Clear the town', cleared], ['Finish with half your health', cleared && energy >= E_MAX * 0.5], last ? ['Destroy the Iron Mammoth in time', cleared && bossBeat] : ['Wreck every big target', cleared && done.length >= poiOrder.length]], host); if (cleared) dailyWon(host); endlessLine(host); }
+  if (cleared && level < LEVELS.length && MODE === 'normal') level++; if (!noSave) saveLast('bu', level); /* the next town is picked right away, wherever you go from here */
   drawLevels();
   if (gotSkins.length) { const u = document.createElement('div'); u.style.cssText = 'margin-top:8px;padding:8px 10px;border-radius:10px;border:2px solid #7dff3a;background:#0e2a0acc;color:#7dff3a;font-weight:900;font-size:15px;box-shadow:0 0 14px #7dff3a66'; u.innerHTML = '🏆 BONUS SKIN UNLOCKED: <b>' + gotSkins.join(' AND ').toUpperCase() + '</b><br><small style="color:#cfe8c8;font-weight:700;font-size:11px">Put it on with CHOOSE SKIN, or in the skin shop.</small>'; $('taGoalLine').appendChild(u); }
   const n = (k) => stats[k] || 0;
@@ -726,7 +741,7 @@ function loadThen(fn) { if (window.__bootTip) window.__bootTip(); document.body.
 const playNow = () => { fsMode.play(); unlockAudio(); loadThen(start); }; // full screen and sound have to be asked for in the tap itself
 $('taPlay').addEventListener('click', playNow); $('taAgain').addEventListener('click', playNow);
 function drawLevels() { const box = $('taLevels'); box.innerHTML = ''; const un = unlocked(); LEVELS.forEach((lv, i) => { const b = document.createElement('button'); const n = i + 1; let best = 0; try { best = +localStorage.getItem(bestKey('bu', n)) || 0; } catch { /* ignore */ }
-  b.className = 'lvl' + (n === level ? ' on' : ''); b.disabled = n > un; b.innerHTML = '<b>' + (n > un ? '🔒' : n) + '</b><span>' + lv.name.replace('Small Town', 'Town').replace('The Sprawl', 'Sprawl') + '</span>' + (best ? '<i>' + best + '</i>' : ''); b.addEventListener('click', () => { level = n; drawLevels(); }); box.appendChild(b); }); }
+  b.className = 'lvl' + (n === level ? ' on' : ''); b.disabled = n > un; b.innerHTML = '<b>' + (n > un ? '🔒' : n) + '</b><span>' + lv.name.replace('Small Town', 'Town').replace('The Sprawl', 'Sprawl') + '</span>' + (best ? '<i>' + best + '</i>' : '') + starTag('bu', n); b.addEventListener('click', () => { level = n; drawLevels(); }); box.appendChild(b); }); }
 const params = new URLSearchParams(location.search);
 level = unlocked(); const devLevel = import.meta.env.DEV ? +params.get('level') : 0; if (devLevel >= 1 && devLevel <= LEVELS.length) { level = devLevel; noSave = true; } drawLevels();
 $('taPause').addEventListener('click', togglePause); $('taResume').addEventListener('click', togglePause);
@@ -754,7 +769,8 @@ drawShipPv();
 const sk = ufoSkin({ scene, fx, twisters, popup, sfx, jolt, people: () => people, buildings: () => buildings, army, addPerson, collide: collidePerson, played: () => played, beamOn: () => beamOn, lim: () => (T ? T.lim : null) });
 // ---------- update ----------
 function update(dt) {
-  placed.length = 0; played += dt; tLeft -= dt; runTimers(dt); if (tLeft <= 0) { tLeft = 0; finish('time'); return; }
+  placed.length = 0; played += dt; funTick(dt); if (boss) { if (bossTick(dt)) return; } else tLeft -= dt; /* (a boss fight: the town's clock stops, the boss clock runs) */ runTimers(dt); if (tLeft <= 0) { tLeft = 0; finish('time'); return; }
+  events.tick(dt, !boss && tLeft > 12 && played > 20 && ship.alive); comboHud(mult(), 1 - (played - lastHit) / 2.5);
   if (cardUp && !coachBusy()) { cardUp = false; curCard = null; cardShutAt = played; } /* a first-time card has just been closed */
   coachBU(); if (played > 30) tip('bu_map', '🗺️ Tap the minimap to fly across town. Green dots are people.');
   /* the beam comes down by itself once people have stayed in the circle under the saucer for a second, and stays on while there are people about */ { let near = false; if (ship.alive && state === 'play') for (const c of people) if (Math.hypot(c.position.x - ship.x, c.position.z - ship.z) < PULL_R * 0.8) { near = true; break; } if (!near && ship.alive && state === 'play') for (const d of drivers) if (Math.hypot(d.g.position.x - ship.x, d.g.position.z - ship.z) < PULL_R * 0.8) { near = true; break; } /* (a car counts too) */ hoverT = near ? hoverT + dt : 0; autoBeamT = hoverT >= AUTO_BEAM ? 0.45 : Math.max(0, autoBeamT - dt); }
@@ -798,7 +814,7 @@ function update(dt) {
   if (lowE) { beepT -= dt; if (beepT <= 0) { beepT = energy < 12 ? 0.45 : 0.9; sfx.ping(12); } if (played - lowAt > 2.3) status(energy < 12 ? '⚠ SHIELD CRITICAL! BEAM PEOPLE UP!' : '⚠ SHIELD LOW!'); } /* the banner says it first */
   // HUD
   const m = Math.floor(tLeft / 60), s = Math.floor(tLeft % 60); setT('taTime', m + ':' + String(s).padStart(2, '0')); setC('taTime', 'red', tLeft < 15);
-  setT('taScore', score); setT('taCombo', mult() > 1 && played - lastHit < 2.5 ? 'x' + mult() + ' COMBO' : grabChain >= 2 && played - lastGrab < 2.2 ? '👽 x' + (grabChain + 1) + ' CHAIN' : '');
+  setT('taScore', score); setT('taCombo', !FUN.combo && mult() > 1 && played - lastHit < 2.5 ? 'x' + mult() + ' COMBO' : grabChain >= 2 && played - lastGrab < 2.2 ? '👽 x' + (grabChain + 1) + ' CHAIN' : '');
   setT('buCount', '👽 ' + abd + '/' + L().abduct); setC('buCount', 'ok', abd >= L().abduct);
   drawEBar(); if (frameN % 15 === 0) poiReady(); if (nukeT > 0) setT('buE', '☢️'); else if ($('buE').textContent === '☢️') $('buE').textContent = 'E' + (swLv + 1); { const hb = $('buEnergy'), sp2 = toScreen(ship.center, ship.y + (WALK() ? 2.7 : 1.3)); hb.classList.toggle('off', !ship.alive || !sp2.on); hb.style.left = Math.round(sp2.x) + 'px'; hb.style.top = Math.round(sp2.y - 8) + 'px'; } /* (the health bar floats over the machine) */
   { const k = Math.max(0, energy / E_MAX), w = (k * 100).toFixed(1) + '%'; if (hudCache.ew !== w) { hudCache.ew = w; $('buEnergyFill').style.width = w; } setT('buEnergyTxt', nukeT > 0 ? '☢️ NUCLEAR SHIELD ' + Math.ceil(nukeT) + 's' : '❤️ HEALTH ' + Math.ceil(k * 100) + '%'); setC('buEnergy', 'low', k < 0.25 && nukeT <= 0); setC('buEnergy', 'mid', k >= 0.25 && k < 0.5 && nukeT <= 0); setC('buEnergy', 'nuke', nukeT > 0); setC('buEnergy', 'hit', hitT > 0.05); }
@@ -807,7 +823,7 @@ function update(dt) {
   let nDone = 0; for (const k of poiOrder) { const P = pois[k]; if (P.done) { nDone++; continue; } edgeArrow(P.arrow, P.center, true); if (P.mark) tickPoiMark(P.mark); } setT('taTargets', nDone + '/' + poiGoal()); setC('taTargets', 'ok', nDone >= poiGoal());
   crowdLists[0][0] = people; crowdLists[1][0] = army.soldiers; crowd.sync(crowdLists, sx, sz, 4); syncGlows();
   mapT -= dt; if (mapT <= 0) { mapT = 0.1; drawMini(); } if (frameN % 60 === 0) measureHud();
-  if (abd >= L().abduct && pct() >= L().goal && poisDone() >= poiGoal()) finish('win'); // all three goals met: mission complete
+  if (!boss && abd >= L().abduct && pct() >= L().goal && poisDone() >= poiGoal()) { if (bossDue(level, LEVELS.length) && !bossBeat) startBoss(); else finish('win'); } // all three goals met: mission complete (in the last town, the boss comes first)
 }
 
 // a first-time card is up and the round is holding still: the beam's hum and the wind stop, and the beam fades out
@@ -846,9 +862,10 @@ function sim(secs, bot, every = 0.25) { const dt = 1 / 30; let acc = 0; noSave =
 // QUICK PLAY on the main menu comes in with ?quick: no title screen, straight into the town you left off in. Otherwise a
 // quiet town behind the title screen, with the saucer cruising over it
 if (params.has('quick')) { level = quickLevel('bu'); if (devLevel >= 1 && devLevel <= LEVELS.length) level = devLevel; drawLevels(); start(); }
+else if (MODE === 'daily') { level = dailyLevel(unlocked()); drawLevels(); start(); } else if (MODE === 'endless') start(); /* a daily challenge or an endless run: straight in */
 else { buildWorld(); makePlayerShip(); setupPoiHud(); for (const k of poiOrder) pois[k].arrow.style.display = 'none'; }
 requestAnimationFrame(frame); requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove('booting'))); // the start screen is ready now
-window.__bu = { stomp: (p) => stomp(p), get sw() { return [sw, swLv, swN.slice(), swNext, abd, L().abduct]; }, start, finish, tapAt, fireAt, zapKey, sim, L, LEVELS, wreckPoi, hitPoi, hitBuilding, crumble, blast, hurt, setZoom, THREE, renderer, scene, cam, army, crowd, fx, toScreen, foes, goTo, blockerAt, bldAhead, onShip, shipPx, answerCard, BLD, flyY,
+window.__bu = { startBoss, get boss() { return boss; }, get RK() { return RK; }, events, army, stomp: (p) => stomp(p), get sw() { return [sw, swLv, swN.slice(), swNext, abd, L().abduct]; }, start, finish, tapAt, fireAt, zapKey, sim, L, LEVELS, wreckPoi, hitPoi, hitBuilding, crumble, blast, hurt, setZoom, THREE, renderer, scene, cam, army, crowd, fx, toScreen, foes, goTo, blockerAt, bldAhead, onShip, shipPx, answerCard, BLD, flyY,
   get card() { return curCard; }, get beamPress() { return beamPress; }, get warnB() { return warnB; }, get bumpT() { return bumpT; }, get pend() { return pend; }, get bAt() { return bAt; }, drag(d) { botDrag = d ? { x: d.x, z: d.z } : null; },
   get state() { return state; }, get level() { return level; }, set level(v) { level = v; }, get ship() { return ship; }, get energy() { return energy; }, set energy(v) { energy = v; }, get abd() { return abd; }, set abd(v) { abd = v; },
   get beamOn() { return beamOn; }, set beam(v) { beamHeld = !!v; }, get moveTo() { return moveTo; }, set moveTo(v) { moveTo = v; }, get tLeft() { return tLeft; }, set tLeft(v) { tLeft = v; }, get score() { return score; }, get stats() { return stats; },

@@ -22,6 +22,7 @@ import { stampVersion } from '../version.js';
 import { initFullscreen } from '../fullscreen.js';
 import { showHowTo, tip, clearTips } from '../howto.js';
 import { coach, coachSeen, coachIdle, coachBusy, coachFrame, coachClear, tipsSetup } from '../coach.js';
+import { FUN, MODE, funInit, diffPicker, roundK, starTag, awardStars, comboHud, bossBar, bossDue, makeEvents, meteorShower, clearMeteors, funTick, buzz, dailyLevel, dailyWon, endlessLevel, endlessEnd, endlessLine } from '../fun.js';
 import { quickLevel, saveLast } from '../progress.js';
 import { createCrowd } from '../crowd.js';
 import { autoResolution, mergeStatic, bakeMovable, bakeUnits, setBakedGlow } from '../perf.js';
@@ -50,7 +51,7 @@ const ISO_YAW = Math.PI / 4, ISO_ELEV = 0.72;
 const isoDir = new THREE.Vector3(Math.sin(ISO_YAW) * Math.cos(ISO_ELEV), Math.sin(ISO_ELEV), Math.cos(ISO_YAW) * Math.cos(ISO_ELEV)).normalize();
 const fx = createFires(scene);
 const crowd = createCrowd(scene, 640), crowdLists = [[null, 0], [null, 1]]; // townsfolk and soldiers away from the storm: one draw call for the lot
-let shake = 0; const jolt = (v) => { shake = Math.max(shake, v); }; // camera shake (0..1): a short jolt when something big comes down
+let shake = 0; const jolt = (v) => { shake = Math.max(shake, v); buzz(v); }; funInit('ta'); // camera shake (0..1): a short jolt when something big comes down (and the phone's buzz)
 let flashT = 0; const flashEl = document.createElement('div'); flashEl.style.cssText = 'position:fixed;inset:0;background:#dfeaff;opacity:0;pointer-events:none;z-index:5'; document.body.appendChild(flashEl);
 const twisters = createTwisters(scene, { onToss: (kind, p, who, vel, o) => stormToss(kind, p, who, vel, o), onBolt: (p, ground, who) => { const mine = !who || who === tw, sk = (who || tw || {}).skin; if (mine) { flashT = Math.max(flashT, ground ? 0.1 : 0.05); if (ground && Math.random() < 0.3) sfx.boom(); } if (ground) fx.zap(p, sk && sk.boltGlow ? sk.boltGlow : 0x9fd0ff); } }); twisters.setFx(fx); // another storm's bolts (the rogue twister) don't flash the screen
 stampVersion($('taStart'));
@@ -242,7 +243,7 @@ function updatePops(dt) { for (const o of pops) { if (o.t <= 0) continue; o.t -=
 let bannerT = 0; function banner(text) { $('taBanner').textContent = text; $('taBanner').style.opacity = 1; bannerT = 2.2; }
 
 // ---------- wreckage ----------
-function grow(m) { mass = Math.max(0, mass + m); size = Math.min(MAX_S, 1 + (MAX_S - 1) * Math.min(1, mass / massTarget)); }
+function grow(m) { if (m < 0) m *= RK.hurt; /* (what shrinks the storm costs more on a harder round) */ mass = Math.max(0, mass + m); size = Math.min(MAX_S, 1 + (MAX_S - 1) * Math.min(1, mass / massTarget)); }
 
 // ---------- the storm's enemy: cloud-seeding planes. They hunt the storm and spray it, and the spray shrinks it.
 // Grow to F3 and a plane that flies into the funnel gets swallowed instead. ----------
@@ -598,19 +599,19 @@ function drawTwPicker() { const cur = equippedTornado(); $('twChosenName').textC
 $('twChoose').addEventListener('click', () => { location.href = 'store.html?from=alley'; }); /* (the skin shop, on the tornadoes: pick one, or buy one, right there) */
 $('twPickDone').addEventListener('click', () => { $('twPickScr').classList.add('hidden'); $('taStart').classList.remove('hidden'); drawTwPicker(); });
 drawTwPicker();
-soundToggle($('taStart'), $('taPaused')); playerButton($('taPaused'), $('taPaused').querySelector('.menuBtn')); tipsSetup('ta', $('taPaused'), $('taPaused').querySelector('.menuBtn')); skipSongBtn($('ta')); eraPicker($('taLevels'), () => { level = unlocked(); drawLevels(); }); seasonPicker($('eraRow')); // sound on/off on the start and pause screens
+soundToggle($('taStart'), $('taPaused')); playerButton($('taPaused'), $('taPaused').querySelector('.menuBtn')); tipsSetup('ta', $('taPaused'), $('taPaused').querySelector('.menuBtn')); diffPicker($('seasonRow') || $('taLevels'), 'ta'); skipSongBtn($('ta')); eraPicker($('taLevels'), () => { level = unlocked(); drawLevels(); }); seasonPicker($('eraRow')); // sound on/off on the start and pause screens
 // the soundtrack starts on the first tap and keeps rotating songs for as long as you're on Tornado Alley
 gameMusic($('taPaused'), SONGS_TORNADO); radioButton($('taPaused'), $('taPaused').querySelector('.menuBtn'));
 const fsMode = initFullscreen(() => state === 'play' || state === 'outro'); // full screen on play, back in after a browser drop-out, no page scrolling mid-round
 function start() {
-  fsMode.play();
+  if (MODE === 'endless') level = endlessLevel(LEVELS.length); RK = roundK('ta'); boss = null; bossBeat = bossCame = false; bossBar(null); comboHud(1, 0); clearMeteors(); events.reset(); fsMode.play();
   coachClear(); saveLast('ta', level); crowd.clear();
-  if (state !== 'start' || roundN > 0) roundN++; ROUND = L().time; unlockAudio(); buildWorld(); makeStorm(); trip = 0; tripAt.copy(twObj.position); score = 0; totalD = 0; absorbed = false; chain = 0; lastHit = -9; tLeft = ROUND; played = 0; boostT = 0; lastRank = 0; moveTo = null; sinking.length = 0; peopleN = carsN = propsN = bDone = 0; clearPlanes();
+  if (state !== 'start' || roundN > 0) roundN++; ROUND = Math.round(L().time * RK.time); unlockAudio(); buildWorld(); makeStorm(); trip = 0; tripAt.copy(twObj.position); score = 0; totalD = 0; absorbed = false; chain = 0; lastHit = -9; tLeft = ROUND; played = 0; boostT = 0; lastRank = 0; moveTo = null; sinking.length = 0; peopleN = carsN = propsN = bDone = 0; clearPlanes();
   radarDown = radioDown = fireBoost = stink = false; setupPoiHud();
   for (const s of ['taStart', 'taEnd', 'taPaused', 'taPrize', 'twPickScr']) $(s).classList.add('hidden'); $('ta').classList.remove('hidden');
   state = 'play'; playSongs(); setStormLevel(0); sfx.whoosh(); banner('LEVEL ' + level + ': ' + L().name.toUpperCase()); setTimeout(() => { if (state === 'play') banner(SEASON_NAME[seasonFor()].toUpperCase()); }, 2300);
   renderer.compile(scene, viewCam()); // compile every material in the new town now, not mid-play
-  $('taLevel').textContent = 'L' + level + ' · ' + L().name; measureHud(); for (const k in hudCache) delete hudCache[k]; rankShown = -1;
+  $('taLevel').textContent = 'L' + level + ' · ' + L().name + (RK.tag ? ' · ' + RK.tag : ''); measureHud(); for (const k in hudCache) delete hudCache[k]; rankShown = -1;
   setTimeout(() => { if (state === 'play') banner('TAKE OUT ' + (L().need >= poiOrder.length ? 'ALL ' + poiOrder.length : L().need) + ' TARGETS'); }, 4600);
 }
 // a new storm skin from the pause menu: the same storm, same size and place, in its new look
@@ -624,7 +625,7 @@ let totalD = 0, absorbed = false; // absorbed: a bigger rogue twister swallowed 
 function totalWipe(at) { totalD = 5000 + Math.round(tLeft) * 250; score += totalD; banner('💥 TOTAL DESTRUCTION! 💥'); popup(at.clone().setY(4), '+' + totalD + ' TIME BONUS', '#ffd24a'); sfx.boom(); setTimeout(() => sfx.boom(), 300); flashT = 0.5; }
 // the round's over: the storm winds down and fades away in the town (about 3 s), then the prizes and the score
 let outroT = 0;
-function finish() { if (state !== 'play') return; state = 'outro'; outroT = 0; foes.clear(); stopMusic(); setPlaneEngine(0); setWind(0); sUp(stick.id); clearTips(); moveTo = null;
+function finish() { if (state !== 'play') return; state = 'outro'; outroT = 0; boss = null; bossBar(null); comboHud(1, 0); foes.clear(); stopMusic(); setPlaneEngine(0); setWind(0); sUp(stick.id); clearTips(); moveTo = null;
   banner('THE DESTRUCTION HAS ENDED!'); sfx.whoosh(); setTimeout(() => sfx.boom(), 350); setTimeout(() => sfx.whoosh(), 1200);
   if (tw) tw.layers.forEach((Lr) => { Lr.userData.opOut = Lr.material.opacity; }); }
 function outroTick(dt) { outroT += dt; const k = Math.min(1, outroT / 2.6), e = Math.pow(1 - k, 1.6);
@@ -634,8 +635,9 @@ function outroTick(dt) { outroT += dt; const k = Math.min(1, outroT / 2.6), e = 
 function finishNow() {
   state = 'over'; stopMusic(); setPlaneEngine(0); setWind(0); sUp(stick.id); clearTips(); const done = poiOrder.filter((k) => pois[k].done); for (const k of poiOrder) if (pois[k].arrow) pois[k].arrow.style.display = 'none';
   let best = 0; const bk = bestKey('ta', level); try { best = +localStorage.getItem(bk) || 0; if (score > best) { best = score; localStorage.setItem(bk, String(score)); } } catch { /* ignore */ }
-  const pct = Math.round((bDone / totalB) * 100); const need = Math.min(L().need, poiOrder.length); const cleared = !absorbed && pct >= L().goal && done.length >= need;
-  const scoreCoins = Math.floor(score / 10000) / 100; if (scoreCoins > 0) addCoins(scoreCoins); // one coin per million points
+  const pct = Math.round((bDone / totalB) * 100); const need = Math.min(L().need, poiOrder.length); const cleared = !absorbed && pct >= L().goal && done.length >= need, lvN = level;
+  if (endlessEnd(cleared, score, () => { start(); camTarget.set(twObj.position.x, 1.2, twObj.position.z); })) return; /* an endless run goes straight on to the next town */
+  const scoreCoins = Math.floor(score * RK.coins / 10000) / 100; if (scoreCoins > 0) addCoins(scoreCoins); // one coin per million points (MAYHEM pays half as much again)
   if (cleared) markWon('ta', level);
   if (cleared && level < LEVELS.length && unlocked() <= level) { try { localStorage.setItem(levelKey('ta'), String(level + 1)); } catch { /* ignore */ } }
   $('taEndTitle').innerHTML = cleared ? (level >= 5 ? L().name.toUpperCase().replace('THE ', '') + '<br>FLATTENED' : 'LEVEL ' + level + '<br>CLEARED') : "STORM'S<br>OVER";
@@ -646,7 +648,8 @@ function finishNow() {
   if (cleared && level >= 5 && grantSkin('tornado:acid')) { equip('tornado', 'tornado:acid'); const u = document.createElement('div'); u.className = 'bonusSkin'; u.innerHTML = '🏆 BONUS SKIN UNLOCKED: <b>ACID STORM</b><br><small>Acid rain, green lightning and baby tornadoes. It\'s on now; change it in the skin shop.</small>'; $('taGoalLine').appendChild(u); }
   if (absorbed) $('taGoalLine').textContent = 'A bigger rogue twister held your storm for three seconds and swallowed it. Break away from it, or strike it to shrink it.';
   if (totalD) { $('taEndTitle').innerHTML = 'TOTAL<br>DESTRUCTION!'; totalReward(Object.keys(TWISTER_SKINS).filter((k) => !TWISTER_SKINS[k].bonus).map((k) => 'tornado:' + k), (id) => TWISTER_SKINS[id.split(':')[1]].name, $('taGoalLine')); }
-  if (cleared && level < LEVELS.length) level++; saveLast('ta', level); /* the next town is open and picked right away, wherever you go from here (change monster, the shop, NEXT LEVEL) */
+  { const host = $('taGoalLine'), last = lvN >= LEVELS.length; awardStars('ta', lvN, [['Wreck the town', cleared], ['Wreck 60% of it', cleared && pct >= 60], last ? ['Swallow the Maelstrom in time', cleared && bossBeat] : ['Take out every big target', cleared && done.length >= poiOrder.length]], host); if (cleared) dailyWon(host); endlessLine(host); }
+  if (cleared && level < LEVELS.length && MODE === 'normal') level++; saveLast('ta', level); /* the next town is open and picked right away, wherever you go from here (change monster, the shop, NEXT LEVEL) */
   drawLevels(); /* and the start screen shows the new best score without a reload */
   $('taStats').innerHTML = [...(totalD ? [['💥 Total destruction', '+' + totalD]] : []), ['Buildings', bDone + ' / ' + totalB + ' (' + pct + '%)'], ['People swept up', peopleN], ['Cars thrown', carsN], ['Storm chasers', chasersCaught + ' destroyed, ' + chasersLost + ' got away'], ['Big targets', done.length + ' / ' + poiOrder.length + ' ' + done.map((k) => POI[k].icon).join('')], ['Peak size', 'F' + rankOf(size) + ' (' + size.toFixed(1) + 'x)'], ['Score', score], ['Score coins', '+' + scoreCoins + ' 🪙'], ['Best', best]].map(([a, b]) => '<tr><td>' + a + '</td><td>' + b + '</td></tr>').join('');
   // a new storm in the prize game: three times in four when the level was cleared, one in four when it wasn't, for as long as
@@ -676,7 +679,7 @@ const playNow = () => { fsMode.play(); unlockAudio(); loadThen(start); }; // ful
 $('taPlay').addEventListener('click', playNow); // straight in: the cards are there if you ask (HOW TO PLAY), and the round itself shows a new player each thing as it comes up
 $('taAgain').addEventListener('click', playNow);
 function drawLevels() { const box = $('taLevels'); box.innerHTML = ''; const un = unlocked(); LEVELS.forEach((lv, i) => { const b = document.createElement('button'); const n = i + 1; let best = 0; try { best = +localStorage.getItem(bestKey('ta', n)) || 0; } catch { /* ignore */ }
-  b.className = 'lvl' + (n === level ? ' on' : ''); b.disabled = n > un; b.innerHTML = '<b>' + (n > un ? '🔒' : n) + '</b><span>' + lv.name.replace('Small Town', 'Town').replace('The Sprawl', 'Sprawl') + '</span>' + (best ? '<i>' + best + '</i>' : ''); b.addEventListener('click', () => { level = n; drawLevels(); }); box.appendChild(b); }); }
+  b.className = 'lvl' + (n === level ? ' on' : ''); b.disabled = n > un; b.innerHTML = '<b>' + (n > un ? '🔒' : n) + '</b><span>' + lv.name.replace('Small Town', 'Town').replace('The Sprawl', 'Sprawl') + '</span>' + (best ? '<i>' + best + '</i>' : '') + starTag('ta', n); b.addEventListener('click', () => { level = n; drawLevels(); }); box.appendChild(b); }); }
 level = unlocked(); if (import.meta.env.DEV) { const q = +new URLSearchParams(location.search).get('level'); if (q >= 1 && q <= LEVELS.length) level = q; } drawLevels();
 $('taPause').addEventListener('click', togglePause); $('taResume').addEventListener('click', togglePause);
 // restart the level from the pause screen; the first tap asks, a second tap within 3 seconds does it
@@ -690,7 +693,19 @@ function rivalWreck(x, into) { // a building the rogue twister takes: gone, but 
   free(x.obj); x.done = true; totalB = Math.max(1, totalB - 1); { const i = city.obstacles.findIndex((o) => Math.abs(o.x - x.pos.x) < 0.3 && Math.abs(o.z - x.pos.z) < 0.3); if (i >= 0) city.obstacles.splice(i, 1); }
   const size3 = new THREE.Box3().setFromObject(x.obj).getSize(new THREE.Vector3()), ex = x.obj === x.b ? (x.b.userData.extras || []).filter((m) => m.parent) : []; if (x.b.userData.edges) x.b.userData.edges.visible = false;
   twisters.tear(x.obj, x.pos, size3, into, [], ex); sfx.crunch(x.h > 5); }
-const foes = createFoes({ absorbed: () => { absorbed = true; }, speedBurst: (s) => speedBurst(s, twObj.position), scene, fx, twisters, S0, MAX_S, maxH, rankOf, popup, banner, award, grow, jolt, boltTo, edgeArrow, toScreen, rivalWreck, crashDamage, coach, coachSeen, flash: (v) => { flashT = Math.max(flashT, v); },
+// ---------- THE FUN PACK (fun.js). RK: this round's numbers (difficulty, a daily twist, or how deep an endless run is).
+// BOSS: THE MAELSTROM blows in on the last town once its goals are met (foes.js: a giant rogue twister). The town's clock
+// stops and the boss clock runs. Strike it down to size and swallow it in time for the bonus and the star; if the clock
+// runs out it blows itself out. Let it hold you for three seconds and the round is lost, as with any rogue ----------
+let RK = { time: 1, foe: 1, hurt: 1, coins: 1, tag: '' }, boss = null, bossBeat = false, bossCame = false; const BOSS = { time: 100, score: 25000, name: '👑 THE MAELSTROM' };
+function startBoss() { if (!foes.spawnBoss()) return; /* (a rogue twister still about: the boss waits its turn) */ bossCame = true; boss = { left: BOSS.time }; jolt(0.7); flashT = Math.max(flashT, 0.3); }
+function bossDown() { if (!boss) return; boss = null; bossBar(null); bossBeat = true; score += BOSS.score; banner('👑 THE MAELSTROM IS YOURS!\n+' + BOSS.score); flashT = Math.max(flashT, 0.5); }
+function bossTick(dt) { if (!foes.boss) { boss = null; bossBar(null); return; } boss.left -= dt; bossBar(BOSS.name, foes.bossFrac(), boss.left); if (boss.left <= 0) { boss = null; bossBar(null); foes.dropBoss(); banner('THE MAELSTROM BLEW ITSELF OUT'); sfx.over(); } }
+const events = makeEvents([
+  { run() { banner('☄️ METEOR SHOWER!'); sfx.wave(); meteorShower(scene, 5, () => { const P = twObj.position, l = buildings.filter((x) => !x.done && Math.hypot(x.pos.x - P.x, x.pos.z - P.z) < 16); if (!l.length) return null; const x = l[(Math.random() * l.length) | 0]; return { x: x.pos.x, z: x.pos.z }; }, (x, z) => { if (state !== 'play') return; const b = buildings.find((q) => !q.done && Math.abs(q.pos.x - x) < 0.4 && Math.abs(q.pos.z - z) < 0.4), at = new THREE.Vector3(x, 0.6, z); fx.explode(at, 1.5); if (b) wreckBuilding(b, false, null, { collapse: true, power: 0.9 }); }); } },
+  { run() { grow(massTarget * 0.06); boostT = Math.max(boostT, 4); banner('⚡ SUPERCELL!\n+SIZE AND A BURST OF SPEED'); popup(twObj.position, '+SIZE', '#7dff3a'); sfx.power(); } },
+]);
+const foes = createFoes({ foeK: () => RK.foe, bossDown: () => bossDown(), absorbed: () => { absorbed = true; }, speedBurst: (s) => speedBurst(s, twObj.position), scene, fx, twisters, S0, MAX_S, maxH, rankOf, popup, banner, award, grow, jolt, boltTo, edgeArrow, toScreen, rivalWreck, crashDamage, coach, coachSeen, flash: (v) => { flashT = Math.max(flashT, v); },
   get twObj() { return twObj; }, get tw() { return tw; }, get size() { return sizeShown; }, get level() { return level; }, get played() { return played; }, get cols() { return cols; }, get massTarget() { return massTarget; },
   get buildings() { return buildings; }, get people() { return people; }, get roadCells() { return roadCells; }, get pois() { return pois; }, get poiOrder() { return poiOrder; }, get radarDown() { return radarDown; } });
 
@@ -747,7 +762,7 @@ function clearHunters() { for (const h of hunters) scene.remove(h.c); hunters.le
 const right = new THREE.Vector3(), upv = new THREE.Vector3(), tmp = new THREE.Vector3(); let frameN = 0;
 const hudCache = {}; const setT = (id, v) => { v = String(v); if (hudCache[id] !== v) { hudCache[id] = v; $(id).textContent = v; } }; let rankShown = -1;
 function update(dt) {
-  played += dt; tLeft -= dt; if (tLeft <= 0) { tLeft = 0; finish(); return; }
+  played += dt; funTick(dt); if (boss) bossTick(dt); else tLeft -= dt; /* (a boss fight: the town's clock stops, the boss clock runs) */ events.tick(dt, !boss && tLeft > 12 && played > 20); comboHud(mult(), 1 - (played - lastHit) / 2.5); if (tLeft <= 0) { tLeft = 0; finish(); return; }
   coachTA(); if (played > 24) tip('ta_map', '🗺️ Tap the minimap to head across town.');
   // steering, in screen space mapped onto the ground
   let sx = stick.x + ((keys.d || keys.arrowright) ? 1 : 0) - ((keys.a || keys.arrowleft) ? 1 : 0), sy = stick.y + ((keys.s || keys.arrowdown) ? 1 : 0) - ((keys.w || keys.arrowup) ? 1 : 0);
@@ -814,14 +829,14 @@ function update(dt) {
   // HUD
   const m = Math.floor(tLeft / 60), s = Math.floor(tLeft % 60);
   setT('taTime', m + ':' + String(s).padStart(2, '0')); if (hudCache.red !== (tLeft < 15)) { hudCache.red = tLeft < 15; $('taTime').style.color = tLeft < 15 ? '#ff5a3a' : ''; }
-  setT('taScore', score); setT('taCombo', mult() > 1 && played - lastHit < 2.5 ? 'x' + mult() + ' COMBO' : '');
+  setT('taScore', score); setT('taCombo', !FUN.combo && mult() > 1 && played - lastHit < 2.5 ? 'x' + mult() + ' COMBO' : '');
   setT('taRank', 'F' + rankOf(sizeShown)); setStormLevel(rankOf(sizeShown)); { const k = (sizeShown - 1) / (MAX_S - 1); setWind(0.5 + 0.5 * k, k); } /* the wind: louder and lower as the storm grows */ { const pct = Math.round((bDone / totalB) * 100); setT('taPct', innerWidth < 761 ? '💥 ' + pct + '%' : '🏚️ ' + pct + '% DESTROYED'); /* (a phone: just the blast and the number) */ /* town destroyed against the goal: the badge over the mini map */ if (hudCache.pctOk !== (pct >= L().goal)) { hudCache.pctOk = pct >= L().goal; $('taPct').classList.toggle('ok', pct >= L().goal); } }
   { const w = ((sizeShown - 1) / (MAX_S - 1) * 100).toFixed(1) + '%'; if (hudCache.grow !== w) { hudCache.grow = w; $('taGrowFill').style.width = w; } const r = rankOf(sizeShown); if (r !== rankShown) { if (rankShown >= 0 && r > rankShown) { const b = $('taRank'); b.classList.remove('bump'); void b.offsetWidth; b.classList.add('bump'); } rankShown = r; document.querySelectorAll('#taGrow .tick').forEach((t, i) => t.classList.toggle('got', i < r)); } }
   if (Math.round((bDone / totalB) * 100) >= 100 && poiOrder.every((k) => pois[k].done)) { /* as soon as the HUD reads 100% (it rounds, so a stray building or two can't hold the round open) */ if (!totalD) totalWipe(twObj.position); tLeft = Math.min(tLeft, 1.5); }
   crowdLists[0][0] = people; crowdLists[1][0] = soldiers; crowd.sync(crowdLists, px, pz, 7 + R);
   // target tray, edge arrows and the minimap
   { const rk = rankOf(sizeShown); let n = 0; for (const k of poiOrder) { const P = pois[k]; if (P.done) { n++; continue; } const ready = rk >= POI[k].f; if (P.chip) P.chip.classList.toggle('ready', ready); P.arrow.classList.toggle('ready', ready); edgeArrow(P.arrow, P.center, true); if (P.mark) tickPoiMark(P.mark, ready); } // too small for it yet: its badge and arrow stay, but dim and grey
-    const need = Math.min(L().need, poiOrder.length); setT('taTargets', n + '/' + need); if (hudCache.tgtOk !== (n >= need)) { hudCache.tgtOk = n >= need; $('taTargets').classList.toggle('ok', n >= need); } }
+    const need = Math.min(L().need, poiOrder.length); setT('taTargets', n + '/' + need); if (!bossCame && n >= need && bossDue(level, LEVELS.length) && !absorbed && Math.round((bDone / totalB) * 100) >= L().goal) startBoss(); /* the last town's goals are met: the Maelstrom comes */ if (hudCache.tgtOk !== (n >= need)) { hudCache.tgtOk = n >= need; $('taTargets').classList.toggle('ok', n >= need); } }
   mapT -= dt; if (mapT <= 0) { mapT = 0.08; drawMini(); }
 }
 
@@ -853,6 +868,7 @@ function frame(now) {
 // QUICK PLAY on the main menu comes in with ?quick: no title screen, straight into the town you left off in with the
 // storm you last used. Otherwise, a calm town behind the title screen
 if (new URLSearchParams(location.search).has('quick')) { level = quickLevel('ta'); drawLevels(); start(); camTarget.set(twObj.position.x, 1.2, twObj.position.z); }
+else if (MODE === 'daily' || MODE === 'endless') { if (MODE === 'daily') level = dailyLevel(unlocked()); drawLevels(); start(); camTarget.set(twObj.position.x, 1.2, twObj.position.z); } /* a daily challenge or an endless run: straight in */
 else { buildWorld(); makeStorm(); twObj.position.set(-12, 0, -12); camTarget.set(0, 1, 0); }
 requestAnimationFrame(frame); requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove('booting'))); // the start screen is ready now
-window.__ta = { get killT() { return killT; }, get wind() { return windLevel(); }, get twisters() { return twisters; }, get hunters() { return hunters; }, stormToss, swapStorm, get foes() { return foes; }, get poiFx() { return poiFx; }, wreckPoi, get fx() { return fx; }, get crowd() { return crowd; }, get sceneN() { return scene.children.length; }, get tLeft() { return tLeft; }, get totalD() { return totalD; }, get nukeOn() { return nukeT > 0; }, get stormHead() { return stormHead; }, set moveToSet(v) { moveTo = v; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, get people() { return people; }, start, finish, goNuke, grow, get massTarget() { return massTarget; }, get nukeT() { return nukeT; }, get stormPos() { return twObj.position; }, THREE, get cam() { return viewCam(); }, get px() { return perfTick.ratio; }, get poiOrder() { return poiOrder; }, get coachUp() { return coachBusy(); }, get zapCd() { return zapCd; }, get engine() { return planeEngineLevel(); }, get music() { return stormMusicState(); }, get song() { return songState(); }, get chunks() { return chunks; }, get flags() { return { radarDown, radioDown, fireBoost, stink }; }, get moveToV() { return moveTo; }, get city() { return city; }, tapAt, get moveTo() { return moveTo; }, get boostT() { return boostT; }, bench(n = 20) { const vc = viewCam(); renderer.render(scene, vc); const t0 = performance.now(); for (let i = 0; i < n; i++) renderer.render(scene, vc); renderer.getContext().finish(); return (performance.now() - t0) / n; }, get animN() { return city.season.anim.length; }, setSeason(s) { seasonI = SEASON_CYCLE.indexOf(s); roundN = 0; }, get season() { return seasonNow(); }, get calls() { return renderer.info.render.calls; }, get tris() { return renderer.info.render.triangles; }, spawnChaser, get chaser() { return chaser; }, get zoom() { return zoom; }, setZoom, get extraSeeders() { return extraSeeders; }, setView, get third() { return third; }, spawnPlane, get planes() { return planes; }, get mass() { return mass; }, get level() { return level; }, set level(v) { level = v; }, get bDone() { return bDone; }, set bDone(n) { bDone = n; }, get babies() { return twisters.babies; }, get totalB() { return totalB; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, get drivers() { return drivers; }, get state() { return state; }, get score() { return score; }, get size() { return sizeShown; }, get storm() { return twObj; }, get pois() { return pois; }, get buildings() { return buildings; }, get people() { return people; }, set tLeft(v) { tLeft = v; }, grow, start };
+window.__ta = { startBoss, get boss() { return boss; }, get RK() { return RK; }, events, get bossBeat() { return bossBeat; }, get killT() { return killT; }, get wind() { return windLevel(); }, get twisters() { return twisters; }, get hunters() { return hunters; }, stormToss, swapStorm, get foes() { return foes; }, get poiFx() { return poiFx; }, wreckPoi, get fx() { return fx; }, get crowd() { return crowd; }, get sceneN() { return scene.children.length; }, get tLeft() { return tLeft; }, get totalD() { return totalD; }, get nukeOn() { return nukeT > 0; }, get stormHead() { return stormHead; }, set moveToSet(v) { moveTo = v; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, get people() { return people; }, start, finish, goNuke, grow, get massTarget() { return massTarget; }, get nukeT() { return nukeT; }, get stormPos() { return twObj.position; }, THREE, get cam() { return viewCam(); }, get px() { return perfTick.ratio; }, get poiOrder() { return poiOrder; }, get coachUp() { return coachBusy(); }, get zapCd() { return zapCd; }, get engine() { return planeEngineLevel(); }, get music() { return stormMusicState(); }, get song() { return songState(); }, get chunks() { return chunks; }, get flags() { return { radarDown, radioDown, fireBoost, stink }; }, get moveToV() { return moveTo; }, get city() { return city; }, tapAt, get moveTo() { return moveTo; }, get boostT() { return boostT; }, bench(n = 20) { const vc = viewCam(); renderer.render(scene, vc); const t0 = performance.now(); for (let i = 0; i < n; i++) renderer.render(scene, vc); renderer.getContext().finish(); return (performance.now() - t0) / n; }, get animN() { return city.season.anim.length; }, setSeason(s) { seasonI = SEASON_CYCLE.indexOf(s); roundN = 0; }, get season() { return seasonNow(); }, get calls() { return renderer.info.render.calls; }, get tris() { return renderer.info.render.triangles; }, spawnChaser, get chaser() { return chaser; }, get zoom() { return zoom; }, setZoom, get extraSeeders() { return extraSeeders; }, setView, get third() { return third; }, spawnPlane, get planes() { return planes; }, get mass() { return mass; }, get level() { return level; }, set level(v) { level = v; }, get bDone() { return bDone; }, set bDone(n) { bDone = n; }, get babies() { return twisters.babies; }, get totalB() { return totalB; }, get tanks() { return tanks; }, get soldiers() { return soldiers; }, get drivers() { return drivers; }, get state() { return state; }, get score() { return score; }, get size() { return sizeShown; }, get storm() { return twObj; }, get pois() { return pois; }, get buildings() { return buildings; }, get people() { return people; }, set tLeft(v) { tLeft = v; }, grow, start };
