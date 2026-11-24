@@ -30,9 +30,9 @@ export function showHowTo(slides, onDone) {
 }
 // a tip that shows once per device (key), for a few seconds; queued so two never overlap
 let seenList = null; const seen = () => { if (!seenList) { try { seenList = JSON.parse(localStorage.getItem('tips_seen') || '[]'); } catch { seenList = []; } } return seenList; };
-const queue = []; let busy = false;
+const queue = []; let busy = false, gate = () => true; /* gate: are tips switched on? (coach.js tipsSetup) */ export function setTipGate(f) { gate = f; }
 export function tip(key, text, secs = 4.5) {
-  ensure(); const s = seen(); if (s.includes(key) || queue.some((t) => t.key === key)) return; queue.push({ key, text, secs }); if (!busy) next();
+  if (!gate()) return; /* (tips are off: it stays unseen, for if they are turned on later) */ ensure(); const s = seen(); if (s.includes(key) || queue.some((t) => t.key === key)) return; queue.push({ key, text, secs }); if (!busy) next();
 }
 function next() {
   const t = queue.shift(); if (!t) { busy = false; return; } busy = true; const s = seen(); if (!s.includes(t.key)) { s.push(t.key); try { localStorage.setItem('tips_seen', JSON.stringify(s)); } catch { /* ignore */ } }

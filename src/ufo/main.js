@@ -26,7 +26,7 @@ import { showPrizes } from '../prizes.js';
 import { stampVersion } from '../version.js';
 import { initFullscreen } from '../fullscreen.js';
 import { showHowTo, tip, clearTips, markSeen } from '../howto.js';
-import { coach, coachSeen, coachIdle, coachBusy, coachFrame, coachClear } from '../coach.js';
+import { coach, coachSeen, coachIdle, coachBusy, coachFrame, coachClear, tipsSetup } from '../coach.js';
 import { levelKey, bestKey, quickLevel, saveLast } from '../progress.js';
 import { createCrowd } from '../crowd.js';
 import { autoResolution, setBakedGlow, mergeParts } from '../perf.js';
@@ -646,7 +646,7 @@ addEventListener('blur', () => { beamHeld = false; beamPress = mouseShip = null;
 // ---------- flow ----------
 let state = 'start', roundId = 0, outro = null; // roundId: delayed effects from an earlier round check it and stand down
 const pct = () => Math.round((bDone / totalB) * 100);
-soundToggle($('taStart'), $('taPaused')); playerButton($('taPaused'), $('taPaused').querySelector('.menuBtn')); skipSongBtn($('ta')); eraPicker($('taLevels'), () => { level = unlocked(); drawLevels(); }); seasonPicker($('eraRow'));
+soundToggle($('taStart'), $('taPaused')); playerButton($('taPaused'), $('taPaused').querySelector('.menuBtn')); tipsSetup('bu', $('taPaused'), $('taPaused').querySelector('.menuBtn')); skipSongBtn($('ta')); eraPicker($('taLevels'), () => { level = unlocked(); drawLevels(); }); seasonPicker($('eraRow'));
 gameMusic($('taPaused'), SONGS_ALL); radioButton($('taPaused'), $('taPaused').querySelector('.menuBtn'));
 const fsMode = initFullscreen(() => state === 'play' || state === 'outro'); // full screen on play, back in after a browser drop-out, no page scrolling mid-round (the outro is still the round)
 const hudCache = {}; const setT = (id, v) => { v = String(v); if (hudCache[id] !== v) { hudCache[id] = v; $(id).textContent = v; } };

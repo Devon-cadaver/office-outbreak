@@ -3,7 +3,7 @@
 //   mode 'drag': shows a joystick appearing in different places; carries on when the player holds and drags
 //   mode 'tap':  carries on at the next press, which goes through to the game (a tap on the thing does the thing)
 //   mode 'ok':   only to read; a tap anywhere carries on and the game never sees it
-import { tipsSeen, markSeen } from './howto.js';
+import { tipsSeen, markSeen, setTipGate, clearTips } from './howto.js';
 const css = `
 #coach { position: fixed; inset: 0; z-index: 7; pointer-events: none; background: #0a061455; display: none; font-family: inherit; }
 #coach.on { display: block; } #coach.ok { pointer-events: auto; }
@@ -25,10 +25,26 @@ const css = `
 @keyframes coachStick { 0% { opacity: 0; transform: scale(.7); } 12%, 82% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1); } }
 @keyframes coachKnob { 0%, 14% { transform: translate(0, 0); } 34% { transform: translate(30px, -12px); } 54% { transform: translate(6px, -32px); } 74% { transform: translate(-28px, 8px); } 100% { transform: translate(-28px, 8px); } }
 body.cine #coach { visibility: hidden !important; }
+#tipsAsk { position: fixed; inset: 0; z-index: 45; display: flex; align-items: center; justify-content: center; background: #0a0614e6; padding: 20px; font-family: inherit; }
+#tipsAsk .card { width: min(340px, 100%); background: #1a0f2e; border: 2px solid #ffd24a; border-radius: 18px; padding: 18px 16px 14px; text-align: center; color: #fff; box-shadow: 0 0 30px #ffd24a44; }
+#tipsAsk .pic { font-size: 54px; line-height: 1.1; } #tipsAsk h3 { margin: 4px 0 6px; font-size: 22px; color: #ffd24a; } #tipsAsk p { margin: 0 0 14px; font-size: 15px; line-height: 1.35; color: #e8dcff; }
+#tipsAsk .row { display: flex; gap: 8px; } #tipsAsk .row button { flex: 1; margin: 0; font-size: 14px; padding: 12px 6px; }
 `;
 const READY_MS = 650; // a press this soon after a prompt appears doesn't dismiss it, so nobody taps past it by accident
 const OFF = new URLSearchParams(location.search).has('nocoach'); // test scripts drive the game themselves
 let box = null, cur = null, shownAt = 0, doneAt = -1e9, press = null, live = false, spotI = 0, spotT = 0;
+// ---------- tips on or off (each game has its own switch: 'tips_on_<game>' is '1', '0', or not there yet = never asked) ----------
+let game = 'all', asking = false; const tKey = () => 'tips_on_' + game;
+export const tipsOn = () => { if (OFF) return false; try { return localStorage.getItem(tKey()) === '1'; } catch { return false; } };
+export function setTipsOn(v) { try { localStorage.setItem(tKey(), v ? '1' : '0'); } catch { /* ignore */ } if (!v) { coachClear(); clearTips(); } }
+// each game calls this once: g its short name, pauseHost its pause screen (the TIPS button goes in before the element 'before').
+// The first time the game is ever opened it asks whether to show tips (the round, if one has started, waits for the answer)
+export function tipsSetup(g, pauseHost, before) { game = g; setTipGate(tipsOn); ensure();
+  const b = document.createElement('button'); b.className = 'ghost tipsBtn'; const draw = () => { b.textContent = '💡 TIPS: ' + (tipsOn() ? 'ON' : 'OFF'); }; b.addEventListener('click', (e) => { e.stopPropagation(); setTipsOn(!tipsOn()); draw(); }); pauseHost.insertBefore(b, before || null); draw();
+  let asked = true; try { asked = localStorage.getItem(tKey()) !== null; } catch { /* ignore */ } if (OFF || asked) return;
+  asking = true; const m = document.createElement('div'); m.id = 'tipsAsk'; m.innerHTML = '<div class="card"><div class="pic">💡</div><h3>WANT TIPS?</h3><p>Short tips can pop up the first time something new happens, to show you how to play. You can turn them on or off any time from the pause menu.</p><div class="row"><button class="ghost no">NO THANKS</button><button class="yes">YES, SHOW TIPS</button></div></div>';
+  const pick = (v) => (e) => { e.stopPropagation(); setTipsOn(v); asking = false; m.remove(); draw(); }; m.querySelector('.yes').addEventListener('click', pick(true)); m.querySelector('.no').addEventListener('click', pick(false));
+  for (const ev of ['pointerdown', 'pointerup', 'touchstart', 'mousedown']) m.addEventListener(ev, (e) => e.stopPropagation()); document.body.appendChild(m); }
 const q = (s) => box.querySelector(s);
 function ensure() {
   if (box) return; const st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
@@ -45,13 +61,13 @@ function ensure() {
   addEventListener('keydown', (e) => { if (!cur || !live || e.repeat) return; const move = ['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(e.key.toLowerCase()); if (cur.mode === 'drag' ? move : ready()) finish(); }, true);
 }
 function finish() { const c = cur; if (!c) return; cur = null; press = null; doneAt = performance.now(); markSeen('c_' + c.key); box.className = ''; if (c.done) c.done(); }
-export const coachSeen = (key) => OFF || tipsSeen('c_' + key);
+export const coachSeen = (key) => OFF || !tipsOn() || tipsSeen('c_' + key); /* (tips off: the games carry on as if each had been read) */
 // seconds since the last prompt closed (a big number if none has): prompts leave a little room between them
 export const coachIdle = () => (performance.now() - doneAt) / 1000;
 export const coachBusy = () => !!cur;
 // show a prompt once: o = { mode, title, text, at: () => ({ x, y }) screen point to point at (or null), finger, done }
 export function coach(key, o) {
-  if (OFF || cur || tipsSeen('c_' + key)) return false; ensure(); cur = { key, mode: 'ok', ...o }; shownAt = performance.now(); press = null; spotI = 0; spotT = 0;
+  if (OFF || asking || !tipsOn() || cur || tipsSeen('c_' + key)) return false; ensure(); cur = { key, mode: 'ok', ...o }; shownAt = performance.now(); press = null; spotI = 0; spotT = 0;
   q('.card b').textContent = cur.title; q('.card p').textContent = cur.text; q('.card small').textContent = cur.mode === 'ok' ? 'TAP TO CONTINUE' : ''; q('.card small').style.display = cur.mode === 'ok' ? '' : 'none';
   cur.side = null; return true;
 }
@@ -60,6 +76,7 @@ export function coachClear() { if (!cur) return; cur = null; press = null; if (b
 const SPOTS = [[0.5, 0.74], [0.27, 0.62], [0.72, 0.66]]; // the demo joystick turns up in a few places: it works anywhere
 // every frame from the game: isLive = a round is being played. Returns true while the round should hold still
 export function coachFrame(isLive) {
+  if (asking) return !!isLive; /* the WANT TIPS? question is up: a round that has started waits for the answer */
   live = !!(cur && isLive); if (!cur) return false; if (!isLive) { box.className = ''; return false; }
   const W = innerWidth, H = innerHeight, now = performance.now(), c = cur;
   box.className = 'on' + (c.mode === 'ok' ? ' ok' : '') + (now - shownAt >= READY_MS ? ' ready' : '');

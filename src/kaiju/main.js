@@ -21,7 +21,7 @@ import { nukeBlast } from '../nuke.js';
 import { stampVersion } from '../version.js';
 import { initFullscreen } from '../fullscreen.js';
 import { showHowTo, tip, clearTips } from '../howto.js';
-import { coach, coachSeen, coachIdle, coachBusy, coachFrame, coachClear } from '../coach.js';
+import { coach, coachSeen, coachIdle, coachBusy, coachFrame, coachClear, tipsSetup } from '../coach.js';
 import { quickLevel, saveLast } from '../progress.js';
 import { createCrowd } from '../crowd.js';
 import { buildOutskirts } from '../outskirts.js';
@@ -1076,7 +1076,7 @@ addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; if (mini &
 
 // ---------- flow ----------
 let state = 'start', died = false, roundId = 0; // roundId: delayed effects from an earlier round check it and stand down
-soundToggle($('taStart'), $('taPaused')); playerButton($('taPaused'), $('taPaused').querySelector('.menuBtn')); skipSongBtn($('ta')); eraPicker($('taLevels'), () => { level = unlockedLevel(); drawLevels(); }); seasonPicker($('eraRow')); // sound on/off on the start and pause screens
+soundToggle($('taStart'), $('taPaused')); playerButton($('taPaused'), $('taPaused').querySelector('.menuBtn')); tipsSetup('kj', $('taPaused'), $('taPaused').querySelector('.menuBtn')); skipSongBtn($('ta')); eraPicker($('taLevels'), () => { level = unlockedLevel(); drawLevels(); }); seasonPicker($('eraRow')); // sound on/off on the start and pause screens
 // the soundtrack starts on the first tap and keeps rotating songs for as long as you're on Kaiju Madness
 gameMusic($('taPaused'), SONGS_KAIJU); radioButton($('taPaused'), $('taPaused').querySelector('.menuBtn'));
 const fsMode = initFullscreen(() => state === 'play' || state === 'outro'); // full screen on play, back in after a browser drop-out, no page scrolling mid-round

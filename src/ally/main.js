@@ -21,7 +21,7 @@ import { showPrizes } from '../prizes.js';
 import { stampVersion } from '../version.js';
 import { initFullscreen } from '../fullscreen.js';
 import { showHowTo, tip, clearTips } from '../howto.js';
-import { coach, coachSeen, coachIdle, coachBusy, coachFrame, coachClear } from '../coach.js';
+import { coach, coachSeen, coachIdle, coachBusy, coachFrame, coachClear, tipsSetup } from '../coach.js';
 import { quickLevel, saveLast } from '../progress.js';
 import { createCrowd } from '../crowd.js';
 import { autoResolution, mergeStatic, bakeMovable, bakeUnits, setBakedGlow } from '../perf.js';
@@ -598,7 +598,7 @@ function drawTwPicker() { const cur = equippedTornado(); $('twChosenName').textC
 $('twChoose').addEventListener('click', () => { location.href = 'store.html?from=alley'; }); /* (the skin shop, on the tornadoes: pick one, or buy one, right there) */
 $('twPickDone').addEventListener('click', () => { $('twPickScr').classList.add('hidden'); $('taStart').classList.remove('hidden'); drawTwPicker(); });
 drawTwPicker();
-soundToggle($('taStart'), $('taPaused')); playerButton($('taPaused'), $('taPaused').querySelector('.menuBtn')); skipSongBtn($('ta')); eraPicker($('taLevels'), () => { level = unlocked(); drawLevels(); }); seasonPicker($('eraRow')); // sound on/off on the start and pause screens
+soundToggle($('taStart'), $('taPaused')); playerButton($('taPaused'), $('taPaused').querySelector('.menuBtn')); tipsSetup('ta', $('taPaused'), $('taPaused').querySelector('.menuBtn')); skipSongBtn($('ta')); eraPicker($('taLevels'), () => { level = unlocked(); drawLevels(); }); seasonPicker($('eraRow')); // sound on/off on the start and pause screens
 // the soundtrack starts on the first tap and keeps rotating songs for as long as you're on Tornado Alley
 gameMusic($('taPaused'), SONGS_TORNADO); radioButton($('taPaused'), $('taPaused').querySelector('.menuBtn'));
 const fsMode = initFullscreen(() => state === 'play' || state === 'outro'); // full screen on play, back in after a browser drop-out, no page scrolling mid-round

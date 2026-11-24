@@ -245,6 +245,8 @@ const LOOK = {
 };
 TEX.checkerDisc = () => tex('checkerDisc', 16, 16, (x) => { x.fillStyle = '#ff2ad0'; x.fillRect(0, 0, 16, 16); x.fillStyle = '#111118'; x.fillRect(0, 0, 8, 8); x.fillRect(8, 8, 8, 8); }, 6, 6);
 export const hasCraftLook = (key) => !!LOOK[key];
+// the colours of the victory smoke trail: the skin's own paint (body and its brightest trim), or red, white and blue with no skin
+export function craftSmoke(key, kind) { const L = LOOK[key], p = L && L[kind === 'heli' ? 'h' : 'b'] && L[kind === 'heli' ? 'h' : 'b'].paint; return p ? [p.body, p.sand || p.stripe || p.wing || 0xffffff, p.wing || p.fin || p.body].filter((c) => c != null) : [0xff3a3a, 0xffffff, 0x3a7aff]; }
 
 // the flame colours for a skin's fires and blasts (fire.js setFlamePalette), or the usual ones
 export const DEFAULT_FLAMES = { flames: [0xff7a1a, 0xffb02a, 0xffe06a], glow: 0xff8a2a };
