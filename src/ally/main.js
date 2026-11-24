@@ -613,7 +613,7 @@ function start() {
   state = 'play'; playSongs(); setStormLevel(0); sfx.whoosh(); banner('LEVEL ' + level + ': ' + L().name.toUpperCase()); setTimeout(() => { if (state === 'play') banner(SEASON_NAME[seasonFor()].toUpperCase()); }, 2300);
   renderer.compile(scene, viewCam()); // compile every material in the new town now, not mid-play
   $('taLevel').textContent = MODE === 'endless' ? '♾️ ENDLESS · WAVE 1' : 'L' + level + ' · ' + L().name + (RK.tag ? ' · ' + RK.tag : ''); measureHud(); for (const k in hudCache) delete hudCache[k]; rankShown = -1;
-  setTimeout(() => { if (state === 'play') banner(MODE === 'endless' ? '♾️ ENDLESS\nTHEY REBUILD. THE ARMY KEEPS COMING.\nKEEP YOUR STORM FED' : 'TAKE OUT ' + (L().need >= poiOrder.length ? 'ALL ' + poiOrder.length : L().need) + ' TARGETS'); }, 4600);
+  setTimeout(() => { if (state === 'play') banner(MODE === 'endless' ? '♾️ ENDLESS\nTHEY REBUILD. THE ARMY KEEPS COMING.\nHOW LONG CAN YOU LAST?' : 'TAKE OUT ' + (L().need >= poiOrder.length ? 'ALL ' + poiOrder.length : L().need) + ' TARGETS'); }, 4600);
 }
 // a new storm skin from the pause menu: the same storm, same size and place, in its new look
 function swapStorm() { if (!twObj) return; if (nukeT > 0) { banner('NOT WHILE NUKULAR!'); return false; } const pos = twObj.position.clone(), sc = twObj.scale.x; twisters.remove(twObj);
@@ -649,7 +649,7 @@ function finishNow() {
   if (cleared && level >= 5 && grantSkin('tornado:acid')) { equip('tornado', 'tornado:acid'); const u = document.createElement('div'); u.className = 'bonusSkin'; u.innerHTML = '🏆 BONUS SKIN UNLOCKED: <b>ACID STORM</b><br><small>Acid rain, green lightning and baby tornadoes. It\'s on now; change it in the skin shop.</small>'; $('taGoalLine').appendChild(u); }
   if (absorbed) $('taGoalLine').textContent = 'A bigger rogue twister held your storm for three seconds and swallowed it. Break away from it, or strike it to shrink it.';
   if (totalD) { $('taEndTitle').innerHTML = 'TOTAL<br>DESTRUCTION!'; totalReward(Object.keys(TWISTER_SKINS).filter((k) => !TWISTER_SKINS[k].bonus).map((k) => 'tornado:' + k), (id) => TWISTER_SKINS[id.split(':')[1]].name, $('taGoalLine')); }
-  { const host = $('taGoalLine'), last = lvN >= LEVELS.length; awardStars('ta', lvN, [['Wreck the town', cleared], ['Wreck 60% of it', cleared && pct >= 60], last ? ['Swallow the Maelstrom in time', cleared && bossBeat] : ['Take out every big target', cleared && done.length >= poiOrder.length]], host); if (cleared) dailyWon(host); streakLine(host); if (MODE === 'endless') { host.textContent = absorbed ? 'A rogue twister swallowed your storm.' : 'Your storm was shrunk to nothing and blew itself out. Keep wrecking to keep it fed.'; endlessOver(host, waves.n, played, score); } }
+  { const host = $('taGoalLine'), last = lvN >= LEVELS.length; awardStars('ta', lvN, [['Wreck the town', cleared], ['Wreck 60% of it', cleared && pct >= 60], last ? ['Swallow the Maelstrom in time', cleared && bossBeat] : ['Take out every big target', cleared && done.length >= poiOrder.length]], host); if (cleared) dailyWon(host); streakLine(host); if (MODE === 'endless') { host.textContent = absorbed ? 'A rogue twister swallowed your storm.' : 'The army shrank your storm to nothing, and it blew itself out.'; endlessOver(host, waves.n, played, score); } }
   if (cleared && level < LEVELS.length && MODE === 'normal') level++; saveLast('ta', level); /* the next town is open and picked right away, wherever you go from here (change monster, the shop, NEXT LEVEL) */
   drawLevels(); /* and the start screen shows the new best score without a reload */
   $('taStats').innerHTML = [...(totalD ? [['💥 Total destruction', '+' + totalD]] : []), ['Buildings', bDone + ' / ' + totalB + ' (' + pct + '%)'], ['People swept up', peopleN], ['Cars thrown', carsN], ['Storm chasers', chasersCaught + ' destroyed, ' + chasersLost + ' got away'], ['Big targets', done.length + ' / ' + poiOrder.length + ' ' + done.map((k) => POI[k].icon).join('')], ['Peak size', 'F' + rankOf(size) + ' (' + size.toFixed(1) + 'x)'], ['Score', score], ['Score coins', '+' + scoreCoins + ' 🪙'], ['Best', best]].map(([a, b]) => '<tr><td>' + a + '</td><td>' + b + '</td></tr>').join('');
@@ -707,9 +707,9 @@ const events = makeEvents([
   { run() { grow(massTarget * 0.06); boostT = Math.max(boostT, 4); banner('⚡ SUPERCELL!\n+SIZE AND A BURST OF SPEED'); popup(twObj.position, '+SIZE', '#7dff3a'); sfx.power(); } },
 ]);
 // ---------- ENDLESS (fun.js, rebuild.js): The Sprawl with no clock and no goal. crewFor(x): building x is coming down; a crew will
-// put it back in about a minute (a copy of it is kept). A WAVE every 45 seconds raises RK.foe and RK.hurt. HUNGER: the storm
-// loses a share of its size all the time, a bigger share each wave (and cannot bank more than a little over full size); shrunk to nothing for
-// seven seconds, it blows itself out ----------
+// put it back in about a minute (a copy of it is kept). A WAVE every 45 seconds raises RK.foe and RK.hurt: that is all that makes
+// it harder (the storm does not shrink by itself). It cannot bank size past F5, so the enemies can always shrink it; shrunk to
+// nothing for ten seconds, it blows itself out ----------
 const waves = makeWaves({ every: 45 }); let dyingT = 0, dyingSaid = 0;
 const rebuilder = makeRebuilder({ scene, fx, delay: 60, build: 4, max: 3, busy: (x) => !!twObj && Math.hypot(x.pos.x - twObj.position.x, x.pos.z - twObj.position.z) < 3 + sizeShown * 2.4,
   done(x, G) { city.group.attach(G); x.done = false; x.obj = x.b = G; if (x.rw) { x.rw = false; totalB++; } else bDone = Math.max(0, bDone - 1); if (x.ob0 && !city.obstacles.includes(x.ob0)) city.obstacles.push(x.ob0); if (toScreen(x.pos).on) popup(x.pos, '🏗️ REBUILT', '#ffd24a'); } });
@@ -717,9 +717,9 @@ function crewFor(x) { x.ob0 = city.obstacles.find((o) => Math.abs(o.x - x.pos.x)
 function endlessTick(dt) {
   if (waves.tick(dt)) { RK.foe = waves.foe; RK.hurt = waves.hurt; banner('🌊 WAVE ' + waves.n + '!\nMORE OF THEM, AND MEANER'); sfx.wave(); jolt(0.4); $('taLevel').textContent = '♾️ ENDLESS · WAVE ' + waves.n; }
   rebuilder.tick(dt, played);
-  if (mass > 0) { mass = Math.min(massTarget * 1.15, mass * (1 - Math.min(0.9, (0.006 + 0.004 * (waves.n - 1)) * dt))); if (mass < 0.5) mass = 0; grow(0); } /* hunger: a share of what it has, every second (0.6% in the first wave, 0.4% more each wave), so a small new storm can still grow and a big one has to keep eating */
-  if (mass <= 0 && played > 40) { if (dyingT === 0) { banner('⚠ YOUR STORM IS DYING!\nWRECK SOMETHING'); sfx.hurt(); dyingSaid = 0; } dyingT += dt; if (dyingT - dyingSaid >= 1) { dyingSaid = Math.floor(dyingT); popup(twObj.position, 'DYING ' + Math.max(1, 7 - dyingSaid), '#ff5a4a'); }
-    if (dyingT >= 7) { banner('THE STORM BLEW ITSELF OUT'); sfx.over(); finish(); } } else dyingT = 0; }
+  if (mass > massTarget * 1.03) { mass = massTarget * 1.03; grow(0); } /* no banking size past F5: in an ordinary round a full-grown storm has so much in hand that nothing dents it; here the enemies' hits still shrink it */
+  if (mass <= 0 && played > 40) { if (dyingT === 0) { banner('⚠ YOUR STORM IS DYING!\nWRECK SOMETHING'); sfx.hurt(); dyingSaid = 0; } dyingT += dt; if (dyingT - dyingSaid >= 1) { dyingSaid = Math.floor(dyingT); popup(twObj.position, 'DYING ' + Math.max(1, 10 - dyingSaid), '#ff5a4a'); }
+    if (dyingT >= 10) { banner('THE STORM BLEW ITSELF OUT'); sfx.over(); finish(); } } else dyingT = 0; }
 const foes = createFoes({ foeK: () => RK.foe, bossDown: () => bossDown(), absorbed: () => { absorbed = true; }, speedBurst: (s) => speedBurst(s, twObj.position), scene, fx, twisters, S0, MAX_S, maxH, rankOf, popup, banner, award, grow, jolt, boltTo, edgeArrow, toScreen, rivalWreck, crashDamage, coach, coachSeen, flash: (v) => { flashT = Math.max(flashT, v); },
   get twObj() { return twObj; }, get tw() { return tw; }, get size() { return sizeShown; }, get level() { return level; }, get played() { return played; }, get cols() { return cols; }, get massTarget() { return massTarget; },
   get buildings() { return buildings; }, get people() { return people; }, get roadCells() { return roadCells; }, get pois() { return pois; }, get poiOrder() { return poiOrder; }, get radarDown() { return radarDown; } });
