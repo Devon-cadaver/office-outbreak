@@ -5,7 +5,7 @@ export function isMuted() { return muted; }
 export function audioState() { return ctx ? ctx.state : "none"; }
 try { muted = localStorage.getItem("oo_mute") === "1"; musicMuted = localStorage.getItem("oo_music_off") === "1"; } catch { /* ignore */ }
 // music has its own switch, separate from the sound effects
-export function setMusicMuted(v) { musicMuted = v; if (FRAME) FRAME.setMusicMuted(v); if (musicSw) musicSw.gain.value = musicMuted ? 0 : 1; if (song) { song.muted = musicMuted; if (!musicMuted && song.paused && !radioPaused) song.play().catch(() => {}); } try { localStorage.setItem("oo_music_off", musicMuted ? "1" : "0"); } catch { /* ignore */ } }
+export function setMusicMuted(v) { musicMuted = v; try { dispatchEvent(new Event('oo-sound')); } catch { /* ignore */ } if (FRAME) FRAME.setMusicMuted(v); if (musicSw) musicSw.gain.value = musicMuted ? 0 : 1; if (song) { song.muted = musicMuted; if (!musicMuted && song.paused && !radioPaused) song.play().catch(() => {}); } try { localStorage.setItem("oo_music_off", musicMuted ? "1" : "0"); } catch { /* ignore */ } }
 export function unlockAudio() {
   if (!ctx) {
     try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch { ctx = null; return; }
@@ -35,7 +35,7 @@ export function soundToggle(...hosts) {
     const m = document.createElement('button'); m.className = 'ghost soundBtn'; m.dataset.k = 'm';
     m.addEventListener('click', (e) => { e.stopPropagation(); unlockAudio(); setMusicMuted(!musicMuted); draw(); });
     row.append(b, m); h.insertBefore(row, h.querySelector('.howRow, .menuBtn')); btns.push(b, m); }
-  draw();
+  draw(); addEventListener('oo-sound', draw);
 }
 function tone(freq, dur, type = 'square', vol = 0.08, slide = 0, dest = master, when = 0) {
   if (!ctx) return; const t = ctx.currentTime + when;
@@ -148,7 +148,8 @@ const FRAME = (() => { try { return window.parent !== window && window.parent.__
 export const SONGS_ALL = ['music/tornado-alley.mp3', 'music/twister-vs-army.mp3', 'music/clean-slate.mp3', 'music/feeding-ground.mp3', 'music/stomp-the-block.mp3', 'music/saving-you-the-trouble.mp3', 'music/tatsumaki-justice.mp3', 'music/my-little-disaster.mp3', 'music/my-little-disaster-2.mp3', 'music/napalm-requiem.mp3', 'music/beam-beam-baby.mp3', 'music/little-green-man-at-the-rodeo.mp3'];
 export const SONGS_TORNADO = SONGS_ALL, SONGS_KAIJU = SONGS_ALL;
 const VOLS = [['LOW', 0.25], ['MED', 0.55], ['FULL BLAST', 0.95]];
-let SONGS = SONGS_ALL, volV = null, radioPaused = false, order = [], song = null, songGain = null, songI = -1, repeat = false, volI = 0, resumeAt = 0; /* the songs start at LOW until you change it */
+let SONGS = SONGS_ALL, volV = null, radioPaused = false, order = [], song = null, songGain = null, songI = -1, repeat = false, volI = 0, resumeAt = 0, shuffle = true; const hist = []; /* the songs start at LOW until you change it. shuffle: off = the songs play in list order. hist: the songs before this one (for ⏮) */
+try { shuffle = localStorage.getItem('oo_radio_shuffle') !== '0'; } catch { /* ignore */ }
 try { const v = +localStorage.getItem('oo_music_vol'); if (v >= 0 && v < VOLS.length && localStorage.getItem('oo_music_vol') !== null) volI = v; } catch { /* ignore */ }
 try { const v = localStorage.getItem('oo_radio_vol'); if (v !== null && +v >= 0 && +v <= 1) volV = +v; } catch { /* ignore */ }
 try { const st = JSON.parse(sessionStorage.getItem('oo_radio') || 'null'); if (st && SONGS[st.i]) { songI = st.i; resumeAt = st.t || 0; order = (st.order || []).filter((i) => SONGS[i]); repeat = !!st.rep; } } catch { /* ignore */ }
@@ -179,14 +180,24 @@ export const songName = (src) => src === 'music/my-little-disaster-2.mp3' ? 'MY 
 export function songsOff() { try { return JSON.parse(localStorage.getItem('oo_radio_off') || '[]'); } catch { return []; } }
 const onAir = () => { const off = songsOff(), on = SONGS.map((_, i) => i).filter((i) => !off.includes(SONGS[i])); return on.length ? on : SONGS.map((_, i) => i); };
 function pickNext() { if (order.length && !order.every((i) => onAir().includes(i))) order = order.filter((i) => onAir().includes(i)); if (!order.length) { order = onAir(); for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; } if (song && order.length > 1 && order[0] === songI) order.push(order.shift()); } return order.shift(); }
-export function nextSong() { if (FRAME) return FRAME.nextSong(); if (!song) return playSongs(); songI = pickNext(); resumeAt = 0; startSong(); saveRadio(); }
+// put song i on now (back: it came off the history, so it is not added to it)
+function goSong(i, back) { if (!back && songI >= 0 && songI !== i) { hist.push(songI); if (hist.length > 40) hist.shift(); } songI = i; resumeAt = 0; startSong(); saveRadio(); }
+const inOrder = () => { const on = onAir(); return on.find((i) => i > songI) ?? on[0]; };
+export function nextSong() { if (FRAME) return FRAME.nextSong(); if (!song) return playSongs(); goSong(shuffle ? pickNext() : inOrder()); }
+// ⏮: back to the start of this song, or (in its first three seconds) to the song before it
+export function prevSong() { if (FRAME) return FRAME.prevSong ? FRAME.prevSong() : undefined; if (!song) return playSongs(); if (song.currentTime > 3 || !hist.length) { song.currentTime = 0; radioPaused = false; if (song.paused && !musicMuted && duck > 0) song.play().catch(() => {}); return; } goSong(hist.pop(), true); }
+export function isShuffle() { return FRAME ? (FRAME.isShuffle ? FRAME.isShuffle() : true) : shuffle; }
+export function toggleShuffle() { if (FRAME) return FRAME.toggleShuffle ? FRAME.toggleShuffle() : true; shuffle = !shuffle; try { localStorage.setItem('oo_radio_shuffle', shuffle ? '1' : '0'); } catch { /* ignore */ } return shuffle; }
+export function radioRepeat() { return FRAME ? FRAME.repeat : repeat; }
+export function toggleRadioRepeat() { return FRAME ? FRAME.toggleRepeat() : toggleRepeat(); }
+export const isMusicMuted = () => musicMuted;
 // the radio station's SKIP: the next song down the list that's on the air, and from the last one back to the first
 export function skipDown() { if (FRAME) return FRAME.skipDown(); if (!song) return playSongs(); const on = onAir(); playSong(SONGS[on.find((i) => i > songI) ?? on[0]]); }
 // play one song now (the radio station's ▶): the shuffle carries on from it afterwards
 // the first time a game is opened, its own song comes on (after that, the usual shuffle). Returns true when it did
 export function firstSong(game, src) { try { const k = 'oo_first_song_' + game; if (localStorage.getItem(k)) return false; localStorage.setItem(k, '1'); } catch { return false; } playSong(src); return true; }
-export function playSong(src) { if (FRAME) return FRAME.playSong(src); const i = SONGS.indexOf(src); if (i < 0) return; if (!song) { playSongs(); if (!song) return; } songI = i; resumeAt = 0; order = order.filter((k) => k !== i); startSong(); saveRadio(); }
-export function songState() { if (FRAME) return FRAME.songState(); return song ? { t: song.currentTime, paused: song.paused, muted: song.muted, src: SONGS[songI], loop: song.loop, vol: VOLS[volI][0], list: SONGS.length } : null; }
+export function playSong(src) { if (FRAME) return FRAME.playSong(src); const i = SONGS.indexOf(src); if (i < 0) return; if (!song) { playSongs(); if (!song) return; } order = order.filter((k) => k !== i); goSong(i); }
+export function songState() { if (FRAME) return FRAME.songState(); return song ? { t: song.currentTime, dur: isFinite(song.duration) ? song.duration : 0, paused: song.paused, muted: song.muted, src: SONGS[songI], loop: song.loop, vol: VOLS[volI][0], list: SONGS.length } : null; }
 function toggleRepeat() { repeat = !repeat; if (song) song.loop = repeat || SONGS.length === 1; saveRadio(); return repeat; }
 function cycleVol() { volI = (volI + 1) % VOLS.length; volV = null; applyVol(); try { localStorage.setItem('oo_music_vol', volI); localStorage.removeItem('oo_radio_vol'); } catch { /* ignore */ } return VOLS[volI][0]; }
 // the radio station's pause button: stays paused through taps and rounds until it's pressed again, or a song is picked or skipped
@@ -199,7 +210,7 @@ const volName = () => (volV !== null ? Math.round(volV * 100) + '%' : VOLS[volI]
 // the frame page shares its radio with the pages inside it
 // wake the radio after iOS paused it (Control Center, a call, another app): resume the audio engine and the song
 function wake() { unlockAudio(); if (song && song.paused && !musicMuted && !radioPaused && duck > 0) song.play().catch(() => {}); }
-export function frameRadio() { songI = -1; resumeAt = 0; order = []; /* a fresh start of the game: back to the first track */ window.__radio = { setMusicDuck, wake, menuMusic, playSongs, nextSong, skipDown, playSong, songState, toggleRepeat, cycleVol, isRadioPaused, toggleRadioPause, musicVol, setMusicVol, setMuted, setMusicMuted, get repeat() { return repeat; }, get volName() { return volName(); } }; }
+export function frameRadio() { songI = -1; resumeAt = 0; order = []; /* a fresh start of the game: back to the first track */ window.__radio = { setMusicDuck, wake, menuMusic, playSongs, nextSong, prevSong, isShuffle, toggleShuffle, skipDown, playSong, songState, toggleRepeat, cycleVol, isRadioPaused, toggleRadioPause, musicVol, setMusicVol, setMuted, setMusicMuted, get repeat() { return repeat; }, get volName() { return volName(); } }; }
 // a game page's soundtrack: starts on the first tap and keeps going; SKIP SONG, REPEAT and VOLUME on the given screen
 export function gameMusic(host, list) {
   radio();

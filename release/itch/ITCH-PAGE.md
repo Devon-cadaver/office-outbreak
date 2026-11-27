@@ -1,6 +1,6 @@
 # Tornado Time! — itch.io page kit
 
-Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.45.2**. Upload `release/tornado-time-web-v1.45.2.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to. All the images below are in `release/itch/tornado-time/`.
+Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.46.0**. Upload `release/tornado-time-web-v1.46.0.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to. All the images below are in `release/itch/tornado-time/`.
 
 The game used to be called Dead City: Tornado Alley. From 1.28.0 it is **Tornado Time!**, with Kaiju Madness as its bonus game. Older zips keep their old `survive-dead-city-web` names.
 
@@ -15,7 +15,7 @@ The game used to be called Dead City: Tornado Alley. From 1.28.0 it is **Tornado
 | Short description / tagline | You are the tornado. Wreck six towns, swallow rival twisters, zap UFOs and blow up everything worth blowing up. |
 | Classification | Game |
 | Kind of project | **HTML** |
-| Uploads | `tornado-time-web-v1.45.2.zip` (about 40 MB, mostly the eleven songs). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
+| Uploads | `tornado-time-web-v1.46.0.zip` (about 40 MB, mostly the eleven songs). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
 | Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
 | Frame options | Leave SharedArrayBuffer off. No special headers needed. |
 | Pricing | Free (or "No payments"). |
@@ -123,6 +123,7 @@ Small browser games built fast, tested on a phone, and tuned by playing. Tornado
 
 ## Version history
 
+- **1.46.0** (2026-11-26): Mini bosses: one in each of the first five towns of all four games, 20 in all, each beaten its own way (hit the Gravedigger from behind, beam up the General, swat the Sky Admiral, swallow the Chaser Convoy, and more). Beat one in time for bonus points and one more go at the prize game. The radio is now a music player: see what is playing, go back or skip, shuffle, repeat, and tap any song to play it. Zombie Air Raid: every level has its own zombies, and zombie skins you win join the horde in your next round.
 - **1.45.2** (2026-11-23): Pause menus: map icons no longer show over the menu (it happened in Kaiju Madness), all the sound, music and radio buttons now sit behind one SOUNDS button, and the PLAYER button is centered.
 - **1.45.1** (2026-11-23): Tornado Time! ENDLESS: the storm no longer shrinks by itself, so it can grow as usual; only the waves make it harder. A full-grown F5 storm can now be shrunk by enemies.
 - **1.45.0** (2026-11-23): ENDLESS: one never-ending round in The Sprawl for all four games, with waves until you go down. A new look for every storm (flared top, wispy swirl, dark bands, ground swirl). ENDLESS RUN is now TOWN STREAK; the challenges moved to the Bonus Games screen. Zombie Air Raid: the plane makes strafing runs on a locked walker.

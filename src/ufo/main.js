@@ -23,11 +23,12 @@ import { townSkin, skinnedCarArgs, addCoins } from '../skins.js';
 import { forceSeason, seasonChoice, seasonPicker } from '../season.js';
 import { eraPicker } from '../era.js';
 import { showPrizes } from '../prizes.js';
+import { MINIS } from './minis.js';
 import { stampVersion } from '../version.js';
 import { initFullscreen } from '../fullscreen.js';
 import { showHowTo, tip, clearTips, markSeen } from '../howto.js';
 import { coach, coachSeen, coachIdle, coachBusy, coachFrame, coachClear, tipsSetup } from '../coach.js';
-import { FUN, MODE, funInit, diffPicker, roundK, starTag, awardStars, comboHud, bossBar, bossDue, makeEvents, meteorShower, clearMeteors, funTick, buzz, dailyLevel, dailyWon, streakLevel, streakEnd, streakLine, makeWaves, endlessOver } from '../fun.js';
+import { FUN, MODE, funInit, diffPicker, roundK, starTag, awardStars, comboHud, bossBar, bossDue, miniDue, makeEvents, meteorShower, clearMeteors, funTick, buzz, dailyLevel, dailyWon, streakLevel, streakEnd, streakLine, makeWaves, endlessOver } from '../fun.js';
 import { makeRebuilder } from '../rebuild.js';
 import { levelKey, bestKey, quickLevel, saveLast } from '../progress.js';
 import { createCrowd } from '../crowd.js';
@@ -533,6 +534,17 @@ const bldCard = () => coachBusy() && !!curCard && curCard.key === 'bu_bld'; /* t
 let RK = { time: 1, foe: 1, hurt: 1, coins: 1, tag: '' }, boss = null, bossBeat = false; const BOSS = { time: 90, hp: 18, score: 25000, name: '👑 THE IRON MAMMOTH' };
 function startBoss() { const t = army.addBoss(BOSS.hp); boss = { t, left: BOSS.time, dead: false }; banner('⚠️ BOSS: THE IRON MAMMOTH!\nTAP IT TO FIRE'); sfx.wave(); jolt(0.6); flashT = Math.max(flashT, 0.3); }
 function bossDown(q) { if (!boss || boss.dead) return; boss.dead = true; boss.left = 3.2; bossBeat = true; score += BOSS.score; banner('💥 IRON MAMMOTH DESTROYED!\n+' + BOSS.score); jolt(1); flashT = Math.max(flashT, 0.5); }
+// ---------- MINI BOSSES (minis.js, run by the army): one in each of the first five towns, when the town's three goals are
+// half met. The town's clock stops and the mini boss's own runs. Beat it in time: points, and one more go at the prize
+// game. Out of time: no bonus, it pulls out, and the town's clock carries on. mini: { M: its line in MINIS, t, dead } ----------
+let mini = null, miniBeat = false, miniMet = false; const shove = { x: 0, z: 0, t: 0 };
+const halfDone = () => (Math.min(1, abd / L().abduct) + Math.min(1, pct() / L().goal) + Math.min(1, poisDone() / poiGoal())) / 3;
+function startMini() { const M = MINIS[level - 1]; if (!M || mini || !ship.alive) return; miniMet = true; army.minis.start(M.key, Math.max(1, Math.round(M.hp * (0.5 + 0.5 * RK.foe)))); mini = { M, t: M.time, dead: false }; banner('⚠️ MINI BOSS: ' + M.short + '!\n' + M.intro); sfx.wave(); jolt(0.6); flashT = Math.max(flashT, 0.3); }
+function miniDown() { if (!mini || mini.dead) return; const M = mini.M; mini.dead = true; mini.t = 2.6; miniBeat = true; score += M.score; banner('🏆 ' + M.short + ' DEFEATED!\n+' + M.score + ' AND ONE MORE GO AT THE PRIZES'); sfx.wave(); after(0.3, () => sfx.power()); jolt(0.9); flashT = Math.max(flashT, 0.5); }
+function miniTick(dt) { const b = mini; b.t -= dt; if (b.dead) { bossBar(null); if (b.t <= 0) mini = null; return; } if (b.t <= 0) { mini = null; bossBar(null); army.minis.leave(); banner('⏱ OUT OF TIME!\nNO BONUS FOR ' + b.M.short); return; } bossBar(b.M.name, army.minis.frac(), b.t, b.M.hint); }
+// the Horn King's blast: the saucer is thrown back (and, for a moment, does not answer, or crash into what it is thrown at)
+function miniShove(nx, nz, pow) { shove.x = nx * pow * 2; shove.z = nz * pow * 2; shove.t = 0.5; bumpT = Math.max(bumpT, 1.2); moveTo = null; pend = null; }
+function shoveTick(dt) { if (shove.t <= 0 || !ship.alive || !T) return; shove.t -= dt; const b = T.lim; ship.x = Math.max(-b.x, Math.min(b.x, ship.x + shove.x * dt)); ship.z = Math.max(-b.z, Math.min(b.z, ship.z + shove.z * dt)); ship.center.set(ship.x, ship.y, ship.z); }
 function bossTick(dt) { const b = boss; b.left -= dt; if (b.left <= 0) { boss = null; bossBar(null); if (!b.dead) { popup(ship.center, 'THE IRON MAMMOTH PULLED BACK!', '#ff9a8a'); army.dropBoss(); } finish('win'); return true; } if (b.dead) bossBar(null); else bossBar(BOSS.name, b.t.hp / b.t.max, b.left); return false; }
 const events = makeEvents([
   { can: () => army.tanks.length + army.soldiers.length > 2, run() { banner('☄️ METEOR SHOWER ON THE ARMY!'); sfx.wave(); meteorShower(scene, 6, () => { const l = [...army.tanks.map((t) => t.g.position), ...army.soldiers.map((o) => o.position)]; if (!l.length) return null; const q = l[(Math.random() * l.length) | 0]; return { x: q.x, z: q.z }; }, (x, z) => { if (state !== 'play') return; const at = V3(x, 0.5, z); fx.explode(at, 1.4); fx.scorch(V3(x, 0, z), 1.5); army.hitArea(at, 2.2, { quiet: true }); sfx.boom(); if (toScreen(at).on) jolt(0.3); }); } },
@@ -551,7 +563,7 @@ function endlessTick(dt) {
 const army = createArmy({ foeK: () => RK.foe, bossDown: (q) => bossDown(q), gunPow: () => 1 + (shotLv || 0) * 0.5, scene, fx, twisters, toScreen, edgeArrow, popup, banner, award, jolt, coach: card, coachSeen, inView: (...a) => inView(...a), flash: (v) => { flashT = Math.max(flashT, v); },
   hurt: (d, k, p) => hurt(d, k, p), groundHit: (p, k) => groundHit(p, k), blast: (c, r, o) => blast(c, r, o), collide: (c) => collidePerson(c), status, after, free: (o) => { if (T) T.free(o); },
   stat: (k) => { stats[k] = (stats[k] || 0) + 1; }, poiCenters: () => poiOrder.filter((k) => !pois[k].done).map((k) => pois[k].center),
-  get ship() { return shipState; }, get town() { return T; }, get level() { return level; }, get played() { return played; }, get blind() { return blindT; }, get radarDown() { return radarDown; }, get radioDown() { return radioDown; } });
+  miniDown: () => miniDown(), shove: (nx, nz, pow) => miniShove(nx, nz, pow), pullR: PULL_R * 0.8, get beamOn() { return beamOn; }, get ship() { return shipState; }, get town() { return T; }, get level() { return level; }, get played() { return played; }, get blind() { return blindT; }, get radarDown() { return radarDown; }, get radioDown() { return radioDown; } });
 
 // ---------- the horn trucks (Downtown on): Tornado Time!'s storm cannons (foes.js) turned on the saucer. Each charges, then
 // blasts along its orange line: a hit drains the shield and throws the saucer back. Zap it twice, or once while it charges,
@@ -674,7 +686,7 @@ gameMusic($('taPaused'), SONGS_ALL); radioButton($('taPaused'), $('taPaused').qu
 const fsMode = initFullscreen(() => state === 'play' || state === 'outro'); // full screen on play, back in after a browser drop-out, no page scrolling mid-round (the outro is still the round)
 const hudCache = {}; const setT = (id, v) => { v = String(v); if (hudCache[id] !== v) { hudCache[id] = v; $(id).textContent = v; } };
 const setC = (id, cls, on) => { const k = id + '.' + cls; if (hudCache[k] !== on) { hudCache[k] = on; $(id).classList.toggle(cls, on); } };
-function start() { if (MODE === 'streak') level = streakLevel(LEVELS.length); if (MODE === 'endless') { level = LEVELS.length; waves.reset(); arriveT = 12; } rebuilder.clear(); RK = roundK('bu'); boss = null; bossBeat = false; bossBar(null); comboHud(1, 0); clearMeteors(); events.reset(); firstSong('bu', 'music/beam-beam-baby.mp3'); /* (the first round ever opens on Beam Beam Baby) */
+function start() { if (MODE === 'streak') level = streakLevel(LEVELS.length); if (MODE === 'endless') { level = LEVELS.length; waves.reset(); arriveT = 12; } rebuilder.clear(); RK = roundK('bu'); boss = null; bossBeat = false; mini = null; miniBeat = miniMet = false; shove.t = 0; bossBar(null); comboHud(1, 0); clearMeteors(); events.reset(); firstSong('bu', 'music/beam-beam-baby.mp3'); /* (the first round ever opens on Beam Beam Baby) */
   fsMode.play(); coachClear(); if (!noSave) saveLast('bu', level); crowd.clear(); unlockAudio(); roundId++; timers.length = 0; sk.clear(); /* (last round's baby twisters, freed while the twisters module still has them) */
   buildWorld(); makePlayerShip(); setupPoiHud();
   score = 0; chain = 0; lastHit = -9; tLeft = Math.round(L().time * RK.time); played = 0; abd = 0; stats = {}; sw = swLv = swNext = 0; power = SW.start * SW.at[0] * L().abduct; swN = [0, 0]; nukeCd[0] = nukeCd[1] = 0; drawSw(); swCheck(); energy = E_MAX; /* (the E badge and bar start from this round's level, not the last one's) */ boostT = nukeT = hitT = hurtK = 0; hits = 0; lowWarned = false; rayCd = 0; moveTo = null; lastGrab = -9; grabChain = 0; dmgPop = 0; dmgPopT = hurtSfx = lowAt = -9; outro = null; beamCoach = false;
@@ -724,12 +736,12 @@ function finishNow() {
   drawLevels();
   if (gotSkins.length) { const u = document.createElement('div'); u.style.cssText = 'margin-top:8px;padding:8px 10px;border-radius:10px;border:2px solid #7dff3a;background:#0e2a0acc;color:#7dff3a;font-weight:900;font-size:15px;box-shadow:0 0 14px #7dff3a66'; u.innerHTML = '🏆 BONUS SKIN UNLOCKED: <b>' + gotSkins.join(' AND ').toUpperCase() + '</b><br><small style="color:#cfe8c8;font-weight:700;font-size:11px">Put it on with CHOOSE SKIN, or in the skin shop.</small>'; $('taGoalLine').appendChild(u); }
   const n = (k) => stats[k] || 0;
-  $('taStats').innerHTML = [...(cleared && timeBonus ? [['⏱ Time bonus', '+' + timeBonus]] : []), ['People beamed up', n('people') + (n('zombies') ? ' + ' + n('zombies') + ' zombies' : '') + (n('convicts') ? ' + ' + n('convicts') + ' convicts' : '')], ['Soldiers beamed up', n('soldiers')], ['Cars beamed up', n('cars')],
+  $('taStats').innerHTML = [...(cleared && timeBonus ? [['⏱ Time bonus', '+' + timeBonus]] : []), ...(miniMet ? [['👹 Mini boss', miniBeat ? 'BEATEN! +' + MINIS[lv - 1].score : 'not beaten']] : []), ['People beamed up', n('people') + (n('zombies') ? ' + ' + n('zombies') + ' zombies' : '') + (n('convicts') ? ' + ' + n('convicts') + ' convicts' : '')], ['Soldiers beamed up', n('soldiers')], ['Cars beamed up', n('cars')],
     ['Buildings', bDone + ' / ' + totalB + ' (' + p + '%)' + (n('bumps') ? ', ' + n('bumps') + ' rammed' : '')], ['Tanks blown up', n('tanks')], ['Aircraft shot down', n('aircraft')], ...(lv >= 3 || n('horns') ? [['Horn trucks', n('horns')]] : []), ...(lv >= ARMY_FIRST.launcher || n('launchers') ? [['Missile trucks', n('launchers')]] : []), ['Big targets', done.length + ' / ' + poiOrder.length + ' ' + done.map((k) => POI[k].icon).join('')],
     ['Damage taken', Math.round(n('dmg'))], ['Score', score], ['Score coins', '+' + scoreCoins + ' 🪙'], ['Best', best]].map(([a, b]) => '<tr><td>' + a + '</td><td>' + b + '</td></tr>').join('');
-  const goes = Math.min(3, 1 + (cleared ? 1 : 0) + Math.floor(done.length / 2));
+  const goes = Math.min(3, 1 + (cleared ? 1 : 0) + Math.floor(done.length / 2)) + (miniBeat ? 1 : 0);
   if (simming) { $('ta').classList.add('hidden'); $('taEnd').classList.remove('hidden'); return; } /* the balance robot: no prize game */
-  showPrizes($('taChests'), goes, '1 go, +1 for clearing the level, +1 for every 2 big targets destroyed (max 3)', () => { location.href = 'store.html?from=beamup'; }, craftPrize('ufo', cleared, goes), () => { $('taPrize').classList.add('hidden'); $('taEnd').classList.remove('hidden'); }, 'craft');
+  showPrizes($('taChests'), goes, '1 go, +1 for clearing the level, +1 for every 2 big targets destroyed (max 3)' + (miniBeat ? ', +1 for beating the mini boss' : ''), () => { location.href = 'store.html?from=beamup'; }, craftPrize('ufo', cleared, goes), () => { $('taPrize').classList.add('hidden'); $('taEnd').classList.remove('hidden'); }, 'craft');
   $('ta').classList.add('hidden'); $('taPrize').classList.remove('hidden'); // the prize game first, then the score
 }
 const HOWTO = [
@@ -779,12 +791,12 @@ drawShipPv();
 const sk = ufoSkin({ scene, fx, twisters, popup, sfx, jolt, people: () => people, buildings: () => buildings, army, addPerson, collide: collidePerson, played: () => played, beamOn: () => beamOn, lim: () => (T ? T.lim : null) });
 // ---------- update ----------
 function update(dt) {
-  placed.length = 0; played += dt; funTick(dt); if (boss) { if (bossTick(dt)) return; } else if (MODE === 'endless') endlessTick(dt); else tLeft -= dt; /* (a boss fight: the town's clock stops, the boss clock runs) */ runTimers(dt); if (tLeft <= 0) { tLeft = 0; finish('time'); return; }
-  events.tick(dt, !boss && tLeft > 12 && played > 20 && ship.alive); comboHud(mult(), 1 - (played - lastHit) / 2.5);
+  placed.length = 0; played += dt; funTick(dt); if (boss) { if (bossTick(dt)) return; } else if (mini) miniTick(dt); else if (MODE === 'endless') endlessTick(dt); else tLeft -= dt; /* (a boss fight: the town's clock stops, the boss clock runs) */ runTimers(dt); if (tLeft <= 0) { tLeft = 0; finish('time'); return; }
+  events.tick(dt, !boss && !mini && tLeft > 12 && played > 20 && ship.alive); comboHud(mult(), 1 - (played - lastHit) / 2.5);
   if (cardUp && !coachBusy()) { cardUp = false; curCard = null; cardShutAt = played; } /* a first-time card has just been closed */
   coachBU(); if (played > 30) tip('bu_map', '🗺️ Tap the minimap to fly across town. Green dots are people.');
-  /* the beam comes down by itself once people have stayed in the circle under the saucer for a second, and stays on while there are people about */ { let near = false; if (ship.alive && state === 'play') for (const c of people) if (Math.hypot(c.position.x - ship.x, c.position.z - ship.z) < PULL_R * 0.8) { near = true; break; } if (!near && ship.alive && state === 'play') for (const d of drivers) if (Math.hypot(d.g.position.x - ship.x, d.g.position.z - ship.z) < PULL_R * 0.8) { near = true; break; } /* (a car counts too) */ hoverT = near ? hoverT + dt : 0; autoBeamT = hoverT >= AUTO_BEAM ? 0.45 : Math.max(0, autoBeamT - dt); }
-  beamOn = (beamHeld || autoBeamT > 0) && ship.alive; if (WALK() && ship.alive) walkerBeam(dt); fly(dt); shipLook(dt); (WALK() || sk.tick(dt, ship));
+  /* the beam comes down by itself once people have stayed in the circle under the saucer for a second, and stays on while there are people about */ { let near = false; if (ship.alive && state === 'play') for (const c of people) if (Math.hypot(c.position.x - ship.x, c.position.z - ship.z) < PULL_R * 0.8) { near = true; break; } if (!near && ship.alive && state === 'play') for (const d of drivers) if (Math.hypot(d.g.position.x - ship.x, d.g.position.z - ship.z) < PULL_R * 0.8) { near = true; break; } /* (a car counts too) */ if (!near && ship.alive && state === 'play') { const q = army.minis.beamSpot(); if (q && Math.hypot(q.x - ship.x, q.z - ship.z) < PULL_R * 0.8) near = true; } /* (and the General's) */ hoverT = near ? hoverT + dt : 0; autoBeamT = hoverT >= AUTO_BEAM ? 0.45 : Math.max(0, autoBeamT - dt); }
+  beamOn = (beamHeld || autoBeamT > 0) && ship.alive; if (WALK() && ship.alive) walkerBeam(dt); fly(dt); shoveTick(dt); shipLook(dt); (WALK() || sk.tick(dt, ship));
   boostT -= dt; nukeT = Math.max(0, nukeT - dt); blindT = Math.max(0, blindT - dt); rayCd -= dt;
   /* (flying costs nothing now: power, the E bar, is the only health) */
   const sx = ship.x, sz = ship.z, bl = ship.y - 0.42 * SHIP_SCALE; beam.g.position.set(sx, bl, sz); beam.update(dt, bl, GRAB_R, beamOn);
@@ -833,7 +845,8 @@ function update(dt) {
   let nDone = 0; for (const k of poiOrder) { const P = pois[k]; if (P.done) { nDone++; continue; } edgeArrow(P.arrow, P.center, true); if (P.mark) tickPoiMark(P.mark); } setT('taTargets', nDone + '/' + poiGoal()); setC('taTargets', 'ok', nDone >= poiGoal());
   crowdLists[0][0] = people; crowdLists[1][0] = army.soldiers; crowd.sync(crowdLists, sx, sz, 4); syncGlows();
   mapT -= dt; if (mapT <= 0) { mapT = 0.1; drawMini(); } if (frameN % 60 === 0) measureHud();
-  if (MODE !== 'endless' && !boss && abd >= L().abduct && pct() >= L().goal && poisDone() >= poiGoal()) { if (bossDue(level, LEVELS.length) && !bossBeat) startBoss(); else finish('win'); } // all three goals met: mission complete (in the last town, the boss comes first)
+  if (MODE !== 'endless' && !mini && !miniMet && ship.alive && miniDue(level, LEVELS.length) && halfDone() >= 0.5) startMini(); /* (the three goals half met: the town's mini boss) */
+  if (MODE !== 'endless' && !boss && !mini && abd >= L().abduct && pct() >= L().goal && poisDone() >= poiGoal()) { if (bossDue(level, LEVELS.length) && !bossBeat) startBoss(); else finish('win'); } // all three goals met: mission complete (in the last town, the boss comes first)
 }
 
 // a first-time card is up and the round is holding still: the beam's hum and the wind stop, and the beam fades out
@@ -875,7 +888,7 @@ if (params.has('quick')) { level = quickLevel('bu'); if (devLevel >= 1 && devLev
 else if (MODE === 'daily') { level = dailyLevel(unlocked()); drawLevels(); start(); } else if (MODE === 'streak' || MODE === 'endless') start(); /* a daily challenge or a town streak: straight in */
 else { buildWorld(); makePlayerShip(); setupPoiHud(); for (const k of poiOrder) pois[k].arrow.style.display = 'none'; }
 requestAnimationFrame(frame); requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove('booting'))); // the start screen is ready now
-window.__bu = { waves, rebuilder, crumble, get people() { return people; }, get buildings() { return buildings; }, hurtShip: (d) => hurt(d, 'test', ship.center), startBoss, get boss() { return boss; }, get RK() { return RK; }, events, army, stomp: (p) => stomp(p), get sw() { return [sw, swLv, swN.slice(), swNext, abd, L().abduct]; }, start, finish, tapAt, fireAt, zapKey, sim, L, LEVELS, wreckPoi, hitPoi, hitBuilding, crumble, blast, hurt, setZoom, THREE, renderer, scene, cam, army, crowd, fx, toScreen, foes, goTo, blockerAt, bldAhead, onShip, shipPx, answerCard, BLD, flyY,
+window.__bu = { startMini, miniDown, get mini() { return mini; }, get shipObj() { return ship; }, set beam(v) { beamHeld = !!v; }, get beamOn() { return beamOn; }, get halfDone() { return halfDone(); }, waves, rebuilder, crumble, get people() { return people; }, get buildings() { return buildings; }, hurtShip: (d) => hurt(d, 'test', ship.center), startBoss, get boss() { return boss; }, get RK() { return RK; }, events, army, stomp: (p) => stomp(p), get sw() { return [sw, swLv, swN.slice(), swNext, abd, L().abduct]; }, start, finish, tapAt, fireAt, zapKey, sim, L, LEVELS, wreckPoi, hitPoi, hitBuilding, crumble, blast, hurt, setZoom, THREE, renderer, scene, cam, army, crowd, fx, toScreen, foes, goTo, blockerAt, bldAhead, onShip, shipPx, answerCard, BLD, flyY,
   get card() { return curCard; }, get beamPress() { return beamPress; }, get warnB() { return warnB; }, get bumpT() { return bumpT; }, get pend() { return pend; }, get bAt() { return bAt; }, drag(d) { botDrag = d ? { x: d.x, z: d.z } : null; },
   get state() { return state; }, get level() { return level; }, set level(v) { level = v; }, get ship() { return ship; }, get energy() { return energy; }, set energy(v) { energy = v; }, get abd() { return abd; }, set abd(v) { abd = v; },
   get beamOn() { return beamOn; }, set beam(v) { beamHeld = !!v; }, get moveTo() { return moveTo; }, set moveTo(v) { moveTo = v; }, get tLeft() { return tLeft; }, set tLeft(v) { tLeft = v; }, get score() { return score; }, get stats() { return stats; },

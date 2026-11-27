@@ -12,6 +12,7 @@ import * as THREE from 'three';
 import { toWorld } from '../city.js';
 import { sfx } from '../audio.js';
 import { makeHornTruck, makeGunship, makeSaucer } from './foeModels.js';
+import { createMinis, ICE } from './minis.js';
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z), rnd = (a, b) => a + Math.random() * (b - a), UP = V(0, 1, 0);
 const turnTo = (cur, want, max) => { let d = want - cur; d = Math.atan2(Math.sin(d), Math.cos(d)); return cur + Math.max(-max, Math.min(max, d)); };
@@ -39,27 +40,27 @@ export function createFoes(E) {
   const pink = { c: [0xffffff, 0xff5ae0], speed: 7, up: 4, life: 0.55 };
 
   // ---------- rogue twister ----------
-  const sizeOf = (r) => Math.max(0.6, Math.min(r.boss ? E.MAX_S * 1.4 : E.MAX_S, r.s0 + Math.min(1, r.mass * 0.014) + r.fed - r.cut)); // it grows on what it eats (and on you), and shrinks when struck
-  function spawnRival(boss = false) {
+  const sizeOf = (r) => Math.max(0.6, Math.min(r.boss || r.ice ? E.MAX_S * 1.4 : E.MAX_S, (r.ice ? Math.max(r.s0, E.size * 1.25) : r.s0) + Math.min(1, r.mass * 0.014) + r.fed - r.cut)); // it grows on what it eats (and on you), and shrinks when struck
+  function spawnRival(boss = false, ice = false) { /* ice: THE ICE TWISTER (a mini boss): bigger than you, and lightning does nothing to it */
     const P = E.twObj.position, b = lim(); let at = null;
     for (let k = 0; k < 40 && !at; k++) { const a = Math.random() * 6.28, d = rnd(15, 22), x = P.x + Math.cos(a) * d, z = P.z + Math.sin(a) * d; if (Math.abs(x) < b.x - 1 && Math.abs(z) < b.z - 1) at = V(x, 0, z); }
     if (!at) at = V(-Math.sign(P.x || 1) * b.x * 0.6, 0, -Math.sign(P.z || 1) * b.z * 0.6);
-    const g = twisters.make(true, [], null, { skin: boss ? MAEL : ROGUE }); g.position.copy(at); g.scale.setScalar(0.001); scene.add(g);
-    const s0 = boss ? E.MAX_S * 1.3 : Math.max(0.85, Math.min(E.MAX_S, E.size * (E.level >= 4 ? rnd(0.9, 1.2) : rnd(0.8, 1.05)))); // about your size: sometimes lunch, sometimes trouble (the boss: far bigger than you can be)
-    rival = { g, tw: g.userData.twister, s0, s: s0, cut: 0, fed: 0, shown: 0.05, mass: 0, life: boss ? 1e9 : 50, boss, r0: s0 / E.size, eatT: 1.5, stun: 0, immune: 0, biteT: 0, clashT: 0, pickT: 0, goal: null, out: null, eaten: false, kv: V(), wa: Math.random() * 6.28, arrow: mkArrow(boss ? '👑' : '🌪️', '#ff5ae0'), tag: mkTag() };
-    E.banner(boss ? '⚠️ BOSS: THE MAELSTROM!\nSTRIKE IT, THEN SWALLOW IT' : '🌪️ ROGUE TWISTER!'); sfx.whoosh(); sfx.hurt();
+    const g = twisters.make(true, [], null, { skin: boss ? MAEL : ice ? ICE : ROGUE }); g.position.copy(at); g.scale.setScalar(0.001); scene.add(g);
+    const s0 = boss ? E.MAX_S * 1.3 : ice ? Math.min(E.MAX_S * 1.25, Math.max(1.3, E.size * 1.3)) : Math.max(0.85, Math.min(E.MAX_S, E.size * (E.level >= 4 ? rnd(0.9, 1.2) : rnd(0.8, 1.05)))); // about your size: sometimes lunch, sometimes trouble (the boss: far bigger than you can be)
+    rival = { g, tw: g.userData.twister, s0, s: s0, cut: 0, fed: 0, shown: 0.05, mass: 0, life: boss || ice ? 1e9 : 50, boss, ice, r0: s0 / E.size, eatT: 1.5, stun: 0, immune: 0, biteT: 0, clashT: 0, pickT: 0, goal: null, out: null, eaten: false, kv: V(), wa: Math.random() * 6.28, arrow: mkArrow(boss ? '👑' : ice ? '❄' : '🌪️', ice ? '#9fe8ff' : '#ff5ae0'), tag: mkTag() };
+    if (!ice) E.banner(boss ? '⚠️ BOSS: THE MAELSTROM!\nSTRIKE IT, THEN SWALLOW IT' : '🌪️ ROGUE TWISTER!'); sfx.whoosh(); sfx.hurt();
   }
   function removeRival() { const r = rival; if (!r) return; twisters.remove(r.g, true); r.arrow.remove(); r.tag.remove(); rival = null; }
   function endRival(eaten) { const r = rival; r.out = 0; r.eaten = eaten; r.arrow.style.display = 'none'; r.tag.style.display = 'none'; T.rival = rnd(28, 40); }
-  function swallow() { const r = rival, p = r.g.position.clone(); endRival(true); E.speedBurst(3); if (r.boss && E.bossDown) E.bossDown(p); // you take back everything it stole, and more
+  function swallow() { const r = rival, p = r.g.position.clone(); endRival(true); E.speedBurst(3); if (r.boss && E.bossDown) E.bossDown(p); if (r.ice && E.miniDown) E.miniDown(p); // you take back everything it stole, and more
     E.award(1500, p, 'TWISTER SWALLOWED'); E.grow(3 + r.mass * 0.8); E.banner('🌪️ ROGUE TWISTER SWALLOWED!'); sfx.boom(); sfx.power(); E.jolt(0.8); E.flash(0.25); fx.shock(p, 7, 0xff5ae0, 0.5);
     for (let i = 0; i < 3; i++) fx.sparks(V(p.x, 1 + i * 1.5, p.z), 14, { ...pink, speed: 8, up: 5, life: 0.7 }); }
-  function zapRival() { const r = rival, p = r.g.position, at = V(p.x, 2.3 * r.shown, p.z); E.boltTo(at); if (r.immune > 0) { E.popup(p, 'NO EFFECT YET', '#d8b0e8'); return; }
+  function zapRival() { const r = rival, p = r.g.position, at = V(p.x, 2.3 * r.shown, p.z); E.boltTo(at); if (r.ice) { E.popup(p, "LIGHTNING CAN'T HURT IT! LET THE ARMY HIT IT", '#9fe8ff'); return; } if (r.immune > 0) { E.popup(p, 'NO EFFECT YET', '#d8b0e8'); return; }
     r.immune = r.boss ? 1.5 : 2.4; r.stun = 1.4; r.cut += r.boss ? 0.15 : 0.22; fx.sparks(at, 16, pink); E.popup(p, 'SHRUNK!', '#ffd24a'); E.award(100, p); E.jolt(0.3); }
   // whatever shrinks your storm shrinks the rogue twister too (a seeding plane's spray, a cannon's blast, a gunship's rocket, the
   // UFO's ray): step aside and let them hit it. rivalAt: the rogue, if (x, z) is within its funnel plus `pad`
   function rivalAt(x, z, pad = 0, k = 1) { const r = rival; if (!r || r.out != null) return null; const p = r.g.position; return Math.hypot(p.x - x, p.z - z) < 1.6 * r.shown * k + pad ? r : null; }
-  function hurtRival(r, amt, text, col = '#ffd24a') { r.cut += amt; r.sayT = (r.sayT || 0); if (text && E.played - r.sayT > 0.45) { r.sayT = E.played; E.popup(r.g.position, text, col); } }
+  function hurtRival(r, amt, text, col = '#ffd24a') { r.cut += amt * (r.ice ? 1.6 : 1); /* (the Ice Twister: the army's shots are the only thing that cuts it, so they cut deeper) */ r.sayT = (r.sayT || 0); if (text && E.played - r.sayT > 0.45) { r.sayT = E.played; E.popup(r.g.position, text, col); } }
   function updateRival(dt, px, pz, R) {
     const r = rival, g = r.g, p = g.position, P = E.twObj.position;
     if (r.out != null) { r.out += dt; const k = Math.min(1, r.out / 0.6); g.scale.setScalar(Math.max(0.001, E.S0 * r.shown * (1 - k))); if (r.eaten) p.lerp(P, Math.min(1, dt * 6)); else p.y = k * 2; if (k >= 1) removeRival(); return; } // drawn into your storm, or winding itself out
@@ -107,11 +108,11 @@ export function createFoes(E) {
       for (let k = 0; k < 4; k++) { const a = k * 1.57 + Math.random(), o = V(p.x + Math.cos(a) * 1.3, 0.5, p.z + Math.sin(a) * 1.3); setTimeout(() => fx.explode(o, 1.1), 90 + k * 70); } setTimeout(() => sfx.boom(), 160);
       /* its sound wave lets go all at once: a ring races outward and flattens what stands close by */
       fx.shock(p, 9, 0xffd9a0, 0.75); setTimeout(() => { fx.shock(p, 13, 0xffc060, 0.9); for (let k = 0; k < 10; k++) { const a = k * 0.628; fx.dust({ x: p.x + Math.cos(a) * 2.5, y: 0, z: p.z + Math.sin(a) * 2.5 }, 1.3, Math.cos(a) * 6, Math.sin(a) * 6); } E.crashDamage(p.clone(), how === 'over' ? 4.2 : 3.2, V(0, 0, 1)); E.jolt(0.8); }, 140); }
-    E.award(600, p, how === 'crushed' ? 'CANNON CRUSHED' : how === 'over' ? 'OVERLOAD' : 'CANNON'); E.grow(1.5); E.banner(how === 'over' ? '📢 CANNON OVERLOADED!' : '📢 CANNON DESTROYED!'); sfx.boom(); E.jolt(0.6); }
-  function zapCannon(c) { const p = c.g.position, over = c.mode === 'charge'; E.boltTo(V(p.x, 1, p.z)); c.hp -= over ? 2 : 1; // struck while it charges, it blows itself up
+    E.award(600, p, how === 'crushed' ? 'CANNON CRUSHED' : how === 'over' ? 'OVERLOAD' : 'CANNON'); E.grow(1.5); E.banner(how === 'over' ? '📢 CANNON OVERLOADED!' : '📢 CANNON DESTROYED!'); sfx.boom(); E.jolt(0.6); if (c.ring && E.miniDown && !cannons.some((o) => o.ring)) E.miniDown(p); }
+  function zapCannon(c) { const p = c.g.position, over = c.mode === 'charge'; E.boltTo(V(p.x, 1, p.z)); if (c.ring && !over) { E.popup(p, 'ARMORED! STRIKE IT WHILE IT CHARGES', '#ffd24a'); return; } c.hp -= over ? 2 : 1; // struck while it charges, it blows itself up
     if (c.hp <= 0) { killCannon(c, over ? 'over' : 'zap'); return; }
     c.stun = 3.5; c.mode = 'idle'; c.t = 1; c.line.visible = false; c.g.userData.glow.material.opacity = 0; fx.sparks(V(p.x, 1, p.z), 14, { speed: 6, up: 5, life: 0.5 }); E.popup(p, 'JAMMED! HIT IT AGAIN', '#ffd24a'); E.award(150, p); }
-  function fire(c) { c.mode = 'idle'; c.t = rnd(2.6, 3.6); c.line.visible = false; c.g.userData.glow.material.opacity = 0; const dir = V(Math.sin(c.aim), 0, Math.cos(c.aim)), from = c.g.position.clone().addScaledVector(dir, 1.3);
+  function fire(c) { c.mode = 'idle'; c.t = c.ring ? rnd(4.5, 6) : rnd(2.6, 3.6); c.line.visible = false; c.g.userData.glow.material.opacity = 0; const dir = V(Math.sin(c.aim), 0, Math.cos(c.aim)), from = c.g.position.clone().addScaledVector(dir, 1.3);
     const g = new THREE.Group(), mat = new THREE.MeshBasicMaterial({ color: 0xffd9a0, transparent: true, opacity: 0.9, depthWrite: false, blending: THREE.AdditiveBlending }); for (let i = 0; i < 3; i++) { const m = new THREE.Mesh(waveGeo, mat); m.position.z = -i * 1.1; m.scale.setScalar(1 - i * 0.18); g.add(m); }
     g.position.copy(from).setY(1.2); g.rotation.y = c.aim; scene.add(g); waves.push({ g, mat, dir, far: 0, hit: false }); fx.shock(from, 3.5, 0xffc060); for (let i = 0; i < 4; i++) fx.dust(from, 1.2, dir.x * 4, dir.z * 4); sfx.boom(); if (seen(from)) E.jolt(0.3); }
   function updateCannons(dt, px, pz, R) {
@@ -232,11 +233,11 @@ export function createFoes(E) {
     // thrown back (a cannon's blast, a bigger twister): the storm slides that way for a moment, whatever the player does
     if (kick.lengthSq() > 0.02) { const P = E.twObj.position, b = lim(); P.x = Math.max(-b.x, Math.min(b.x, P.x + kick.x * dt)); P.z = Math.max(-b.z, Math.min(b.z, P.z + kick.z * dt)); kick.multiplyScalar(Math.max(0, 1 - dt * 3.5)); px = P.x; pz = P.z; }
     slowT = Math.max(0, slowT - dt); if (slowT > 0) { status('❄ FROZEN! SLOWED'); frostT -= dt; if (frostT <= 0) { frostT = 0.12; const a = Math.random() * 6.28; fx.sparks(V(px + Math.cos(a) * R, rnd(0.5, 3), pz + Math.sin(a) * R), 2, { c: [0xffffff, 0x9fe8ff], speed: 1.5, up: 2, life: 0.6 }); fx.glow({ x: px, y: 0, z: pz }, R * 1.7, 0x9fe8ff, 0.25, 0.3); } }
-    schedule(dt * (E.foeK ? E.foeK() : 1)); /* (foeK: a harder round sends the enemies in faster) */
-    if (rival) updateRival(dt, px, pz, R); updateCannons(dt, px, pz, R); updateShips(dt, px, pz, R); if (ufo) updateUfo(dt, px, pz, R); updateLifted(dt); updateFalling(dt);
+    if (!(E.miniOn && E.miniOn())) schedule(dt * (E.foeK ? E.foeK() : 1)); /* (foeK: a harder round sends the enemies in faster) */
+    if (rival) updateRival(dt, px, pz, R); updateCannons(dt, px, pz, R); updateShips(dt, px, pz, R); if (ufo) updateUfo(dt, px, pz, R); updateLifted(dt); updateFalling(dt); minis.update(dt, px, pz, R);
     statusT -= dt; if (statusEl) statusEl.style.opacity = statusT > 0 ? 1 : 0;
   }
-  function clear() {
+  function clear() { minis.clear();
     removeRival(); for (const c of cannons) { scene.remove(c.g); scene.remove(c.line); c.arrow.remove(); } cannons = []; for (const s of ships) { scene.remove(s.g); s.arrow.remove(); } ships = [];
     if (ufo) { const u = dropUfo(); scene.remove(u.g); } for (const c of lifted) scene.remove(c); lifted.length = 0; for (const f of falling) if (!f.down) scene.remove(f.g); falling.length = 0;
     for (const k of rockets) scene.remove(k.m); rockets.length = 0; for (const w of waves) { scene.remove(w.g); w.mat.dispose(); } waves.length = 0;
@@ -245,7 +246,7 @@ export function createFoes(E) {
     const roam = ['rival', 'ship', 'ufo'].filter(on), newest = roam[roam.length - 1]; let later = 46; for (const k of roam) { if (k === newest) T[k] = 22; else { T[k] = later; later += 16; } } T.cannon = 30;
   }
   // a tap on one of them strikes it instead of moving the storm. Returns true, or a spot to head for (a twister you can eat)
-  function tap(near) {
+  function tap(near) { if (minis.tap(near)) return true;
     if (ufo && ufo.mode !== 'leave' && near(ufo.g.position, 70)) { zapUfo(); return true; }
     for (const s of ships) if (near(s.g.position, 60)) { zapShip(s); return true; }
     for (const c of cannons) if (near(V(c.g.position.x, 0.8, c.g.position.z), 56)) { zapCannon(c); return true; }
@@ -253,8 +254,8 @@ export function createFoes(E) {
     return false;
   }
   // for the SPACE bolt on a computer: everything that can be struck, with where it is
-  function targets() { const out = []; if (ufo && ufo.mode !== 'leave') out.push({ pos: ufo.g.position, zap: zapUfo }); for (const s of ships) out.push({ pos: s.g.position, zap: () => zapShip(s) }); for (const c of cannons) out.push({ pos: c.g.position, zap: () => zapCannon(c) }); if (rival && rival.out == null && rival.immune <= 0) out.push({ pos: rival.g.position, zap: zapRival }); return out; }
-  function eachDot(fn) { if (rival && rival.out == null) fn(rival.g.position, '🌪️', rival.shown / E.size < 0.92 ? '#7dff3a' : '#ff5ae0'); for (const c of cannons) fn(c.g.position, '📢', '#ffb030'); for (const s of ships) fn(s.g.position, '🚁', '#9fe8ff'); if (ufo) fn(ufo.g.position, '🛸', '#7dffb0'); }
+  function targets() { const out = []; minis.targets(out); if (ufo && ufo.mode !== 'leave') out.push({ pos: ufo.g.position, zap: zapUfo }); for (const s of ships) out.push({ pos: s.g.position, zap: () => zapShip(s) }); for (const c of cannons) out.push({ pos: c.g.position, zap: () => zapCannon(c) }); if (rival && rival.out == null && rival.immune <= 0) out.push({ pos: rival.g.position, zap: zapRival }); return out; }
+  function eachDot(fn) { if (rival && rival.out == null) fn(rival.g.position, '🌪️', rival.shown / E.size < 0.92 ? '#7dff3a' : '#ff5ae0'); for (const c of cannons) fn(c.g.position, '📢', '#ffb030'); for (const s of ships) fn(s.g.position, '🚁', '#9fe8ff'); if (ufo) fn(ufo.g.position, '🛸', '#7dffb0'); minis.eachDot(fn); }
   // first-time prompts: each enemy is explained the first time it is on screen
   function coachTick() { const { coach, coachSeen, toScreen } = E;
     if (rival && rival.out == null && rival.shown > 0.5 && !coachSeen('ta_rival') && seen(rival.g.position, 2)) { const r = rival; return coach('ta_rival', { mode: 'tap', title: '🌪️ ROGUE TWISTER', text: 'It eats your town. Its tag shows who is bigger. Green: run into it and swallow it. Red: keep away, and tap it to strike it down to size.', at: () => (rival === r ? toScreen(r.g.position, 2.3 * r.shown) : null) }); }
@@ -269,7 +270,19 @@ export function createFoes(E) {
     for (const s of ships.slice()) if (Math.hypot(s.g.position.x - c.x, s.g.position.z - c.z) < r + 1.4) { zapShip(s); n++; }
     if (ufo && ufo.mode !== 'leave' && Math.hypot(ufo.g.position.x - c.x, ufo.g.position.z - c.z) < r + 2 && ok(ufo, 0.6)) { zapUfo(); n++; }
     return n; }
+  // THE CANNON RING (a mini boss): three armored cannons on the streets round the storm, charging one after another. Each
+  // has a gold ring round it; a bolt only counts while it charges (zapCannon), and then it blows itself up
+  function spawnRing() { const P = E.twObj.position, a0 = Math.random() * 6.283; for (let i = 0; i < 3; i++) { const a = a0 + i * 2.094, wx = P.x + Math.cos(a) * 13, wz = P.z + Math.sin(a) * 13; let best = null, bs = 1e9;
+      for (const c of E.roadCells) { const w = toWorld(c[0], c[1], E.cols, E.cols), ds = Math.hypot(w.x - P.x, w.z - P.z); if (ds < 9 || cannons.some((o) => Math.hypot(o.g.position.x - w.x, o.g.position.z - w.z) < 5)) continue; const sc = Math.hypot(w.x - wx, w.z - wz); if (sc < bs) { bs = sc; best = w; } } if (!best) continue;
+      const g = makeHornTruck(); g.position.set(best.x, 0, best.z); const aim = Math.atan2(P.x - best.x, P.z - best.z); g.rotation.y = Math.round(aim / (Math.PI / 2)) * (Math.PI / 2); const halo = new THREE.Mesh(new THREE.TorusGeometry(1.5, 0.09, 6, 24).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffd24a })); halo.position.y = 0.12; g.add(halo); scene.add(g);
+      const line = new THREE.Mesh(lineGeo, new THREE.MeshBasicMaterial({ color: 0xffa030, transparent: true, opacity: 0.3, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending })); line.renderOrder = 8; line.visible = false; line.position.set(best.x, 0.14, best.z); scene.add(line);
+      cannons.push({ g, line, hp: 1, mode: 'idle', t: 2 + i * 2.2, aim, stun: 0, sp: 0, ring: true, arrow: mkArrow('📢', '#ffd24a') }); } return cannons.filter((o) => o.ring).length; }
+  function dropRing() { for (const c of cannons.filter((o) => o.ring)) { cannons.splice(cannons.indexOf(c), 1); fx.puff('smoke', c.g.position.clone().setY(1), 2); scene.remove(c.line, c.g); c.arrow.remove(); } }
+  // the mini bosses that are things of their own (minis.js)
+  const minis = createMinis(E, { kick, slow: (t) => { slowT = Math.max(slowT, t); }, mkArrow, status });
   return { update, clear, tap, targets, eachDot, coachTick, hitAt, rivalAt, hurtRival, get slow() { return slowT > 0 ? 0.5 : 1; },
+    // the mini bosses: minis (the ones of minis.js), busy(): a rogue twister is about, ring() / ringLeft() / dropRing(): the Cannon Ring, ice() / iceUp() / iceFrac() / dropIce(): the Ice Twister, armyUp(): cannons and gunships to fire at you both
+    minis, busy: () => !!rival, ring: spawnRing, ringLeft: () => cannons.filter((o) => o.ring).length, dropRing, ice() { if (rival) return false; spawnRival(false, true); return true; }, iceUp: () => !!(rival && rival.ice && rival.out == null), iceFrac() { const r = rival; return r && r.ice ? Math.max(0, Math.min(1, (r.shown / E.size - 0.92) / Math.max(0.05, r.r0 - 0.92))) : 0; }, dropIce() { if (rival && rival.ice && rival.out == null) endRival(false); }, armyUp() { if (cannons.length < 2) spawnCannon(); if (!ships.length) spawnShips(); },
     // the boss: spawnBoss() brings the Maelstrom in (false while another rogue is about); boss: it, while it is up; bossFrac(): how far it still is from small enough to swallow (1..0); dropBoss(): it winds itself out
     spawnBoss() { if (rival) return false; spawnRival(true); return true; }, get boss() { return rival && rival.boss && rival.out == null ? rival : null; }, bossFrac() { const r = rival; return r && r.boss ? Math.max(0, Math.min(1, (r.shown / E.size - 0.92) / Math.max(0.05, r.r0 - 0.92))) : 0; }, dropBoss() { if (rival && rival.boss && rival.out == null) endRival(false); },
     // for tests

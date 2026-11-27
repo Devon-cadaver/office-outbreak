@@ -118,14 +118,22 @@ for (const k in LOOKS) { const L = LOOKS[k]; L.id = k; if (!L.glows) L.glows = C
 export const HORDE_LOOKS = LOOKS;
 export const hordeOf = (id) => LOOKS[id] || LOOKS.classic;
 
-// which horde a new zombie joins: one of the hordes worn, by the townsfolk share rule; null for the classic green
-export function hordeLook() { const l = getEquipped().horde || []; if (!l.length || Math.random() >= townShare(l.length)) return null; const id = l[(Math.random() * l.length) | 0].split(':')[1]; return LOOKS[id] ? id : null; }
-// a Grave Giant's look: every giant wears one of the hordes worn (no share roll), or null when none is worn
-export function hordeAny() { const l = (getEquipped().horde || []).map((x) => x.split(':')[1]).filter((k) => LOOKS[k]); return l.length ? l[(Math.random() * l.length) | 0] : null; }
+// ---------- the round's own zombies (Zombie Air Raid sets them as a round starts; the other games leave them alone) ----------
+// base: this level's default zombies, what every zombie outside the worn hordes is (null: the classic green).
+// carry: the horde beaten in the last round won: it is a quarter of this one too, while the worn hordes leave it room
+let baseLook = null, carryLook = null; const wornIds = () => (getEquipped().horde || []).map((x) => String(x).split(':')[1]).filter((k) => LOOKS[k]), okLook = (k) => (k && k !== 'classic' && LOOKS[k] ? k : null);
+export function setHordeRound(base, carry) { baseLook = okLook(base); carryLook = okLook(carry); if (carryLook === baseLook) carryLook = null; }
+// what the horde is made of this round: [{ id, share }] (id 'classic' for the green ones), the shares adding up to 1
+export function hordeMix() { const l = wornIds(), s = townShare(l.length), out = l.map((id) => ({ id, share: s / l.length })); let rest = 1 - s;
+  if (carryLook && !l.includes(carryLook) && rest > 1e-6) { const c = Math.min(rest, townShare(l.length + 1) - s); out.push({ id: carryLook, share: c }); rest -= c; } if (rest > 1e-6) out.push({ id: baseLook || 'classic', share: rest }); return out; }
+// which horde a new zombie joins: one of the hordes worn (a quarter of the horde each), then the one carried over from the last round, and the level's own default for the rest; null for the classic green
+export function hordeLook() { const l = wornIds(), r = Math.random(), s = townShare(l.length); if (l.length && r < s) return l[(Math.random() * l.length) | 0]; if (carryLook && !l.includes(carryLook) && r < townShare(l.length + 1)) return carryLook; return baseLook; }
+// a Grave Giant's look: every giant wears one of the hordes worn (no share roll); with none worn, the level's own zombies or the ones carried over (null: the classic giant)
+export function hordeAny() { const l = wornIds(), pool = l.length ? l : [baseLook, carryLook].filter(Boolean); return pool.length ? pool[(Math.random() * pool.length) | 0] : null; }
 // two neighbouring colours of a horde's fall puff (the effect fades from one to the other)
 export function puffPair(id) { const p = hordeOf(id).puff, i = (Math.random() * p.length) | 0; return [p[i], p[(i + 1) % p.length]]; }
 // the townsfolk outfits that would look like a horde being worn (Air Raid's townsfolk leave these off)
-export function hordeClashes() { return (getEquipped().horde || []).map((x) => LOOKS[x.split(':')[1]]).filter((L) => L && L.clash).map((L) => L.clash); }
+export function hordeClashes() { return [...wornIds(), baseLook, carryLook].filter(Boolean).map((k) => LOOKS[k]).filter((L) => L && L.clash).map((L) => L.clash); }
 // Air Raid's townsfolk outfit, leaving off any that would look like a horde being worn
 export function airTownSkin() { const bad = hordeClashes(); if (!bad.length) return townSkin(); const l = (getEquipped().npc || []).filter((id) => !bad.includes(String(id).split(':')[1] || id)), era = getEra();
   const s = l.length && Math.random() < townShare(l.length) ? CHAR_SKINS[String(l[(Math.random() * l.length) | 0]).split(':')[1]] || null : null; return era === 'past' || era === 'future' ? s || CHAR_SKINS[era === 'past' ? 'cowpoke' : 'neon'] : s; }

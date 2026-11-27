@@ -15,7 +15,7 @@ import { recolor, makeBomber, makeHeli } from './air/craft.js';
 import { makeShip, makeBeam } from './ufo/models.js';
 import { makeWalker, walkerTick, WALKER_PAL, WALK_Y } from './ufo/walker.js';
 import { WALKER_LOOKS } from './walkerSkins.js';
-import { getEquipped, pauseSkinRow, grantSkin, getOwned, equip } from './skins.js';
+import { getEquipped, pauseSkinRow, grantSkin, getOwned, equip, equipWon } from './skins.js';
 import { HORDE_IDS, HORDE_SKINS } from './hordeSkinData.js';
 import { CRAFT_SKINS, CRAFT_STORMS } from './craftSkinData.js';
 import { setFlamePalette } from './fire.js';
@@ -487,7 +487,7 @@ export function craftSkinButton(host, kind, onPick) { if (!host) return; const i
 // random. One time in four it is a zombie horde instead (or when every skin for the craft is owned). It goes straight on.
 export function craftPrize(kind, won, goes) { let n = 0; const go = Math.random() < (won ? 0.75 : 0.25) ? (Math.random() * goes) | 0 : -1;
   return () => { if (n++ !== go) return null; const own = getOwned(), l = CRAFT_SKINS[kind], cl = Object.keys(l).filter((k) => !l[k].bonus && !own.includes(craftSkinId(kind, k))), hl = HORDE_IDS.filter((k) => !own.includes('horde:' + k));
-    if (hl.length && (!cl.length || Math.random() < 0.25)) { const k = hl[(Math.random() * hl.length) | 0]; grantSkin('horde:' + k); return { kind: 'craft', text: 'NEW ZOMBIES: ' + HORDE_SKINS[k].name.toUpperCase() + '! Put them on in the skin shop.' }; }
+    if (hl.length && (!cl.length || Math.random() < 0.25)) { const k = hl[(Math.random() * hl.length) | 0]; grantSkin('horde:' + k); equipWon('horde:' + k); return { kind: 'craft', text: 'NEW ZOMBIES: ' + HORDE_SKINS[k].name.toUpperCase() + '! They join the horde in your next round.' }; }
     if (!cl.length) return null; const k = cl[(Math.random() * cl.length) | 0]; grantSkin(craftSkinId(kind, k)); equip('cr_' + kind, craftSkinId(kind, k)); return { kind: 'craft', text: 'NEW SKIN: ' + l[k].name.toUpperCase() + '! It is on for your next round.' }; }; }
 export function unlockCraftBonus(game) { const won = []; for (const k of game === 'ufo' ? ['ufo', 'walker'] : ['bomber', 'heli']) if (grantSkin(craftSkinId(k, 'acid'))) won.push(CRAFT_SKINS[k].acid.name); return won; }
 // things a quirk throws (pies, meteors, moons): they arc from a to (x, z) over T seconds, then land()

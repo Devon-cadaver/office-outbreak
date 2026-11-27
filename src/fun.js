@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { getEra } from './progress.js';
 import { addCoins } from './skins.js';
-export const FUN = { stars: true, diff: true, daily: true, combo: true, boss: true, streak: true, endless: true, events: true, buzz: true };
+export const FUN = { stars: true, diff: true, daily: true, combo: true, boss: true, mini: true, streak: true, endless: true, events: true, buzz: true };
 const Q = new URLSearchParams(location.search), rnd = (a, b) => a + Math.random() * (b - a);
 const ls = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch { return d; } }, put = (k, v) => { try { localStorage.setItem(k, v); } catch { /* ignore */ } };
 const css = `
@@ -23,6 +23,7 @@ const css = `
 #bossBar b { display: block; font-size: 12px; font-weight: 900; letter-spacing: 1px; color: #ff6a5a; text-shadow: 0 1px 2px #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #bossBar i { display: block; height: 11px; margin-top: 2px; border-radius: 6px; border: 2px solid #ff4a3a; background: #1a0606d0; overflow: hidden; box-shadow: 0 0 10px #ff4a3a88; } #bossBar i u { display: block; height: 100%; background: linear-gradient(#ff7a5a, #c2241a); transform-origin: left; }
 #bossBar em { display: block; margin-top: 2px; font-style: normal; font-size: 13px; font-weight: 900; color: #fff; text-shadow: 0 1px 2px #000; } #bossBar.low em { color: #ff5a4a; }
+#bossBar small { display: block; margin-top: 1px; font-size: 11px; font-weight: 900; letter-spacing: .3px; color: #ffe14a; text-shadow: 0 1px 2px #000, 0 0 6px #000; white-space: nowrap; } #bossBar small:empty { display: none; }
 #funCard { position: fixed; inset: 0; z-index: 44; display: none; align-items: center; justify-content: center; background: #0a0614d8; padding: 20px; font-family: inherit; text-align: center; color: #fff; }
 #funCard.show { display: flex; } #funCard h2 { margin: 0 0 6px; font-size: 30px; color: #7dff3a; text-shadow: 0 3px 0 #1f4a12; } #funCard p { margin: 0; font-size: 15px; font-weight: 800; color: #e8dcff; line-height: 1.4; } #funCard p b { color: #ffd24a; }
 body.cine #comboBox, body.cine #bossBar { visibility: hidden !important; }
@@ -68,12 +69,14 @@ export function comboHud(mult, left) { if (!FUN.combo) return; if (!comboEl) { s
     if (up) { comboEl.classList.remove('pop'); void comboEl.offsetWidth; comboEl.classList.add('pop'); buzz(0.3 + mult * 0.1); } }
   comboEl.lastChild.firstChild.style.transform = 'scaleX(' + Math.max(0, Math.min(1, left)).toFixed(2) + ')'; }
 
-// ---------- the boss bar: its name, what it has left (0..1) and the boss clock. bossBar(null) takes it down ----------
+// ---------- the boss bar: its name, what it has left (0..1), the boss clock, and a line under it on how to beat it (the mini
+// bosses have one). bossBar(null) takes it down ----------
 let bossEl = null, bossKey = '';
-export function bossBar(name, frac = 1, secs = 0) { if (name == null) { if (bossEl && bossKey !== '') { bossKey = ''; bossEl.style.display = 'none'; } return; } if (!bossEl) { style(); bossEl = el('div', 'bossBar', '<b></b><i><u></u></i><em></em>'); document.body.appendChild(bossEl); }
-  const s = Math.max(0, Math.ceil(secs)), k = name + '|' + s; if (k !== bossKey) { bossKey = k; bossEl.style.display = 'block'; bossEl.firstChild.textContent = name; bossEl.lastChild.textContent = '⏱ ' + Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); bossEl.classList.toggle('low', s <= 15); }
+export function bossBar(name, frac = 1, secs = 0, hint = '') { if (name == null) { if (bossEl && bossKey !== '') { bossKey = ''; bossEl.style.display = 'none'; } return; } if (!bossEl) { style(); bossEl = el('div', 'bossBar', '<b></b><i><u></u></i><em></em><small></small>'); document.body.appendChild(bossEl); }
+  const s = Math.max(0, Math.ceil(secs)), k = name + '|' + s + '|' + hint; if (k !== bossKey) { bossKey = k; bossEl.style.display = 'block'; bossEl.firstChild.textContent = name; bossEl.lastChild.textContent = hint; bossEl.children[2].textContent = '⏱ ' + Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); bossEl.classList.toggle('low', s <= 15); }
   bossEl.children[1].firstChild.style.transform = 'scaleX(' + Math.max(0, Math.min(1, frac)).toFixed(3) + ')'; }
 export const bossDue = (level, levels) => FUN.boss && MODE === 'normal' && level >= levels; // the last town, in an ordinary round
+export const miniDue = (level, levels) => FUN.mini && MODE === 'normal' && level < levels; // a mini boss: every town before the last, in an ordinary round
 
 // ---------- random events: now and then, one thing from the game's own list happens. list: [{ run(), can() }] ----------
 export function makeEvents(list) { let t = rnd(38, 55); return { reset() { t = rnd(38, 55); }, tick(dt, ok = true) { if (!FUN.events || !ok) return; t -= dt; if (t > 0) return; t = rnd(45, 70); const l = list.filter((e) => !e.can || e.can()); if (l.length) l[(Math.random() * l.length) | 0].run(); } }; }

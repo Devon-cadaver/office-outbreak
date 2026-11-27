@@ -33,6 +33,7 @@ export const ARMY_FIRST = { ship: 1, jet: 1, jetPair: 2, jetMissile: 3, launcher
 const JET = { warn: 1.5, speed: 30, half: 30, hw: 2.4, hitR: 1.8, every: 0.075, from: -23, to: 1 };
 
 import { makeMammoth } from './boss.js';
+import { createMinis } from './minis.js';
 export function createArmy(E) {
   const { scene, fx, twisters } = E;
   let soldiers = [], tanks = [], ships = [], launchers = [], jets = [], runs = []; const falling = [], shots = [], wrecks = []; /* wrecks: aircraft down and done ploughing, waiting to leave the scene (updateFalling) */
@@ -56,7 +57,7 @@ export function createArmy(E) {
   const KIND = { bullet: { geo: new THREE.BoxGeometry(0.09, 0.09, 0.85), mat: basic(0xffe27a), max: 320 }, shell: { geo: new THREE.SphereGeometry(0.24, 10, 8), mat: basic(0xffa040), max: 48 },
     rocket: { geo: new THREE.BoxGeometry(0.15, 0.15, 0.66), mat: basic(0xdff6ff), max: 48 }, missile: { geo: new THREE.BoxGeometry(0.22, 0.22, 0.95), mat: basic(0xff3a2a), max: 16 } };
   for (const k in KIND) { const K = KIND[k]; K.mesh = new THREE.InstancedMesh(K.geo, K.mat, K.max); K.mesh.frustumCulled = false; K.mesh.count = 0; K.mesh.renderOrder = 5; }
-  function shoot(kind, from, vel, o = {}) { shots.push({ kind, p: from.clone(), v: vel.clone(), life: o.life || 3, t: 0, dmg: o.dmg || 1, sm: 0, home: o.home || 0, speed: vel.length(), vmax: o.vmax || vel.length(), r: o.r || 0, src: o.src || kind }); } /* r: its own hit reach (a jet's tracers), else the ship's shield; src: who fired it (for the damage count) */
+  function shoot(kind, from, vel, o = {}) { shots.push({ kind, p: from.clone(), v: vel.clone(), life: o.life || 3, t: 0, dmg: o.dmg || 1, sm: 0, home: o.home || 0, speed: vel.length(), vmax: o.vmax || vel.length(), r: o.r || 0, src: o.src || kind, px: o.px || 0, onZap: o.onZap || null }); } /* px: how near a tap must be to zap it (a mini boss's missile is easier), onZap: what else happens when it is zapped */ /* r: its own hit reach (a jet's tracers), else the ship's shield; src: who fired it (for the damage count) */
   const m4 = new THREE.Matrix4(), q4 = new THREE.Quaternion(), sc4 = V(1, 1, 1), dir4 = V(), toS = V();
   function updateShots(dt) { const S = E.ship;
     for (let i = shots.length - 1; i >= 0; i--) { const s = shots[i]; s.life -= dt; s.t += dt; const p = s.p;
@@ -193,7 +194,7 @@ export function createArmy(E) {
         C.sm -= dt; if (C.sm <= 0) { C.sm = 0.035; fx.puff('flame', g.position, 0.9 * o.size); fx.puff('smoke', g.position, 0.9 * o.size); if (Math.random() < 0.4) fx.sparks(g.position, 2, { speed: 2, up: 0, life: 0.5 }); }
         if (g.position.y > 0.5) continue;
         const at = g.position.clone().setY(0), dir = V(Math.sin(C.heading), 0, Math.cos(C.heading)); C.down = true; C.pos = at; C.dir = dir; C.left = o.plough; C.v = Math.max(8, C.speed * 2); C.acc = 1;
-        fx.explode(at.clone().setY(0.6), o.blast); fx.scorch(at, o.blast, 26); E.jolt(0.8); E.flash(0.25); sfx.boom(); E.after(0.18, () => sfx.boom()); E.banner(o.banner); E.award(o.pts, at, o.label);
+        fx.explode(at.clone().setY(0.6), o.blast); fx.scorch(at, o.blast, 26); E.jolt(0.8); E.flash(0.25); sfx.boom(); E.after(0.18, () => sfx.boom()); if (o.banner) E.banner(o.banner); if (o.pts) E.award(o.pts, at, o.label); if (o.done) o.done(at); /* (done: a mini boss that came down this way is beaten the moment it lands) */
         for (const m of g.userData.strip || []) g.remove(m); g.rotation.set(0, C.heading, 0); g.updateMatrixWorld(true);
         twisters.tear(g, at, new THREE.Box3().setFromObject(g).getSize(V()), null, [], [], { collapse: true, now: true, power: 1.2, push: dir.clone().multiplyScalar(7).setY(3) }); continue; }
       const step = C.v * dt; C.pos.addScaledVector(C.dir, step); C.left -= step; C.acc += step; C.v = Math.max(4, C.v - 9 * dt);
@@ -214,7 +215,7 @@ export function createArmy(E) {
       T.column -= dt; if (T.column <= 0) { T.column = 70 - 6 * L; if (tanks.length < maxTanks() + 12) tankColumn(); } }
     if (L >= ARMY_FIRST.ship && !E.radarDown && !ships.length) { T.ship -= dt; if (T.ship <= 0) spawnShips(); } /* (spawnShips sets the gap to the next ones) */
     if (L >= ARMY_FIRST.jet && !E.radarDown && E.blind <= 0 && !runs.length) { T.jet -= dt; if (T.jet <= 0) { T.jet = L === 1 ? rnd(24, 32) : L === 2 ? rnd(20, 28) : L === 3 ? rnd(16, 24) : rnd(13, 20) - 3 * rk; startRun(); } } } /* in a blackout the jets can't find you */
-  function update(dt) { if (E.ship.alive) schedule(dt * (E.foeK ? E.foeK() : 1)); /* (foeK: a harder round sends the army in faster) */ /* nothing new turns up once the round is over */ updateSoldiers(dt); updateTanks(dt); updateShips(dt); updateJets(dt); updateLaunchers(dt); updateFalling(dt); updateShots(dt); }
+  function update(dt) { if (E.ship.alive) schedule(dt * (E.foeK ? E.foeK() : 1)); /* (foeK: a harder round sends the army in faster) */ /* nothing new turns up once the round is over */ updateSoldiers(dt); updateTanks(dt); updateShips(dt); updateJets(dt); updateLaunchers(dt); updateFalling(dt); updateShots(dt); minis.update(dt); }
 
   // ---------- the death ray's targets: what is under the player's finger. sd(pos) = how far the tap is from pos on screen,
   // in pixels. The closest within its reach wins; returns { kind, pos, hit(), ok(), stay } or null. ok(): it is still there
@@ -223,9 +224,9 @@ export function createArmy(E) {
   function pick(sd, extra = []) { let best = null, bs = 1;
     const consider = (kind, pos, px, hit, ok, stay = false) => { const k = sd(pos) / px; if (k < bs) { bs = k; best = { kind, pos, hit, ok, stay }; } };
     for (const j of jets) consider('jet', j.g.position, 84, () => zapJet(j), () => jets.includes(j), true); /* fast: a generous reach */
-    for (const e of extra) consider(e.kind, e.pos, e.px, e.hit, e.ok, e.stay);
+    for (const e of extra) consider(e.kind, e.pos, e.px, e.hit, e.ok, e.stay); minis.targets(consider);
     for (const s of ships) consider('gunship', s.g.position, 64, () => zapShip(s), () => ships.includes(s), true);
-    for (const sh of shots) if (sh.kind === 'missile' || sh.kind === 'shell') consider(sh.kind, sh.p, 44, () => { const i = shots.indexOf(sh); if (i < 0) return; shots.splice(i, 1); fx.explode(sh.p.clone(), 0.7); E.award(sh.kind === 'missile' ? 200 : 100, sh.p, sh.kind === 'missile' ? 'MISSILE DOWN' : 'SHELL DOWN'); }, () => shots.includes(sh), true);
+    for (const sh of shots) if (sh.kind === 'missile' || sh.kind === 'shell') consider(sh.kind, sh.p, sh.px || 44, () => { const i = shots.indexOf(sh); if (i < 0) return; shots.splice(i, 1); fx.explode(sh.p.clone(), 0.7); E.award(sh.kind === 'missile' ? 200 : 100, sh.p, sh.kind === 'missile' ? 'MISSILE DOWN' : 'SHELL DOWN'); if (sh.onZap) sh.onZap(sh); }, () => shots.includes(sh), true);
     for (const l of launchers) consider('launcher', l.g.position.clone().setY(0.8), 52, () => hitLauncher(l), () => launchers.includes(l), true);
     for (const t of tanks) consider('tank', t.g.position.clone().setY(t.boss ? 1.4 : 0.5), t.boss ? 92 : 48, () => killTank(t), () => tanks.includes(t));
     for (const s of soldiers) consider('soldier', s.position.clone().setY(0.35), 28, () => killSoldier(s, s.position.clone()), () => soldiers.includes(s));
@@ -240,8 +241,8 @@ export function createArmy(E) {
     for (let i = soldiers.length - 1; i >= 0; i--) { const s = soldiers[i]; if (Math.hypot(s.position.x - c.x, s.position.z - c.z) < r) { killSoldier(s, c); n++; } }
     for (const t of tanks.slice()) if (Math.hypot(t.g.position.x - c.x, t.g.position.z - c.z) < r + 0.6) { killTank(t, o.quiet ? 'quiet' : undefined, r >= 5 ? 4 : r >= 3 ? 2 : 1); n++; } /* (the boss: a bigger blast takes more off it) */
     for (const l of launchers.slice()) if (Math.hypot(l.g.position.x - c.x, l.g.position.z - c.z) < r + 0.6) { l.hp = 1; hitLauncher(l, !!o.quiet); n++; }
-    return n; }
-  function eachDot(fn) { for (const t of tanks) fn(t.g.position, 'tank'); for (const l of launchers) fn(l.g.position, 'launcher'); for (const s of ships) fn(s.g.position, 'gunship'); for (const j of jets) fn(j.g.position, 'jet'); }
+    return n + minis.area(c, r); }
+  function eachDot(fn) { for (const t of tanks) fn(t.g.position, 'tank'); for (const l of launchers) fn(l.g.position, 'launcher'); for (const s of ships) fn(s.g.position, 'gunship'); for (const j of jets) fn(j.g.position, 'jet'); minis.eachDot(fn); }
   // first-time prompts: each new enemy is explained the first time it is on screen. The round holds still while the card is up
   // (a tap anywhere carries on, and never reaches the game)
   function coachTick() { const { coach, coachSeen, toScreen } = E, inView = E.inView || seen; /* inView: on screen and clear of the HUD, so the card's arrow points at something the player can see */
@@ -251,12 +252,14 @@ export function createArmy(E) {
     return false; }
   // the old round's army goes, and lets go of its GPU buffers (the shared gun, glow and shot shapes stay)
   const drop = (o) => { scene.remove(o); o.traverse((m) => { if (m.geometry && m.geometry !== gunGeo && m.geometry !== glowGeo) m.geometry.dispose(); if (m.material && !Array.isArray(m.material) && m.material !== gunMat) m.material.dispose(); }); };
-  function clear() {
+  function clear() { minis.clear();
     for (const s of soldiers) drop(s); soldiers = []; for (const t of tanks) { drop(t.g); scene.remove(t.glow); t.glow.material.dispose(); t.arrow.remove(); } tanks = []; boss = null;
     for (const s of ships) { drop(s.g); s.arrow.remove(); } ships = []; for (const l of launchers) { drop(l.g); scene.remove(l.line); l.line.material.dispose(); l.arrow.remove(); } launchers = [];
     for (const j of jets) { scene.remove(j.g); j.arrow.remove(); } jets = []; for (const r of runs.slice()) dropRun(r); runs = []; /* (jets share one model's shapes and paint: nothing to let go of) */
     for (const f of [...falling, ...wrecks]) unWreck(f); falling.length = wrecks.length = 0; shots.length = 0; for (const k in KIND) KIND[k].mesh.count = 0; }
-  return { spawnTown, update, pick, nearest, hitArea, eachDot, coachTick, clear, killSoldier, killTank, addBoss, dropBoss, get boss() { return boss; },
+  // the mini bosses (minis.js): they use the army's own shots, routes, arrows and crashes
+  const minis = createMinis({ E, scene, fx, shoot, shots, farRoad, mkArrow, tankBoom, roadPathTo, followPath, addSoldier, addTank, startRun, fall, drop });
+  return { minis, spawnTown, update, pick, nearest, hitArea, eachDot, coachTick, clear, killSoldier, killTank, addBoss, dropBoss, get boss() { return boss; },
     get soldiers() { return soldiers; }, get tanks() { return tanks; }, get ships() { return ships; }, get launchers() { return launchers; }, get shots() { return shots; }, get falling() { return falling; }, get jets() { return jets; }, get runs() { return runs; },
     // for tests
     spawn(k) { if (k === 'ship') spawnShips(); else if (k === 'tank') addTank(10); else if (k === 'squad') addSquad(6); else if (k === 'launcher') addLauncher(E.ship.pos); else if (k === 'jet') startRun(); }, zapShip, zapJet, hitLauncher, T, JET };
