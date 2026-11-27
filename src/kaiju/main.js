@@ -312,7 +312,7 @@ function grabCar(at) { let best = null, bd = 12, bi = -1, list = null; for (let 
   if (!best) return null; list.splice(bi, 1); free(best); scene.attach(best); carsN++; return best; }
 function grabBuilding(at) { let best = null, bd = 14; for (const x of buildings) { if (x.done) continue; const d = Math.hypot(x.pos.x - at.x, x.pos.z - at.z); if (d < bd) { bd = d; best = x; } } if (!best) return null;
   free(best.obj); best.done = true; bDone++; { const i = city.obstacles.findIndex((o) => Math.abs(o.x - best.pos.x) < 0.3 && Math.abs(o.z - best.pos.z) < 0.3); if (i >= 0) city.obstacles.splice(i, 1); } if (best.b.userData.edges) best.b.userData.edges.visible = false;
-  if (best.obj === best.b) for (const m of best.b.userData.extras || []) m.visible = false; /* its snow, lights and signs go with it instead of hanging in the air */ award(best.pts, best.pos, 'RIPPED UP'); grow(best.h * 0.35); scene.attach(best.obj); return best.obj; }
+  if (best.obj === best.b) for (const m of best.b.userData.extras || []) { m.visible = false; m.userData.gone = true; } /* its snow, lights and signs go with it instead of hanging in the air */ award(best.pts, best.pos, 'RIPPED UP'); grow(best.h * 0.35); scene.attach(best.obj); return best.obj; }
 
 // ---------- score, popups, banners ----------
 let score = 0, chain = 0, lastHit = -9, tLeft = 150, played = 0, peopleN = 0, carsN = 0, bDone = 0, tooBigT = 0, ko = 0;

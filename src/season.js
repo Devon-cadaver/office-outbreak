@@ -90,20 +90,22 @@ export function createSeason(scene, group, rng, W, D) {
     }
   };
   let ownerN = 0;
-  api.business = (w, h, fp, addX0, faces, edge) => { const owner = ++ownerN; const addX = (...a) => { const m = addX0(...a); m.userData.deco = 1; m.userData.owner = owner; return m; };
+  api.business = (w, h, fp, addX0, faces, edge, own) => { const owner = ++ownerN; const addX = (...a) => { const m = addX0(...a); m.userData.deco = 1; m.userData.owner = owner; return m; };
+    // a decoration built as a little group of its own (pumpkins, a wreath, a flag): its pieces move into the town's group, where they stand, and become the building's (own: city.js adds them to its extras), so they go when it goes. They used to be left on the empty lot
+    const mine = (g0) => { g0.updateMatrixWorld(true); const ms = [], flat = g0.rotation.x === 0 && g0.rotation.y === 0 && g0.rotation.z === 0; g0.traverse((m) => { if (m.isMesh) ms.push(m); }); for (const m of ms) { if (flat && m.parent === g0) { m.position.add(g0.position); group.add(m); } else group.attach(m); m.userData.deco = 1; m.userData.owner = owner; if (own) own(m); } group.remove(g0); };
     if (none || edge) return; const [dx, dz, ry] = faces.length ? faces[0] : [0, 1, 0]; const fx = w.x + dx * (fp / 2 + 0.05), fz = w.z + dz * (fp / 2 + 0.05);
     const along = (t) => [w.x + dx * (fp / 2 + 0.08) + dz * t, w.z + dz * (fp / 2 + 0.08) - dx * t];
     if (season === 'halloween') {
       const neon = addX(box, rng() < 0.5 ? greenG : purpleG, fp * 0.7, 0.16, 0.06, fx, 1.35, fz, ry); anim.push({ m: neon, pulse: true, k: rng() * 6 });
       for (let i = 0; i < 6; i++) { const [px, pz] = along(-fp * 0.35 + i * fp * 0.14); addX(gem, bulbMats[i % 3], 0.08, 0.1, 0.08, px, h + 0.12, pz); }
-      const [p1x, p1z] = along(0.55); const pg = new THREE.Group(); pg.position.set(p1x, 0.1, p1z); group.add(pg); pumpkin(pg, 0, 0, 1); const [p2x, p2z] = along(-0.6); const pg2 = new THREE.Group(); pg2.position.set(p2x, 0.1, p2z); group.add(pg2); pumpkin(pg2, 0, 0, 0.8);
+      const [p1x, p1z] = along(0.55); const pg = new THREE.Group(); pg.position.set(p1x, 0.1, p1z); group.add(pg); pumpkin(pg, 0, 0, 1); const [p2x, p2z] = along(-0.6); const pg2 = new THREE.Group(); pg2.position.set(p2x, 0.1, p2z); group.add(pg2); pumpkin(pg2, 0, 0, 0.8); mine(pg); mine(pg2);
       addX(box, B(0xb05cff), fp * 0.5, 0.05, 0.05, fx, 1.1, fz, ry);
     } else if (season === 'christmas') {
       for (let i = 0; i < 9; i++) { const [px, pz] = along(-fp * 0.45 + i * fp * 0.11); addX(gem, bulbMats[i % 4], 0.08, 0.1, 0.08, px, h + 0.12, pz); }
-      addX(box, snow, fp + 0.1, 0.08, fp + 0.1, w.x, h + 0.12, w.z); const wg = new THREE.Group(); wg.position.set(fx, 0, fz); wg.rotation.y = ry; group.add(wg); wreath(wg, 0, 1.0, 0.03);
+      addX(box, snow, fp + 0.1, 0.08, fp + 0.1, w.x, h + 0.12, w.z); const wg = new THREE.Group(); wg.position.set(fx, 0, fz); wg.rotation.y = ry; group.add(wg); wreath(wg, 0, 1.0, 0.03); mine(wg);
     } else if (season === 'july4') {
       for (let i = 0; i < 12; i++) { const [px, pz] = along(-fp * 0.45 + i * fp * 0.08); const p = addX(cone, [red, white, blue][i % 3], 0.14, 0.18, 0.02, px, 1.3, pz, ry); p.rotation.x = Math.PI; }
-      const [ax, az] = along(fp * 0.3); const fg = new THREE.Group(); fg.position.set(ax, h - 0.1, az); group.add(fg); flag(fg, 0, 0, 0.7, ry);
+      const [ax, az] = along(fp * 0.3); const fg = new THREE.Group(); fg.position.set(ax, h - 0.1, az); group.add(fg); flag(fg, 0, 0, 0.7, ry); mine(fg);
     }
   };
   api.tree = (sp, px, pz) => { if (season !== 'halloween') return false; const g = new THREE.Group(); g.position.set(px, 0, pz); sp.g.add(g); g.position.set(0, 0, 0); deadTree(g, 0, 0, 1.1); if (rng() < 0.4) ghost(g, 0.4, 1.3, 0.3); return true; };
@@ -126,7 +128,7 @@ export function createSeason(scene, group, rng, W, D) {
   const launch = () => { const site = sites.length ? sites[(rng() * sites.length) | 0] : { x: (rng() - 0.5) * W, z: (rng() - 0.5) * D }; const col = fwCols[(rng() * fwCols.length) | 0]; const s = { m: null, rocket: true, col, t: 0.9 + rng() * 0.5 }; spark(new THREE.Vector3(site.x, 0.3, site.z), new THREE.Vector3((rng() - 0.5) * 1.5, 11 + rng() * 3, (rng() - 0.5) * 1.5), 0xffe0a0, s.t, 0.12); if (sparks.length) sparks[sparks.length - 1].rocket = col; };
   const burst = (p, col) => { for (let i = 0; i < 46; i++) { const v = new THREE.Vector3(rng() - 0.5, rng() - 0.5, rng() - 0.5).normalize().multiplyScalar(3.5 + rng() * 3); spark(p, v, rng() < 0.8 ? col : 0xffffff, 1.1 + rng() * 0.5, 0.16); } };
   api.update = (dt) => {
-    for (const a of anim) { a.k += dt; if (a.bob) a.m.position.y = a.y + Math.sin(a.k * 2) * a.bob; else if (a.pulse) a.m.visible = Math.sin(a.k * 7) > -0.8; else if (a.wave) a.m.rotation.y = a.rx + Math.sin(a.k * 4) * 0.25; }
+    for (const a of anim) { a.k += dt; if (a.bob) a.m.position.y = a.y + Math.sin(a.k * 2) * a.bob; else if (a.pulse) { if (!a.m.userData.gone) a.m.visible = Math.sin(a.k * 7) > -0.8; } /* (gone: its building has been broken up and this hidden with it: the flicker must not show it again) */ else if (a.wave) a.m.rotation.y = a.rx + Math.sin(a.k * 4) * 0.25; }
     if (snowPts) { const a = snowPts.geometry.attributes.position.array; for (let i = 0; i < a.length; i += 3) { a[i + 1] -= dt * 1.4; a[i] += Math.sin(a[i + 1] + i) * dt * 0.3; if (a[i + 1] < 0) a[i + 1] += 20; } snowPts.geometry.attributes.position.needsUpdate = true; }
     if (season === 'july4') { fwT -= dt; if (fwT <= 0) { fwT = 1.2 + rng() * 2.5; launch(); } }
     for (let i = sparks.length - 1; i >= 0; i--) { const s = sparks[i]; s.life -= dt; if (!s.rocket) s.vel.y -= 3.5 * dt; s.p.addScaledVector(s.vel, dt);

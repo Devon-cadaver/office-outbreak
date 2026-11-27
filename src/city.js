@@ -562,7 +562,7 @@ export function buildCity(scene, wall, level) {
       if (style === 'glass') { addX(box, roofDark, footprint * 0.55, 0.7, footprint * 0.55, w.x, h + 0.45, w.z); if (tower && R2() < 0.5) { addX(cyl, steelMat, 1.1, 0.04, 1.1, w.x, h + 0.83, w.z); addX(cyl, litWin, 0.5, 0.045, 0.5, w.x, h + 0.835, w.z); addX(cyl, steelMat, 0.4, 0.05, 0.4, w.x, h + 0.84, w.z); } }
       if (!tower && zone === 'downtown' && R2() < 0.14) { const tx = Math.abs(R2() - 0.5) > 0.25 ? 1 : 0, tz = 1 - tx, bx = w.x + tz * (footprint / 2 - 0.25) * (R2() < 0.5 ? -1 : 1), bz = w.z + tx * (footprint / 2 - 0.25) * (R2() < 0.5 ? -1 : 1); // a billboard along one edge
         for (const k of [-1, 1]) addX(box, steelMat, 0.07, 0.7, 0.07, bx + tx * k * 0.7, h + 0.5, bz + tz * k * 0.7); addX(box, SIGNS[(R2() * SIGNS.length) | 0], tx ? 1.9 : 0.08, 0.8, tx ? 0.08 : 1.9, bx, h + 1.15, bz); addX(box, litWin, tx ? 1.9 : 0.1, 0.04, tx ? 0.1 : 1.9, bx, h + 0.72, bz); } }
-    season.business(w, h, footprint, addX, faces, edge);
+    season.business(w, h, footprint, addX, faces, edge, (m) => extras.push(m));
     obstacles.push({ x: w.x, z: w.z, hw: CELL / 2 - 0.05, hd: CELL / 2 - 0.05 });
     buildings.push(mesh);
   }

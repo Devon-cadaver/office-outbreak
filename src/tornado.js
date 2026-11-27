@@ -251,7 +251,7 @@ export function createTwisters(scene, { onBolt, onToss } = {}) {
     const take = (r) => r.traverse((m) => { if (m.isMesh && m.visible && !m.isInstancedMesh) meshes.push(m); }); o.updateMatrixWorld(true); take(o); for (const p of S.parts) if (p.parent && p.visible) { p.updateMatrixWorld(true); take(p); }
     const body = new THREE.Box3().setFromObject(o), mid = body.getCenter(new THREE.Vector3()), top = body.max.y, hgt = Math.max(0.5, top - body.min.y);
     const frags = wreck.fracture(meshes, { coarse: few, floors: S.size.y > 1.6 && S.size.x < 6 ? Math.round(S.size.y / 1.15) : 0, box: body });
-    o.visible = false; for (const p of S.parts) p.visible = false;
+    o.visible = false; for (const p of S.parts) { p.visible = false; p.userData.gone = true; } /* (gone: hidden for good. season.js's flickering signs look for it) */
     let burning = 0; for (const k of chunks) if (k.burn) burning++;
     const away = S.from ? new THREE.Vector3(mid.x - S.from.x, 0, mid.z - S.from.z) : null; if (away) { if (away.lengthSq() < 0.01) away.set(Math.random() - 0.5, 0, Math.random() - 0.5); away.normalize(); }
     // knocked apart: each piece is thrown out from the middle, up (higher pieces more) and away from the blow
