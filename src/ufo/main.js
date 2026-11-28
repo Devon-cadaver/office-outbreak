@@ -18,7 +18,7 @@ import { makeCar } from '../car.js';
 import { createTwisters } from '../tornado.js';
 import { createFires } from '../fire.js';
 import { nukeBlast } from '../nuke.js';
-import { unlockAudio, soundToggle, setMusicDuck, setSfxPaused, skipSongBtn, sfx, stopMusic, setPlaneEngine, setWind, playSongs, songState, gameMusic, SONGS_ALL, firstSong, soundsMenu } from '../audio.js';
+import { unlockAudio, soundToggle, setMusicDuck, setSfxPaused, skipSongBtn, sfx, stopMusic, setPlaneEngine, setWind, playSongs, songState, gameMusic, SONGS_ALL, firstSong, soundsMenu, readySfx, setCrowd, setEngine, hasLoop } from '../audio.js';
 import { townSkin, skinnedCarArgs, addCoins } from '../skins.js';
 import { forceSeason, seasonChoice, seasonPicker } from '../season.js';
 import { eraPicker } from '../era.js';
@@ -305,7 +305,7 @@ function shipLook(dt) { if (WALK()) { walkerLook(dt); return; } const g = ship.g
 
 // ---------- the tractor beam: hold BEAM and anyone under the ship floats up, spinning, into it ----------
 const lifted = [];
-function lift(c, kind) { delete c.updateMatrixWorld; c.userData.frz = false; c.userData.panic = true; lifted.push({ c, kind, t: 0, spin: rnd(4, 8) * (Math.random() < 0.5 ? -1 : 1), s0: c.scale.x }); if (kind !== 'car' && Math.random() < 0.3) popup(c.position, SHOUTS[(Math.random() * SHOUTS.length) | 0], '#ffffff'); }
+function lift(c, kind) { delete c.updateMatrixWorld; c.userData.frz = false; c.userData.panic = true; lifted.push({ c, kind, t: 0, spin: rnd(4, 8) * (Math.random() < 0.5 ? -1 : 1), s0: c.scale.x }); if (kind !== 'car' && Math.random() < 0.3) (popup(c.position, SHOUTS[(Math.random() * SHOUTS.length) | 0], '#ffffff'), sfx.scream()); }
 function updateLifted(dt) { const top = ship.y - 0.45;
   for (let i = lifted.length - 1; i >= 0; i--) { const l = lifted[i], c = l.c, p = c.position; l.t += dt;
     if (!ship.alive || ship.fall) { p.y = Math.max(0, p.y - dt * 4); c.rotation.z *= 0.9; if (p.y <= 0) { lifted.splice(i, 1); c.rotation.set(0, c.rotation.y, 0); c.scale.setScalar(l.s0); if (l.kind === 'car') scene.remove(c); else { Object.assign(c.userData, { home: p.clone(), goal: null, stun: played + 1.5 }); (l.kind === 'soldier' ? army.soldiers : people).push(c); } } continue; } // the ship is going down: they drop back to the street
@@ -682,7 +682,7 @@ addEventListener('blur', () => { beamHeld = false; beamPress = mouseShip = null;
 let state = 'start', roundId = 0, outro = null; // roundId: delayed effects from an earlier round check it and stand down
 const pct = () => Math.round((bDone / totalB) * 100);
 soundToggle($('taStart'), $('taPaused')); playerButton($('taPaused'), $('taPaused').querySelector('.menuBtn')); tipsSetup('bu', $('taPaused'), $('taPaused').querySelector('.menuBtn')); diffPicker($('taLevels'), 'bu'); skipSongBtn($('ta')); eraPicker($('taLevels'), () => { level = unlocked(); drawLevels(); }); seasonPicker($('eraRow'));
-gameMusic($('taPaused'), SONGS_ALL); radioButton($('taPaused'), $('taPaused').querySelector('.menuBtn')); soundsMenu($('taPaused'));
+gameMusic($('taPaused'), SONGS_ALL); radioButton($('taPaused'), $('taPaused').querySelector('.menuBtn')); soundsMenu($('taPaused')); readySfx();
 const fsMode = initFullscreen(() => state === 'play' || state === 'outro'); // full screen on play, back in after a browser drop-out, no page scrolling mid-round (the outro is still the round)
 const hudCache = {}; const setT = (id, v) => { v = String(v); if (hudCache[id] !== v) { hudCache[id] = v; $(id).textContent = v; } };
 const setC = (id, cls, on) => { const k = id + '.' + cls; if (hudCache[k] !== on) { hudCache[k] = on; $(id).classList.toggle(cls, on); } };
@@ -710,7 +710,7 @@ function finish(kind, why) { if (state !== 'play') return; state = 'outro'; outr
 function outroTick(dt) { const o = outro; o.t += dt; runTimers(dt); army.update(dt); updateLifted(dt); const g = ship.g; reticle.visible = false; setT('taScore', score); beam.update(dt, Math.max(0.5, ship.y - 0.34), GRAB_R, false); for (let i = blasts.length - 1; i >= 0; i--) if (!blasts[i].update(dt)) blasts.splice(i, 1);
   if (o.kind === 'crash') { (WALK() || sk.tick(dt, ship)); const f = ship.fall; if (f && !f.down) { f.t += dt; f.vy += 9 * dt; ship.x += Math.sin(f.head) * f.sp * dt; ship.z += Math.cos(f.head) * f.sp * dt; ship.y -= f.vy * dt; g.position.set(ship.x, ship.y, ship.z); g.rotation.set(Math.sin(f.t * 9) * 0.6, g.rotation.y + dt * 9, Math.cos(f.t * 7) * 0.6);
       f.sm -= dt; if (f.sm <= 0) { f.sm = 0.03; fx.puff('flame', g.position, 0.9); fx.puff('smoke', g.position, 1.1); if (Math.random() < 0.4) fx.sparks(g.position, 3, { speed: 3, up: 1, life: 0.5 }); }
-      if (ship.y <= 0.6) { f.down = true; const at = V3(ship.x, 0, ship.z); fx.explode(at.clone().setY(0.8), 2.6); fx.scorch(at, 2.6, 30); fx.shock(at, 7, 0x7dff3a, 0.6); jolt(1); flashT = 0.4; sfx.boom(); after(0.2, () => sfx.boom());
+      if (ship.y <= 0.6) { f.down = true; const at = V3(ship.x, 0, ship.z); fx.explode(at.clone().setY(0.8), 2.6); fx.scorch(at, 2.6, 30); fx.shock(at, 7, 0x7dff3a, 0.6); jolt(1); flashT = 0.4; sfx.boom(); after(0.2, () => sfx.blast());
         const u = ship.body.userData; for (const m of u.strip || []) if (m.parent) m.parent.remove(m); twisters.tear(ship.body, at, V3(3.4, 0.9, 3.4), null, [], [], { collapse: true, now: true, power: 1.4 }); blast(at, 2.4, { from: at }); } }
     if (o.t >= 3.4) finishNow(); return; }
   // won, or out of time: the saucer spins up, climbs, and is gone in a flash
@@ -800,7 +800,7 @@ function update(dt) {
   boostT -= dt; nukeT = Math.max(0, nukeT - dt); blindT = Math.max(0, blindT - dt); rayCd -= dt;
   /* (flying costs nothing now: power, the E bar, is the only health) */
   const sx = ship.x, sz = ship.z, bl = ship.y - 0.42 * SHIP_SCALE; beam.g.position.set(sx, bl, sz); beam.update(dt, bl, GRAB_R, beamOn);
-  setPlaneEngine(beamOn ? 0.75 : 0, 2.4 + Math.sin(played * 3) * 0.05); setWind(0.32 + Math.min(0.4, Math.hypot(ship.vel.x, ship.vel.z) * 0.05), 0.2); // a buzzing hum while beaming, the rush of air as it flies
+  setEngine('beam', beamOn ? 0.75 : hasLoop('beam') ? 0.2 : 0, 2.4 + Math.sin(played * 3) * 0.05); /* (with the recording the saucer hums quietly all the time and swells with the beam; the code-made drone is the beam only, as before) */ setWind(0.32 + Math.min(0.4, Math.hypot(ship.vel.x, ship.vel.z) * 0.05), 0.2); // a buzzing hum while beaming, the rush of air as it flies
   if (beamOn && Math.random() < dt * 14) { const a = Math.random() * 6.28, r = Math.random() * GRAB_R; fx.sparks(V3(sx + Math.cos(a) * r, 0.2 + Math.random() * bl * 0.8, sz + Math.sin(a) * r), 1, { c: [0xffffff, 0x7df0ff], speed: 0.6, up: 3, life: 0.8 }); } // motes of light drifting up the beam
   nukeTick(dt);
   { const u = ship.body && ship.body.userData, on = boostT > 0 && ship.alive; if (u) { const k = on ? 1.6 + Math.sin(played * 18) * 0.25 : 1; if (u.pods) { u.pods.scale.setScalar(k); u.pods.rotation.y += on ? dt * 9 : 0; } if (u.eye) u.eye.scale.setScalar(on ? 1.5 : 1); if (u.shield) u.shield.material.opacity = Math.max(u.shield.material.opacity, on ? 0.28 + Math.sin(played * 14) * 0.08 : 0); if (u.ring) u.ring.material.map.offset.x += on ? dt * 3 : 0; }
@@ -813,8 +813,8 @@ function update(dt) {
     if (beamOn && d < GRAB_R && lifted.length < LIFT_MAX) { people.splice(i, 1); lift(c, u.kind || 'person'); continue; }
     if (u.wb > 0) { u.panic = true; c.rotation.y = Math.atan2(-dx, -dz); c.position.y = Math.min(0.5, u.wb * 0.15); animateWalk(c, dt, 0); continue; } /* caught in the walker's searchlight: frozen to the spot, lifting a little off the ground */
     if (u.stun > played) { animateWalk(c, dt, 0); continue; } // knocked flat (a blast, a flood): they can't run
-    if (beamOn && d < PULL_R) { const k = 1 - d / PULL_R, sp = (2.3 + 2.4 * k) * dt; c.position.x -= dx / d * sp; c.position.z -= dz / d * sp; c.rotation.y = Math.atan2(dx, dz); u.panic = true; animateWalk(c, dt, 1.4); collidePerson(c); u.goal = null; if (Math.random() < dt * 0.25) popup(c.position, SHOUTS[(Math.random() * SHOUTS.length) | 0], '#ffffff'); continue; } // dragged in, legs going, arms up
-    if (d < PANIC_R * (WALK() ? 1 : sk.panic) && !u.zombie && !(!WALK() && sk.lured(c, d))) { const sp = (stink ? 0.5 : 1.7) * dt, x0 = c.position.x, z0 = c.position.z; c.position.x += dx / d * sp; c.position.z += dz / d * sp; c.rotation.y = Math.atan2(dx, dz); u.panic = !stink; collidePerson(c); /* a wall in the way: run along it instead of running on the spot */ if (Math.hypot(c.position.x - x0, c.position.z - z0) < sp * 0.4) { const sd = u.side || (u.side = Math.random() < 0.5 ? 1 : -1); c.position.x = x0 - dz / d * sp * sd; c.position.z = z0 + dx / d * sp * sd; c.rotation.y = Math.atan2(-dz * sd, dx * sd); collidePerson(c); if (Math.hypot(c.position.x - x0, c.position.z - z0) < sp * 0.4) u.side = -sd; } if (Math.hypot(c.position.x - x0, c.position.z - z0) > sp * 0.25) animateWalk(c, dt, stink ? 0.6 : 1.3); u.goal = null; if (u.panic && Math.random() < dt * 0.04) popup(c.position, SHOUTS[(Math.random() * SHOUTS.length) | 0], '#ffffff'); continue; }
+    if (beamOn && d < PULL_R) { const k = 1 - d / PULL_R, sp = (2.3 + 2.4 * k) * dt; c.position.x -= dx / d * sp; c.position.z -= dz / d * sp; c.rotation.y = Math.atan2(dx, dz); u.panic = true; animateWalk(c, dt, 1.4); collidePerson(c); u.goal = null; if (Math.random() < dt * 0.25) (popup(c.position, SHOUTS[(Math.random() * SHOUTS.length) | 0], '#ffffff'), sfx.scream()); continue; } // dragged in, legs going, arms up
+    if (d < PANIC_R * (WALK() ? 1 : sk.panic) && !u.zombie && !(!WALK() && sk.lured(c, d))) { const sp = (stink ? 0.5 : 1.7) * dt, x0 = c.position.x, z0 = c.position.z; c.position.x += dx / d * sp; c.position.z += dz / d * sp; c.rotation.y = Math.atan2(dx, dz); u.panic = !stink; collidePerson(c); /* a wall in the way: run along it instead of running on the spot */ if (Math.hypot(c.position.x - x0, c.position.z - z0) < sp * 0.4) { const sd = u.side || (u.side = Math.random() < 0.5 ? 1 : -1); c.position.x = x0 - dz / d * sp * sd; c.position.z = z0 + dx / d * sp * sd; c.rotation.y = Math.atan2(-dz * sd, dx * sd); collidePerson(c); if (Math.hypot(c.position.x - x0, c.position.z - z0) < sp * 0.4) u.side = -sd; } if (Math.hypot(c.position.x - x0, c.position.z - z0) > sp * 0.25) animateWalk(c, dt, stink ? 0.6 : 1.3); u.goal = null; if (u.panic && Math.random() < dt * 0.04) (popup(c.position, SHOUTS[(Math.random() * SHOUTS.length) | 0], '#ffffff'), sfx.scream()); continue; }
     if ((u.zombie || (!WALK() && sk.lured(c, d))) && d < 14) { const sp = 0.7 * dt; c.position.x -= dx / d * sp; c.position.z -= dz / d * sp; c.rotation.y = Math.atan2(-dx, -dz); animateWalk(c, dt, 0.8); collidePerson(c); continue; } // the dead shamble toward the light
     if (d > 34) { if (!u.frz) { u.frz = true; c.updateMatrixWorld(true); c.updateMatrixWorld = noop; } continue; } // out of sight: hold still, matrices frozen
     if ((i + frameN) & 1) continue; const dw = dt * 2; u.wait -= dw; if (!u.goal && u.wait <= 0) u.goal = V3(u.home.x + (Math.random() - 0.5) * 2, 0, u.home.z + (Math.random() - 0.5) * 2); // every other frame: just strolling about
@@ -843,7 +843,7 @@ function update(dt) {
   { const p = pct(); setT('taPct', innerWidth < 761 ? '💥 ' + p + '%' : '🏚️ ' + p + '% DESTROYED'); setC('taPct', 'ok', p >= L().goal); }
   setC('buBeam', 'on', beamOn); setC('buBeam', 'hint', !beamOn && !!peopleNear(PULL_R + 1));
   let nDone = 0; for (const k of poiOrder) { const P = pois[k]; if (P.done) { nDone++; continue; } edgeArrow(P.arrow, P.center, true); if (P.mark) tickPoiMark(P.mark); } setT('taTargets', nDone + '/' + poiGoal()); setC('taTargets', 'ok', nDone >= poiGoal());
-  crowdLists[0][0] = people; crowdLists[1][0] = army.soldiers; crowd.sync(crowdLists, sx, sz, 4); syncGlows();
+  { let n = 0; for (const c of people) if (c.userData.panic) n++; setCrowd(n / 8); } crowdLists[0][0] = people; crowdLists[1][0] = army.soldiers; crowd.sync(crowdLists, sx, sz, 4); syncGlows();
   mapT -= dt; if (mapT <= 0) { mapT = 0.1; drawMini(); } if (frameN % 60 === 0) measureHud();
   if (MODE !== 'endless' && !mini && !miniMet && ship.alive && miniDue(level, LEVELS.length) && halfDone() >= 0.5) startMini(); /* (the three goals half met: the town's mini boss) */
   if (MODE !== 'endless' && !boss && !mini && abd >= L().abduct && pct() >= L().goal && poisDone() >= poiGoal()) { if (bossDue(level, LEVELS.length) && !bossBeat) startBoss(); else finish('win'); } // all three goals met: mission complete (in the last town, the boss comes first)

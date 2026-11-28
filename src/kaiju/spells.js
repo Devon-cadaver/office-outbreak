@@ -75,7 +75,7 @@ export function createSpells(env) {
   const SP = {
     godzilly: [
       (c, at, o) => { shot({ from: mouthOf(c), to: at, color: 0x4ab8ff, size: 0.8, arc: 3, speed: 16, onHit: (p) => blast(p, 2.6, 26, 0x4ab8ff, { ...o, fire: true }) }); sfx.whoosh(); },
-      (c, at, o) => { const from = mouthOf(c), to = clampTo(from, at, 16).setY(0.4); beam({ from, to, color: 0x4ab8ff, width: 0.7, life: 1.0 }); for (let i = 1; i <= 8; i++) { const p = from.clone().lerp(to, i / 8).setY(0); env.hitArea(p, 1.4, 6, { ...o, fire: true }); } fx.explode(to.clone(), 1.2); sfx.boom(); env.flash(0.15); },
+      (c, at, o) => { const from = mouthOf(c), to = clampTo(from, at, 16).setY(0.4); beam({ from, to, color: 0x4ab8ff, width: 0.7, life: 1.0 }); for (let i = 1; i <= 8; i++) { const p = from.clone().lerp(to, i / 8).setY(0); env.hitArea(p, 1.4, 6, { ...o, fire: true }); } fx.explode(to.clone(), 1.2); sfx.blast(); env.flash(0.15); },
       (c, at, o) => { env.leap(c, at, 0.75, () => { blast(at, 6.5, 62, 0x4ab8ff, o); ring({ at, color: 0xffffff, r1: 8, life: 0.8 }); }); sfx.whoosh(); },
     ],
     konk: [
@@ -124,7 +124,7 @@ export function createSpells(env) {
     ],
     destroyah: [
       (c, at, o) => { const from = mouthOf(c), to = clampTo(from, at, 8).setY(0.5); beam({ from, to, color: 0xff3aa8, width: 0.45, life: 0.4 }); line(from, to, 5, 1.2, 9, o); sfx.hit(); },
-      (c, at, o) => { const from = mouthOf(c), to = clampTo(from, at, 17).setY(0.4); beam({ from, to, color: 0xb83aff, width: 0.75, life: 1.1 }); line(from, to, 9, 1.5, 7, { ...o, fire: true }); fx.explode(to.clone(), 1.2); sfx.boom(); env.flash(0.15); },
+      (c, at, o) => { const from = mouthOf(c), to = clampTo(from, at, 17).setY(0.4); beam({ from, to, color: 0xb83aff, width: 0.75, life: 1.1 }); line(from, to, 9, 1.5, 7, { ...o, fire: true }); fx.explode(to.clone(), 1.2); sfx.blast(); env.flash(0.15); },
       (c, at, o) => swarm(wp(c.g), at, 9, bug(0xc23b2b), 1.3, 7, 0xff3a3a, o),
     ],
     biolettuce: [
@@ -175,7 +175,7 @@ export function createSpells(env) {
     ],
     battra: [
       (c, at, o) => charge(c, at, 0.55, 1.5, 1.8, 8, 0xe8b82a, o, (p) => blast(p, 2.1, 15, 0xe8b82a, o)),
-      (c, at, o) => { const m0 = mouthOf(c), to = clampTo(m0, at, 18).setY(0.4); for (const [dx, col] of [[-0.3, 0xff3a2a], [0.3, 0xe8b82a]]) beam({ from: m0.clone().add(new THREE.Vector3(dx, 0, 0)), to, color: col, width: 0.5, life: 1.0 }); line(m0, to, 9, 1.5, 6, o); fx.explode(to.clone(), 1.2); sfx.boom(); },
+      (c, at, o) => { const m0 = mouthOf(c), to = clampTo(m0, at, 18).setY(0.4); for (const [dx, col] of [[-0.3, 0xff3a2a], [0.3, 0xe8b82a]]) beam({ from: m0.clone().add(new THREE.Vector3(dx, 0, 0)), to, color: col, width: 0.5, life: 1.0 }); line(m0, to, 9, 1.5, 6, o); fx.explode(to.clone(), 1.2); sfx.blast(); },
       (c, at, o) => { if (env.flash) env.flash(0.15); /* a quick purple-white flash, no blackout: the screen stays easy to see */ rain(at, 7, 10, 2.2, (p) => { bolt(p, 0xb85aff); blast(p, 1.9, 11, 0x8a3aff, o); }); },
     ],
   };

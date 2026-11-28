@@ -105,7 +105,7 @@ export function createFoes(E) {
   }
   function killCannon(c, how) { E.speedBurst(2.2); const i = cannons.indexOf(c); if (i >= 0) cannons.splice(i, 1); scene.remove(c.line); c.arrow.remove(); const p = c.g.position.clone(); T.cannon = rnd(26, 38);
     if (how === 'crushed' && E.tw) twisters.suck(c.g, E.tw); else { const big = how === 'over' ? 3.2 : 2.6, at = p.clone().setY(0.6); twisters.scatter([c.g], p, 7); fx.explode(at, big); fx.shock(p, big * 2.1, 0xffb060, 0.5); fx.glow(p, big * 2.3, 0xffa040, 1, 0.5); fx.scorch(p, 2.4); fx.sparks(at, 26, { speed: 9, up: 8, life: 0.9 }); E.flash(0.2); /* struck by lightning: a big blast, then smaller ones around it */
-      for (let k = 0; k < 4; k++) { const a = k * 1.57 + Math.random(), o = V(p.x + Math.cos(a) * 1.3, 0.5, p.z + Math.sin(a) * 1.3); setTimeout(() => fx.explode(o, 1.1), 90 + k * 70); } setTimeout(() => sfx.boom(), 160);
+      for (let k = 0; k < 4; k++) { const a = k * 1.57 + Math.random(), o = V(p.x + Math.cos(a) * 1.3, 0.5, p.z + Math.sin(a) * 1.3); setTimeout(() => fx.explode(o, 1.1), 90 + k * 70); } setTimeout(() => sfx.blast(), 160);
       /* its sound wave lets go all at once: a ring races outward and flattens what stands close by */
       fx.shock(p, 9, 0xffd9a0, 0.75); setTimeout(() => { fx.shock(p, 13, 0xffc060, 0.9); for (let k = 0; k < 10; k++) { const a = k * 0.628; fx.dust({ x: p.x + Math.cos(a) * 2.5, y: 0, z: p.z + Math.sin(a) * 2.5 }, 1.3, Math.cos(a) * 6, Math.sin(a) * 6); } E.crashDamage(p.clone(), how === 'over' ? 4.2 : 3.2, V(0, 0, 1)); E.jolt(0.8); }, 140); }
     E.award(600, p, how === 'crushed' ? 'CANNON CRUSHED' : how === 'over' ? 'OVERLOAD' : 'CANNON'); E.grow(1.5); E.banner(how === 'over' ? '📢 CANNON OVERLOADED!' : '📢 CANNON DESTROYED!'); sfx.boom(); E.jolt(0.6); if (c.ring && E.miniDown && !cannons.some((o) => o.ring)) E.miniDown(p); }
@@ -212,7 +212,7 @@ export function createFoes(E) {
         C.sm -= dt; if (C.sm <= 0) { C.sm = 0.035; fx.puff('flame', g.position, 0.9 * o.size); fx.puff('smoke', g.position, 0.9 * o.size); if (Math.random() < 0.4) fx.sparks(g.position, 2, { speed: 2, up: 0, life: 0.5 }); }
         if (g.position.y > 0.5) continue;
         const at = g.position.clone().setY(0), dir = V(Math.sin(C.heading), 0, Math.cos(C.heading)); C.down = true; C.pos = at; C.dir = dir; C.left = o.plough; C.v = Math.max(8, C.speed * 2); C.acc = 1;
-        fx.explode(at.clone().setY(0.6), o.blast); fx.scorch(at, o.blast, 26); E.jolt(1); E.flash(0.3); sfx.boom(); setTimeout(() => sfx.boom(), 180); E.banner(o.banner); E.award(o.pts, at, o.label); E.grow(o.grow);
+        fx.explode(at.clone().setY(0.6), o.blast); fx.scorch(at, o.blast, 26); E.jolt(1); E.flash(0.3); sfx.boom(); setTimeout(() => sfx.blast(), 180); E.banner(o.banner); E.award(o.pts, at, o.label); E.grow(o.grow);
         for (const m of g.userData.strip || []) g.remove(m); g.rotation.set(0, C.heading, 0); g.updateMatrixWorld(true);
         twisters.tear(g, at, new THREE.Box3().setFromObject(g).getSize(V()), null, [], [], { collapse: true, now: true, power: 1.2, push: dir.clone().multiplyScalar(7).setY(3) }); continue; }
       const step = C.v * dt; C.pos.addScaledVector(C.dir, step); C.left -= step; C.acc += step; C.v = Math.max(4, C.v - 9 * dt);

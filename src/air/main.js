@@ -14,7 +14,7 @@ import { generateMaze, buildCity, toWorld, toCell, CELL, mulberry32 } from '../c
 import { createFires } from '../fire.js';
 import { createTwisters } from '../tornado.js';
 import { createPoiFx } from '../ally/poiFx.js';
-import { unlockAudio, soundToggle, setMusicDuck, setSfxPaused, skipSongBtn, sfx, stopMusic, setPlaneEngine, playSongs, gameMusic, SONGS_TORNADO, firstSong, soundsMenu } from '../audio.js';
+import { unlockAudio, soundToggle, setMusicDuck, setSfxPaused, skipSongBtn, sfx, stopMusic, setPlaneEngine, playSongs, gameMusic, SONGS_TORNADO, firstSong, soundsMenu, readySfx, setEngine } from '../audio.js';
 import { radioButton } from '../radioBox.js';
 import { addCoins, townSkin } from '../skins.js';
 import { forceSeason, seasonChoice, seasonPicker } from '../season.js';
@@ -304,7 +304,7 @@ function updateBuildingFires(dt) { for (let i = burning.length - 1; i >= 0; i--)
 function wreckPoi(k) { const P = pois[k]; if (!P || P.done) return; P.done = true; poiHit++; const g = new THREE.Group(); g.position.copy(P.center); scene.add(g);
   for (const h of P.hz) { live(h); for (const part of h.parts || []) if (part.parent) g.attach(part); const i = city.obstacles.findIndex((o) => Math.abs(o.x - h.pos.x) < 0.3 && Math.abs(o.z - h.pos.z) < 0.3); if (i >= 0) city.obstacles.splice(i, 1); }
   twisters.tear(g, P.center, new THREE.Box3().setFromObject(g).getSize(new THREE.Vector3()), null, [], [], { collapse: true, now: true, power: 1.4 });
-  fx.explode(new THREE.Vector3(P.center.x, 1, P.center.z), 2.2); flashT = Math.max(flashT, 0.3); jolt(1); sfx.boom(); setTimeout(() => sfx.boom(), 200); poiFx.play(k, P.center);
+  fx.explode(new THREE.Vector3(P.center.x, 1, P.center.z), 2.2); flashT = Math.max(flashT, 0.3); jolt(1); sfx.boom(); setTimeout(() => sfx.blast(), 200); poiFx.play(k, P.center);
   if (state === 'play') { score += SUP.poiPts; popup(P.center, '+' + SUP.poiPts + ' 📦 SUPPLIES!', '#ffd24a'); banner('📦 SUPPLIES FROM THE ' + POI[k].name + '!'); addSup(Math.round(zStart * SUP.poi)); }
   if (k === 'power') { for (const [t, v] of [[0, 0.3], [0.16, 0.9], [0.34, 0.15], [0.55, 0.75], [0.8, 0.1], [1.05, 0.5]]) poiFx.after(t, () => lights(v)); poiFx.after(1.3, blackout); } // the town's lights stutter, then go out
   horde.blast(P.center.x, P.center.z, 3.2, 1.3, 'rocket', true); } /* (zombies only: blowing a landmark up for its supplies costs no collateral) */
@@ -342,7 +342,7 @@ function drawWpns() { const box = $('arWpns'); if (!box) return; const l = WPN[c
 function useW(c) { let w = wpn; if (w === 3) { if (nukes > 0) { nukes--; wpn = Math.min(wLv, 2); drawWpns(); return 3; } w = wpn = Math.min(wLv, 2); drawWpns(); } if (c.ammo < WPN[c.kind][w].cost) w = 0; c.ammo -= WPN[c.kind][w].cost; return w; }
 function fireSpot(x, z) { fx.ignite(new THREE.Vector3(x, 0.1, z), 1.0, NAPALM_T); addPatch(x, z); hitThings(x, z, 'napalm'); }
 // the NUKE: a blast that burns the dead and leaves the living and the town standing (a Grave Giant in it is badly hurt)
-function nukeAt(x, z) { const at = new THREE.Vector3(x, 0, z), hitG = new Set(); let done = 0; flashT = Math.max(flashT, 1); jolt(1.3); sfx.boom(); setTimeout(() => sfx.boom(), 220); banner('☢️ NUKE!'); miniBlast(x, z, SUP.nukeR, 10, true);
+function nukeAt(x, z) { const at = new THREE.Vector3(x, 0, z), hitG = new Set(); let done = 0; flashT = Math.max(flashT, 1); jolt(1.3); sfx.boom(); setTimeout(() => sfx.blast(), 220); banner('☢️ NUKE!'); miniBlast(x, z, SUP.nukeR, 10, true);
   arBlasts.push(nukeBlast(scene, at, SUP.nukeR, { kind: 'nuke', secs: 1.8, onRadius: (r) => { if (r - done < 1) return; done = r; horde.blast(x, z, r, 1.4, 'rocket', true);
     for (const G of horde.giants) if (G.live && !hitG.has(G) && Math.hypot(G.root.position.x - x, G.root.position.z - z) < r + G_R * 0.6) { hitG.add(G); hurtG(G, SUP.nukeG); } } })); }
 function updateBlasts(dt) { for (let i = arBlasts.length - 1; i >= 0; i--) if (!arBlasts[i].update(dt)) arBlasts.splice(i, 1); }
@@ -435,7 +435,7 @@ function updateCraft(dt) { const c = craft, S = c.S; c.t += dt; sk.tick(dt, c); 
     // rockets: while FIRE (or SPACE) is held they go one after another, each to where the circle is as it fires
     c.fireCd -= dt; if (firing() && c.fireCd <= 0 && state === 'play') fireRocket(aimPoint(c, tmpA));
     for (const p of c.g.userData.props) p.rotation.y += dt * 32; if (c.g.userData.tail) c.g.userData.tail.rotation.x += dt * 40;
-    setPlaneEngine(state === 'play' ? 0.28 : 0, 0.72 + sp * 0.02); // the rotor: lower and softer
+    setEngine('heli', state === 'play' ? 0.28 : 0, 0.72 + sp * 0.02); // the rotor: lower and softer
     // the circle on the ground ahead of the nose (dim where it can't fire: inside the airfield's ring, or out of rockets)
     reticle.visible = false; aimSpot.visible = aimBeam.visible = state === 'play'; if (aimBeam.visible) { aimPoint(c, tmpA); c.g.updateMatrixWorld(true); const from = tmpB.set(0, -0.3, 0.45).applyMatrix4(c.g.matrixWorld), d = tmpA.clone().setY(0.05).sub(from), L0 = d.length(); aimBeam.position.copy(from); aimBeam.quaternion.setFromUnitVectors(DOWN, d.normalize()); aimBeam.scale.set(1, L0, 1); aimSpot.position.set(tmpA.x, 0.12, tmpA.z); const o = c.ammo <= 0 || nd < BASE_R ? 0.35 : firing() ? 1.6 : 1 + Math.sin(c.t * 5) * 0.15; aimBeam.material.opacity = 0.2 * o; aimSpot.material.opacity = 0.32 * o; }
   }
@@ -513,7 +513,7 @@ function crashTick(c, dt) { const C = c.crash, g = c.g; C.t += dt;
     else { c.head += dt * 7; c.pos.x += c.vel.x * dt; c.pos.z += c.vel.z * dt; c.vel.multiplyScalar(0.97); c.bank = Math.sin(C.t * 5) * 0.4; }
     c.pos.y -= C.vy * dt; place(c); if (Math.random() < dt * 30) { fx.puff('flame', c.pos, 0.7); fx.puff('smoke', c.pos, 0.7); }
     if (c.pos.y > 0.45) return; C.down = true; const at = c.pos.clone().setY(0);
-    fx.explode(at.clone().setY(0.6), 2.2); fx.scorch(at, 2.2, 26); fx.ignite(at.clone().setY(0.1), 1, 8); jolt(1); flashT = Math.max(flashT, 0.35); sfx.boom(); setTimeout(() => sfx.boom(), 180);
+    fx.explode(at.clone().setY(0.6), 2.2); fx.scorch(at, 2.2, 26); fx.ignite(at.clone().setY(0.1), 1, 8); jolt(1); flashT = Math.max(flashT, 0.35); sfx.boom(); setTimeout(() => sfx.blast(), 180);
     sk.crash(at, g); { const xr = g.getObjectByName('xray'); if (xr) g.remove(xr); } // (its see-through-walls silhouette is not part of the wreck)
     twisters.tear(g, at, new THREE.Box3().setFromObject(g).getSize(new THREE.Vector3()), null, [], [], { collapse: true, now: true, power: 1.2, push: new THREE.Vector3(Math.sin(c.head) * 4, 2, Math.cos(c.head) * 4) }); c.shadow.visible = false; setPlaneEngine(0);
     finish('down'); } }
@@ -908,7 +908,7 @@ addEventListener('blur', () => { for (const k in keys) keys[k] = false; dropHeld
 // ---------- flow ----------
 let state = 'start', roundId = 0, roundN = 0;
 soundToggle($('taStart'), $('taPaused')); playerButton($('taPaused'), $('taPaused').querySelector('.menuBtn')); tipsSetup('ar', $('taPaused'), $('taPaused').querySelector('.menuBtn')); diffPicker($('taLevels'), 'ar'); skipSongBtn($('ta')); eraPicker($('taLevels'), () => { level = unlocked(); drawLevels(); }); seasonPicker($('eraRow'));
-gameMusic($('taPaused'), SONGS_TORNADO); radioButton($('taPaused'), $('taPaused').querySelector('.menuBtn')); soundsMenu($('taPaused'));
+gameMusic($('taPaused'), SONGS_TORNADO); radioButton($('taPaused'), $('taPaused').querySelector('.menuBtn')); soundsMenu($('taPaused')); readySfx();
 const fsMode = initFullscreen(() => state === 'play' || state === 'outro'); // full screen on play, back in after a browser drop-out, no page scrolling mid-round (and its button stays out of the way while the HUD still shows)
 function start() { if (MODE === 'streak') level = streakLevel(LEVELS.length); if (MODE === 'endless') { level = LEVELS.length; waves.reset(); waveKills = 0; riseT = 6; } RK = roundK('ar'); firstSong('ar', 'music/napalm-requiem.mp3'); /* (the first round ever opens on Napalm Requiem) */
   fsMode.play(); coachClear(); saveLast('ar', level); horde.crowd.clear(); if (state !== 'start' || roundN > 0) roundN++; roundId++;

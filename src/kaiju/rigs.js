@@ -144,10 +144,10 @@ export function buildKaiju(id, skin = false, lowDetail = false) {
     if (head && head !== body && !NO_HEAD.has(K.kind) && !o.ed && !o.pod) { const sz = new THREE.Box3().setFromObject(head).getSize(new THREE.Vector3()); head.traverse((m) => { if (m.isMesh) m.visible = false; }); pumpkinHead(head, fx, Math.min(0.7, Math.max(0.42, Math.max(sz.x, sz.z) * 1.05))); }
     else { const bb = new THREE.Box3().setFromObject(g), top = new THREE.Vector3((bb.min.x + bb.max.x) / 2, bb.max.y - 0.05, (bb.min.z + bb.max.z) / 2), par = rig.chest ? rig.chest.parent : body; witchHat(par, par.worldToLocal(top), fx, Math.min(0.9, (bb.max.x - bb.min.x) * 0.32)); } }
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.9, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false })); shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.03; g.add(shadow);
-  let t = Math.random() * 10, actK = null, actT = 0;
+  let t = Math.random() * 10, actK = null, actT = 0, mt = 0; /* mt: how long it has been walking, counted by how fast (the sum of move * dt): the walk cycles run on this, so a change of speed never jumps the legs */
   return { id, def: K, g, body, shadow, fly: !!K.fly, tint: sk ? sk.spell : K.spellC != null ? K.spellC : K.borrow ? K.pal[4] : null, wrestler: K.kind === 'wrestler', mouth: rig.mouth, hand: rig.hand, chest: rig.chest, hammer: rig.hammer,
     act(k) { actK = k; actT = 0; }, get acting() { return actK; },
-    anim(dt, move) { t += dt; if (actK) { actT += dt * ((rig.actSpeed && rig.actSpeed[actK]) || (actK === 'ko' ? 0.8 : actK === 'win' ? 0.7 : actK === 'lift' || actK === 'clutch' ? 0.45 : 2.4)); if (actT >= 1 && actK !== 'ko') actK = null; } rig.anim(t, dt, move, actK, Math.min(1, actT)); if (actK === 'lift' || actK === 'clutch') gripPose(rig, actK, Math.min(1, actT), t); for (const f of fx) f(t); shadow.scale.setScalar(rig.shadowK || 1); },
+    anim(dt, move) { t += dt; mt += dt * move; if (actK) { actT += dt * ((rig.actSpeed && rig.actSpeed[actK]) || (actK === 'ko' ? 0.8 : actK === 'win' ? 0.7 : actK === 'lift' || actK === 'clutch' ? 0.45 : 2.4)); if (actT >= 1 && actK !== 'ko') actK = null; } rig.anim(t, dt, move, actK, Math.min(1, actT), mt); if (actK === 'lift' || actK === 'clutch') gripPose(rig, actK, Math.min(1, actT), t); for (const f of fx) f(t); shadow.scale.setScalar(rig.shadowK || 1); },
   };
 }
 const koTip = (body, k, axis = 'z') => { body.rotation[axis] = Math.min(1.5, k * 2) * (axis === 'x' ? -1 : 1); body.position.y = -k * 0.2; };
@@ -179,8 +179,8 @@ function biped(body, K) {
   if (o.mech) for (const lg of legs) part(lg.k, cyl, 0x7af0ff, 0.12, 0.05, 0.12, 0, -0.48, -0.1, 0, 0, 0, true);
   let wings = []; if (o.wings) wings = [-1, 1].map((s) => { const p = grp(torso, s * 0.35, 0.85, -0.3); const shp = new THREE.Shape(); shp.moveTo(0, 0); shp.lineTo(1.3 * s, 0.7); shp.lineTo(1.6 * s, 0.1); shp.lineTo(1.1 * s, -0.3); shp.lineTo(0.7 * s, -0.1); shp.lineTo(0.3 * s, -0.4); shp.closePath(); const w = new THREE.Mesh(new THREE.ShapeGeometry(shp), new THREE.MeshLambertMaterial({ color: o.wings, side: THREE.DoubleSide, flatShading: true })); w.rotation.y = s * 0.5; p.add(w); return { p, s }; });
   return { mouth, hand, chest,
-    anim(t, dt, move, act, k) {
-      const w = t * (toad ? 4 : 5.5 + move * 2), sw = Math.sin(w) * (toad ? 0.35 : 0.55) * move;
+    anim(t, dt, move, act, k, mt = 0) {
+      const w = (toad ? t * 4 : t * 5.5 + mt * 2), sw = Math.sin(w) * (toad ? 0.35 : 0.55) * move;
       if (toad) { const hop = Math.max(0, Math.sin(w * 0.5)) * move; hip.position.y = 0.55 + hop * 0.5 + lift; legs[0].l.rotation.x = legs[1].l.rotation.x = -hop * 0.8; legs[0].k.rotation.x = legs[1].k.rotation.x = hop * 1.2; }
       else { legs[0].l.rotation.x = sw; legs[1].l.rotation.x = -sw; legs[0].k.rotation.x = Math.max(0, -Math.sin(w)) * 0.6 * move; legs[1].k.rotation.x = Math.max(0, Math.sin(w)) * 0.6 * move; hip.position.y = 0.9 + Math.abs(Math.sin(w)) * 0.05 * move + lift + (o.hover ? Math.sin(t * 2) * 0.08 : 0); }
       hip.rotation.z = Math.sin(w) * 0.05 * move; arms[0].rotation.x = -sw * 0.4; arms[1].rotation.x = sw * 0.4; tail.forEach((s, i) => { s.rotation.y = Math.sin(t * 2.2 - i * 0.7) * (0.12 + move * 0.08); });
@@ -209,8 +209,8 @@ function ape(body, K) {
   const hand = grp(arms[1].el, 0, -0.62, 0.15);
   const legs = [-1, 1].map((s) => { const l = grp(hip, s * 0.32, 0, -0.05); part(l, box, fur, 0.34, 0.4, 0.38, 0, -0.16, 0); const k = grp(l, 0, -0.36, 0); part(k, box, fur, 0.3, 0.32, 0.32, 0, -0.14, 0); part(k, box, dark, 0.34, 0.1, 0.46, 0, -0.33, 0.08); return { l, k }; });
   return { mouth, hand, chest,
-    anim(t, dt, move, act, k) {
-      const w = t * (4.6 + move * 2), sw = Math.sin(w) * 0.5 * move;
+    anim(t, dt, move, act, k, mt = 0) {
+      const w = (t * 4.6 + mt * 2), sw = Math.sin(w) * 0.5 * move;
       legs[0].l.rotation.x = sw; legs[1].l.rotation.x = -sw; arms[0].a.rotation.x = -0.35 - sw * 0.9; arms[1].a.rotation.x = -0.35 + sw * 0.9; arms[0].el.rotation.x = 0.25; arms[1].el.rotation.x = 0.25;
       hip.position.y = 0.72 + Math.abs(Math.sin(w)) * 0.07 * move; torso.rotation.x = 0.45; torso.rotation.z = Math.sin(w) * 0.06 * move; neck.rotation.x = 0; jaw.rotation.x = 0;
       if (act === 'hit') { const s = S(k, 1); arms[1].a.rotation.x = -0.35 - 2.2 * s; arms[1].el.rotation.x = 0.25 - 0.4 * s; torso.rotation.x = 0.45 + 0.25 * s; }
@@ -238,10 +238,10 @@ function moth(body, K) {
     for (const [cx, cz, r, c] of front ? [[1.35, -0.45, 0.22, edge], [1.35, -0.45, 0.13, red], [0.7, -0.25, 0.12, yel]] : [[0.75, 0.45, 0.16, red], [0.45, 0.25, 0.08, yel]]) { const d = new THREE.Mesh(new THREE.CircleGeometry(r, 14), new THREE.MeshLambertMaterial({ color: c, side: THREE.DoubleSide })); d.rotation.x = -Math.PI / 2; d.position.set(cx * s, 0.012, cz); w.add(d); }
     wings.push({ piv, front, s }); }
   return { mouth, hand, chest, shadowK: 1.3,
-    anim(t, dt, move, act, k) {
-      const sp = 5 + move * 4, f = Math.sin(t * sp);
+    anim(t, dt, move, act, k, mt = 0) {
+      const ph = t * 5 + mt * 4, f = Math.sin(ph); /* (the wing beat: its speed-dependent part is added up frame by frame, see mt) */
       for (const w of wings) { w.piv.rotation.z = w.s * (0.25 + f * (w.front ? 0.65 : 0.5)); w.piv.rotation.y = w.s * (w.front ? 0.1 : -0.15); }
-      hover.position.y = 1.6 + Math.sin(t * sp) * 0.08 + Math.sin(t * 1.1) * 0.1; hover.rotation.x = 0.12 * move; hover.rotation.z = 0; abd.rotation.x = Math.sin(t * 1.7) * 0.08; ant.forEach((a, i) => { a.rotation.x = Math.sin(t * 3 + i) * 0.15; });
+      hover.position.y = 1.6 + Math.sin(ph) * 0.08 + Math.sin(t * 1.1) * 0.1; hover.rotation.x = 0.12 * move; hover.rotation.z = 0; abd.rotation.x = Math.sin(t * 1.7) * 0.08; ant.forEach((a, i) => { a.rotation.x = Math.sin(t * 3 + i) * 0.15; });
       if (act === 'hit') { const s = S(k, 1); hover.rotation.x = 0.12 * move + 0.5 * s; hover.position.y -= 0.4 * s; }
       else if (act === 'cast') { const s = S(k, 1); for (const w of wings) w.piv.rotation.z = w.s * (0.25 - 0.4 * s); hover.position.y += 0.3 * s; }
       else if (act === 'ko') { hover.position.y = Math.max(0.2, 1.6 - k * 1.6); hover.rotation.z = k * 1.2; }
@@ -264,8 +264,8 @@ function ptero(body, K) {
     const wm = new THREE.Mesh(new THREE.ShapeGeometry(shp), new THREE.MeshLambertMaterial({ color: heads === 3 ? acc : skin, side: THREE.DoubleSide, flatShading: true })); wm.rotation.x = -Math.PI / 2; piv.add(wm); part(piv, box, dark, 2.4, 0.06, 0.06, s * 1.2, 0.01, -0.25 + 0.2); return { piv, s }; });
   const hand = grp(hover, 0, -0.5, 0.2), chest = grp(hover, 0, 0, 0.6);
   return { mouth, hand, chest, shadowK: heads === 3 ? 1.6 : 1.3,
-    anim(t, dt, move, act, k) {
-      const f = Math.sin(t * (3.5 + move * 2.5)); for (const w of wings) w.piv.rotation.z = w.s * (0.15 + f * 0.6);
+    anim(t, dt, move, act, k, mt = 0) {
+      const f = Math.sin((t * 3.5 + mt * 2.5)); for (const w of wings) w.piv.rotation.z = w.s * (0.15 + f * 0.6);
       hover.position.y = 1.8 - f * 0.12 + Math.sin(t * 1.2) * 0.1; hover.rotation.x = 0.15 * move; hover.rotation.z = 0;
       necks.forEach((n, i) => { n.rotation.y = (i - (necks.length - 1) / 2) * 0.5 + Math.sin(t * 2 + i * 2) * 0.15; }); tails.forEach((tl, i) => { tl.rotation.y = Math.sin(t * 2.5 + i) * 0.3; }); for (const l of legs) l.rotation.x = 0.4 + Math.sin(t * 2) * 0.1;
       if (act === 'hit') { const s = S(k, 1); hover.rotation.x = 0.6 * s; hover.position.y -= 0.5 * s; for (const n of necks) n.rotation.x = -0.5 + 0.6 * s; }
@@ -293,8 +293,8 @@ function quad(body, K) {
   const legs = [[-1, 1], [1, 1], [-1, -1], [1, -1]].map(([sx, sz]) => { const l = grp(hip, sx * 0.45, -0.15, sz * 0.6); part(l, box, skin, 0.3, 0.45, 0.32, 0, -0.18, 0); const kn = grp(l, 0, -0.38, 0); part(kn, box, skin, 0.25, 0.34, 0.27, 0, -0.12, 0); part(kn, box, dark, 0.32, 0.1, 0.4, 0, -0.3, 0.06); return { l, kn, ph: (sx * sz > 0 ? 0 : Math.PI) }; });
   const tail = []; let prev = grp(hip, 0, 0.05, -0.85); for (let i = 0; i < 4; i++) { const s = 1 - i * 0.2; part(prev, box, skin, 0.36 * s, 0.3 * s, 0.45, 0, 0, -0.2); if (o.spikes) part(prev, cone, acc, 0.1, 0.3 * s, 0.1, 0, 0.2 * s, -0.2); tail.push(prev); prev = grp(prev, 0, 0, -0.42); }
   return { mouth, hand, chest, shadowK: 1.2,
-    anim(t, dt, move, act, k) {
-      const w = t * (5 + move * 2.5); for (const lg of legs) { lg.l.rotation.x = Math.sin(w + lg.ph) * 0.5 * move; lg.kn.rotation.x = Math.max(0, Math.sin(w + lg.ph + 1)) * 0.5 * move; }
+    anim(t, dt, move, act, k, mt = 0) {
+      const w = (t * 5 + mt * 2.5); for (const lg of legs) { lg.l.rotation.x = Math.sin(w + lg.ph) * 0.5 * move; lg.kn.rotation.x = Math.max(0, Math.sin(w + lg.ph + 1)) * 0.5 * move; }
       hip.position.y = 0.85 + Math.abs(Math.sin(w)) * 0.05 * move; hip.rotation.x = 0; hip.rotation.y = 0; neck.rotation.x = Math.sin(t * 1.5) * 0.05; jaw.rotation.x = 0.05; tail.forEach((s, i) => { s.rotation.y = Math.sin(t * 2.4 - i * 0.7) * (0.15 + move * 0.1); });
       if (act === 'hit') { const s = S(k, 1); neck.rotation.x = 0.4 * s; jaw.rotation.x = 0.6 * s; hip.position.y += 0.2 * s; }
       else if (act === 'cast') { const s = S(k, 1); neck.rotation.x = -0.5 * s; jaw.rotation.x = 0.7 * s; hip.rotation.x = -0.15 * s; if (sail) sail.scale.setScalar(1 + 0.3 * s); }
@@ -313,8 +313,8 @@ function crab(body, K) {
   const legs = []; for (let i = 0; i < 3; i++) for (const s of [-1, 1]) { const l = grp(hip, s * 0.55, -0.05, 0.15 - i * 0.3); part(l, box, shell, 0.5, 0.08, 0.08, s * 0.25, 0.05, 0, 0, 0, s * -0.4); const kn = grp(l, s * 0.48, 0.15, 0); part(kn, box, dark, 0.07, 0.6, 0.07, 0, -0.38, 0, 0, 0, s * 0.25); legs.push({ l, s, ph: i * 2 + (s > 0 ? 1 : 0) }); }
   const mouth = grp(head, 0, 0, 0.2), hand = grp(claws[1].p, 0, 0, 0.5), chest = grp(hip, 0, 0, 0.6);
   return { mouth, hand, chest, shadowK: 1.3,
-    anim(t, dt, move, act, k) {
-      const w = t * (7 + move * 4); for (const lg of legs) lg.l.rotation.y = Math.sin(w + lg.ph) * 0.4 * move + 0.0; hip.position.y = 0.7 + Math.abs(Math.sin(w)) * 0.04 * move; hip.rotation.z = Math.sin(w) * 0.05 * move;
+    anim(t, dt, move, act, k, mt = 0) {
+      const w = (t * 7 + mt * 4); for (const lg of legs) lg.l.rotation.y = Math.sin(w + lg.ph) * 0.4 * move + 0.0; hip.position.y = 0.7 + Math.abs(Math.sin(w)) * 0.04 * move; hip.rotation.z = Math.sin(w) * 0.05 * move;
       for (const c of claws) { c.a.rotation.x = Math.sin(t * 1.5 + c.s) * 0.1; c.pin.rotation.y = c.s * (0.15 + Math.max(0, Math.sin(t * 2 + c.s)) * 0.3); } tail.forEach((s, i) => { s.rotation.x = Math.sin(t * 2 - i) * 0.08; });
       if (act === 'hit') { const s = S(k, 1); for (const c of claws) { c.a.rotation.x = -0.6 * s; c.pin.rotation.y = c.s * 0.6 * s; } }
       else if (act === 'cast') { const s = S(k, 1); for (const c of claws) c.a.rotation.x = -1.0 * s; hip.position.y += 0.2 * s; }
@@ -332,8 +332,8 @@ function spider(body, K) {
   const legs = []; for (let i = 0; i < 4; i++) for (const s of [-1, 1]) { const l = grp(hip, s * 0.3, 0.05, 0.45 - i * 0.22); l.rotation.y = s * (-0.6 + i * 0.4); part(l, box, blk, 0.9, 0.09, 0.09, s * 0.45, 0.25, 0, 0, 0, s * 0.5); const kn = grp(l, s * 0.85, 0.48, 0); part(kn, box, blk, 0.08, 1.05, 0.08, s * 0.12, -0.5, 0, 0, 0, s * 0.25); part(kn, box, stripe, 0.1, 0.12, 0.1, 0, -0.1, 0); legs.push({ l, s, ph: i + (s > 0 ? 0.5 : 0) }); }
   const mouth = grp(hip, 0, -0.1, 0.75), hand = grp(hip, 0, -0.2, 0.7), chest = grp(hip, 0, 0, 0.7);
   return { mouth, hand, chest, shadowK: 1.6,
-    anim(t, dt, move, act, k) {
-      const w = t * (8 + move * 4); for (const lg of legs) { lg.l.rotation.x = Math.sin(w + lg.ph * Math.PI) * 0.35 * move; lg.l.rotation.z = Math.max(0, Math.sin(w + lg.ph * Math.PI)) * 0.25 * move * lg.s; }
+    anim(t, dt, move, act, k, mt = 0) {
+      const w = (t * 8 + mt * 4); for (const lg of legs) { lg.l.rotation.x = Math.sin(w + lg.ph * Math.PI) * 0.35 * move; lg.l.rotation.z = Math.max(0, Math.sin(w + lg.ph * Math.PI)) * 0.25 * move * lg.s; }
       hip.position.y = 1.0 + Math.sin(w * 2) * 0.03 * move; abd.rotation.x = Math.sin(t * 1.5) * 0.06; for (const f of fangs) f.rotation.x = Math.sin(t * 3) * 0.1;
       if (act === 'hit') { const s = S(k, 1); hip.rotation.x = -0.35 * s; for (const f of fangs) f.rotation.x = 0.8 * s; legs[0].l.rotation.x = legs[1].l.rotation.x = -0.8 * s; }
       else if (act === 'cast') { const s = S(k, 1); hip.rotation.x = 0.3 * s; abd.rotation.x = -0.7 * s; }
@@ -351,8 +351,8 @@ function blob(body, K) {
   const drips = []; for (let i = 0; i < 6; i++) { const d = part(core, ball, slime, 0.12, 0.22, 0.12, Math.cos(i) * 0.6, 0.6, Math.sin(i) * 0.6, 0, 0, 0, true); drips.push({ d, ph: i }); }
   const mouth = grp(core, 0, 1.45, 0.55), hand = grp(core, 0, 1.0, 0.6), chest = grp(core, 0, 1.0, 0.6);
   return { mouth, hand, chest, shadowK: 1.3,
-    anim(t, dt, move, act, k) {
-      const w = t * (3 + move * 3); core.scale.set(1 + Math.sin(w) * 0.08, 1 - Math.sin(w) * 0.08, 1 + Math.sin(w) * 0.08); lumps.forEach((l, i) => { l.position.y += Math.sin(t * 2 + i) * 0.002; });
+    anim(t, dt, move, act, k, mt = 0) {
+      const w = (t * 3 + mt * 3); core.scale.set(1 + Math.sin(w) * 0.08, 1 - Math.sin(w) * 0.08, 1 + Math.sin(w) * 0.08); lumps.forEach((l, i) => { l.position.y += Math.sin(t * 2 + i) * 0.002; });
       for (const d of drips) { const k2 = ((t * 0.6 + d.ph * 0.17) % 1); d.d.position.y = 0.9 - k2 * 0.9; d.d.scale.setScalar(0.12 * (1 - k2 * 0.5)); }
       if (act === 'hit') { const s = S(k, 1); core.scale.set(1 + 0.3 * s, 1 - 0.25 * s, 1 + 0.3 * s); }
       else if (act === 'cast') { const s = S(k, 1); core.scale.set(1 - 0.15 * s, 1 + 0.3 * s, 1 - 0.15 * s); }
@@ -372,7 +372,7 @@ function plant(body, K) {
   const vines = []; for (let i = 0; i < 7; i++) { const a = (i / 7) * Math.PI * 2; let prev = grp(base, Math.cos(a) * 0.6, 0.3, Math.sin(a) * 0.6); prev.rotation.y = -a + Math.PI / 2; const segs = []; for (let j = 0; j < 4; j++) { part(prev, box, j % 2 ? green : light, 0.16 - j * 0.02, 0.16 - j * 0.02, 0.42, 0, 0, 0.2); segs.push(prev); prev = grp(prev, 0, 0, 0.4); } part(prev, cone, red, 0.12, 0.3, 0.12, 0, 0, 0.1, Math.PI / 2); vines.push({ segs, ph: i }); }
   const mouth = grp(head, 0, 0, 0.6), hand = grp(head, 0, 0, 0.6), chest = grp(stalk, 0, 1.2, 0.4);
   return { mouth, hand, chest, shadowK: 1.5,
-    anim(t, dt, move, act, k) {
+    anim(t, dt, move, act, k, mt = 0) {
       for (const v of vines) v.segs.forEach((s, j) => { s.rotation.x = Math.sin(t * 2 + v.ph + j * 0.7) * 0.35 - 0.15; s.rotation.y = Math.sin(t * 1.6 + v.ph * 2 + j) * 0.3 * (1 + move); });
       stalk.rotation.x = Math.sin(t * 1.2) * 0.08 + move * 0.15; stalk.rotation.z = Math.sin(t * 0.9) * 0.08; jawT.rotation.x = -0.15 - Math.max(0, Math.sin(t * 1.4)) * 0.15; jawB.rotation.x = 0.15 + Math.max(0, Math.sin(t * 1.4)) * 0.15;
       if (act === 'hit') { const s = S(k, 1); stalk.rotation.x = 0.6 * s; jawT.rotation.x = -0.7 * s; jawB.rotation.x = 0.7 * s; }
@@ -421,8 +421,8 @@ function robot(body, K) {
   const legs = [-1, 1].map((s) => { const l = grp(hip, s * (ed ? 0.48 : 0.26 * wide), 0, 0), lc = o.multi ? (s < 0 ? 0x2a4ac8 : 0xffd24a) : legC;
     part(l, box, lc, 0.32 * wide, 0.5, 0.36, 0, -0.25, 0); const k = grp(l, 0, -0.5, 0); part(k, box, lc, 0.36 * wide, 0.42, 0.4, 0, -0.2, 0); part(k, box, 0x2a2a30, 0.4 * wide, 0.12, 0.56, 0, -0.44, 0.06); return { l, k }; });
   return { mouth, hand, chest,
-    anim(t, dt, move, act, k) {
-      const w = t * (5 + move * 2), sw = Math.sin(w) * 0.5 * move;
+    anim(t, dt, move, act, k, mt = 0) {
+      const w = (t * 5 + mt * 2), sw = Math.sin(w) * 0.5 * move;
       legs[0].l.rotation.x = sw; legs[1].l.rotation.x = -sw; legs[0].k.rotation.x = Math.max(0, -Math.sin(w)) * 0.6 * move; legs[1].k.rotation.x = Math.max(0, Math.sin(w)) * 0.6 * move;
       hip.position.y = 1.0 + Math.abs(Math.sin(w)) * 0.05 * move; torso.rotation.y = Math.sin(w) * 0.08 * move; neck.rotation.x = 0;
       arms[0].a.rotation.x = -sw * 0.5; arms[1].a.rotation.x = sw * 0.5;
@@ -440,8 +440,8 @@ function squid(body, K) {
   const tents = []; for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; let prev = grp(hip, Math.cos(a) * 0.35, -0.05, Math.sin(a) * 0.35); prev.rotation.y = -a + Math.PI / 2; const segs = []; for (let j = 0; j < 4; j++) { part(prev, box, j % 2 ? skin : light, 0.2 - j * 0.035, 0.16 - j * 0.03, 0.38, 0, 0, 0.18); segs.push(prev); prev = grp(prev, 0, 0, 0.36); } tents.push({ segs, ph: i }); }
   const mouth = grp(hip, 0, 0.3, 0.55), hand = grp(hip, 0, 0, 0.9), chest = grp(mantle, 0, 0.3, 0.5);
   return { mouth, hand, chest, shadowK: 1.5,
-    anim(t, dt, move, act, k) {
-      for (const tn of tents) tn.segs.forEach((s, j) => { s.rotation.x = 0.35 + Math.sin(t * (3 + move * 3) + tn.ph + j * 0.8) * 0.35; s.rotation.y = Math.sin(t * 2 + tn.ph) * 0.2; });
+    anim(t, dt, move, act, k, mt = 0) {
+      for (const tn of tents) tn.segs.forEach((s, j) => { s.rotation.x = 0.35 + Math.sin((t * 3 + mt * 3) + tn.ph + j * 0.8) * 0.35; s.rotation.y = Math.sin(t * 2 + tn.ph) * 0.2; });
       hip.position.y = 0.6 + Math.sin(t * 2) * 0.06; mantle.rotation.x = Math.sin(t * 1.3) * 0.06 + move * 0.2;
       if (act === 'hit') { const s = S(k, 1); mantle.rotation.x = 0.5 * s; for (const tn of tents) tn.segs[0].rotation.x = -0.6 * s; }
       else if (act === 'cast') { const s = S(k, 1); mantle.scale.set(1 + 0.2 * s, 1 - 0.15 * s, 1 + 0.2 * s); for (const tn of tents) tn.segs[0].rotation.x = 0.35 - 1.0 * s; } else mantle.scale.setScalar(1);

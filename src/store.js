@@ -1,4 +1,5 @@
-import { radio, setMusicDuck } from './audio.js';
+import { radio, setMusicDuck, setMenuQuiet } from './audio.js';
+setMenuQuiet(true); /* a menu: whatever the skin previews do, they make no game sounds */
 // Skin shop: live 3D previews of every skin, buy with coins, tap again to equip.
 import * as THREE from 'three';
 import { SKINS, CHAR_SKINS, CAR_SKINS, FX_SKINS, NPC_MAX, townShare, getCoins, addCoins, getOwned, getEquipped, equip, isEquipped, buy, fmtCoins, LIST_CATS } from './skins.js';

@@ -13,7 +13,7 @@ import { makeCar } from '../car.js';
 import { isFuture, isPast, hoverize, futurePlane, pastPlane, buildCannon, buildChaserCoach, eraPicker, levelKey, bestKey, futureTank, laserBolt } from '../era.js';
 import { createTwisters } from '../tornado.js';
 import { createFires } from '../fire.js';
-import { unlockAudio, soundToggle, setMusicDuck, setSfxPaused, skipSongBtn, sfx, stopMusic, setPlaneEngine, setStormLevel, stormBoost, playSongs, songState, gameMusic, SONGS_KAIJU, soundsMenu } from '../audio.js';
+import { unlockAudio, soundToggle, setMusicDuck, setSfxPaused, skipSongBtn, sfx, stopMusic, setPlaneEngine, setStormLevel, stormBoost, playSongs, songState, gameMusic, SONGS_KAIJU, soundsMenu, readySfx, setCrowd } from '../audio.js';
 import { armySkin, townSkin, equippedSkin, skinnedCarArgs, addCoins, CHAR_SKINS, getEquipped, totalReward, getOwned, equip } from '../skins.js';
 import { forceSeason, seasonChoice, seasonPicker } from '../season.js';
 import { showPrizes } from '../prizes.js';
@@ -104,7 +104,7 @@ function fireAt(from, big) {
   const to = me.g.position.clone().setY(0.6 + Math.random() * 2 * meScale); const dir = to.clone().sub(from); const Ld = dir.length(); dir.normalize();
   if (big && isFuture()) { const m = laserBolt(); m.position.copy(from); m.lookAt(to); scene.add(m); shots.push({ m, vel: dir.multiplyScalar(36), life: Ld / 36, big, laser: true }); fx.puff('flame', from, 0.3); sfx.laser(); return; }
   const m = new THREE.Mesh(big ? shellGeo : tracerGeo, big ? shellMat : tracerMat); m.position.copy(from); m.lookAt(to); scene.add(m);
-  shots.push({ m, vel: dir.multiplyScalar(big ? 16 : 28), life: Ld / (big ? 16 : 28), big }); fx.puff('flame', from, big ? 0.6 : 0.25); if (big) sfx.boom(); else if (Math.random() < 0.3) sfx.throw();
+  shots.push({ m, vel: dir.multiplyScalar(big ? 16 : 28), life: Ld / (big ? 16 : 28), big }); fx.puff('flame', from, big ? 0.6 : 0.25); if (big) sfx.blast(); else if (Math.random() < 0.3) sfx.throw();
 }
 function buildWorld() {
   if (city) { scene.remove(city.group); twisters.clear(); fx.clear(); poiFx.clear(); foes.clear(); for (const p of people) scene.remove(p); }
@@ -268,7 +268,7 @@ const poiFx = createPoiFx(scene, fx, { jolt: (v) => jolt(v), popup: (...a) => po
   arcTargets: (c, r, n) => buildings.filter((x) => !x.done).map((x) => [Math.hypot(x.pos.x - c.x, x.pos.z - c.z), x]).filter((e) => e[0] < r && e[0] > 2).sort((a, b) => a[0] - b[0]).slice(0, n).map(([, x]) => ({ pos: new THREE.Vector3(x.pos.x, Math.min(x.h, 6), x.pos.z), hit: () => { if (!x.done && Math.random() < 0.4) fx.ignite(new THREE.Vector3(x.pos.x, 1, x.pos.z), 0.8, 4); } })) });
 // a tank blown up goes up big: its ammunition cooks off in a ring of smaller blasts
 function tankBoom(q) { const at = q.clone().setY(0.6); fx.explode(at, 2.6); fx.shock(q, 5.5, 0xffb060, 0.5); fx.glow(q, 6, 0xffa040, 1, 0.5); fx.scorch(q, 2.4); fx.sparks(at, 26, { speed: 9, up: 8, life: 0.9 }); flashT = Math.max(flashT, 0.2); jolt(0.6); sfx.boom();
-  for (let k = 0; k < 4; k++) { const a = k * 1.57 + Math.random(), p = new THREE.Vector3(q.x + Math.cos(a) * 1.3, 0.5, q.z + Math.sin(a) * 1.3); anims.push({ wait: 0.09 + k * 0.07, t: 0, dur: 0.01, go() { fx.explode(p, 1.1); }, f() {}, end() {} }); } setTimeout(() => sfx.boom(), 160); if (city.knock(q.x, q.z, 2.6, 0, 0)) freeKnocked(); }
+  for (let k = 0; k < 4; k++) { const a = k * 1.57 + Math.random(), p = new THREE.Vector3(q.x + Math.cos(a) * 1.3, 0.5, q.z + Math.sin(a) * 1.3); anims.push({ wait: 0.09 + k * 0.07, t: 0, dur: 0.01, go() { fx.explode(p, 1.1); }, f() {}, end() {} }); } setTimeout(() => sfx.blast(), 160); if (city.knock(q.x, q.z, 2.6, 0, 0)) freeKnocked(); }
 const sinking = [];
 function crumble(x, label, fire, from, squash) { // from: where the blow came from. squash: trodden flat by something far bigger
   // a building comes down in a cloud of dust
@@ -334,7 +334,7 @@ function spawnPlane() {
   const arrow = document.createElement('div'); arrow.className = 'planeArrow'; arrow.textContent = '✈'; document.body.appendChild(arrow);
   planes.push({ g, arrow, heading: Math.atan2(-g.position.x, -g.position.z), life: 28, cool: 0, dropT: 0 }); banner('✈ NAPALM PLANE!'); sfx.whoosh();
 }
-function downPlane(pl) { pl.life = -1; pl.dead = true; fx.explode(pl.g.position.clone(), 1.2); award(500, pl.g.position, 'PLANE DOWN'); grow(2); twisters.scatter([pl.g], pl.g.position.clone(), 5); pl.arrow.remove(); sfx.boom(); }
+function downPlane(pl) { pl.life = -1; pl.dead = true; fx.explode(pl.g.position.clone(), 1.2); award(500, pl.g.position, 'PLANE DOWN'); grow(2); twisters.scatter([pl.g], pl.g.position.clone(), 5); pl.arrow.remove(); sfx.blast(); }
 function updatePlanes(dt, px, pz) {
   planeT -= dt * RK.foe; const maxUp = 1 + Math.floor((level - 1) / 2) + Math.floor((RK.foe - 1) * 2); /* (a harder round, or a later wave: the bombers come sooner, and more at once) */ if (!noPlanes && planeT <= 0) { planeT = Math.max(18, 32 - 3 * (level - 1)) + Math.random() * 8; if (planes.length < maxUp) spawnPlane(); }
   let nd = Infinity;
@@ -418,8 +418,8 @@ function admiralTick(dt) { const A = mb.air, g = A.g, P = me.g.position, p = g.p
   else { tx = A.to.x; tz = A.to.z; const dP = Math.hypot(P.x - p.x, P.z - p.z); ty = dP < 9 ? lo : lo + (dP - 9) * 0.55; sp = 9.5; A.drop -= dt; if (dP < 6 && A.drop <= 0) { A.drop = 0.3; const m = new THREE.Mesh(bombGeo, bombMat); m.scale.setScalar(1.6); m.position.copy(p); m.position.y -= 0.6; scene.add(m); mbBombs.push({ m, vy: 1 }); } if (Math.hypot(tx - p.x, tz - p.z) < 2 || A.t > 6.5) { A.st = 'circle'; A.cd = 5.5; A.ph = Math.atan2(p.z - P.z, p.x - P.x); } }
   const want = Math.atan2(tx - p.x, tz - p.z); let dr = want - A.head; dr = Math.atan2(Math.sin(dr), Math.cos(dr)); A.head += Math.max(-1, Math.min(1, dr)) * (A.st === 'dive' ? 2.4 : 1.3) * dt; p.x += Math.sin(A.head) * sp * dt; p.z += Math.cos(A.head) * sp * dt; p.y += (ty - p.y) * Math.min(1, dt * 1.7); g.rotation.set(0, A.head, 0); g.rotateZ(-Math.max(-1, Math.min(1, dr)) * 0.45);
   for (const q of g.userData.props) q.rotation.z += dt * 40; if (A.hp < A.max && Math.random() < dt * 9 * (A.max - A.hp)) fx.puff('smoke', p, 0.8); edgeArrow(A.arrow, p, true); }
-function mbBombTick(dt) { for (let i = mbBombs.length - 1; i >= 0; i--) { const b = mbBombs[i]; b.vy += 12 * dt; b.m.position.y -= b.vy * dt; if (b.m.position.y > 0.2) continue; const at = b.m.position.clone().setY(0.3); scene.remove(b.m); mbBombs.splice(i, 1); fx.explode(at, 1.1); fx.scorch(at.clone().setY(0), 1.2, 14); sfx.boom(); if (me && !died && megaT <= 0 && Math.hypot(at.x - me.g.position.x, at.z - me.g.position.z) < 1.2 + meScale * 0.5) hurt(3, at); } }
-function admiralHit() { const A = mb && !mb.dead && mb.air; if (!A) return; const p = A.g.position; A.hitT = 1.2; A.hp--; me.act('hit'); me.g.rotation.y = faceY = Math.atan2(p.x - me.g.position.x, p.z - me.g.position.z); fx.explode(p.clone(), 1.3); fx.sparks(p.clone(), 20, { c: [0xffe08a, 0xff8a2a], speed: 8, up: 4, life: 0.6 }); sfx.boom(); jolt(0.6); flashT = Math.max(flashT, 0.2);
+function mbBombTick(dt) { for (let i = mbBombs.length - 1; i >= 0; i--) { const b = mbBombs[i]; b.vy += 12 * dt; b.m.position.y -= b.vy * dt; if (b.m.position.y > 0.2) continue; const at = b.m.position.clone().setY(0.3); scene.remove(b.m); mbBombs.splice(i, 1); fx.explode(at, 1.1); fx.scorch(at.clone().setY(0), 1.2, 14); sfx.blast(); if (me && !died && megaT <= 0 && Math.hypot(at.x - me.g.position.x, at.z - me.g.position.z) < 1.2 + meScale * 0.5) hurt(3, at); } }
+function admiralHit() { const A = mb && !mb.dead && mb.air; if (!A) return; const p = A.g.position; A.hitT = 1.2; A.hp--; me.act('hit'); me.g.rotation.y = faceY = Math.atan2(p.x - me.g.position.x, p.z - me.g.position.z); fx.explode(p.clone(), 1.3); fx.sparks(p.clone(), 20, { c: [0xffe08a, 0xff8a2a], speed: 8, up: 4, life: 0.6 }); sfx.blast(); jolt(0.6); flashT = Math.max(flashT, 0.2);
   popup(p.clone(), A.hp > 0 ? '💥 SWATTED! ' + A.hp + ' TO GO' : '💥 SWATTED!', '#ffd24a'); A.st = 'circle'; A.cd = 5; A.ph = Math.atan2(p.z - me.g.position.z, p.x - me.g.position.x); if (A.hp > 0) return; A.arrow.remove(); twisters.scatter([A.g], p.clone(), 6); mb.air = null; mbDown(); }
 // a tap on the Admiral: a swat if it is low and close, or word that it is out of reach. True: the tap was for it
 function mbTap(cx, cy) { const A = mb && !mb.dead && mb.air; if (!A || !me || died) return false; const p = A.g.position, v = p.clone().project(cam); if (v.z > 1 || Math.hypot((v.x * 0.5 + 0.5) * innerWidth - cx, (-v.y * 0.5 + 0.5) * innerHeight - cy) > 84) return false;
@@ -496,7 +496,7 @@ function updateMega(dt) {
 function goMega() { megaT = MEGA_SECS; megaUsed = false; power = 1; boostT = MEGA_SECS; megaEl.className = ''; banner('⚡ MEGA ' + KAIJU[me.id].name + '!'); me.act('cast'); sfx.boom(); flashT = 0.35; stormBoost(3); }
 function megaBlast() {
   megaUsed = true; const at = me.g.position.clone().setY(0), kind = megaKind(me.id), R = 18 + meScale * 1.2, o = {};
-  banner(kind === 'nuke' ? '☢️ MEGA NUKE!' : '🔊 MEGA ROAR!'); me.act('cast'); flashT = kind === 'nuke' ? 1.2 : 0.5; sfx.boom(); setTimeout(() => sfx.boom(), 200); setTimeout(() => sfx.boom(), 450);
+  banner(kind === 'nuke' ? '☢️ MEGA NUKE!' : '🔊 MEGA ROAR!'); me.act('cast'); flashT = kind === 'nuke' ? 1.2 : 0.5; sfx.boom(); setTimeout(() => sfx.blast(), 200); setTimeout(() => sfx.blast(), 450);
   let done = 0; blasts.push(nukeBlast(scene, at, R, { kind, color: me.tint ?? null, green: me.id === 'mike', secs: kind === 'nuke' ? 1.6 : 1.1, onRadius: (r) => { if (r - done < 1.2) return; done = r; hitArea(at, r, 45, o); } }));
 }
 // each round's prize games hand out monsters: 90% of rounds give at least one, 20% give two (on the first goes; if the
@@ -546,7 +546,7 @@ function rivalSwing(r, dt) { const A = r.atk; A.t += dt; const k = Math.min(1, A
   if (k < 1) return; scene.remove(ring); r.atk = null; r.g.rotation.x = 0; r.rig.act('hit'); shove(r.rig, me.g.position.x - r.g.position.x, me.g.position.z - r.g.position.z, 0.45, 0, 0.08); r.cd = (0.9 + Math.random() * 0.8) * (1 - 0.35 * ramp());
   const dx = me.g.position.x - r.g.position.x, dz = me.g.position.z - r.g.position.z;
   const dodged = r.dodged; r.dodged = null;
-  if (Math.hypot(dx, dz) < A.reach && !leap && !meToss && !grabbed && !dodged && dodgeT <= 0) { r.hits = (r.hits || 0) + 1; if (r.hits >= 2 || Math.random() < 0.2 + 0.2 * ramp()) { r.hits = 0; return rivalGrab(r); } hurt(Math.min(4 + level, 3 + r.stage + level * 0.6) * SIZE_GUARD[stage] * (1 + 0.6 * ramp()), true); knock(me.g, r.g.position, 1.6); fx.explode(me.g.position.clone().setY(meScale), Math.min(1.5, 0.3 * r.scale)); sfx.boom(); flashT = Math.max(flashT, 0.12); flashRig(me); shove(me, dx, dz, 0.45, 0, 0.2); combo = 0; }
+  if (Math.hypot(dx, dz) < A.reach && !leap && !meToss && !grabbed && !dodged && dodgeT <= 0) { r.hits = (r.hits || 0) + 1; if (r.hits >= 2 || Math.random() < 0.2 + 0.2 * ramp()) { r.hits = 0; return rivalGrab(r); } hurt(Math.min(4 + level, 3 + r.stage + level * 0.6) * SIZE_GUARD[stage] * (1 + 0.6 * ramp()), true); knock(me.g, r.g.position, 1.6); fx.explode(me.g.position.clone().setY(meScale), Math.min(1.5, 0.3 * r.scale)); sfx.blast(); flashT = Math.max(flashT, 0.12); flashRig(me); shove(me, dx, dz, 0.45, 0, 0.2); combo = 0; }
   else { const pd = dodged === 'perfect'; popup(r.g.position.clone().setY(r.scale * 2), pd ? 'PERFECT DODGE!' : 'MISS!', '#7dff3a'); sfx.whoosh(); shove(r.rig, dx, dz, 0.35); r.stun = Math.max(r.stun, pd ? 1.2 : 0.5); // it over-reaches and stumbles
     if (pd) { slowMo = Math.max(slowMo, 0.8); counterT = 1.6; banner('⚡ COUNTER! HIT IT NOW!'); sfx.power(); } } }
 let grabbed = false;
@@ -891,13 +891,13 @@ function shoot(rig, target, kind, wait) { const s = rig.g.scale.x;
       m.position.copy(this.a); m.lookAt(this.b); scene.add(m); this.m = m; },
     f(k) { if (kind === 'laser') { const mid = this.a.clone().lerp(this.b, 0.5), len = this.a.distanceTo(this.b), w = s * 0.12 * (1 + Math.sin(k * 40) * 0.25) * Math.sin(k * Math.PI); for (const [m, ww] of [[this.beam, w], [this.core, w * 0.4]]) { m.position.copy(mid); m.lookAt(this.b); m.scale.set(ww, ww, len); } if (Math.random() < 0.5) fx.puff('flame', this.b, 0.1 * s); return; }
       this.m.position.lerpVectors(this.a, this.b, k); if (kind === 'rocket') this.m.position.y += Math.sin(k * Math.PI) * s * 0.4; if (kind !== 'bullet' && Math.random() < 0.6) fx.puff(kind === 'rocket' ? 'smoke' : 'flame', this.m.position.clone(), 0.15 * s); },
-    end() { scene.remove(this.m); if (this.beam) scene.remove(this.beam, this.core); if (kind === 'laser') { fx.explode(this.b, Math.min(1.4, 0.26 * s)); return; } if (kind === 'bullet') fx.puff('flame', this.b, 0.12 * s); else { fx.explode(this.b, Math.min(1.6, (kind === 'rocket' ? 0.3 : 0.24) * s)); if (kind === 'rocket') sfx.boom(); } } };
+    end() { scene.remove(this.m); if (this.beam) scene.remove(this.beam, this.core); if (kind === 'laser') { fx.explode(this.b, Math.min(1.4, 0.26 * s)); return; } if (kind === 'bullet') fx.puff('flame', this.b, 0.12 * s); else { fx.explode(this.b, Math.min(1.6, (kind === 'rocket' ? 0.3 : 0.24) * s)); if (kind === 'rocket') sfx.blast(); } } };
   anims.push(A); }
 // Mike's fight move: the two-handed overhead slam, a shockwave where it lands (the slam hits about 0.4 s in)
 // smashing a building, a target or a snack: a quick hit, or for Mike a golf swing with his hammer
 function smashAct() { if (!me.hammer) return me.act('hit'); if (!me.acting) me.act('golf'); }
 function hammerSlam(rig, target, big) { if (rig.acting !== 'hit') rig.act('hit');
-  anims.push({ wait: 0.38, t: 0, dur: 0.01, go() { const p = wpos(rig.hand).setY(0.2); fx.explode(p, Math.min(1.6, 0.3 * rig.g.scale.x)); fx.puff('smoke', p, 0.5 * rig.g.scale.x); sfx.boom(); flashT = big ? 0.15 : 0.06; if (big) knock(target.g, rig.g.position, 1.2); }, f() {}, end() {} });
+  anims.push({ wait: 0.38, t: 0, dur: 0.01, go() { const p = wpos(rig.hand).setY(0.2); fx.explode(p, Math.min(1.6, 0.3 * rig.g.scale.x)); fx.puff('smoke', p, 0.5 * rig.g.scale.x); sfx.blast(); flashT = big ? 0.15 : 0.06; if (big) knock(target.g, rig.g.position, 1.2); }, f() {}, end() {} });
   shoot(rig, target, 'spell', 0.4); if (big) shoot(rig, target, 'spell', 0.52); }
 function flourish(rig, target, big = false) {
   if (!rig || !target || !target.g) return; if (!big && played - (rig.flT ?? -9) < 0.3) return; rig.flT = played;
@@ -971,12 +971,12 @@ function throwHammer(rig, target, delay = 0) { const h = rig.hammer; if (!h || h
       if (out) h.position.lerpVectors(this.a, to, q); else h.position.lerpVectors(to, back, q);
       h.position.y += Math.sin(q * Math.PI) * s * 0.8; h.rotation.set(k * Math.PI * 10, 0, 0.3);
       if (Math.random() < 0.5) fx.puff('smoke', h.position.clone(), 0.12 * s);
-      if (!out && !this.hit) { this.hit = true; fx.explode(to.clone(), Math.min(1.8, 0.35 * s)); sfx.boom(); flashT = 0.12; banner('HAMMER THROW!'); } },
+      if (!out && !this.hit) { this.hit = true; fx.explode(to.clone(), Math.min(1.8, 0.35 * s)); sfx.blast(); flashT = 0.12; banner('HAMMER THROW!'); } },
     end() { home.attach(h); h.position.copy(p0); h.quaternion.copy(q0); h.userData.flying = false; } }); }
 // the big boot: a front kick that sends a close rival flying back
 function bootAway(rig, target, delay = 0) { const tg = target.g || target;
   anims.push({ wait: delay, t: 0, dur: 0.01, go() { rig.g.rotation.y = Math.atan2(tg.position.x - rig.g.position.x, tg.position.z - rig.g.position.z); rig.act('kick'); sfx.whoosh(); }, f() {}, end() {} });
-  anims.push({ wait: delay + 0.2, t: 0, dur: 0.01, go() { if (!tg.parent) return; knock(tg, rig.g.position, 2.2); const p = tg.position.clone().setY(tg.scale.x * 1.2); fx.explode(p, Math.min(1.6, 0.3 * rig.g.scale.x)); sfx.boom(); flashT = 0.12; popup(p, 'BOOT!', '#ffd24a'); }, f() {}, end() {} }); }
+  anims.push({ wait: delay + 0.2, t: 0, dur: 0.01, go() { if (!tg.parent) return; knock(tg, rig.g.position, 2.2); const p = tg.position.clone().setY(tg.scale.x * 1.2); fx.explode(p, Math.min(1.6, 0.3 * rig.g.scale.x)); sfx.blast(); flashT = 0.12; popup(p, 'BOOT!', '#ffd24a'); }, f() {}, end() {} }); }
 function updateAnims(dt) { for (let i = anims.length - 1; i >= 0; i--) { const A = anims[i]; if (A.wait > 0) { A.wait -= dt; continue; } if (A.t === 0) A.go(); A.t += dt; const k = Math.min(1, A.t / A.dur); A.f(k); if (k >= 1) { anims.splice(i, 1); A.end(); } } }
 function clearAnims() { for (const A of anims) { if (A.m) scene.remove(A.m); if (A.t > 0) A.end(); } anims.length = 0; }
 function nextDodge(m) { m.round++; m.phase = 'warn'; m.pt = 0; m.side = Math.random() < 0.5 ? 'L' : 'R'; miniEl.dataset.side = m.side; m.r.rig.act('cast'); $('kjMiniSeq').innerHTML = '<span class="on">' + (m.side === 'L' ? 'SWIPE ➡' : '⬅ SWIPE') + '</span>'; }
@@ -1160,7 +1160,7 @@ addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; if (mini &
 let state = 'start', died = false, roundId = 0; // roundId: delayed effects from an earlier round check it and stand down
 soundToggle($('taStart'), $('taPaused')); playerButton($('taPaused'), $('taPaused').querySelector('.menuBtn')); tipsSetup('kj', $('taPaused'), $('taPaused').querySelector('.menuBtn')); diffPicker($('taLevels'), 'kj'); skipSongBtn($('ta')); eraPicker($('taLevels'), () => { level = unlockedLevel(); drawLevels(); }); seasonPicker($('eraRow')); // sound on/off on the start and pause screens
 // the soundtrack starts on the first tap and keeps rotating songs for as long as you're on Kaiju Madness
-gameMusic($('taPaused'), SONGS_KAIJU); radioButton($('taPaused'), $('taPaused').querySelector('.menuBtn')); soundsMenu($('taPaused'));
+gameMusic($('taPaused'), SONGS_KAIJU); radioButton($('taPaused'), $('taPaused').querySelector('.menuBtn')); soundsMenu($('taPaused')); readySfx();
 const fsMode = initFullscreen(() => state === 'play' || state === 'outro'); // full screen on play, back in after a browser drop-out, no page scrolling mid-round
 function start() {
   if (MODE === 'streak') level = streakLevel(LEVELS.length); if (MODE === 'endless') { level = LEVELS.length; waves.reset(); } rebuilder.clear(); RK = roundK('kj'); boss = null; bossBeat = bossCame = false; mbClear(); mbBeat = mbMet = false; bossBar(null); comboHud(1, 0); clearMeteors(); events.reset(); fsMode.play();
@@ -1197,7 +1197,7 @@ function die() { if (died) return; died = true; me.act('ko'); banner('KAIJU DOWN
 // prizes and the score
 let outroT = 0, camHold = false, bike = null;
 function finish() { if (state !== 'play') return; boss = null; mbClear(); bossBar(null); comboHud(1, 0); foes.clear(); state = 'outro'; outroT = 0; camHold = false; bike = null; bout = null; meToss = null; finishing = false; rangedBtn.classList.add('hidden'); finishBtn.classList.add('hidden'); megaBtn.classList.add('hidden'); mini = null; miniEl.className = 'hidden'; stopMusic(); setPlaneEngine(0); sUp(stick.id); clearTips(); moveTo = null; megaT = 0; megaEl.className = 'hidden';
-  banner(totalD ? 'THE TOWN WAS DESTROYED' : 'THE MADNESS HAS ENDED!'); me.act('cast'); sfx.boom(); setTimeout(() => sfx.whoosh(), 500); setTimeout(() => sfx.boom(), 1300); }
+  banner(totalD ? 'THE TOWN WAS DESTROYED' : 'THE MADNESS HAS ENDED!'); me.act('cast'); sfx.boom(); setTimeout(() => sfx.whoosh(), 500); setTimeout(() => sfx.blast(), 1300); }
 // Mike leaves town on his chopper: it bursts up out of the street (0-0.9 s), he hops on (0.9-1.5), revs, and guns it
 function rideOff(dt) { const g = me.g, T = outroT, s = g.scale.x;
   if (!bike) { bike = buildChopper(me.hammer ? undefined : me.def.pal[0]); bike.g.position.set(1.2, -1.6, 0.22); g.add(bike.g); bike.v = 0; sfx.boom(); }
@@ -1224,7 +1224,7 @@ function outroTick(dt) { if (me.wrestler && me.def.opt && me.def.opt.exit === 'p
 // TOTAL DESTRUCTION: every building and every big target gone before the clock runs out. Points for every second left,
 // an extra prize go, and a free skin at the end
 let totalD = 0;
-function totalWipe(at) { totalD = 5000 + Math.round(tLeft) * 250; score += totalD; banner('THE TOWN WAS DESTROYED'); popup(at.clone().setY(4), '+' + totalD + ' TIME BONUS', '#ffd24a'); sfx.boom(); setTimeout(() => sfx.boom(), 300); flashT = 0.5; }
+function totalWipe(at) { totalD = 5000 + Math.round(tLeft) * 250; score += totalD; banner('THE TOWN WAS DESTROYED'); popup(at.clone().setY(4), '+' + totalD + ' TIME BONUS', '#ffd24a'); sfx.boom(); setTimeout(() => sfx.blast(), 300); flashT = 0.5; }
 function finishNow() {
   state = 'over'; mini = null; miniEl.className = 'hidden'; stopMusic(); setPlaneEngine(0); sUp(stick.id); clearTips(); const done = poiOrder.filter((k) => pois[k].done); for (const k of poiOrder) if (pois[k].arrow) pois[k].arrow.style.display = 'none'; rivalEl.classList.add('hidden'); rivalArrow.style.display = 'none'; for (const pl of planes) pl.arrow.style.display = 'none';
   let best = 0; const bk = MODE === 'endless' ? 'kj_best_endless' : bestKey('kj', level); try { best = +localStorage.getItem(bk) || 0; if (score > best) { best = score; localStorage.setItem(bk, String(score)); } } catch { /* ignore */ }
@@ -1367,7 +1367,7 @@ function update(dt) {
   for (let i = people.length - 1; i >= 0; i--) { const c = people[i], u = c.userData; u.panic = false; const dx = c.position.x - px, dz = c.position.z - pz, d = Math.hypot(dx, dz) || 0.01;
     if (u.frz && d <= 34) { u.frz = false; delete c.updateMatrixWorld; }
     if (d < R + 1.2) { if (u.frz) { u.frz = false; delete c.updateMatrixWorld; } eat(c, i); if (Math.random() < 0.5) smashAct(); continue; }
-    if (d < 8 + meScale * 1.5) { const sp = 1.6 * dt; u.panic = true; if (Math.random() < dt * 0.05) popup(c.position, SHOUTS[(Math.random() * SHOUTS.length) | 0], '#ffffff'); c.position.y = 0; c.position.x += dx / d * sp; c.position.z += dz / d * sp; c.rotation.y = Math.atan2(dx, dz); animateWalk(c, dt, 1.3); u.goal = null; }
+    if (d < 8 + meScale * 1.5) { const sp = 1.6 * dt; u.panic = true; if (Math.random() < dt * 0.05) (popup(c.position, SHOUTS[(Math.random() * SHOUTS.length) | 0], '#ffffff'), sfx.scream()); c.position.y = 0; c.position.x += dx / d * sp; c.position.z += dz / d * sp; c.rotation.y = Math.atan2(dx, dz); animateWalk(c, dt, 1.3); u.goal = null; }
     else if (d > 34) { if (!u.frz) { u.frz = true; c.updateMatrixWorld(true); c.updateMatrixWorld = noop; } }
     else if ((i + frameN) & 1) { /* every other frame */ } else { const dw = dt * 2; u.wait -= dw; if (!u.goal && u.wait <= 0) u.goal = new THREE.Vector3(u.home.x + (Math.random() - 0.5) * 2, 0, u.home.z + (Math.random() - 0.5) * 2);
       if (u.goal) { const gx = u.goal.x - c.position.x, gz = u.goal.z - c.position.z, gl = Math.hypot(gx, gz); if (gl < 0.1) { u.goal = null; u.wait = 1 + Math.random() * 3; animateWalk(c, dw, 0); } else { c.position.x += gx / gl * 0.6 * dw; c.position.z += gz / gl * 0.6 * dw; c.rotation.y = Math.atan2(gx, gz); animateWalk(c, dw, 0.5); } } else animateWalk(c, dw, 0); } }
@@ -1404,6 +1404,7 @@ function update(dt) {
   updatePlanes(dt, px, pz); updateRival(dt, px, pz); foes.update(dt, me.g.position.x, me.g.position.z, Math.max(1, reach() * 0.7));
   for (let i = sinking.length - 1; i >= 0; i--) { const s = sinking[i]; s.t = Math.min(1, s.t + dt * 1.1); s.obj.rotation.z = s.t * 0.4; s.obj.position.y = s.y0 - s.t * s.h * 0.95; if (s.t >= 1) { s.obj.visible = false; sinking.splice(i, 1); } }
   // HUD
+  { let n = 0; for (const c of people) if (c.userData.panic) n++; setCrowd(n / 8); } /* the crowd's noise: louder the more of them are running */
   crowdLists[0][0] = people; crowdLists[1][0] = soldiers; crowd.sync(crowdLists, me.g.position.x, me.g.position.z, 6 + meScale * 1.6);
   const tS = MODE === 'endless' ? played : tLeft, m = Math.floor(tS / 60), s = Math.floor(tS % 60); /* (endless: the clock counts up) */ setT('taTime', m + ':' + String(s).padStart(2, '0')); if (hudCache.red !== (tLeft < 15)) { hudCache.red = tLeft < 15; $('taTime').style.color = tLeft < 15 ? '#ff5a3a' : ''; }
   setT('taScore', score); setT('taCombo', !FUN.combo && mult() > 1 && played - lastHit < 2.5 ? 'x' + mult() + ' COMBO' : ''); setT('taRank', STAGE[stage]); { const pct = Math.round((bDone / totalB) * 100); setT('taPct', innerWidth < 761 ? '💥 ' + pct + '%' : '🏚️ ' + pct + '% DESTROYED'); /* (a phone: just the blast and the number) */ /* town destroyed: the badge over the mini map (it turns green at the goal) */ if (hudCache.pctOk !== (pct >= L().goal)) { hudCache.pctOk = pct >= L().goal; $('taPct').classList.toggle('ok', pct >= L().goal); } }
