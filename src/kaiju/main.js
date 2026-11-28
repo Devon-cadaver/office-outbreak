@@ -13,7 +13,7 @@ import { makeCar } from '../car.js';
 import { isFuture, isPast, hoverize, futurePlane, pastPlane, buildCannon, buildChaserCoach, eraPicker, levelKey, bestKey, futureTank, laserBolt } from '../era.js';
 import { createTwisters } from '../tornado.js';
 import { createFires } from '../fire.js';
-import { unlockAudio, soundToggle, setMusicDuck, setSfxPaused, skipSongBtn, sfx, stopMusic, setPlaneEngine, setStormLevel, stormBoost, playSongs, songState, gameMusic, SONGS_KAIJU, soundsMenu, readySfx, setCrowd } from '../audio.js';
+import { unlockAudio, soundToggle, setMusicDuck, setSfxPaused, skipSongBtn, sfx, stopMusic, setPlaneEngine, setStormLevel, stormBoost, playSongs, songState, gameMusic, SONGS_KAIJU, soundsMenu, readySfx, crowdHit } from '../audio.js';
 import { armySkin, townSkin, equippedSkin, skinnedCarArgs, addCoins, CHAR_SKINS, getEquipped, totalReward, getOwned, equip } from '../skins.js';
 import { forceSeason, seasonChoice, seasonPicker } from '../season.js';
 import { showPrizes } from '../prizes.js';
@@ -281,7 +281,7 @@ function crumble(x, label, fire, from, squash) { // from: where the blow came fr
   spill(x.pos, Math.min(6, 2 + Math.floor(x.h * 0.7))); award(x.pts, x.pos, label); grow(x.h * 0.35); power = Math.min(1, power + 0.025); sfx.crunch(x.h > 5); if (x.h > 5) { sfx.boom(); flashT = Math.max(flashT, 0.1); } else if (Math.random() < 0.5) sfx.hit();
 }
 const chunkGeo = new THREE.BoxGeometry(1, 1, 1), chunkMats = new Map(); const chunkMat = (c) => { if (!chunkMats.has(c)) chunkMats.set(c, new THREE.MeshLambertMaterial({ color: c })); return chunkMats.get(c); };
-function eat(c, i, bonus) { people.splice(i, 1); peopleN++; gulps.push({ c, t: 0, from: c.position.clone() }); award(bonus || 25, c.position); grow(1.2); power = Math.min(1, power + 0.01); }
+function eat(c, i, bonus) { people.splice(i, 1); crowdHit(1, 3); /* (the crowd cries out when three or more go at once: a group trodden on, not one straggler) */ peopleN++; gulps.push({ c, t: 0, from: c.position.clone() }); award(bonus || 25, c.position); grow(1.2); power = Math.min(1, power + 0.01); }
 const gulps = []; // people on their way into the kaiju's mouth
 // eaten people go back in a pool and come out of the next building that falls, so spilling crowds costs nothing to build
 const pool = [], OUTFITS = ['worker', 'pink', 'plaid', 'hivis', 'suit', 'hoodie', 'punk', 'vest'];
@@ -296,7 +296,7 @@ function hitArea(c, r, pow, o = {}) {
   if (o.hostile) { if (me && Math.hypot(me.g.position.x - c.x, me.g.position.z - c.z) < r + reach() * 0.6) hurt(pow * 0.13, true); return; }
   const cap = megaT > 0 || o.mega ? 99 : MAX_H[Math.min(3, stage + 1)];
   for (const x of buildings) { if (x.done) continue; const d = Math.hypot(x.pos.x - c.x, x.pos.z - c.z); if (d > r) continue; if (x.h <= cap) { crumble(x, o.freeze ? 'SHATTERED' : '', o.fire, c); o.n = (o.n || 0) + 1; } else if (o.fire) fx.ignite(new THREE.Vector3(x.pos.x, 1, x.pos.z), 0.8, 4); }
-  for (let i = people.length - 1; i >= 0; i--) { const p = people[i]; if (Math.hypot(p.position.x - c.x, p.position.z - c.z) < r) { people.splice(i, 1); peopleN++; award(20, p.position); grow(0.5); if (o.push) twisters.scatter([p], c, 6); else { scene.remove(p); fx.puff(o.freeze ? 'smoke' : 'flame', p.position.clone().setY(0.3), 0.4); } } }
+  for (let i = people.length - 1; i >= 0; i--) { const p = people[i]; if (Math.hypot(p.position.x - c.x, p.position.z - c.z) < r) { people.splice(i, 1); crowdHit(1, 3); peopleN++; award(20, p.position); grow(0.5); if (o.push) twisters.scatter([p], c, 6); else { scene.remove(p); fx.puff(o.freeze ? 'smoke' : 'flame', p.position.clone().setY(0.3), 0.4); } } }
   for (let i = drivers.length - 1; i >= 0; i--) { const q = drivers[i].g.position; if (Math.hypot(q.x - c.x, q.z - c.z) < r + 0.5) { const g = drivers[i].g; drivers.splice(i, 1); blowCar(g, q.clone()); } }
   for (let i = cars.length - 1; i >= 0; i--) { const q = cars[i].getWorldPosition(new THREE.Vector3()); if (Math.hypot(q.x - c.x, q.z - c.z) < r + 0.5) { const g = cars[i]; cars.splice(i, 1); blowCar(g, q); } }
   for (let i = soldiers.length - 1; i >= 0; i--) { const s = soldiers[i]; if (Math.hypot(s.position.x - c.x, s.position.z - c.z) < r) { soldiers.splice(i, 1); delete s.updateMatrixWorld; twisters.scatter([s], c, 5); award(40, s.position, 'SOLDIER'); grow(0.6); } }
@@ -1404,7 +1404,6 @@ function update(dt) {
   updatePlanes(dt, px, pz); updateRival(dt, px, pz); foes.update(dt, me.g.position.x, me.g.position.z, Math.max(1, reach() * 0.7));
   for (let i = sinking.length - 1; i >= 0; i--) { const s = sinking[i]; s.t = Math.min(1, s.t + dt * 1.1); s.obj.rotation.z = s.t * 0.4; s.obj.position.y = s.y0 - s.t * s.h * 0.95; if (s.t >= 1) { s.obj.visible = false; sinking.splice(i, 1); } }
   // HUD
-  { let n = 0; for (const c of people) if (c.userData.panic) n++; setCrowd(n / 8); } /* the crowd's noise: louder the more of them are running */
   crowdLists[0][0] = people; crowdLists[1][0] = soldiers; crowd.sync(crowdLists, me.g.position.x, me.g.position.z, 6 + meScale * 1.6);
   const tS = MODE === 'endless' ? played : tLeft, m = Math.floor(tS / 60), s = Math.floor(tS % 60); /* (endless: the clock counts up) */ setT('taTime', m + ':' + String(s).padStart(2, '0')); if (hudCache.red !== (tLeft < 15)) { hudCache.red = tLeft < 15; $('taTime').style.color = tLeft < 15 ? '#ff5a3a' : ''; }
   setT('taScore', score); setT('taCombo', !FUN.combo && mult() > 1 && played - lastHit < 2.5 ? 'x' + mult() + ' COMBO' : ''); setT('taRank', STAGE[stage]); { const pct = Math.round((bDone / totalB) * 100); setT('taPct', innerWidth < 761 ? '💥 ' + pct + '%' : '🏚️ ' + pct + '% DESTROYED'); /* (a phone: just the blast and the number) */ /* town destroyed: the badge over the mini map (it turns green at the goal) */ if (hudCache.pctOk !== (pct >= L().goal)) { hudCache.pctOk = pct >= L().goal; $('taPct').classList.toggle('ok', pct >= L().goal); } }

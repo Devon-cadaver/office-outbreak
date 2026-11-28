@@ -70,6 +70,15 @@ if (typeof document !== 'undefined') document.addEventListener('pointerdown', (e
 // the one code-made explosion, for both sizes (the recordings tell a big one from a small one; the code-made sound never did)
 // ---- the explosions: each is one of a few makes, picked afresh every time. The first of each is the sound the game always had ----
 const crackle = (n, from, to, vol) => { for (let i = 0; i < n; i++) noise(rnd(0.03, 0.07), vol * rnd(0.6, 1), rnd(700, 3200), 1.6, rnd(from, to)); }; /* bits landing after a blast */
+// ---- lasers: a bright note that dives, thin and quick. Three makes and the old pew, picked afresh for every shot ----
+// one diving note, with no bass under it (twin: a second note a hair above the first, so the pair shimmers)
+function sweep(f0, f1, dur, type, vol, when = 0, twin = 0) { if (!ctx) return; const t = ctx.currentTime + when; f0 *= VP; f1 *= VP; dur *= VD; vol *= VV; const g = ctx.createGain(), hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 420; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.006); g.gain.exponentialRampToValueAtTime(0.001, t + dur); hp.connect(g).connect(master);
+  for (const k of twin ? [1, 1 + twin] : [1]) { const o = ctx.createOscillator(); o.type = type; o.frequency.setValueAtTime(f0 * k, t); o.frequency.exponentialRampToValueAtTime(Math.max(40, f1 * k), t + dur); o.connect(hp); o.start(t); o.stop(t + dur + 0.02); } }
+const laserMake = () => { const k = Math.random();
+  if (k < 0.4) sweep(rnd(2600, 3400), rnd(300, 420), rnd(0.16, 0.22), 'sawtooth', 0.04, 0, 0.012); /* the classic: a bright dive that shimmers */
+  else if (k < 0.65) { sweep(rnd(3200, 4200), 900, 0.07, 'square', 0.03); sweep(rnd(1800, 2200), 260, 0.18, 'sawtooth', 0.036, 0.03, 0.02); } /* a chirp, then the dive */
+  else if (k < 0.85) { for (let i = 0; i < 3; i++) sweep(rnd(2800, 3300), 900, 0.06, 'square', 0.032, i * 0.055); } /* three quick pulses */
+  else { tone(1600, 0.2, 'sawtooth', 0.035, -1300); tone(800, 0.16, 'square', 0.02, -600); } }; /* the old pew, now and then */
 const boomMake = () => { const k = Math.random();
   if (k < 0.45) { noise(0.9, 0.6, 140, 0.4); tone(48, 1.1, 'sawtooth', 0.25, -20); noise(0.5, 0.25, 900, 0.8, 0.06); }
   else if (k < 0.75) { noise(0.5, 0.42, 118, 0.4, 0, 70); tone(64, 0.9, 'sine', 0.2, -36); tone(42, 1.2, 'sawtooth', 0.14, -12); noise(0.4, 0.16, 700, 0.8, 0.07); } /* a deeper thump */
@@ -77,13 +86,14 @@ const boomMake = () => { const k = Math.random();
   if (Math.random() < 0.5) crackle(2 + ((Math.random() * 3) | 0), 0.25, 0.75, 0.07); };
 // ---- lightning: a crack, then the boom and its thunder rolling away. Four makes, picked afresh for every strike. big: a strike that hits something (full); otherwise a bolt in passing (quiet and short) ----
 const strikeMake = (big) => { const v = big ? 1.35 : 0.45, k = Math.random(); /* (measured: a full strike peaks about where the explosion does) */
-  const crack = (when, vol) => { noise(rnd(0.03, 0.06), vol * v, rnd(3200, 6000), 1.2, when); tone(rnd(1500, 2300), rnd(0.06, 0.1), 'sawtooth', vol * 0.2 * v, -rnd(1200, 1450), master, when); }; /* the snap: a spit of hiss and a note that drops away */
+  const crack = (when, vol) => { noise(rnd(0.03, 0.06), vol * v, rnd(3200, 6000), 1.2, when); tone(rnd(1500, 2300), rnd(0.05, 0.08), 'sawtooth', vol * 0.1 * v, -rnd(1200, 1450), master, when); }; /* the snap: a spit of hiss, with a faint note that drops away */
+  const tear = (when, n, span, vol) => { let at = when; for (let i = 0; i < n; i++) { noise(rnd(0.006, 0.022), vol * v * rnd(0.45, 1) * (1 - 0.5 * i / n), rnd(2400, 7000), 0.8, at); at += rnd(0.004, span / n * 1.6); } }; /* the crackle: a rattle of tiny sharp clicks, unevenly spaced, thinning out. This is what makes it lightning and not just a bang */
   const boom = (when, vol, low, sub, type = 'sawtooth') => { noise(0.5, vol * v, low, 0.4, when, low * 0.55); noise(0.4, vol * 0.4 * v, rnd(320, 480), 0.7, when + 0.01); tone(sub, rnd(0.7, 1.1), type, vol * 0.38 * v, -sub * 0.5, master, when); }; /* (the middle band is what a phone's speaker plays of it) */
   const roll = (n, from, to, vol) => { for (let i = 0; i < n; i++) noise(rnd(0.25, 0.5), vol * v * rnd(0.5, 1) * (1 - i / (n + 1)), rnd(80, 190), 0.5, rnd(from, to)); }; /* thunder rolling off: low bursts, each fainter */
-  if (k < 0.3) { crack(0, 0.3); boom(0.02, 0.46, 150, 70); if (big) roll(2, 0.25, 0.6, 0.2); } /* close: a sharp crack and a short boom */
-  else if (k < 0.55) { crack(0, 0.26); crack(rnd(0.07, 0.13), 0.22); boom(0.1, 0.42, 140, 62); if (big) roll(3, 0.3, 0.8, 0.18); } /* a double strike */
-  else if (k < 0.8) { crack(0, 0.18); boom(0.04, 0.4, 120, 55, 'sine'); if (big) roll(5, 0.2, 1.3, 0.22); } /* further off: a softer crack and a long, rolling rumble */
-  else { crack(0, 0.28); for (let i = 0; i < 4; i++) noise(rnd(0.02, 0.05), 0.14 * v, rnd(2800, 5200), 2.5, rnd(0.04, 0.3)); boom(0.03, 0.4, 170, 75); if (big) roll(2, 0.3, 0.7, 0.16); } }; /* a sizzling one: the crack fizzes on before the boom */
+  if (k < 0.3) { tear(0, big ? 13 : 5, 0.2, 0.36); crack(0.01, 0.3); boom(0.06, 0.46, 150, 70); if (big) { tear(0.32, 6, 0.28, 0.15); roll(2, 0.3, 0.65, 0.2); } } /* close: a hard crackle and crack, a short boom, a last flicker */
+  else if (k < 0.55) { const d2 = rnd(0.1, 0.16); tear(0, big ? 9 : 4, 0.1, 0.32); crack(0, 0.26); tear(d2, big ? 9 : 3, 0.1, 0.28); crack(d2, 0.22); boom(d2 + 0.04, 0.42, 140, 62); if (big) roll(3, 0.35, 0.85, 0.18); } /* a double strike: two crackles, then the boom */
+  else if (k < 0.8) { tear(0, big ? 9 : 3, 0.3, 0.22); crack(0.02, 0.16); boom(0.1, 0.4, 120, 55, 'sine'); if (big) roll(5, 0.25, 1.3, 0.22); } /* further off: a thin crackle, a softer crack and a long, rolling rumble */
+  else { tear(0, big ? 24 : 7, big ? 0.55 : 0.2, 0.3); crack(0, 0.28); boom(big ? 0.24 : 0.08, 0.4, 170, 75); if (big) roll(2, 0.45, 0.85, 0.16); } }; /* a sizzling one: it crackles on for nearly half a second before the boom */
 // a small explosion: shorter and higher than the big one
 const blastMake = () => { if (Math.random() < 0.55) { noise(0.45, 0.42, rnd(210, 300), 0.5); tone(rnd(72, 92), 0.5, 'sawtooth', 0.16, -30); noise(0.25, 0.16, 1250, 0.9, 0.04); }
   else { noise(0.3, 0.4, rnd(300, 420), 0.6); tone(170, 0.12, 'triangle', 0.09, -90); tone(80, 0.35, 'sawtooth', 0.12, -25); } /* more of a pop */
@@ -98,7 +108,7 @@ export const sfx = {
   caught: () => { noise(0.25, 0.25, 300, 0.7); tone(220, 0.5, 'sawtooth', 0.12, 300); setTimeout(() => tone(90, 0.4, 'square', 0.1, -50), 120); },
   step: () => { stepFlip = !stepFlip; noise(0.06, 0.07, stepFlip ? 900 : 700, 2); },
   // a zombie. big: a giant or a boss: one loud, deep voice. A recording where the game has asked for them (Zombie Air Raid; the cemetery in Tornado Time!), otherwise the code-made groan
-  groan: (big = false) => { if (real(big ? 'giant' : 'groan') || wantReal.groan) return; const f = (big ? 52 : 70) + Math.random() * 40, k = Math.random(); if (k < 0.5) { tone(f, 0.6, 'sawtooth', 0.05, 25); tone(f * 1.5, 0.5, 'triangle', 0.03, -15); } else if (k < 0.8) { tone(f * 0.85, 0.95, 'sawtooth', 0.05, -10); tone(f * 1.27, 0.8, 'triangle', 0.028, -8, master, 0.05); } else { tone(f * 1.25, 0.32, 'sawtooth', 0.055, -32); tone(f * 2.5, 0.2, 'triangle', 0.02, -40); } },
+  groan: (big = false, near = 1) => { if (real(big ? 'giant' : 'groan', near) || wantReal.groan) return; /* near: 1 right beside it, less the further off (so a giant sounds like it is where it is) */ const f = (big ? 52 : 70) + Math.random() * 40, k = Math.random(); if (k < 0.5) { tone(f, 0.6, 'sawtooth', 0.05, 25); tone(f * 1.5, 0.5, 'triangle', 0.03, -15); } else if (k < 0.8) { tone(f * 0.85, 0.95, 'sawtooth', 0.05, -10); tone(f * 1.27, 0.8, 'triangle', 0.028, -8, master, 0.05); } else { tone(f * 1.25, 0.32, 'sawtooth', 0.055, -32); tone(f * 2.5, 0.2, 'triangle', 0.02, -40); } },
   pickup: () => { tone(520, 0.08, 'square', 0.05); setTimeout(() => tone(780, 0.1, 'square', 0.05), 80); setTimeout(() => tone(1040, 0.15, 'square', 0.05), 160); },
   wave: () => { tone(440, 0.12, 'square', 0.05); setTimeout(() => tone(660, 0.12, 'square', 0.05), 120); setTimeout(() => tone(880, 0.2, 'square', 0.05), 240); },
   boom: () => { if (real('boom')) return; boomMake(); },
@@ -121,7 +131,7 @@ export const sfx = {
     const n = (big ? 4 : 2) + ((Math.random() * 3) | 0); for (let i = 0; i < n; i++) noise(rnd(0.03, 0.08), (big ? 0.12 : 0.09) * rnd(0.5, 1), rnd(350, 1900), 1.4, rnd(0.04, big ? 0.6 : 0.3)); /* rubble settling: a few grains, never the same */
     if (big) { tone(rnd(55, 70), 0.6, 'sawtooth', 0.07, -18); noise(0.5, 0.14, rnd(120, 180), 0.5, 0.05); if (Math.random() < 0.4) for (let i = 0; i < 3; i++) tone(rnd(2200, 3600), 0.05, 'triangle', 0.014, 0, master, rnd(0.1, 0.5)); } }, /* a big building: a low rumble under it, and sometimes glass */
   flap: () => { noise(0.18, 0.12, 520, 0.7); tone(180, 0.12, 'triangle', 0.05, -60); },
-  laser: () => { const k = Math.random(); if (k < 0.4) { tone(1600, 0.2, 'sawtooth', 0.035, -1300); tone(800, 0.16, 'square', 0.02, -600); } else if (k < 0.7) { tone(rnd(2000, 2400), 0.13, 'square', 0.03, -1700); tone(300, 0.14, 'sine', 0.04, -180); noise(0.035, 0.04, 3600, 2); } else { tone(1750, 0.09, 'sawtooth', 0.035, -1100); tone(1500, 0.11, 'sawtooth', 0.03, -1000, master, 0.07); } }, /* the old pew, a sharper one with a thump under it, or a quick double */
+  laser: () => laserMake(),
   // the big targets going up, each in its own way: a burst tank, a fire engine's two-tone horn, a police whoop, a firework, a balloon
   splash: () => { noise(1.1, 0.4, 700, 0.5); noise(1.6, 0.22, 2600, 0.6); tone(90, 0.5, 'sine', 0.12, -40); },
   neenaw: () => { if (real('siren')) return; for (let i = 0; i < 6; i++) tone(i % 2 ? 520 : 660, 0.26, 'square', 0.045, 0, master, i * 0.27); },
@@ -173,29 +183,31 @@ function real(name, vol = 1, rate = 0) { if (!ctx || !sfxNew()) return false; co
   const v = realVoices[name] || (realVoices[name] = []); while (v.length >= r[5]) { const o = v.shift(); try { o.g.gain.setTargetAtTime(0, t, 0.03); o.s.stop(t + 0.15); } catch { /* ignore */ } } /* (too many at once: the oldest fades out) */
   const s = ctx.createBufferSource(), g = ctx.createGain(), o = { s, g }; realN[name] = (realN[name] || 0) + 1; s.buffer = buf; s.playbackRate.value = rate || r[2] + Math.random() * (r[3] - r[2]); g.gain.value = r[1] * vol * (0.85 + Math.random() * 0.15); s.connect(g).connect(realBus); s.start(t); v.push(o); s.onended = () => { const i = v.indexOf(o); if (i >= 0) v.splice(i, 1); }; return true; }
 // a looping recording at a loudness (0 = silent) and speed. True: the recording is carrying this sound; false: it cannot (CLASSIC, or not loaded), so the code-made one must
-function realLoop(kind, level, rate = 1) { const buf = ctx && sfxNew() ? realBuf[LOOPS[kind]] : null; let L = loopsOn[kind]; if (!buf) { if (L) L.g.gain.setTargetAtTime(0, ctx.currentTime, 0.1); return false; }
+function realLoop(kind, level, rate = 1, tc = 0.25) { const buf = ctx && sfxNew() ? realBuf[LOOPS[kind]] : null; let L = loopsOn[kind]; if (!buf) { if (L) L.g.gain.setTargetAtTime(0, ctx.currentTime, 0.1); return false; }
   if (!L) { if (level <= 0) return true; const s = ctx.createBufferSource(), g = ctx.createGain(); s.buffer = buf; s.loop = true; g.gain.value = 0; if (LOOP_LP[kind]) { const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = LOOP_LP[kind]; s.connect(lp).connect(g); } else s.connect(g); g.connect(realBus); s.start(0, Math.random() * buf.duration); L = loopsOn[kind] = { s, g }; } /* (it starts somewhere in the middle, a different place each time) */
-  const t = ctx.currentTime; L.g.gain.setTargetAtTime(Math.max(0, level), t, 0.25); L.s.playbackRate.setTargetAtTime(Math.max(0.4, Math.min(2.5, rate)), t, 0.2); return true; }
+  const t = ctx.currentTime; L.g.gain.setTargetAtTime(Math.max(0, level), t, tc); L.s.playbackRate.setTargetAtTime(Math.max(0.4, Math.min(2.5, rate)), t, 0.2); return true; }
 export const hasLoop = (kind) => !!(ctx && sfxNew() && realBuf[LOOPS[kind]]);
 // NEW or CLASSIC, from the pause menu's SOUNDS screen. CLASSIC hushes every recording that is still going; the code-made sounds take over at the games' next call
 export function setSfxStyle(v) { sfxStyle = v === 'classic' ? 'classic' : 'new'; try { localStorage.setItem('oo_sfx', sfxStyle); } catch { /* ignore */ } if (sfxNew()) { loadReal(); decodeReal(); } else if (ctx) for (const k of Object.keys(loopsOn)) loopsOn[k].g.gain.setTargetAtTime(0, ctx.currentTime, 0.1); }
 // people running from you: a crowd's shouting, louder the more of them are in a panic (level 0..1). A game calls this every frame it has people; when the calls stop (the round is over) it fades out by itself
 // for tests: what has loaded, what is looping and how loud, how many of each one-shot have played
-const realN = {}; if (typeof window !== 'undefined') window.__sfx = { ctx: () => ctx, out: () => master, crowd: (v) => setCrowd(v), horde: (v) => setHorde(v), saucerSet: (a2, b2, c2) => setSaucer(a2, b2, c2), hordeNow: () => [+hordeLv.toFixed(2), hordeLive], wants: () => Object.keys(wantReal), saucer: () => (ufoS ? [+ufoS.out.gain.value.toFixed(3), +ufoS.bo.gain.value.toFixed(3)] : [0, 0]), sfx: () => sfx, ready: () => Object.keys(realBuf).sort(), loops: () => { const o = {}; for (const k of Object.keys(loopsOn)) o[k] = +loopsOn[k].g.gain.value.toFixed(3); return o; }, played: () => Object.assign({}, realN), style: () => sfxStyle, setStyle: (v) => setSfxStyle(v), engine: () => (eng ? +eng.out.gain.value.toFixed(3) : 0), state: () => (ctx ? ctx.state : 'none') };
+const realN = {}; if (typeof window !== 'undefined') window.__sfx = { ctx: () => ctx, out: () => master, crowd: (n, g) => crowdHit(n, g), crowdNow: () => (loopsOn.crowd ? +loopsOn.crowd.g.gain.value.toFixed(3) : 0), horde: (v, n) => setHorde(v, n), saucerSet: (a2, b2, c2) => setSaucer(a2, b2, c2), hordeNow: () => [+hordeLv.toFixed(2), hordeLive], wants: () => Object.keys(wantReal), saucer: () => (ufoS ? [+ufoS.out.gain.value.toFixed(3), +ufoS.bo.gain.value.toFixed(3)] : [0, 0]), sfx: () => sfx, ready: () => Object.keys(realBuf).sort(), loops: () => { const o = {}; for (const k of Object.keys(loopsOn)) o[k] = +loopsOn[k].g.gain.value.toFixed(3); return o; }, played: () => Object.assign({}, realN), style: () => sfxStyle, setStyle: (v) => setSfxStyle(v), engine: () => (eng ? +eng.out.gain.value.toFixed(3) : 0), state: () => (ctx ? ctx.state : 'none') };
 // ---------- the crowd and the horde: recordings, kept low and muffled so they sit in the distance ----------
-const CROWD_VOL = 0.13, HORDE_VOL = 0.04;
-let crowdAt = 0, hordeLv = 0, hordeAt = 0, hordeLive = 0, farTick = 0;
+const CROWD_VOL = 0.075, HORDE_VOL = 0.04;
+let crowdNeed = 0, crowdNeedAt = 0, crowdMin = 1, crowdEnd = 0, crowdNext = 0, hordeLv = 0, hordeWant = 3, hordeAt = 0, hordeLive = 0, farTick = 0;
 // five times a second: the horde's voices that are due, and anything a game has stopped asking for fades away by itself
 function farSounds() { if (farTick) return; farTick = setInterval(() => { if (!ctx || ctx.state !== 'running' || sfxPaused) return; const t = ctx.currentTime;
-    if (loopsOn.crowd && t - crowdAt > 0.6) realLoop('crowd', 0);
+    if (crowdNeed >= crowdMin && t >= crowdNext && t - crowdNeedAt < 1) { const k = Math.min(1, crowdNeed / 5); realLoop('crowd', CROWD_VOL * (0.5 + 0.5 * k), 1, 0.12); crowdEnd = t + 1.2 + 0.8 * k; crowdNext = crowdEnd + 5; crowdNeed = 0; } /* enough people were just caught: the crowd cries out, more of it the more were caught, then no more for five seconds */
+    if (crowdEnd && t >= crowdEnd) { realLoop('crowd', 0, 1, 0.45); crowdEnd = 0; }
     if (t - hordeAt > 0.6) hordeLv = 0;
-    if (hordeLv > 0.02) { const have = GROANS.filter((f) => realBuf[f]), want = Math.round(3 + 7 * hordeLv); for (let i = 0; i < 2 && hordeLive < want && have.length; i++) hordeVoice(have[(Math.random() * have.length) | 0], hordeLv); } /* 3 to 10 at once, two more at most each time round so they do not all start together */
+    if (hordeLv > 0.02) { const have = GROANS.filter((f) => realBuf[f]); for (let i = 0; i < 5 && hordeLive < hordeWant && have.length; i++) hordeVoice(have[(Math.random() * have.length) | 0], hordeLv, hordeWant); } /* as many voices as there are zombies to make them, 3 to 18 at once; five more at most each time round so they do not all start together */
     if (ufoS && ufoS.on && t - ufoS.at > 0.6) setSaucer(0); }, 200); }
-// people running from you (level 0..1 = how many are in a panic). A game calls this every frame it has people
-export function setCrowd(level) { if (!ctx) return; crowdAt = ctx.currentTime; realLoop('crowd', menuQuiet ? 0 : Math.max(0, Math.min(1, level)) * CROWD_VOL); farSounds(); }
+// n people were just caught (swept up by the storm, pulled into the beam, trodden on). group: how many it takes, within a second or so, before the crowd is heard at all
+export function crowdHit(n = 1, group = 1) { if (!ctx || menuQuiet) return; const t = ctx.currentTime; if (t - crowdNeedAt > 1.5) crowdNeed = 0; crowdNeed += n; crowdNeedAt = t; crowdMin = group; farSounds(); }
 // a horde of zombies (level 0..1 = how near it is and how many). Each voice is one of the recorded groans at its own pitch; the further off, the quieter and duller
-function hordeVoice(file, lv) { const t = ctx.currentTime + rnd(0, 0.18), s = ctx.createBufferSource(), lp = ctx.createBiquadFilter(), g = ctx.createGain(); s.buffer = realBuf[file]; s.playbackRate.value = rnd(0.78, 1.08); lp.type = 'lowpass'; lp.frequency.value = 900 + 700 * lv; g.gain.value = HORDE_VOL * (0.3 + 0.7 * lv) * rnd(0.6, 1); s.connect(lp).connect(g).connect(realBus); s.start(t); hordeLive++; s.onended = () => { hordeLive--; }; }
-export function setHorde(level) { if (!ctx) return; hordeLv = menuQuiet ? 0 : Math.max(0, Math.min(1, level)); hordeAt = ctx.currentTime; farSounds(); }
+function hordeVoice(file, lv, want = 8) { const t = ctx.currentTime + rnd(0, 0.18), s = ctx.createBufferSource(), lp = ctx.createBiquadFilter(), g = ctx.createGain(); s.buffer = realBuf[file]; s.playbackRate.value = rnd(0.78, 1.08); lp.type = 'lowpass'; lp.frequency.value = 900 + 700 * lv; g.gain.value = HORDE_VOL * (0.3 + 0.7 * lv) * rnd(0.6, 1) * Math.pow(8 / Math.max(8, want), 0.35); /* (a bigger horde is more voices, each a little quieter: thicker, and only somewhat louder) */ s.connect(lp).connect(g).connect(realBus); s.start(t); hordeLive++; s.onended = () => { hordeLive--; }; }
+// count: how many zombies are near (the number of voices follows it); left out, the number follows the level
+export function setHorde(level, count = -1) { if (!ctx) return; hordeLv = menuQuiet ? 0 : Math.max(0, Math.min(1, level)); hordeWant = count < 0 ? Math.round(3 + 7 * hordeLv) : Math.max(3, Math.min(18, Math.round(3 + count / 5))); hordeAt = ctx.currentTime; farSounds(); }
 // ---------- the saucer (Beam 'Em Up!): a wobbling hum while it flies, higher and faster the quicker it goes, and the beam's shimmer on top ----------
 // level 0..1 the hum, speed 0..1 how fast it is going, beam 0..1 the beam. Called every frame of a round; it fades by itself when the calls stop
 let ufoS = null;

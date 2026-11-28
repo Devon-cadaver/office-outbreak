@@ -18,7 +18,7 @@ import { makeCar } from '../car.js';
 import { createTwisters } from '../tornado.js';
 import { createFires } from '../fire.js';
 import { nukeBlast } from '../nuke.js';
-import { unlockAudio, soundToggle, setMusicDuck, setSfxPaused, skipSongBtn, sfx, stopMusic, setPlaneEngine, setWind, playSongs, songState, gameMusic, SONGS_ALL, firstSong, soundsMenu, readySfx, setCrowd, setSaucer } from '../audio.js';
+import { unlockAudio, soundToggle, setMusicDuck, setSfxPaused, skipSongBtn, sfx, stopMusic, setPlaneEngine, setWind, playSongs, songState, gameMusic, SONGS_ALL, firstSong, soundsMenu, readySfx, crowdHit, setSaucer } from '../audio.js';
 import { townSkin, skinnedCarArgs, addCoins } from '../skins.js';
 import { forceSeason, seasonChoice, seasonPicker } from '../season.js';
 import { eraPicker } from '../era.js';
@@ -305,7 +305,7 @@ function shipLook(dt) { if (WALK()) { walkerLook(dt); return; } const g = ship.g
 
 // ---------- the tractor beam: hold BEAM and anyone under the ship floats up, spinning, into it ----------
 const lifted = [];
-function lift(c, kind) { delete c.updateMatrixWorld; c.userData.frz = false; c.userData.panic = true; lifted.push({ c, kind, t: 0, spin: rnd(4, 8) * (Math.random() < 0.5 ? -1 : 1), s0: c.scale.x }); if (kind !== 'car' && Math.random() < 0.3) (popup(c.position, SHOUTS[(Math.random() * SHOUTS.length) | 0], '#ffffff'), sfx.scream()); }
+function lift(c, kind) { if (kind !== 'car') crowdHit(1, 1); delete c.updateMatrixWorld; c.userData.frz = false; c.userData.panic = true; lifted.push({ c, kind, t: 0, spin: rnd(4, 8) * (Math.random() < 0.5 ? -1 : 1), s0: c.scale.x }); if (kind !== 'car' && Math.random() < 0.3) (popup(c.position, SHOUTS[(Math.random() * SHOUTS.length) | 0], '#ffffff'), sfx.scream()); }
 function updateLifted(dt) { const top = ship.y - 0.45;
   for (let i = lifted.length - 1; i >= 0; i--) { const l = lifted[i], c = l.c, p = c.position; l.t += dt;
     if (!ship.alive || ship.fall) { p.y = Math.max(0, p.y - dt * 4); c.rotation.z *= 0.9; if (p.y <= 0) { lifted.splice(i, 1); c.rotation.set(0, c.rotation.y, 0); c.scale.setScalar(l.s0); if (l.kind === 'car') scene.remove(c); else { Object.assign(c.userData, { home: p.clone(), goal: null, stun: played + 1.5 }); (l.kind === 'soldier' ? army.soldiers : people).push(c); } } continue; } // the ship is going down: they drop back to the street
@@ -843,7 +843,7 @@ function update(dt) {
   { const p = pct(); setT('taPct', innerWidth < 761 ? '💥 ' + p + '%' : '🏚️ ' + p + '% DESTROYED'); setC('taPct', 'ok', p >= L().goal); }
   setC('buBeam', 'on', beamOn); setC('buBeam', 'hint', !beamOn && !!peopleNear(PULL_R + 1));
   let nDone = 0; for (const k of poiOrder) { const P = pois[k]; if (P.done) { nDone++; continue; } edgeArrow(P.arrow, P.center, true); if (P.mark) tickPoiMark(P.mark); } setT('taTargets', nDone + '/' + poiGoal()); setC('taTargets', 'ok', nDone >= poiGoal());
-  { let n = 0; for (const c of people) if (c.userData.panic) n++; setCrowd(n / 8); } crowdLists[0][0] = people; crowdLists[1][0] = army.soldiers; crowd.sync(crowdLists, sx, sz, 4); syncGlows();
+  crowdLists[0][0] = people; crowdLists[1][0] = army.soldiers; crowd.sync(crowdLists, sx, sz, 4); syncGlows();
   mapT -= dt; if (mapT <= 0) { mapT = 0.1; drawMini(); } if (frameN % 60 === 0) measureHud();
   if (MODE !== 'endless' && !mini && !miniMet && ship.alive && miniDue(level, LEVELS.length) && halfDone() >= 0.5) startMini(); /* (the three goals half met: the town's mini boss) */
   if (MODE !== 'endless' && !boss && !mini && abd >= L().abduct && pct() >= L().goal && poisDone() >= poiGoal()) { if (bossDue(level, LEVELS.length) && !bossBeat) startBoss(); else finish('win'); } // all three goals met: mission complete (in the last town, the boss comes first)
