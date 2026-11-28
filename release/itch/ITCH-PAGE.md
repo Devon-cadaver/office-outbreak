@@ -1,6 +1,6 @@
 # Tornado Time! — itch.io page kit
 
-Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.47.0**. Upload `release/tornado-time-web-v1.47.0.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to. All the images below are in `release/itch/tornado-time/`.
+Everything needed to set up https://devs66.itch.io/ for the game. Current version: **1.47.1**. Upload `release/tornado-time-web-v1.47.1.zip` as an **HTML** project. Each version gets its own zip (`-vX.Y`), so older builds stay in `release/` to fall back to. All the images below are in `release/itch/tornado-time/`.
 
 The game used to be called Dead City: Tornado Alley. From 1.28.0 it is **Tornado Time!**, with Kaiju Madness as its bonus game. Older zips keep their old `survive-dead-city-web` names.
 
@@ -15,7 +15,7 @@ The game used to be called Dead City: Tornado Alley. From 1.28.0 it is **Tornado
 | Short description / tagline | You are the tornado. Wreck six towns, swallow rival twisters, zap UFOs and blow up everything worth blowing up. |
 | Classification | Game |
 | Kind of project | **HTML** |
-| Uploads | `tornado-time-web-v1.47.0.zip` (about 40 MB, mostly the eleven songs). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
+| Uploads | `tornado-time-web-v1.47.1.zip` (about 40 MB, mostly the eleven songs). On an update, upload the new zip and delete or hide the old upload. Tick **This file will be played in the browser**. |
 | Embed options | Viewport **Click to launch in fullscreen**, or embed 480 × 854 (phone portrait) / 960 × 640 (desktop). Tick **Mobile friendly** and **Fullscreen button**. Orientation: Portrait for phones. |
 | Frame options | Leave SharedArrayBuffer off. No special headers needed. |
 | Pricing | Free (or "No payments"). |
@@ -123,6 +123,7 @@ Small browser games built fast, tested on a phone, and tuned by playing. Tornado
 
 ## Version history
 
+- **1.47.1** (2026-11-27): Tornado Time!: once every big target is down, the nearest building still standing is marked with a house badge and a gold ring (and an arrow at the edge of the screen when it is out of view), moving on as each one falls until the whole town is flattened. A message tells you: ALL TARGETS DOWN! WRECK THE REST!
 - **1.47.0** (2026-11-27): New sound design. Every sound effect now plays a little differently each time, and the main ones (explosions, small blasts, collapses, hits, whooshes) come in several versions. Lightning crackles and booms in four ways. New lasers. The saucer hums as it flies and its beam shimmers. Storms have a recorded wind. Zombie hordes groan, with more voices the bigger the horde, and each giant has its own deep voice that fades with distance. A distant crowd cries out when people are swept up, beamed up or trodden on. Menus are quiet: no game sounds behind them. Kaiju Madness: a monster's feet no longer race when it turns. The daily challenge greys out and shows PASSED once you have beaten it.
 - **1.46.1** (2026-11-26): Fixed: in holiday towns a wrecked shop left its decorations standing on the empty lot (the Halloween neon sign and pumpkins, the Christmas wreath, the 4th of July flag). They now go with the building, in all four games.
 - **1.46.0** (2026-11-26): Mini bosses: one in each of the first five towns of all four games, 20 in all, each beaten its own way (hit the Gravedigger from behind, beam up the General, swat the Sky Admiral, swallow the Chaser Convoy, and more). Beat one in time for bonus points and one more go at the prize game. The radio is now a music player: see what is playing, go back or skip, shuffle, repeat, and tap any song to play it. Zombie Air Raid: every level has its own zombies, and zombie skins you win join the horde in your next round.
