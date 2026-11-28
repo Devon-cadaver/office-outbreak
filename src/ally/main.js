@@ -603,7 +603,7 @@ $('twPickDone').addEventListener('click', () => { $('twPickScr').classList.add('
 drawTwPicker();
 soundToggle($('taStart'), $('taPaused')); playerButton($('taPaused'), $('taPaused').querySelector('.menuBtn')); tipsSetup('ta', $('taPaused'), $('taPaused').querySelector('.menuBtn')); diffPicker($('seasonRow') || $('taLevels'), 'ta'); skipSongBtn($('ta')); eraPicker($('taLevels'), () => { level = unlocked(); drawLevels(); }); seasonPicker($('eraRow')); // sound on/off on the start and pause screens
 // the soundtrack starts on the first tap and keeps rotating songs for as long as you're on Tornado Alley
-gameMusic($('taPaused'), SONGS_TORNADO); radioButton($('taPaused'), $('taPaused').querySelector('.menuBtn')); soundsMenu($('taPaused')); readySfx();
+gameMusic($('taPaused'), SONGS_TORNADO); radioButton($('taPaused'), $('taPaused').querySelector('.menuBtn')); soundsMenu($('taPaused')); readySfx(['wind', 'crowd', 'groan']);
 const fsMode = initFullscreen(() => state === 'play' || state === 'outro'); // full screen on play, back in after a browser drop-out, no page scrolling mid-round
 function start() {
   if (MODE === 'streak') level = streakLevel(LEVELS.length); if (MODE === 'endless') { level = LEVELS.length; waves.reset(); dyingT = 0; } rebuilder.clear(); RK = roundK('ta'); boss = null; bossBeat = bossCame = false; mb = null; mbBeat = mbMet = false; bossBar(null); comboHud(1, 0); clearMeteors(); events.reset(); fsMode.play();

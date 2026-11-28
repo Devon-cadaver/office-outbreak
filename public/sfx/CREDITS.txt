@@ -1,0 +1,9 @@
+Tornado Time! sound effect recordings
+=====================================
+Most of the game's sounds are made in code. These few are recordings. Every one is CC0 (public domain dedication),
+free to use in a sold game. They were trimmed, levelled and in places layered or re-pitched for the game.
+
+wind.wav           From "Wind" by IgnasD. CC0. opengameart.org
+crowd.wav          Built from "Crowd Shouting/Speaking Ambience" by StarNinjas, with voices from "Girly Scream" by Ferk,
+                   "High pitch scream sounds" by pauliuw and "Male Grunt/Yelling sounds" by HaelDB. All CC0. opengameart.org
+groan/g1-g24.mp3   "Zombies Sound Pack" by artisticdude. CC0. opengameart.org

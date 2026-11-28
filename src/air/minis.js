@@ -145,7 +145,7 @@ export function makeMinis(E) {
     if (m.key === 'queen' && m.st !== 'rear') { say('ARMORED! WAIT FOR HER TO REAR UP', '#c8cad8'); E.fx.sparks(at, 4, { c: [0xd8d8e8, 0x8a8a9a], speed: 4, up: 3, life: 0.3 }); return 0; }
     if (m.key === 'hive' && !big) { say('TOO TOUGH! USE A BIG WEAPON', '#c8cad8'); E.fx.sparks(at, 4, { c: [0xd8d8e8, 0x8a8a9a], speed: 4, up: 3, life: 0.3 }); return 0; }
     m.hp -= dmg; m.flash = 0.2; E.fx.sparks(at, 8, GREEN); if (m.hp > 0) return 1;
-    m.hp = 0; m.live = false; m.st = 'dead'; m.t = 0; m.n = 0; m.root.userData.ring && (m.root.userData.ring.visible = false); E.sfx.groan(); return 2; }
+    m.hp = 0; m.live = false; m.st = 'dead'; m.t = 0; m.n = 0; m.root.userData.ring && (m.root.userData.ring.visible = false); E.sfx.groan(true); return 2; }
   function blast(x, z, r, dmg, big) { if (!m || !m.live) return 0; if (Math.hypot(x - m.x, z - m.z) > r + (m.key === 'hive' ? 3.1 : 2.6)) return 0; return hit(dmg, new THREE.Vector3(x, 1.2, z), big); }
   function leave() { if (m && m.live) { m.live = false; m.st = 'sink'; m.t = 0; if (m.root.userData.ring) m.root.userData.ring.visible = false; } }
   function burst(k) { const p = new THREE.Vector3(m.x + (Math.random() - 0.5) * 4 * k, 0.8 + Math.random() * 2.2, m.z + (Math.random() - 0.5) * 4 * k); E.fx.explode(p, 0.9 + Math.random() * 0.8); E.fx.sparks(p, 14, { c: [0xb4ff5a, 0xe8ff9a, 0x5a9a1a], speed: 7, up: 6, life: 0.8 }); E.boom(); }
@@ -156,7 +156,7 @@ export function makeMinis(E) {
       if (m.t > 3.4) { E.fx.scorch(new THREE.Vector3(m.x, 0, m.z), 3.2, 30); clear(); return; } }
     else if (m.key === 'queen') { let want = 0;
       if (go) { let d = Math.atan2(c.pos.x - m.x, c.pos.z - m.z) - m.face; d = Math.atan2(Math.sin(d), Math.cos(d)); m.face += d * Math.min(1, dt * 0.7); R.rotation.y = m.face; }
-      if (m.st === 'crawl') { if (m.t > QUEEN.crawl && go) { m.st = 'rear'; m.t = 0; m.n = 0; m.laid = false; m.sayT = 0; say('⚠ SHE REARS UP: HIT HER NOW!', '#ffe14a'); E.sfx.groan(); } }
+      if (m.st === 'crawl') { if (m.t > QUEEN.crawl && go) { m.st = 'rear'; m.t = 0; m.n = 0; m.laid = false; m.sayT = 0; say('⚠ SHE REARS UP: HIT HER NOW!', '#ffe14a'); E.sfx.groan(true); } }
       else { want = 0.85; const fx0 = Math.sin(m.face), fz0 = Math.cos(m.face); if (!m.laid && m.t > 0.7) { m.laid = true; if (E.horde.wave(QUEEN.brood, m.x, m.z)) E.popup({ x: m.x + fx0 * 3.4, y: 0.5, z: m.z + fz0 * 3.4 }, '🧟 A BROOD!', '#b4ff5a'); E.sfx.splat(); }
         if (m.n < 3 && m.t > 1 + m.n * 1.1) { m.n++; if (go && Math.hypot(c.pos.x - m.x, c.pos.z - m.z) < QUEEN.reach) spit(u.head.getWorldPosition(new THREE.Vector3()), QUEEN.acid); } if (m.t > QUEEN.rear) { m.st = 'crawl'; m.t = 0; } }
       m.pitch += (want - m.pitch) * Math.min(1, dt * 3.2); const open = m.pitch / 0.85, pulse = 0.5 + 0.5 * Math.sin(m.ph * 9); u.front.rotation.x = -open * 0.62; u.wings[0].rotation.z = open * 1.05; u.wings[1].rotation.z = -open * 1.05;
@@ -165,7 +165,7 @@ export function makeMinis(E) {
       for (const j of u.jaws) j.rotation.y = j.userData.s * (0.15 + open * 0.5 + Math.sin(m.ph * 7) * 0.08); u.claws.forEach((q, i) => { q.rotation.x = -open * 0.7 + Math.sin(m.ph * 2.2 + i * 2) * 0.12; });
       u.sacs.forEach((q, i) => q.scale.setScalar((0.25 + (i % 2) * 0.08) * (1 + Math.sin(m.ph * 3 + i) * 0.14))); u.head.rotation.z = Math.sin(m.ph * 1.3) * 0.1; }
     else { /* the Hive: it swells, then spits a clutch of gloopers into the street and acid at you */ m.cd -= dt; let sw = 0;
-      if (m.st === 'idle') { if (m.cd <= 0 && go) { m.st = 'swell'; m.t = 0; E.sfx.groan(); } }
+      if (m.st === 'idle') { if (m.cd <= 0 && go) { m.st = 'swell'; m.t = 0; E.sfx.groan(true); } }
       else { sw = Math.min(1, m.t / 0.9); if (m.t >= 0.9) { m.st = 'idle'; m.cd = HIVE.every; const top = u.maw.getWorldPosition(new THREE.Vector3());
           if (E.horde.wave(HIVE.gloop, m.x, m.z, 900, 1)) E.popup({ x: m.x, y: 4.6, z: m.z }, '🟢 GLOOPERS!', '#b4ff5a'); E.fx.sparks(top, 16, GREEN); E.sfx.splat(); if (go && Math.hypot(c.pos.x - m.x, c.pos.z - m.z) < HIVE.reach) { spit(top, HIVE.acid); setTimeout(() => { if (m && m.live) spit(top, HIVE.acid); }, 450); } } }
       const pulse = 0.5 + 0.5 * Math.sin(m.ph * 3.2); u.maw.scale.setScalar(1 + sw * 0.5 + pulse * 0.05); R.scale.set(1 + pulse * 0.015, 1 + sw * 0.06 - pulse * 0.02, 1 + pulse * 0.015);

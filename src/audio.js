@@ -97,14 +97,15 @@ export const sfx = {
   // caught by a zombie: thud + scream-ish slide
   caught: () => { noise(0.25, 0.25, 300, 0.7); tone(220, 0.5, 'sawtooth', 0.12, 300); setTimeout(() => tone(90, 0.4, 'square', 0.1, -50), 120); },
   step: () => { stepFlip = !stepFlip; noise(0.06, 0.07, stepFlip ? 900 : 700, 2); },
-  groan: () => { if (real('groan')) return; const f = 70 + Math.random() * 40, k = Math.random(); if (k < 0.5) { tone(f, 0.6, 'sawtooth', 0.05, 25); tone(f * 1.5, 0.5, 'triangle', 0.03, -15); } else if (k < 0.8) { tone(f * 0.85, 0.95, 'sawtooth', 0.05, -10); tone(f * 1.27, 0.8, 'triangle', 0.028, -8, master, 0.05); } else { tone(f * 1.25, 0.32, 'sawtooth', 0.055, -32); tone(f * 2.5, 0.2, 'triangle', 0.02, -40); } }, /* the old groan, a long low moan, or a short grunt */
+  // a zombie. big: a giant or a boss: one loud, deep voice. A recording where the game has asked for them (Zombie Air Raid; the cemetery in Tornado Time!), otherwise the code-made groan
+  groan: (big = false) => { if (real(big ? 'giant' : 'groan') || wantReal.groan) return; const f = (big ? 52 : 70) + Math.random() * 40, k = Math.random(); if (k < 0.5) { tone(f, 0.6, 'sawtooth', 0.05, 25); tone(f * 1.5, 0.5, 'triangle', 0.03, -15); } else if (k < 0.8) { tone(f * 0.85, 0.95, 'sawtooth', 0.05, -10); tone(f * 1.27, 0.8, 'triangle', 0.028, -8, master, 0.05); } else { tone(f * 1.25, 0.32, 'sawtooth', 0.055, -32); tone(f * 2.5, 0.2, 'triangle', 0.02, -40); } },
   pickup: () => { tone(520, 0.08, 'square', 0.05); setTimeout(() => tone(780, 0.1, 'square', 0.05), 80); setTimeout(() => tone(1040, 0.15, 'square', 0.05), 160); },
   wave: () => { tone(440, 0.12, 'square', 0.05); setTimeout(() => tone(660, 0.12, 'square', 0.05), 120); setTimeout(() => tone(880, 0.2, 'square', 0.05), 240); },
   boom: () => { if (real('boom')) return; boomMake(); },
   // a small explosion: the second pop after a big one, a gun firing, a small thing going up
   blast: () => { if (real('blast')) return; blastMake(); },
   // somebody shouting as they run (only as a recording: people were silent before)
-  scream: () => { if (real('scream')) return true; voice('yell', 0.1); return true; }, /* one voice, a little clearer than the crowd's */
+  scream: () => true, /* a single cry over a shout bubble: silent. Sean preferred the recorded crowd, far off, to voices made in code */
   whoosh: () => { if (real('whoosh')) return; if (Math.random() < 0.35) return noise(0.35, 0.12, 600, 0.6); const up = Math.random() < 0.5, a = rnd(420, 700), b = rnd(950, 1500); noise(rnd(0.3, 0.44), 0.12, up ? a : b, rnd(0.6, 1.1), 0, up ? b : a); }, /* the old steady rush, or one that rises or falls as it goes by */
   // a button being pushed in: a short, soft thock
   click: () => { tone(1500, 0.025, 'square', 0.018); tone(420, 0.06, 'triangle', 0.04, -180); },
@@ -140,30 +141,32 @@ export const sfx = {
   thunder: (big = false) => { if (!ctx) return false; if (big && real('thunder')) return true; if (!big) { if (ctx.currentTime < thunderT) return true; thunderT = ctx.currentTime + 0.6; } strikeMake(big); return true; },
 };
 
-// ---------- real recordings (the sound pass, Nov 2026) ----------
-// Each recording stands in for one of the code-made sounds when sound effects are on NEW (pause menu > SOUNDS) and its file has
-// loaded. Until then, or on CLASSIC, or if a file is missing, the code-made sound plays exactly as it always did: nothing else
-// in the games has to know. The files are in public/sfx (where each came from: public/sfx/CREDITS.txt).
-const REAL_ON = false; /* the code's own switch: false and no recording is ever fetched or played. OFF since Sean heard them in the game and preferred the code-made sounds (Nov 2026); the files are no longer in public/sfx */
-let sfxStyle = 'new'; try { if (localStorage.getItem('oo_sfx') === 'classic') sfxStyle = 'classic'; } catch { /* ignore */ }
+// ---------- the recordings (Nov 2026) ----------
+// Almost every sound in the games is made in code, above. A few are recordings, where Sean preferred them: the storm's wind,
+// the crowd, the zombies. A game names the ones it wants (readySfx(['wind', 'crowd'])) and only those are fetched; until a
+// file has loaded, or if it is missing, the code-made sound plays where there is one. Files: public/sfx (sources: public/sfx/CREDITS.txt).
+const REAL_ON = true; /* the code's own switch: false and no recording is ever fetched or played */
+const SFX_SWITCH = false; /* the NEW / CLASSIC switch and EFFECTS VOL of test build 1: kept, but not in the menu, now that the mix is fixed */
+let sfxStyle = 'new'; /* (what that switch saved, oo_sfx, is no longer read: a phone left on CLASSIC would never play these) */
 export const sfxNew = () => REAL_ON && sfxStyle === 'new';
-// one-shots, by the name the games ask for: [file, loudness, slowest and fastest speed it is played at (so no two sound alike), least seconds between two, most playing at once]
+// one-shots, by the name the games ask for: [file or files, loudness, slowest and fastest speed it is played at, least seconds between two, most playing at once]
 // (a list of files is a set: a different one of them each time, never the same twice running)
 const seq = (p, n) => Array.from({ length: n }, (v, i) => p + (i + 1) + '.mp3');
-const REAL = { boom: ['boom.mp3', 0.6, 0.86, 1.14, 0.07, 5], blast: ['blast.mp3', 0.45, 0.9, 1.15, 0.05, 5], collapse: ['collapse.mp3', 0.55, 0.9, 1.08, 0.25, 3], crunch: ['crunch.mp3', 0.45, 0.88, 1.15, 0.1, 4], whoosh: ['whoosh.mp3', 0.4, 0.88, 1.15, 0.04, 4], hit: ['hit.mp3', 0.45, 0.9, 1.12, 0.03, 4],
-  groan: [seq('groan/g', 24), 0.45, 0.92, 1.1, 0.08, 4], scream: [[...seq('scream/y', 15), ...seq('scream/l', 8), ...seq('scream/c', 9)], 0.32, 0.95, 1.07, 0.7, 2], siren: ['siren.mp3', 0.45, 0.96, 1.06, 1.5, 2], thunder: ['thunder.mp3', 0.7, 0.88, 1.1, 0.5, 3] };
-// sounds that keep going: the storm's wind, a crowd in a panic, and the three aircraft
-const LOOPS = { wind: 'wind.wav', crowd: 'crowd.wav', plane: 'plane.wav', heli: 'heli.wav', beam: 'beam.wav' };
+const GROANS = seq('groan/g', 24);
+const REAL = { groan: [GROANS, 0.08, 0.92, 1.08, 0.12, 3], giant: [GROANS, 0.36, 0.6, 0.72, 0.5, 2] }; /* giant: the same voices slowed right down, so deeper, and much louder: one at a time */
+// sounds that keep going. LOOP_LP: played through a low-pass filter at this many Hz, which muffles it as distance does
+const LOOPS = { wind: 'wind.wav', crowd: 'crowd.wav' }, LOOP_LP = { crowd: 1300 };
 const realRaw = {}, realBuf = {}, realAt = {}, realLast = {}, realVoices = {}, loopsOn = {}; let realBus = null, realOut = null, realAsked = false, realBusy = false;
 // how loud the recordings play as a whole (EFFECTS VOL in the SOUNDS menu): they are new and their level against the music is a guess, so the player can turn them down. The code-made sounds are not touched
-const SFX_VOLS = [['LOW', 0.4], ['MED', 0.7], ['FULL BLAST', 1]]; let sfxVolI = 2; try { const v = +localStorage.getItem('oo_sfx_vol'); if (localStorage.getItem('oo_sfx_vol') != null && v >= 0 && v < SFX_VOLS.length) sfxVolI = v | 0; } catch { /* ignore */ }
+const SFX_VOLS = [['LOW', 0.4], ['MED', 0.7], ['FULL BLAST', 1]]; let sfxVolI = 2; /* (oo_sfx_vol is no longer read either) */
 export const sfxVolName = () => SFX_VOLS[sfxVolI][0];
 export function cycleSfxVol() { sfxVolI = (sfxVolI + 1) % SFX_VOLS.length; try { localStorage.setItem('oo_sfx_vol', sfxVolI); } catch { /* ignore */ } if (realOut) realOut.gain.value = SFX_VOLS[sfxVolI][1]; return sfxVolName(); }
 // fetch the files (a game calls readySfx() as it starts; the menus never do, so they load nothing), then decode them one at a
 // time once the sound engine exists. A sound asked for before its recording is ready is simply the code-made one
-function loadReal() { if (realAsked || !sfxNew() || typeof fetch === 'undefined') return; realAsked = true; for (const f of [...Object.values(REAL).flatMap((r) => r[0]), ...Object.values(LOOPS)]) fetch('sfx/' + f).then((r) => (r.ok ? r.arrayBuffer() : null)).then((a) => { if (a) { realRaw[f] = a; decodeReal(); } }).catch(() => { /* that sound stays code-made */ }); }
+const wantReal = {}, realFetched = {};
+function loadReal(names = []) { if (!sfxNew() || typeof fetch === 'undefined') return; for (const n of names) { wantReal[n] = 1; for (const f of (REAL[n] ? [].concat(REAL[n][0]) : LOOPS[n] ? [LOOPS[n]] : [])) { if (realFetched[f]) continue; realFetched[f] = 1; fetch('sfx/' + f).then((r) => (r.ok ? r.arrayBuffer() : null)).then((a) => { if (a) { realRaw[f] = a; decodeReal(); } }).catch(() => { /* that sound stays code-made */ }); } } }
 async function decodeReal() { if (realBusy || !ctx) return; realBusy = true; for (;;) { const f = Object.keys(realRaw)[0]; if (!f) break; const a = realRaw[f]; delete realRaw[f]; try { realBuf[f] = await new Promise((ok, no) => { const p = ctx.decodeAudioData(a, ok, no); if (p && p.catch) p.catch(() => {}); }); } catch { /* that sound stays code-made */ } } realBusy = false; }
-export function readySfx() { loadReal(); }
+export function readySfx(names) { loadReal(names); }
 // play a recording. True: it is taken care of (played, or too soon after the last one to play again); false: play the code-made sound
 function real(name, vol = 1, rate = 0) { if (!ctx || !sfxNew()) return false; const r = REAL[name]; if (!r) return false; let fl = r[0]; if (Array.isArray(fl)) { const have = fl.filter((f) => realBuf[f] && f !== realLast[name]); if (!have.length) return false; fl = have[(Math.random() * have.length) | 0]; }
   const buf = realBuf[fl]; if (!buf) return false; const t = ctx.currentTime; if (t - (realAt[name] == null ? -9 : realAt[name]) < r[4]) return true; realAt[name] = t; realLast[name] = fl;
@@ -171,35 +174,32 @@ function real(name, vol = 1, rate = 0) { if (!ctx || !sfxNew()) return false; co
   const s = ctx.createBufferSource(), g = ctx.createGain(), o = { s, g }; realN[name] = (realN[name] || 0) + 1; s.buffer = buf; s.playbackRate.value = rate || r[2] + Math.random() * (r[3] - r[2]); g.gain.value = r[1] * vol * (0.85 + Math.random() * 0.15); s.connect(g).connect(realBus); s.start(t); v.push(o); s.onended = () => { const i = v.indexOf(o); if (i >= 0) v.splice(i, 1); }; return true; }
 // a looping recording at a loudness (0 = silent) and speed. True: the recording is carrying this sound; false: it cannot (CLASSIC, or not loaded), so the code-made one must
 function realLoop(kind, level, rate = 1) { const buf = ctx && sfxNew() ? realBuf[LOOPS[kind]] : null; let L = loopsOn[kind]; if (!buf) { if (L) L.g.gain.setTargetAtTime(0, ctx.currentTime, 0.1); return false; }
-  if (!L) { if (level <= 0) return true; const s = ctx.createBufferSource(), g = ctx.createGain(); s.buffer = buf; s.loop = true; g.gain.value = 0; s.connect(g).connect(realBus); s.start(0, Math.random() * buf.duration); L = loopsOn[kind] = { s, g }; } /* (it starts somewhere in the middle, a different place each time) */
+  if (!L) { if (level <= 0) return true; const s = ctx.createBufferSource(), g = ctx.createGain(); s.buffer = buf; s.loop = true; g.gain.value = 0; if (LOOP_LP[kind]) { const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = LOOP_LP[kind]; s.connect(lp).connect(g); } else s.connect(g); g.connect(realBus); s.start(0, Math.random() * buf.duration); L = loopsOn[kind] = { s, g }; } /* (it starts somewhere in the middle, a different place each time) */
   const t = ctx.currentTime; L.g.gain.setTargetAtTime(Math.max(0, level), t, 0.25); L.s.playbackRate.setTargetAtTime(Math.max(0.4, Math.min(2.5, rate)), t, 0.2); return true; }
 export const hasLoop = (kind) => !!(ctx && sfxNew() && realBuf[LOOPS[kind]]);
 // NEW or CLASSIC, from the pause menu's SOUNDS screen. CLASSIC hushes every recording that is still going; the code-made sounds take over at the games' next call
 export function setSfxStyle(v) { sfxStyle = v === 'classic' ? 'classic' : 'new'; try { localStorage.setItem('oo_sfx', sfxStyle); } catch { /* ignore */ } if (sfxNew()) { loadReal(); decodeReal(); } else if (ctx) for (const k of Object.keys(loopsOn)) loopsOn[k].g.gain.setTargetAtTime(0, ctx.currentTime, 0.1); }
 // people running from you: a crowd's shouting, louder the more of them are in a panic (level 0..1). A game calls this every frame it has people; when the calls stop (the round is over) it fades out by itself
 // for tests: what has loaded, what is looping and how loud, how many of each one-shot have played
-const realN = {}; if (typeof window !== 'undefined') window.__sfx = { ctx: () => ctx, out: () => master, crowd: (v) => setCrowd(v), horde: (v) => setHorde(v), saucerSet: (a2, b2, c2) => setSaucer(a2, b2, c2), voices: () => Object.assign({}, voiceN), mobs: () => ({ crowd: +mobs.crowd.lv.toFixed(2), horde: +mobs.horde.lv.toFixed(2) }), saucer: () => (ufoS ? [+ufoS.out.gain.value.toFixed(3), +ufoS.bo.gain.value.toFixed(3)] : [0, 0]), sfx: () => sfx, ready: () => Object.keys(realBuf).sort(), loops: () => { const o = {}; for (const k of Object.keys(loopsOn)) o[k] = +loopsOn[k].g.gain.value.toFixed(3); return o; }, played: () => Object.assign({}, realN), style: () => sfxStyle, setStyle: (v) => setSfxStyle(v), engine: () => (eng ? +eng.out.gain.value.toFixed(3) : 0), state: () => (ctx ? ctx.state : 'none') };
-// ---------- crowds and hordes: many faint voices made on the fly, no two alike, more of them the more people (or zombies) there are ----------
-const voiceN = { yell: 0, groan: 0 };
-function voice(kind, vol, when = 0) { if (!ctx) return; const t = ctx.currentTime + when, o = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain(); let d; voiceN[kind]++;
-  if (kind === 'yell') { const f0 = rnd(360, 780), up = Math.random() < 0.6; d = rnd(0.22, 0.6); o.type = Math.random() < 0.7 ? 'sawtooth' : 'triangle'; o.frequency.setValueAtTime(f0, t); o.frequency.linearRampToValueAtTime(f0 * (up ? rnd(1.25, 1.7) : rnd(0.7, 0.9)), t + d * 0.4); o.frequency.linearRampToValueAtTime(f0 * rnd(0.55, 0.85), t + d); f.type = 'bandpass'; f.frequency.value = rnd(950, 1500); f.Q.value = 2.2; } /* a person: a cry that climbs and falls away, or just falls */
-  else { const snarl = Math.random() < 0.2, f0 = snarl ? rnd(140, 210) : rnd(62, 115); d = snarl ? rnd(0.3, 0.5) : rnd(0.6, 1.3); o.type = 'sawtooth'; o.frequency.setValueAtTime(f0, t); o.frequency.linearRampToValueAtTime(f0 * (snarl ? rnd(1.15, 1.4) : rnd(0.78, 1.12)), t + d); f.type = 'bandpass'; f.frequency.value = snarl ? rnd(700, 1000) : rnd(380, 640); f.Q.value = 1.6; } /* a zombie: a low moan that sags, now and then a rising snarl */
-  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + Math.min(0.08, d * 0.25)); g.gain.exponentialRampToValueAtTime(0.0004, t + d); o.connect(f).connect(g).connect(master); o.start(t); o.stop(t + d + 0.03); }
-// rate: voices a second when it is at its fullest; vol: how loud one voice is at most (both kept low: Sean asked for these to be faint)
-const mobs = { crowd: { lv: 0, at: 0, kind: 'yell', rate: 4.5, vol: 0.055 }, horde: { lv: 0, at: 0, kind: 'groan', rate: 2.6, vol: 0.075 } }; let mobTick = 0;
-function mob(name, level) { if (!ctx) return; const m = mobs[name]; m.lv = menuQuiet ? 0 : Math.max(0, Math.min(1, level)); m.at = ctx.currentTime;
-  if (!mobTick) mobTick = setInterval(() => { if (!ctx || ctx.state !== 'running' || sfxPaused) return; /* five times a second: the voices due, and anything a game has stopped asking for fades away */
-    for (const k of Object.keys(mobs)) { const q = mobs[k]; if (ctx.currentTime - q.at > 0.6) q.lv = 0; if (q.lv <= 0) continue; let n = q.lv * q.rate * 0.2; n = (n | 0) + (Math.random() < n % 1 ? 1 : 0); for (let i = 0; i < n; i++) voice(q.kind, q.vol * rnd(0.5, 1) * (0.5 + 0.5 * q.lv), rnd(0, 0.2)); }
-    if (ufoS && ctx.currentTime - ufoS.at > 0.6 && ufoS.on) setSaucer(0); }, 200); }
-// people running from you (level 0..1 = how many are in a panic). A game calls this every frame it has people; when the calls stop it fades by itself
-let crowdAt = 0, crowdTick = 0;
-export function setCrowd(level) { if (!ctx) return; if (!hasLoop('crowd')) return mob('crowd', level); crowdAt = ctx.currentTime; realLoop('crowd', menuQuiet ? 0 : Math.max(0, Math.min(1, level)) * 0.4); if (!crowdTick) crowdTick = setInterval(() => { if (ctx && loopsOn.crowd && ctx.currentTime - crowdAt > 0.6) realLoop('crowd', 0); }, 300); }
-// a horde of zombies near you (level 0..1 = how many): the same idea, low moans instead of cries
-export function setHorde(level) { mob('horde', level); }
+const realN = {}; if (typeof window !== 'undefined') window.__sfx = { ctx: () => ctx, out: () => master, crowd: (v) => setCrowd(v), horde: (v) => setHorde(v), saucerSet: (a2, b2, c2) => setSaucer(a2, b2, c2), hordeNow: () => [+hordeLv.toFixed(2), hordeLive], wants: () => Object.keys(wantReal), saucer: () => (ufoS ? [+ufoS.out.gain.value.toFixed(3), +ufoS.bo.gain.value.toFixed(3)] : [0, 0]), sfx: () => sfx, ready: () => Object.keys(realBuf).sort(), loops: () => { const o = {}; for (const k of Object.keys(loopsOn)) o[k] = +loopsOn[k].g.gain.value.toFixed(3); return o; }, played: () => Object.assign({}, realN), style: () => sfxStyle, setStyle: (v) => setSfxStyle(v), engine: () => (eng ? +eng.out.gain.value.toFixed(3) : 0), state: () => (ctx ? ctx.state : 'none') };
+// ---------- the crowd and the horde: recordings, kept low and muffled so they sit in the distance ----------
+const CROWD_VOL = 0.13, HORDE_VOL = 0.04;
+let crowdAt = 0, hordeLv = 0, hordeAt = 0, hordeLive = 0, farTick = 0;
+// five times a second: the horde's voices that are due, and anything a game has stopped asking for fades away by itself
+function farSounds() { if (farTick) return; farTick = setInterval(() => { if (!ctx || ctx.state !== 'running' || sfxPaused) return; const t = ctx.currentTime;
+    if (loopsOn.crowd && t - crowdAt > 0.6) realLoop('crowd', 0);
+    if (t - hordeAt > 0.6) hordeLv = 0;
+    if (hordeLv > 0.02) { const have = GROANS.filter((f) => realBuf[f]), want = Math.round(3 + 7 * hordeLv); for (let i = 0; i < 2 && hordeLive < want && have.length; i++) hordeVoice(have[(Math.random() * have.length) | 0], hordeLv); } /* 3 to 10 at once, two more at most each time round so they do not all start together */
+    if (ufoS && ufoS.on && t - ufoS.at > 0.6) setSaucer(0); }, 200); }
+// people running from you (level 0..1 = how many are in a panic). A game calls this every frame it has people
+export function setCrowd(level) { if (!ctx) return; crowdAt = ctx.currentTime; realLoop('crowd', menuQuiet ? 0 : Math.max(0, Math.min(1, level)) * CROWD_VOL); farSounds(); }
+// a horde of zombies (level 0..1 = how near it is and how many). Each voice is one of the recorded groans at its own pitch; the further off, the quieter and duller
+function hordeVoice(file, lv) { const t = ctx.currentTime + rnd(0, 0.18), s = ctx.createBufferSource(), lp = ctx.createBiquadFilter(), g = ctx.createGain(); s.buffer = realBuf[file]; s.playbackRate.value = rnd(0.78, 1.08); lp.type = 'lowpass'; lp.frequency.value = 900 + 700 * lv; g.gain.value = HORDE_VOL * (0.3 + 0.7 * lv) * rnd(0.6, 1); s.connect(lp).connect(g).connect(realBus); s.start(t); hordeLive++; s.onended = () => { hordeLive--; }; }
+export function setHorde(level) { if (!ctx) return; hordeLv = menuQuiet ? 0 : Math.max(0, Math.min(1, level)); hordeAt = ctx.currentTime; farSounds(); }
 // ---------- the saucer (Beam 'Em Up!): a wobbling hum while it flies, higher and faster the quicker it goes, and the beam's shimmer on top ----------
 // level 0..1 the hum, speed 0..1 how fast it is going, beam 0..1 the beam. Called every frame of a round; it fades by itself when the calls stop
 let ufoS = null;
-export function setSaucer(level, speed = 0, beam = 0) { if (!ctx) return; const lv = menuQuiet ? 0 : Math.max(0, Math.min(1, level)), sp = Math.max(0, Math.min(1, speed)), bm = menuQuiet ? 0 : Math.max(0, Math.min(1, beam)), t = ctx.currentTime;
+export function setSaucer(level, speed = 0, beam = 0) { if (!ctx) return; farSounds(); const lv = menuQuiet ? 0 : Math.max(0, Math.min(1, level)), sp = Math.max(0, Math.min(1, speed)), bm = menuQuiet ? 0 : Math.max(0, Math.min(1, beam)), t = ctx.currentTime;
   if (!ufoS) { if (!lv && !bm) return; const osc = (type, fr) => { const o = ctx.createOscillator(); o.type = type; o.frequency.value = fr; o.start(); return o; }, gain = (v) => { const g = ctx.createGain(); g.gain.value = v; return g; };
     /* the hum: two notes a fifth apart that throb together, with a thin whirr above that wavers */
     const a = osc('triangle', 196), b = osc('triangle', 294), w = osc('sine', 740), trem = osc('sine', 7), tremAmt = gain(0.35), vib = osc('sine', 0.7), vibAmt = gain(18), hum = gain(0.6), whirr = gain(0.2), lo = ctx.createBiquadFilter(), out = gain(0); lo.type = 'lowpass'; lo.frequency.value = 1100;
@@ -350,8 +350,8 @@ export function soundsMenu(host) { if (!host) return; const rows = [...host.quer
   const open = document.createElement('button'); open.className = 'ghost soundRow sndOne'; open.textContent = '🔊 SOUNDS'; host.insertBefore(open, rows[0]);
   const m = document.createElement('div'); m.className = 'psMenu sndMenu'; m.style.display = 'none'; const box = document.createElement('div'); box.className = 'psBox'; box.innerHTML = '<h2>🔊 SOUNDS</h2>'; m.appendChild(box);
   const onOff = rows.find((r) => r.querySelector('[data-k="m"]')); for (const r of [onOff, ...rows.filter((r) => r !== onOff)]) if (r) box.appendChild(r); /* SOUND and MUSIC first, then the song's own buttons */
-  const fx = document.createElement('button'); fx.className = 'ghost sfxStyleBtn'; const fxDraw = () => { fx.textContent = '🎚️ EFFECTS: ' + (sfxNew() ? 'NEW' : 'CLASSIC'); }; fxDraw(); fx.addEventListener('click', (e) => { e.stopPropagation(); unlockAudio(); setSfxStyle(sfxNew() ? 'classic' : 'new'); fxDraw(); }); if (REAL_ON) box.appendChild(fx);
-  const fv = document.createElement('button'); fv.className = 'ghost sfxVolBtn'; const fvDraw = () => { fv.textContent = '🔉 EFFECTS VOL: ' + sfxVolName(); fv.style.display = sfxNew() ? '' : 'none'; }; fvDraw(); fv.addEventListener('click', (e) => { e.stopPropagation(); unlockAudio(); cycleSfxVol(); fvDraw(); }); fx.addEventListener('click', fvDraw); if (REAL_ON) box.appendChild(fv); /* (only the recordings have this volume, so it hides on CLASSIC) */ /* NEW: the recordings; CLASSIC: every sound made in code, as before the sound pass */
+  const fx = document.createElement('button'); fx.className = 'ghost sfxStyleBtn'; const fxDraw = () => { fx.textContent = '🎚️ EFFECTS: ' + (sfxNew() ? 'NEW' : 'CLASSIC'); }; fxDraw(); fx.addEventListener('click', (e) => { e.stopPropagation(); unlockAudio(); setSfxStyle(sfxNew() ? 'classic' : 'new'); fxDraw(); }); if (SFX_SWITCH) box.appendChild(fx);
+  const fv = document.createElement('button'); fv.className = 'ghost sfxVolBtn'; const fvDraw = () => { fv.textContent = '🔉 EFFECTS VOL: ' + sfxVolName(); fv.style.display = sfxNew() ? '' : 'none'; }; fvDraw(); fv.addEventListener('click', (e) => { e.stopPropagation(); unlockAudio(); cycleSfxVol(); fvDraw(); }); fx.addEventListener('click', fvDraw); if (SFX_SWITCH) box.appendChild(fv); /* (only the recordings have this volume, so it hides on CLASSIC) */ /* NEW: the recordings; CLASSIC: every sound made in code, as before the sound pass */
   if (radioB) { box.appendChild(radioB); radioB.addEventListener('click', () => { m.style.display = 'none'; }); } /* (the radio opens over the pause menu, as it always did) */
   const back = document.createElement('button'); back.className = 'psBack'; back.textContent = 'BACK'; box.appendChild(back);
   back.addEventListener('click', (e) => { e.stopPropagation(); m.style.display = 'none'; }); open.addEventListener('click', (e) => { e.stopPropagation(); unlockAudio(); m.style.display = 'flex'; });
