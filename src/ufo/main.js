@@ -18,7 +18,7 @@ import { makeCar } from '../car.js';
 import { createTwisters } from '../tornado.js';
 import { createFires } from '../fire.js';
 import { nukeBlast } from '../nuke.js';
-import { unlockAudio, soundToggle, setMusicDuck, setSfxPaused, skipSongBtn, sfx, stopMusic, setPlaneEngine, setWind, playSongs, songState, gameMusic, SONGS_ALL, firstSong, soundsMenu, readySfx, setCrowd, setEngine, hasLoop } from '../audio.js';
+import { unlockAudio, soundToggle, setMusicDuck, setSfxPaused, skipSongBtn, sfx, stopMusic, setPlaneEngine, setWind, playSongs, songState, gameMusic, SONGS_ALL, firstSong, soundsMenu, readySfx, setCrowd, setSaucer } from '../audio.js';
 import { townSkin, skinnedCarArgs, addCoins } from '../skins.js';
 import { forceSeason, seasonChoice, seasonPicker } from '../season.js';
 import { eraPicker } from '../era.js';
@@ -800,7 +800,7 @@ function update(dt) {
   boostT -= dt; nukeT = Math.max(0, nukeT - dt); blindT = Math.max(0, blindT - dt); rayCd -= dt;
   /* (flying costs nothing now: power, the E bar, is the only health) */
   const sx = ship.x, sz = ship.z, bl = ship.y - 0.42 * SHIP_SCALE; beam.g.position.set(sx, bl, sz); beam.update(dt, bl, GRAB_R, beamOn);
-  setEngine('beam', beamOn ? 0.75 : hasLoop('beam') ? 0.2 : 0, 2.4 + Math.sin(played * 3) * 0.05); /* (with the recording the saucer hums quietly all the time and swells with the beam; the code-made drone is the beam only, as before) */ setWind(0.32 + Math.min(0.4, Math.hypot(ship.vel.x, ship.vel.z) * 0.05), 0.2); // a buzzing hum while beaming, the rush of air as it flies
+  { const sp = Math.min(1, Math.hypot(ship.vel.x, ship.vel.z) / 8); setSaucer(0.5 + 0.5 * sp, sp, beamOn ? 1 : 0); } /* the saucer's own hum, higher and faster as it speeds up, and the beam's shimmer over it */ setWind(0.32 + Math.min(0.4, Math.hypot(ship.vel.x, ship.vel.z) * 0.05), 0.2); // a buzzing hum while beaming, the rush of air as it flies
   if (beamOn && Math.random() < dt * 14) { const a = Math.random() * 6.28, r = Math.random() * GRAB_R; fx.sparks(V3(sx + Math.cos(a) * r, 0.2 + Math.random() * bl * 0.8, sz + Math.sin(a) * r), 1, { c: [0xffffff, 0x7df0ff], speed: 0.6, up: 3, life: 0.8 }); } // motes of light drifting up the beam
   nukeTick(dt);
   { const u = ship.body && ship.body.userData, on = boostT > 0 && ship.alive; if (u) { const k = on ? 1.6 + Math.sin(played * 18) * 0.25 : 1; if (u.pods) { u.pods.scale.setScalar(k); u.pods.rotation.y += on ? dt * 9 : 0; } if (u.eye) u.eye.scale.setScalar(on ? 1.5 : 1); if (u.shield) u.shield.material.opacity = Math.max(u.shield.material.opacity, on ? 0.28 + Math.sin(played * 14) * 0.08 : 0); if (u.ring) u.ring.material.map.offset.x += on ? dt * 3 : 0; }

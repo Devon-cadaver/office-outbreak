@@ -25,7 +25,9 @@ for (const ev of ['pointerup', 'touchend', 'click']) addEventListener(ev, () => 
 // and nothing new starts meanwhile
 let sfxPaused = false;
 export function setSfxPaused(on) { on = !!on; if (on === sfxPaused) return; sfxPaused = on; if (!ctx) return; if (on) ctx.suspend().catch(() => {}); else ctx.resume().catch(() => {}); }
-export function quietWhilePaused(o) { for (const k of Object.keys(o)) { const f = o[k]; if (typeof f === 'function') o[k] = (...a) => (sfxPaused || (menuQuiet && !UI_SFX[k]) ? undefined : f(...a)); } }
+export function quietWhilePaused(o) { for (const k of Object.keys(o)) { const f = o[k]; if (typeof f === 'function') o[k] = (...a) => { if (sfxPaused || (menuQuiet && !UI_SFX[k])) return undefined; if (FIXED_SFX[k]) VP = VD = VV = 1; else { VP = rnd(0.94, 1.07); VD = rnd(0.9, 1.12); VV = rnd(0.88, 1.05); } const r = f(...a); VP = VD = VV = 1; return r; }; } }
+// these are tunes and signals, the same every time; everything else is varied a little (see VP, VD, VV)
+const FIXED_SFX = { click: 1, pickup: 1, coin: 1, power: 1, wave: 1, help: 1, over: 1, ping: 1, neenaw: 1, whoop: 1, honk: 1, powerdown: 1 };
 // a menu page (the main menu, the shop) is quiet: the live scene behind it makes no sound, only the buttons and switches do
 let menuQuiet = false; const UI_SFX = { click: 1, pickup: 1, coin: 1, power: 1 };
 export function setMenuQuiet(on) { menuQuiet = !!on; }
@@ -41,45 +43,69 @@ export function soundToggle(...hosts) {
     row.append(b, m); h.insertBefore(row, h.querySelector('.howRow, .menuBtn')); btns.push(b, m); }
   draw(); addEventListener('oo-sound', draw);
 }
+// every sound that is not a tune or a button is played a little differently each time: VP its pitch, VD its length, VV its
+// loudness (set as each sound starts, by quietWhilePaused's wrapper, and put back to 1 = exactly as written straight after)
+let VP = 1, VD = 1, VV = 1;
+const rnd = (a, b) => a + Math.random() * (b - a);
 function tone(freq, dur, type = 'square', vol = 0.08, slide = 0, dest = master, when = 0) {
-  if (!ctx) return; const t = ctx.currentTime + when;
+  if (!ctx) return; const t = ctx.currentTime + when; freq *= VP; slide *= VP; dur *= VD; vol *= VV;
   const o = ctx.createOscillator(), g = ctx.createGain();
   o.type = type; o.frequency.setValueAtTime(freq, t);
   if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, freq + slide), t + dur);
   g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
   o.connect(g).connect(dest); o.start(t); o.stop(t + dur);
 }
-function noise(dur, vol = 0.1, freq = 1200, q = 1) {
-  if (!ctx) return; const t = ctx.currentTime;
+// a burst of hiss through a filter. when: seconds from now. to: the filter slides to this note by the end (a whoosh rises or falls, a blast closes down)
+function noise(dur, vol = 0.1, freq = 1200, q = 1, when = 0, to = 0) {
+  if (!ctx) return; const t = ctx.currentTime + when; freq *= VP; dur *= VD; vol *= VV;
   const s = ctx.createBufferSource(); s.buffer = noiseBuf;
-  const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = q;
+  const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.setValueAtTime(freq, t); f.Q.value = q; if (to) f.frequency.exponentialRampToValueAtTime(Math.max(40, to * VP), t + dur);
   const g = ctx.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-  s.connect(f).connect(g).connect(master); s.start(t); s.stop(t + dur);
+  s.connect(f).connect(g).connect(master); s.start(t, dur < 0.2 ? Math.random() * 0.25 : 0); s.stop(t + dur); /* (a short burst starts somewhere else in the hiss each time) */
 }
 let stepFlip = false, coinT = 0, crunchT = 0, thunderT = 0;
 // every button in the game clicks when pressed
 // any tap also wakes the radio, which lives in the outer frame, in case iOS paused it
 if (typeof document !== 'undefined') document.addEventListener('pointerdown', (e) => { if (e.target && e.target.closest && e.target.closest('button')) sfx.click(); try { if (FRAME && FRAME.wake) FRAME.wake(); } catch { /* ignore */ } }, true);
 // the one code-made explosion, for both sizes (the recordings tell a big one from a small one; the code-made sound never did)
-const boomOld = () => { noise(0.9, 0.6, 140, 0.4); tone(48, 1.1, 'sawtooth', 0.25, -20); setTimeout(() => noise(0.5, 0.25, 900, 0.8), 60); };
+// ---- the explosions: each is one of a few makes, picked afresh every time. The first of each is the sound the game always had ----
+const crackle = (n, from, to, vol) => { for (let i = 0; i < n; i++) noise(rnd(0.03, 0.07), vol * rnd(0.6, 1), rnd(700, 3200), 1.6, rnd(from, to)); }; /* bits landing after a blast */
+const boomMake = () => { const k = Math.random();
+  if (k < 0.45) { noise(0.9, 0.6, 140, 0.4); tone(48, 1.1, 'sawtooth', 0.25, -20); noise(0.5, 0.25, 900, 0.8, 0.06); }
+  else if (k < 0.75) { noise(0.5, 0.42, 118, 0.4, 0, 70); tone(64, 0.9, 'sine', 0.2, -36); tone(42, 1.2, 'sawtooth', 0.14, -12); noise(0.4, 0.16, 700, 0.8, 0.07); } /* a deeper thump */
+  else { noise(0.1, 0.26, 1900, 0.7); noise(0.5, 0.4, 165, 0.4, 0.03); tone(52, 1.0, 'sawtooth', 0.16, -22); noise(0.45, 0.16, 1000, 0.8, 0.09); } /* a crack first, then the roar */
+  if (Math.random() < 0.5) crackle(2 + ((Math.random() * 3) | 0), 0.25, 0.75, 0.07); };
+// ---- lightning: a crack, then the boom and its thunder rolling away. Four makes, picked afresh for every strike. big: a strike that hits something (full); otherwise a bolt in passing (quiet and short) ----
+const strikeMake = (big) => { const v = big ? 1.35 : 0.45, k = Math.random(); /* (measured: a full strike peaks about where the explosion does) */
+  const crack = (when, vol) => { noise(rnd(0.03, 0.06), vol * v, rnd(3200, 6000), 1.2, when); tone(rnd(1500, 2300), rnd(0.06, 0.1), 'sawtooth', vol * 0.2 * v, -rnd(1200, 1450), master, when); }; /* the snap: a spit of hiss and a note that drops away */
+  const boom = (when, vol, low, sub, type = 'sawtooth') => { noise(0.5, vol * v, low, 0.4, when, low * 0.55); noise(0.4, vol * 0.4 * v, rnd(320, 480), 0.7, when + 0.01); tone(sub, rnd(0.7, 1.1), type, vol * 0.38 * v, -sub * 0.5, master, when); }; /* (the middle band is what a phone's speaker plays of it) */
+  const roll = (n, from, to, vol) => { for (let i = 0; i < n; i++) noise(rnd(0.25, 0.5), vol * v * rnd(0.5, 1) * (1 - i / (n + 1)), rnd(80, 190), 0.5, rnd(from, to)); }; /* thunder rolling off: low bursts, each fainter */
+  if (k < 0.3) { crack(0, 0.3); boom(0.02, 0.46, 150, 70); if (big) roll(2, 0.25, 0.6, 0.2); } /* close: a sharp crack and a short boom */
+  else if (k < 0.55) { crack(0, 0.26); crack(rnd(0.07, 0.13), 0.22); boom(0.1, 0.42, 140, 62); if (big) roll(3, 0.3, 0.8, 0.18); } /* a double strike */
+  else if (k < 0.8) { crack(0, 0.18); boom(0.04, 0.4, 120, 55, 'sine'); if (big) roll(5, 0.2, 1.3, 0.22); } /* further off: a softer crack and a long, rolling rumble */
+  else { crack(0, 0.28); for (let i = 0; i < 4; i++) noise(rnd(0.02, 0.05), 0.14 * v, rnd(2800, 5200), 2.5, rnd(0.04, 0.3)); boom(0.03, 0.4, 170, 75); if (big) roll(2, 0.3, 0.7, 0.16); } }; /* a sizzling one: the crack fizzes on before the boom */
+// a small explosion: shorter and higher than the big one
+const blastMake = () => { if (Math.random() < 0.55) { noise(0.45, 0.42, rnd(210, 300), 0.5); tone(rnd(72, 92), 0.5, 'sawtooth', 0.16, -30); noise(0.25, 0.16, 1250, 0.9, 0.04); }
+  else { noise(0.3, 0.4, rnd(300, 420), 0.6); tone(170, 0.12, 'triangle', 0.09, -90); tone(80, 0.35, 'sawtooth', 0.12, -25); } /* more of a pop */
+  if (Math.random() < 0.3) crackle(2, 0.15, 0.4, 0.05); };
 export const sfx = {
   throw: () => tone(700, 0.08, 'triangle', 0.05, -300),
-  hit: () => real('hit') || tone(200, 0.1, 'square', 0.06, -100),
+  hit: () => { if (real('hit')) return; const k = Math.random(); if (k < 0.5) tone(200, 0.1, 'square', 0.06, -100); else if (k < 0.8) { tone(rnd(150, 185), 0.12, 'triangle', 0.09, -80); noise(0.03, 0.05, rnd(1500, 2600), 1.5); } else { tone(240, 0.07, 'square', 0.05, -130); tone(120, 0.1, 'triangle', 0.06, -50); } }, /* the old knock, a duller thud with a tick on it, or a quick double */
   kill: () => { tone(300, 0.15, 'sawtooth', 0.06, -200); setTimeout(() => tone(150, 0.2, 'sawtooth', 0.05, -100), 60); },
   hurt: () => tone(120, 0.25, 'sawtooth', 0.1, -60),
   help: (vol = 0.05) => { tone(660, 0.12, 'square', vol); setTimeout(() => tone(880, 0.2, 'square', vol, -20), 130); },
   // caught by a zombie: thud + scream-ish slide
   caught: () => { noise(0.25, 0.25, 300, 0.7); tone(220, 0.5, 'sawtooth', 0.12, 300); setTimeout(() => tone(90, 0.4, 'square', 0.1, -50), 120); },
   step: () => { stepFlip = !stepFlip; noise(0.06, 0.07, stepFlip ? 900 : 700, 2); },
-  groan: () => { if (real('groan')) return; const f = 70 + Math.random() * 40; tone(f, 0.6, 'sawtooth', 0.05, 25); tone(f * 1.5, 0.5, 'triangle', 0.03, -15); },
+  groan: () => { if (real('groan')) return; const f = 70 + Math.random() * 40, k = Math.random(); if (k < 0.5) { tone(f, 0.6, 'sawtooth', 0.05, 25); tone(f * 1.5, 0.5, 'triangle', 0.03, -15); } else if (k < 0.8) { tone(f * 0.85, 0.95, 'sawtooth', 0.05, -10); tone(f * 1.27, 0.8, 'triangle', 0.028, -8, master, 0.05); } else { tone(f * 1.25, 0.32, 'sawtooth', 0.055, -32); tone(f * 2.5, 0.2, 'triangle', 0.02, -40); } }, /* the old groan, a long low moan, or a short grunt */
   pickup: () => { tone(520, 0.08, 'square', 0.05); setTimeout(() => tone(780, 0.1, 'square', 0.05), 80); setTimeout(() => tone(1040, 0.15, 'square', 0.05), 160); },
   wave: () => { tone(440, 0.12, 'square', 0.05); setTimeout(() => tone(660, 0.12, 'square', 0.05), 120); setTimeout(() => tone(880, 0.2, 'square', 0.05), 240); },
-  boom: () => { if (real('boom')) return; boomOld(); },
+  boom: () => { if (real('boom')) return; boomMake(); },
   // a small explosion: the second pop after a big one, a gun firing, a small thing going up
-  blast: () => { if (real('blast')) return; boomOld(); },
+  blast: () => { if (real('blast')) return; blastMake(); },
   // somebody shouting as they run (only as a recording: people were silent before)
-  scream: () => real('scream'),
-  whoosh: () => { if (real('whoosh')) return; noise(0.35, 0.12, 600, 0.6); },
+  scream: () => { if (real('scream')) return true; voice('yell', 0.1); return true; }, /* one voice, a little clearer than the crowd's */
+  whoosh: () => { if (real('whoosh')) return; if (Math.random() < 0.35) return noise(0.35, 0.12, 600, 0.6); const up = Math.random() < 0.5, a = rnd(420, 700), b = rnd(950, 1500); noise(rnd(0.3, 0.44), 0.12, up ? a : b, rnd(0.6, 1.1), 0, up ? b : a); }, /* the old steady rush, or one that rises or falls as it goes by */
   // a button being pushed in: a short, soft thock
   click: () => { tone(1500, 0.025, 'square', 0.018); tone(420, 0.06, 'triangle', 0.04, -180); },
   // points: a soft two-note coin blip that climbs with the combo; at most four a second so it stays in the background
@@ -90,9 +116,11 @@ export const sfx = {
   // a giant footstep: a mid-range thud you can hear on a phone speaker (deep bass alone doesn't play on phones), deeper as it grows
   stomp: (size = 1) => { const f = Math.max(70, 150 - size * 8); tone(f, 0.16, 'triangle', 0.16, -f * 0.5); noise(0.12, 0.2, 260, 0.8); tone(f * 2.2, 0.05, 'square', 0.03, -f); },
   // a building coming down: a gravelly crunch; throttled so a row of houses doesn't stack into noise
-  crunch: (big = false) => { if (real(big ? 'collapse' : 'crunch')) return; if (!ctx || ctx.currentTime - crunchT < 0.06) return; crunchT = ctx.currentTime; noise(big ? 0.45 : 0.28, big ? 0.32 : 0.22, 380 + Math.random() * 300, 0.6); tone(big ? 90 : 130, 0.2, 'sawtooth', 0.05, -50); },
+  crunch: (big = false) => { if (real(big ? 'collapse' : 'crunch')) return; if (!ctx || ctx.currentTime - crunchT < 0.06) return; crunchT = ctx.currentTime; noise(big ? 0.45 : 0.28, big ? 0.32 : 0.22, 380 + Math.random() * 300, 0.6); tone(big ? 90 : 130, 0.2, 'sawtooth', 0.05, -50);
+    const n = (big ? 4 : 2) + ((Math.random() * 3) | 0); for (let i = 0; i < n; i++) noise(rnd(0.03, 0.08), (big ? 0.12 : 0.09) * rnd(0.5, 1), rnd(350, 1900), 1.4, rnd(0.04, big ? 0.6 : 0.3)); /* rubble settling: a few grains, never the same */
+    if (big) { tone(rnd(55, 70), 0.6, 'sawtooth', 0.07, -18); noise(0.5, 0.14, rnd(120, 180), 0.5, 0.05); if (Math.random() < 0.4) for (let i = 0; i < 3; i++) tone(rnd(2200, 3600), 0.05, 'triangle', 0.014, 0, master, rnd(0.1, 0.5)); } }, /* a big building: a low rumble under it, and sometimes glass */
   flap: () => { noise(0.18, 0.12, 520, 0.7); tone(180, 0.12, 'triangle', 0.05, -60); },
-  laser: () => { tone(1600, 0.2, 'sawtooth', 0.035, -1300); tone(800, 0.16, 'square', 0.02, -600); },
+  laser: () => { const k = Math.random(); if (k < 0.4) { tone(1600, 0.2, 'sawtooth', 0.035, -1300); tone(800, 0.16, 'square', 0.02, -600); } else if (k < 0.7) { tone(rnd(2000, 2400), 0.13, 'square', 0.03, -1700); tone(300, 0.14, 'sine', 0.04, -180); noise(0.035, 0.04, 3600, 2); } else { tone(1750, 0.09, 'sawtooth', 0.035, -1100); tone(1500, 0.11, 'sawtooth', 0.03, -1000, master, 0.07); } }, /* the old pew, a sharper one with a thump under it, or a quick double */
   // the big targets going up, each in its own way: a burst tank, a fire engine's two-tone horn, a police whoop, a firework, a balloon
   splash: () => { noise(1.1, 0.4, 700, 0.5); noise(1.6, 0.22, 2600, 0.6); tone(90, 0.5, 'sine', 0.12, -40); },
   neenaw: () => { if (real('siren')) return; for (let i = 0; i < 6; i++) tone(i % 2 ? 520 : 660, 0.26, 'square', 0.045, 0, master, i * 0.27); },
@@ -104,19 +132,19 @@ export const sfx = {
   ghost: () => { tone(880, 1.4, 'sine', 0.05, -520); tone(660, 1.6, 'sine', 0.04, -380, master, 0.15); noise(1.2, 0.05, 500, 3); },
   ping: (i = 0) => tone(1500 - i * 60, 0.22, 'sine', 0.05, -250),
   splat: () => { noise(0.5, 0.35, 300, 0.6); tone(70, 0.4, 'sawtooth', 0.1, -30); },
-  zap: () => { noise(0.14, 0.22, 3200, 3); tone(110, 0.16, 'square', 0.05, 60); },
+  zap: () => { if (Math.random() < 0.5) { noise(0.14, 0.22, 3200, 3); tone(110, 0.16, 'square', 0.05, 60); } else { noise(0.09, 0.2, rnd(2600, 4200), 3); noise(0.08, 0.16, rnd(2600, 4200), 3, 0.05); tone(140, 0.12, 'square', 0.045, 90); } }, /* the old buzz, or a double crackle */
   powerdown: () => tone(420, 1.3, 'sawtooth', 0.06, -370),
   static: () => { noise(1.3, 0.28, 3400, 0.4); tone(1900, 0.9, 'sawtooth', 0.03, -1600); },
   over: () => { tone(300, 0.3, 'sawtooth', 0.08, -150); setTimeout(() => tone(200, 0.5, 'sawtooth', 0.08, -150), 250); },
-  // thunder: only as a recording (the storm's lightning was silent before). big: a strike you threw, always heard; the storm's own crackle rumbles now and then, quieter. True if it played
-  thunder: (big = false) => { if (!ctx || !sfxNew()) return false; if (!big) { if (ctx.currentTime < thunderT) return true; thunderT = ctx.currentTime + 5 + Math.random() * 4; } return real('thunder', big ? 1 : 0.5); },
+  // lightning. big: a strike that hits something, always heard in full; otherwise a bolt in passing, quiet, at most one every 0.6 s
+  thunder: (big = false) => { if (!ctx) return false; if (big && real('thunder')) return true; if (!big) { if (ctx.currentTime < thunderT) return true; thunderT = ctx.currentTime + 0.6; } strikeMake(big); return true; },
 };
 
 // ---------- real recordings (the sound pass, Nov 2026) ----------
 // Each recording stands in for one of the code-made sounds when sound effects are on NEW (pause menu > SOUNDS) and its file has
 // loaded. Until then, or on CLASSIC, or if a file is missing, the code-made sound plays exactly as it always did: nothing else
 // in the games has to know. The files are in public/sfx (where each came from: public/sfx/CREDITS.txt).
-const REAL_ON = true; /* the code's own switch: false and no recording is ever fetched or played */
+const REAL_ON = false; /* the code's own switch: false and no recording is ever fetched or played. OFF since Sean heard them in the game and preferred the code-made sounds (Nov 2026); the files are no longer in public/sfx */
 let sfxStyle = 'new'; try { if (localStorage.getItem('oo_sfx') === 'classic') sfxStyle = 'classic'; } catch { /* ignore */ }
 export const sfxNew = () => REAL_ON && sfxStyle === 'new';
 // one-shots, by the name the games ask for: [file, loudness, slowest and fastest speed it is played at (so no two sound alike), least seconds between two, most playing at once]
@@ -150,9 +178,39 @@ export const hasLoop = (kind) => !!(ctx && sfxNew() && realBuf[LOOPS[kind]]);
 export function setSfxStyle(v) { sfxStyle = v === 'classic' ? 'classic' : 'new'; try { localStorage.setItem('oo_sfx', sfxStyle); } catch { /* ignore */ } if (sfxNew()) { loadReal(); decodeReal(); } else if (ctx) for (const k of Object.keys(loopsOn)) loopsOn[k].g.gain.setTargetAtTime(0, ctx.currentTime, 0.1); }
 // people running from you: a crowd's shouting, louder the more of them are in a panic (level 0..1). A game calls this every frame it has people; when the calls stop (the round is over) it fades out by itself
 // for tests: what has loaded, what is looping and how loud, how many of each one-shot have played
-const realN = {}; if (typeof window !== 'undefined') window.__sfx = { sfx: () => sfx, ready: () => Object.keys(realBuf).sort(), loops: () => { const o = {}; for (const k of Object.keys(loopsOn)) o[k] = +loopsOn[k].g.gain.value.toFixed(3); return o; }, played: () => Object.assign({}, realN), style: () => sfxStyle, setStyle: (v) => setSfxStyle(v), engine: () => (eng ? +eng.out.gain.value.toFixed(3) : 0), state: () => (ctx ? ctx.state : 'none') };
+const realN = {}; if (typeof window !== 'undefined') window.__sfx = { ctx: () => ctx, out: () => master, crowd: (v) => setCrowd(v), horde: (v) => setHorde(v), saucerSet: (a2, b2, c2) => setSaucer(a2, b2, c2), voices: () => Object.assign({}, voiceN), mobs: () => ({ crowd: +mobs.crowd.lv.toFixed(2), horde: +mobs.horde.lv.toFixed(2) }), saucer: () => (ufoS ? [+ufoS.out.gain.value.toFixed(3), +ufoS.bo.gain.value.toFixed(3)] : [0, 0]), sfx: () => sfx, ready: () => Object.keys(realBuf).sort(), loops: () => { const o = {}; for (const k of Object.keys(loopsOn)) o[k] = +loopsOn[k].g.gain.value.toFixed(3); return o; }, played: () => Object.assign({}, realN), style: () => sfxStyle, setStyle: (v) => setSfxStyle(v), engine: () => (eng ? +eng.out.gain.value.toFixed(3) : 0), state: () => (ctx ? ctx.state : 'none') };
+// ---------- crowds and hordes: many faint voices made on the fly, no two alike, more of them the more people (or zombies) there are ----------
+const voiceN = { yell: 0, groan: 0 };
+function voice(kind, vol, when = 0) { if (!ctx) return; const t = ctx.currentTime + when, o = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain(); let d; voiceN[kind]++;
+  if (kind === 'yell') { const f0 = rnd(360, 780), up = Math.random() < 0.6; d = rnd(0.22, 0.6); o.type = Math.random() < 0.7 ? 'sawtooth' : 'triangle'; o.frequency.setValueAtTime(f0, t); o.frequency.linearRampToValueAtTime(f0 * (up ? rnd(1.25, 1.7) : rnd(0.7, 0.9)), t + d * 0.4); o.frequency.linearRampToValueAtTime(f0 * rnd(0.55, 0.85), t + d); f.type = 'bandpass'; f.frequency.value = rnd(950, 1500); f.Q.value = 2.2; } /* a person: a cry that climbs and falls away, or just falls */
+  else { const snarl = Math.random() < 0.2, f0 = snarl ? rnd(140, 210) : rnd(62, 115); d = snarl ? rnd(0.3, 0.5) : rnd(0.6, 1.3); o.type = 'sawtooth'; o.frequency.setValueAtTime(f0, t); o.frequency.linearRampToValueAtTime(f0 * (snarl ? rnd(1.15, 1.4) : rnd(0.78, 1.12)), t + d); f.type = 'bandpass'; f.frequency.value = snarl ? rnd(700, 1000) : rnd(380, 640); f.Q.value = 1.6; } /* a zombie: a low moan that sags, now and then a rising snarl */
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + Math.min(0.08, d * 0.25)); g.gain.exponentialRampToValueAtTime(0.0004, t + d); o.connect(f).connect(g).connect(master); o.start(t); o.stop(t + d + 0.03); }
+// rate: voices a second when it is at its fullest; vol: how loud one voice is at most (both kept low: Sean asked for these to be faint)
+const mobs = { crowd: { lv: 0, at: 0, kind: 'yell', rate: 4.5, vol: 0.055 }, horde: { lv: 0, at: 0, kind: 'groan', rate: 2.6, vol: 0.075 } }; let mobTick = 0;
+function mob(name, level) { if (!ctx) return; const m = mobs[name]; m.lv = menuQuiet ? 0 : Math.max(0, Math.min(1, level)); m.at = ctx.currentTime;
+  if (!mobTick) mobTick = setInterval(() => { if (!ctx || ctx.state !== 'running' || sfxPaused) return; /* five times a second: the voices due, and anything a game has stopped asking for fades away */
+    for (const k of Object.keys(mobs)) { const q = mobs[k]; if (ctx.currentTime - q.at > 0.6) q.lv = 0; if (q.lv <= 0) continue; let n = q.lv * q.rate * 0.2; n = (n | 0) + (Math.random() < n % 1 ? 1 : 0); for (let i = 0; i < n; i++) voice(q.kind, q.vol * rnd(0.5, 1) * (0.5 + 0.5 * q.lv), rnd(0, 0.2)); }
+    if (ufoS && ctx.currentTime - ufoS.at > 0.6 && ufoS.on) setSaucer(0); }, 200); }
+// people running from you (level 0..1 = how many are in a panic). A game calls this every frame it has people; when the calls stop it fades by itself
 let crowdAt = 0, crowdTick = 0;
-export function setCrowd(level) { if (!ctx) return; crowdAt = ctx.currentTime; realLoop('crowd', menuQuiet ? 0 : Math.max(0, Math.min(1, level)) * 0.4); if (!crowdTick) crowdTick = setInterval(() => { if (ctx && loopsOn.crowd && ctx.currentTime - crowdAt > 0.6) realLoop('crowd', 0); }, 300); }
+export function setCrowd(level) { if (!ctx) return; if (!hasLoop('crowd')) return mob('crowd', level); crowdAt = ctx.currentTime; realLoop('crowd', menuQuiet ? 0 : Math.max(0, Math.min(1, level)) * 0.4); if (!crowdTick) crowdTick = setInterval(() => { if (ctx && loopsOn.crowd && ctx.currentTime - crowdAt > 0.6) realLoop('crowd', 0); }, 300); }
+// a horde of zombies near you (level 0..1 = how many): the same idea, low moans instead of cries
+export function setHorde(level) { mob('horde', level); }
+// ---------- the saucer (Beam 'Em Up!): a wobbling hum while it flies, higher and faster the quicker it goes, and the beam's shimmer on top ----------
+// level 0..1 the hum, speed 0..1 how fast it is going, beam 0..1 the beam. Called every frame of a round; it fades by itself when the calls stop
+let ufoS = null;
+export function setSaucer(level, speed = 0, beam = 0) { if (!ctx) return; const lv = menuQuiet ? 0 : Math.max(0, Math.min(1, level)), sp = Math.max(0, Math.min(1, speed)), bm = menuQuiet ? 0 : Math.max(0, Math.min(1, beam)), t = ctx.currentTime;
+  if (!ufoS) { if (!lv && !bm) return; const osc = (type, fr) => { const o = ctx.createOscillator(); o.type = type; o.frequency.value = fr; o.start(); return o; }, gain = (v) => { const g = ctx.createGain(); g.gain.value = v; return g; };
+    /* the hum: two notes a fifth apart that throb together, with a thin whirr above that wavers */
+    const a = osc('triangle', 196), b = osc('triangle', 294), w = osc('sine', 740), trem = osc('sine', 7), tremAmt = gain(0.35), vib = osc('sine', 0.7), vibAmt = gain(18), hum = gain(0.6), whirr = gain(0.2), lo = ctx.createBiquadFilter(), out = gain(0); lo.type = 'lowpass'; lo.frequency.value = 1100;
+    trem.connect(tremAmt).connect(hum.gain); vib.connect(vibAmt).connect(w.frequency); a.connect(hum); b.connect(hum); hum.connect(lo).connect(out); w.connect(whirr).connect(out); out.connect(master);
+    /* the beam: a bright pair of notes that flutter and sway, and little rising pings as it pulls things up */
+    const c = osc('sine', 660), d = osc('triangle', 990), sh = osc('sine', 13), shAmt = gain(0.4), sw = osc('sine', 0.9), swC = gain(40), swD = gain(60), bt = gain(0.6), bo = gain(0);
+    sh.connect(shAmt).connect(bt.gain); sw.connect(swC).connect(c.frequency); sw.connect(swD).connect(d.frequency); c.connect(bt); d.connect(bt); bt.connect(bo).connect(master);
+    ufoS = { a, b, w, trem, out, bo, at: t, on: false, ping: 0, pi: 0 }; }
+  const S = ufoS; S.at = t; S.on = lv > 0 || bm > 0; S.out.gain.setTargetAtTime(lv * 0.05, t, 0.2); S.bo.gain.setTargetAtTime(bm * 0.06, t, 0.08);
+  S.a.frequency.setTargetAtTime(196 * (1 + 0.25 * sp), t, 0.2); S.b.frequency.setTargetAtTime(294 * (1 + 0.25 * sp), t, 0.2); S.w.frequency.setTargetAtTime(740 + 260 * sp, t, 0.25); S.trem.frequency.setTargetAtTime(7 + 5 * sp, t, 0.25);
+  if (bm > 0 && t >= S.ping && ctx.state === 'running') { S.ping = t + 0.13; const N = [784, 988, 1175, 1480, 1760, 1976]; tone(N[S.pi++ % N.length], 0.14, 'sine', 0.012 * bm); } }
 
 // ---------- seeding planes: an air-raid siren when one is on its way, and a propeller drone that swells as it closes ----------
 // siren: a wailing rise and fall, twice, through a soft low-pass so it reads as distant
@@ -170,6 +228,7 @@ let eng = null, engLv = 0;
 const ENG = { plane: [1.5, 1], heli: [1.6, 0.8], beam: [0.6, 2.4] }; /* (how loud the recording plays for a level; the drone pitch at which it plays at its own speed) */
 export function setEngine(kind, level, pitch = 1) { if (!ctx) return; const lv = menuQuiet ? 0 : Math.max(0, Math.min(1, level)), K = ENG[kind] || ENG.plane; engLv = lv;
   for (const k of Object.keys(ENG)) if ((k !== kind || lv <= 0) && loopsOn[k]) realLoop(k, 0);
+  if (lv <= 0 && ufoS && ufoS.on) setSaucer(0); /* (setPlaneEngine(0) is every game's "engines off": the saucer's hum goes with it) */
   if (lv > 0 && realLoop(kind, Math.min(1, lv * K[0]), pitch / K[1])) { if (eng && eng.level > 0) { eng.level = 0; eng.out.gain.setTargetAtTime(0, ctx.currentTime, 0.12); } return; }
   engSynth(lv, pitch); }
 export function setPlaneEngine(level, pitch = 1) { setEngine('plane', level, pitch); }

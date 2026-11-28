@@ -55,7 +55,7 @@ const fx = createFires(scene);
 const crowd = createCrowd(scene, 640), crowdLists = [[null, 0], [null, 1]]; // townsfolk and soldiers away from the storm: one draw call for the lot
 let shake = 0; const jolt = (v) => { shake = Math.max(shake, v); buzz(v); }; funInit('ta'); // camera shake (0..1): a short jolt when something big comes down (and the phone's buzz)
 let flashT = 0; const flashEl = document.createElement('div'); flashEl.style.cssText = 'position:fixed;inset:0;background:#dfeaff;opacity:0;pointer-events:none;z-index:5'; document.body.appendChild(flashEl);
-const twisters = createTwisters(scene, { onToss: (kind, p, who, vel, o) => stormToss(kind, p, who, vel, o), onBolt: (p, ground, who) => { sfx.thunder(); const mine = !who || who === tw, sk = (who || tw || {}).skin; if (mine) { flashT = Math.max(flashT, ground ? 0.1 : 0.05); if (ground && Math.random() < 0.3) sfx.blast(); } if (ground) fx.zap(p, sk && sk.boltGlow ? sk.boltGlow : 0x9fd0ff); } }); twisters.setFx(fx); // another storm's bolts (the rogue twister) don't flash the screen
+const twisters = createTwisters(scene, { onToss: (kind, p, who, vel, o) => stormToss(kind, p, who, vel, o), onBolt: (p, ground, who) => { const mine = !who || who === tw, sk = (who || tw || {}).skin; if (mine) { flashT = Math.max(flashT, ground ? 0.1 : 0.05); if (ground && Math.random() < 0.3) sfx.thunder(); } if (ground) fx.zap(p, sk && sk.boltGlow ? sk.boltGlow : 0x9fd0ff); } }); twisters.setFx(fx); // another storm's bolts (the rogue twister) don't flash the screen
 stampVersion($('taStart'));
 const poiFx = createPoiFx(scene, fx, { jolt, popup, flash: (v) => { flashT = Math.max(flashT, v); },
   // the nearest buildings still standing, for the power plant's lightning to jump to (some of them catch fire)
@@ -501,7 +501,7 @@ function zapKey() {
   const d = 3 + sizeShown * 1.6, lim = toWorld(cols - 1, rows - 1, cols, rows); strike(new THREE.Vector3(Math.max(-lim.x, Math.min(lim.x, P.x + fx0 * d)), 0, Math.max(-lim.z, Math.min(lim.z, P.z + fz0 * d))));
 }
 // the storm throws a bolt at p (which can be in the air): out of its cloud, in its skin's lightning colours
-function boltTo(p) { const c = twisters.strikeAt(tw, p); flashT = Math.max(flashT, 0.12); if (!sfx.thunder(true)) sfx.boom(); /* (a strike you throw: thunder, or on CLASSIC the old boom) */ fx.zap(p, c || 0x9fd0ff); }
+function boltTo(p) { const c = twisters.strikeAt(tw, p); flashT = Math.max(flashT, 0.12); sfx.thunder(true); /* a strike you throw: a crack and its thunder, one of four makes */ fx.zap(p, c || 0x9fd0ff); }
 function zapPlane2(pl) { // struck by lightning: it loses control, comes down in flames and crashes
   if (pl.crash) return; boltTo(pl.g.position.clone()); fx.explode(pl.g.position.clone(), 0.6);
   pl.crash = { t: 0, vy: 0.4, roll: (Math.random() < 0.5 ? -1 : 1) * (5 + Math.random() * 3), sm: 0 }; pl.spraying = false; pl.zone.visible = false; pl.arrow.style.display = 'none';

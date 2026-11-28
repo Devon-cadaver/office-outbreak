@@ -14,7 +14,7 @@ import { generateMaze, buildCity, toWorld, toCell, CELL, mulberry32 } from '../c
 import { createFires } from '../fire.js';
 import { createTwisters } from '../tornado.js';
 import { createPoiFx } from '../ally/poiFx.js';
-import { unlockAudio, soundToggle, setMusicDuck, setSfxPaused, skipSongBtn, sfx, stopMusic, setPlaneEngine, playSongs, gameMusic, SONGS_TORNADO, firstSong, soundsMenu, readySfx, setEngine } from '../audio.js';
+import { unlockAudio, soundToggle, setMusicDuck, setSfxPaused, skipSongBtn, sfx, stopMusic, setPlaneEngine, playSongs, gameMusic, SONGS_TORNADO, firstSong, soundsMenu, readySfx, setEngine, setHorde } from '../audio.js';
 import { radioButton } from '../radioBox.js';
 import { addCoins, townSkin } from '../skins.js';
 import { forceSeason, seasonChoice, seasonPicker } from '../season.js';
@@ -810,7 +810,8 @@ const baseArrow = document.createElement('div'); baseArrow.className = 'baseArro
 const hudCache = {}; const setT = (id, v) => { v = String(v); if (hudCache[id] !== v) { hudCache[id] = v; $(id).textContent = v; } };
 const setW = (id, v) => { v = Math.max(0, Math.min(100, v)).toFixed(1) + '%'; if (hudCache['w' + id] !== v) { hudCache['w' + id] = v; $(id).style.width = v; } };
 const setC = (id, cls, on) => { const k = 'c' + id + cls; if (hudCache[k] !== on) { hudCache[k] = on; $(id).classList.toggle(cls, on); } };
-function updateHud(dt) { const c = craft, S = c.S, zl = horde.zombies;
+let hordeSndT = 0;
+function updateHud(dt) { const c = craft, S = c.S, zl = horde.zombies; hordeSndT -= dt; if (hordeSndT <= 0 && dt > 0) { hordeSndT = 0.25; setHorde(horde.count(c.pos.x, c.pos.z, 10) / 45); } /* the horde's moaning: louder the more of them are under you */
   setT('taRank', '🧟 ' + zl); setW('taGrowFill', MODE === 'endless' ? (kills - waveKills) / waveNeed() * 100 : (zStart - zl) / zStart * 100); /* fills up as the horde goes down (endless: toward the next wave) */ setC('taRank', 'ok', MODE !== 'endless' && zl <= goalN);
   const tS = MODE === 'endless' ? played : tLeft, m = Math.floor(tS / 60), s = Math.floor(tS % 60); setT('taTime', m + ':' + String(s).padStart(2, '0')); setC('taTime', 'low', MODE !== 'endless' && tLeft < 20); /* (endless: the clock counts up) */
   setT('taTargets', horde.civs); setC('taTargets', 'low', horde.civs < civStart * 0.4); setW('arCollFill', coll); setC('arColl', 'warn', coll >= 70);

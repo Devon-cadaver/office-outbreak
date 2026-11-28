@@ -51,7 +51,7 @@ export function createSpells(env) {
       if (t >= life) { scene.remove(g); return false; } return true; } });
   }
   // a lightning bolt from the clouds down to a point
-  function bolt(to, color = 0xfff2a0) { const pts = []; let x = to.x + (Math.random() - 0.5) * 3, z = to.z + (Math.random() - 0.5) * 3; for (let y = 22; y > 0.3; y -= 2) { pts.push(new THREE.Vector3(x, y, z)); x += (to.x - x) * 0.3 + (Math.random() - 0.5) * 1.2; z += (to.z - z) * 0.3 + (Math.random() - 0.5) * 1.2; } pts.push(to.clone().setY(0.1));
+  function bolt(to, color = 0xfff2a0) { sfx.thunder(); /* every bolt out of the sky cracks (quietly; what it hits makes its own bang) */ const pts = []; let x = to.x + (Math.random() - 0.5) * 3, z = to.z + (Math.random() - 0.5) * 3; for (let y = 22; y > 0.3; y -= 2) { pts.push(new THREE.Vector3(x, y, z)); x += (to.x - x) * 0.3 + (Math.random() - 0.5) * 1.2; z += (to.z - z) * 0.3 + (Math.random() - 0.5) * 1.2; } pts.push(to.clone().setY(0.1));
     const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: tint ?? color })); scene.add(l); let t = 0; add({ update(dt) { t += dt; l.visible = Math.random() < 0.85; if (t > 0.25) { scene.remove(l); l.geometry.dispose(); return false; } return true; } }); }
   // several things over a few seconds, spread over an area
   function rain(at, r, n, secs, fn) { let i = 0, t = 0; add({ update(dt) { t += dt; while (i < n && t >= (i / n) * secs) { const a = Math.random() * 6.28, rr = Math.sqrt(Math.random()) * r; fn(at.clone().add(new THREE.Vector3(Math.cos(a) * rr, 0, Math.sin(a) * rr)), i); i++; } return i < n; } }); }
@@ -154,7 +154,7 @@ export function createSpells(env) {
       (c, at, o) => flashAt(c, 7, 30, 0xffe8a0, o),
     ],
     gabbera: [
-      (c, at, o) => { const from = wp(c.g).setY(0.5), dir = v2.copy(at).sub(from).setY(0).normalize(); for (let i = 1; i <= 3; i++) { const p = from.clone().addScaledVector(dir, i * 2.3); bolt(p, 0xfff27a); env.hitArea(p, 1.4 + i * 0.4, 9, o); } sfx.boom(); },
+      (c, at, o) => { const from = wp(c.g).setY(0.5), dir = v2.copy(at).sub(from).setY(0).normalize(); for (let i = 1; i <= 3; i++) { const p = from.clone().addScaledVector(dir, i * 2.3); bolt(p, 0xfff27a); env.hitArea(p, 1.4 + i * 0.4, 9, o); } sfx.thunder(true); },
       (c, at, o) => { const to = clampTo(wp(c.g), at, 14).setY(0); env.leap(c, to, 0.8, () => { blast(to, 3.6, 34, 0xffe27a, o); bolt(to, 0xfff27a); }, 4.5); sfx.whoosh(); if (o.hostile) blast(to, 3.6, 34, 0xffe27a, o); },
       (c, at, o) => { let t = 0, tick = 0; add({ update(dt) { t += dt; tick -= dt; if (tick <= 0) { tick = 0.45; const ctr = wp(c.g).setY(0); env.hitArea(ctr, 4, 6, o); for (let i = 0; i < 2; i++) bolt(ctr.clone().add(new THREE.Vector3((Math.random() - 0.5) * 7, 0, (Math.random() - 0.5) * 7)), 0xfff27a); } return t < 5; } }); sfx.boom(); },
     ],
