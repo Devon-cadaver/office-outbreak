@@ -5,6 +5,8 @@
 import { KAIJU_IDS, FREE_KAIJU } from './kaiju/rigs.js';
 // tester code: typed into LOAD A CODE it unlocks every monster and keeps everything else as it is
 const UNLOCK_ALL = 'MONSTERMASH';
+/* tester code: ALLSKINS gives you every skin in the shop (storms, characters, cars, crafts, hordes), keeping everything else */
+const UNLOCK_SKINS = 'ALLSKINS';
 const KEEP = /^(oo_coins|oo_coins_earned|oo_skins_owned|oo_skins_equip|oo_seen|tips_seen|prize_game|(?:ta|kj)_(?:level|last)(?:_past|_future)?|(?:ta|kj)_best_(?:past_|future_)?\d+|kj_unlocked|kj_pick)$/;
 
 const keys = () => { const out = []; try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (KEEP.test(k)) out.push(k); } } catch { /* ignore */ } return out.sort(); };
@@ -40,7 +42,7 @@ const CSS = `
 #saveBox .card { width: min(440px, 94vw); display: grid; gap: 8px; padding: 16px; border-radius: 16px; background: #1a0f2e; border: 2px solid #7dff3a; text-align: left; color: #fff; }
 #saveBox h2 { margin: 0; color: #7dff3a; font-size: 22px; } #saveBox h3 { margin: 8px 0 0; color: #ffd24a; font-size: 15px; letter-spacing: 1px; }
 #saveBox p { margin: 0; font-size: 13px; line-height: 1.35; color: #e9e4f5; } #saveBox .sum { color: #ffd24a; font-weight: 800; }
-#saveBox textarea { width: 100%; box-sizing: border-box; min-height: 74px; resize: vertical; font: 12px/1.35 ui-monospace, Menlo, Consolas, monospace; word-break: break-all; color: #7dff3a; background: #0e0818; border: 2px solid #5a2f80; border-radius: 10px; padding: 8px; -webkit-user-select: text; user-select: text; }
+#saveBox textarea { width: 100%; box-sizing: border-box; min-height: 74px; resize: vertical; font: 16px/1.3 ui-monospace, Menlo, Consolas, monospace; word-break: break-all; color: #7dff3a; background: #0e0818; border: 2px solid #5a2f80; border-radius: 10px; padding: 8px; -webkit-user-select: text; user-select: text; }
 #saveBox .row { display: flex; gap: 8px; flex-wrap: wrap; } #saveBox .row > * { flex: 1; margin: 0; text-align: center; text-decoration: none; }
 #saveBox a.ghost { display: inline-block; padding: 8px 12px; border-radius: 12px; border: 2px solid #9a5fd688; color: #c9a6ff; font-weight: 800; font-size: 14px; }
 #saveBox .msg { min-height: 1.3em; font-weight: 800; } #saveBox .msg.bad { color: #ff7a5a; } #saveBox .msg.good { color: #7dff3a; }
@@ -75,6 +77,7 @@ export function initSaveCodes(menu, before = null) {
     try { await navigator.clipboard.writeText(code); say('saveOutMsg', '✓ Copied! Paste it somewhere safe.', 'good'); }
     catch { sel(); let ok = false; try { ok = document.execCommand('copy'); } catch { /* ignore */ } say('saveOutMsg', ok ? '✓ Copied! Paste it somewhere safe.' : 'The code is selected: press and hold it, then Copy.', ok ? 'good' : ''); } });
   $('saveLoad').addEventListener('click', async () => {
+    if ($('saveIn').value.replace(/[^a-z]/gi, '').toUpperCase() === UNLOCK_SKINS) { import('./skins.js').then(({ SKINS, grantSkin }) => { let n = 0; for (const s of SKINS) if (grantSkin(s.id)) n++; say('saveInMsg', '✓ All ' + SKINS.length + ' skins unlocked! (' + n + ' new)', 'good'); }).catch(() => say('saveInMsg', 'Could not unlock the skins.', 'bad')); return; }
     if ($('saveIn').value.replace(/[^a-z]/gi, '').toUpperCase() === UNLOCK_ALL) { try { localStorage.setItem('kj_unlocked', JSON.stringify(KAIJU_IDS.filter((x) => !FREE_KAIJU.includes(x)))); } catch { /* ignore */ } say('saveInMsg', '✓ All ' + KAIJU_IDS.length + ' monsters unlocked!', 'good'); return; }
     if (pending && performance.now() - armT < 4000) { applyCode(pending.data); say('saveInMsg', '✓ Loaded! Restarting…', 'good'); setTimeout(() => location.reload(), 900); return; }
     try { pending = await readCode($('saveIn').value); armT = performance.now(); $('saveLoad').classList.add('armed'); $('saveLoad').textContent = '⚠️ TAP AGAIN TO REPLACE THIS DEVICE\'S PROGRESS';
