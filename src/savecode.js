@@ -7,7 +7,7 @@ import { KAIJU_IDS, FREE_KAIJU } from './kaiju/rigs.js';
 const UNLOCK_ALL = 'MONSTERMASH';
 /* tester code: ALLSKINS gives you every skin in the shop (storms, characters, cars, crafts, hordes), keeping everything else */
 const UNLOCK_SKINS = 'ALLSKINS';
-const KEEP = /^(oo_coins|oo_coins_earned|oo_skins_owned|oo_skins_equip|oo_seen|tips_seen|prize_game|(?:ta|kj)_(?:level|last)(?:_past|_future)?|(?:ta|kj)_best_(?:past_|future_)?\d+|kj_unlocked|kj_pick)$/;
+const KEEP = /^(oo_coins|oo_coins_earned|oo_skins_owned|oo_skins_equip|oo_seen|tips_seen|prize_game(?:_[a-z]+)?|(?:ta|kj)_(?:level|last)(?:_past|_future)?|(?:ta|kj)_best_(?:past_|future_)?\d+|kj_unlocked|kj_pick)$/;
 
 const keys = () => { const out = []; try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (KEEP.test(k)) out.push(k); } } catch { /* ignore */ } return out.sort(); };
 const b64 = (bytes) => { let s = ''; for (const b of bytes) s += String.fromCharCode(b); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };

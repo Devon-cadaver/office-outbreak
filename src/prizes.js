@@ -7,23 +7,25 @@ import { roll } from './chests.js';
 import { fmtCoins } from './skins.js';
 
 const GAMES = ['claw', 'wheel', 'egg'];
-const ICON = { coin: '🪙', skin: '👕', dupe: '🪙', empty: '💨', kaiju: '👹', storm: '🌪️', craft: '🎁' };
+import { ICON, SETS, NAMES, MINI } from './prizeGames.js';
+/* which game's page this is: each has its own set of prize games (prizeGames.js) and its own turn counter, so they alternate */
+const SET = /kaiju/.test(location.pathname) ? 'kaiju' : /airraid/.test(location.pathname) ? 'air' : /beamup/.test(location.pathname) ? 'ufo' : /tornado/.test(location.pathname) ? 'tornado' : '';
 
 // onDone: once every go is used, a SEE YOUR SCORE button calls it (the prize screen comes before the score screen)
 export function showPrizes(el, goes, why = '', onShop = null, extra = null, onDone = null, special = 'kaiju') {
-  let n = 0; try { n = +localStorage.getItem('prize_game') || 0; localStorage.setItem('prize_game', String(n + 1)); } catch { /* ignore */ }
-  const game = GAMES[n % GAMES.length];
+  const list = SETS[SET] || GAMES, key = 'prize_game' + (SET ? '_' + SET : ''), force = new URLSearchParams(location.search).get('mini'); let n = 0; try { n = +localStorage.getItem(key) || 0; localStorage.setItem(key, String(n + 1)); } catch { /* ignore */ }
+  const game = force && (MINI[force] || GAMES.includes(force)) ? force : list[n % list.length]; /* ?mini=NAME: play that one (testing) */
   el.innerHTML = ''; el.classList.remove('hidden'); el.classList.add('prizes');
   const head = document.createElement('div'); head.className = 'chestHead'; el.appendChild(head);
   const box = document.createElement('div'); box.className = 'prizeBox prize-' + game; el.appendChild(box);
   const log = document.createElement('div'); log.className = 'prizeLog'; el.appendChild(log);
   if (why) { const w = document.createElement('div'); w.className = 'chestWhy'; w.textContent = 'You earned ' + goes + (goes === 1 ? ' go' : ' goes') + ': ' + why + '.'; el.appendChild(w); }
-  let left = goes; const name = { claw: '🕹️ CLAW MACHINE', wheel: '🎡 PRIZE WHEEL', egg: '🥚 KAIJU EGG' }[game];
+  let left = goes; const name = { claw: '🕹️ CLAW MACHINE', wheel: '🎡 PRIZE WHEEL', egg: '🥚 KAIJU EGG', ...NAMES }[game];
   const draw = () => { head.textContent = name + '  ·  ' + (left > 0 ? left + (left === 1 ? ' go left' : ' goes left') : 'all done') + '  ·  🪙 ' + fmtCoins(); };
   const won = (res) => { const d = document.createElement('div'); d.className = 'prizeWin ' + res.kind; d.textContent = ICON[res.kind] + ' ' + res.text; log.appendChild(d); draw();
     if (left <= 0 && onDone && !el.querySelector('.doneBtn')) { const d = document.createElement('button'); d.className = 'doneBtn'; d.textContent = 'SEE YOUR SCORE ▶'; d.addEventListener('click', (ev) => { ev.stopPropagation(); onDone(); }); el.appendChild(d); }
     if (left <= 0 && onShop && !el.querySelector('.shopBtn')) { const s = document.createElement('button'); s.className = 'ghost shopBtn'; s.textContent = '🪙 SPEND COINS IN THE SKIN SHOP'; s.addEventListener('click', (ev) => { ev.stopPropagation(); onShop(); }); el.appendChild(s); } };
-  draw(); ({ claw, wheel, egg })[game](box, () => left > 0, () => { left--; draw(); return (extra && extra()) || roll(); }, won, extra ? special : null);
+  draw(); ({ claw, wheel, egg, ...MINI })[game](box, () => left > 0, () => { left--; draw(); return (extra && extra()) || roll(); }, won, extra ? special : null);
 }
 
 // ---------- claw machine: the claw slides; tap to drop it on whatever capsule is below ----------

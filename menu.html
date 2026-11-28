@@ -42,6 +42,36 @@
     #menu { scrollbar-width: none; } #menu::-webkit-scrollbar { display: none; } /* it still scrolls on a short screen, without a bar down the side */
     body:not(.ready) { cursor: pointer; } body:not(.ready) #menu { pointer-events: none; overflow: hidden; } body:not(.ready) .ver { display: none; }
     #menu > :first-child { margin-top: 0; }
+    /* ---- the STORM RADAR menu (Nov 2026). The script at the foot of this page moves the same buttons into a radar scope and adds
+       body.rdr; without it the page is the old stacked menu. PLAY is the middle, the four places are blips, the player's badge sits on the rim ---- */
+    body.rdr #menu { gap: 0 !important; align-items: center; }
+    body.rdr #menu > .pair, body.rdr #menu > .exitRow, body.rdr #menu > .soundRow { display: none !important; }
+    #radar { --S: min(92vw, 380px, calc(100vh - var(--logoSmall) * 0.583 - 190px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))); position: relative; flex: none; width: var(--S); height: var(--S); margin-top: 4px; }
+    #radar .scope, .qr .scope { position: absolute; inset: 0; border-radius: 50%; border: 3px solid #c96aff; overflow: hidden; box-shadow: 0 0 26px #c96aff66, inset 0 0 40px #0008; background: repeating-radial-gradient(circle, #160a2aea 0 12.2%, #2a1450ea 12.2% 12.8%); }
+    #radar .scope::before, .qr .scope::before { content: ''; position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from 0deg, #c96aff00 0deg, #c96aff00 290deg, #c96affaa 360deg); animation: rdrSweep 4.5s linear infinite; }
+    #radar .scope::after, .qr .scope::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent calc(50% - .5px), #c96aff55 0 calc(50% + .5px), transparent 0), linear-gradient(0deg, transparent calc(50% - .5px), #c96aff55 0 calc(50% + .5px), transparent 0); }
+    @keyframes rdrSweep { to { transform: rotate(360deg); } } @media (prefers-reduced-motion: reduce) { #radar .scope::before { animation: none; } }
+    body.rdr #radar .choice { --k: #7dff3a; position: absolute; left: var(--x); top: var(--y); transform: translate(-50%, -50%); width: 26%; height: 26%; min-width: 0; margin: 0; padding: 0 !important; border-radius: 50%; display: grid !important; grid-template: none; place-content: center; justify-items: center; gap: 0 !important; text-align: center !important; background: #1c0e34f2; border: 3px solid var(--k); box-shadow: 0 0 16px var(--k) !important; animation: rdrBlip 4.5s linear infinite; animation-delay: var(--d, 0s); }
+    @keyframes rdrBlip { 0%, 12%, 100% { filter: none; } 4% { filter: brightness(1.7); } }
+    body.rdr #radar .choice:active { transform: translate(-50%, -50%) scale(.94); }
+    body.rdr #radar .choice i.ic { font-style: normal; font-size: calc(var(--S) * 0.085); line-height: 1.05; }
+    body.rdr #radar .choice b { font-size: clamp(8.5px, calc(var(--S) * 0.031), 12px) !important; letter-spacing: .3px; line-height: 1.05; color: var(--k) !important; white-space: normal !important; max-width: calc(var(--S) * 0.22); }
+    body.rdr #radar .choice span { display: none; } body.rdr #radar .choice span.saved { display: block; font-size: clamp(8px, calc(var(--S) * 0.024), 10px) !important; line-height: 1.05; max-width: calc(var(--S) * 0.2); white-space: normal; }
+    body.rdr #radar #quickBtn { width: 34%; height: 34%; background: #7dff3a; border: 3px solid #d8ffc0; box-shadow: 0 0 26px #7dff3a, 0 6px 0 #3f9a1f !important; animation: rdrPlay 1.2s ease-in-out infinite alternate; }
+    @keyframes rdrPlay { to { box-shadow: 0 0 38px #7dff3a, 0 6px 0 #3f9a1f; } }
+    body.rdr #radar #quickBtn b { font-size: clamp(18px, calc(var(--S) * 0.078), 30px) !important; letter-spacing: 1px; color: #120a1f !important; max-width: none; white-space: nowrap !important; }
+    body.rdr #radar #pbMenu { position: absolute; left: 50%; top: 99%; transform: translate(-50%, -50%); margin: 0; padding: 4px 14px 4px 5px !important; border-radius: 30px !important; border: 3px solid #c96aff !important; background: #160a2a !important; box-shadow: 0 0 16px #c96aff99 !important; font-size: 14px !important; white-space: nowrap; z-index: 2; display: flex; align-items: center; gap: 8px; color: #fff; font-weight: 900; } body.rdr #radar #pbMenu svg { width: 48px; height: 48px; }
+    .rbar { display: flex; gap: 14px; justify-content: center; margin-top: 46px; flex: none; }
+    .rbar .rb { display: grid; justify-items: center; gap: 3px; font-size: 9px; font-weight: 900; letter-spacing: 1px; color: #c9b8e8; text-shadow: 0 1px 3px #000; }
+    .rbar .rb button { order: 0 !important; width: 54px; height: 54px; min-width: 0; margin: 0; padding: 0 !important; border-radius: 50% !important; display: grid !important; place-content: center; background: #1c0e34f2 !important; border: 2px solid #c96aff !important; color: #fff; font-size: 22px !important; box-shadow: 0 4px 0 #3a1f5a !important; }
+    .rbar .rb button .sTx, .rbar .rb button span { display: none !important; } .rbar .rb button .sIc { display: inline-block !important; font-size: 24px !important; } .rbar .rb button b { font-size: 22px !important; }
+    .rbar .rb button.exitBtn { border-color: #ff7466 !important; color: #ff7466; }
+    body.rdr #menu .credits { margin-top: auto; padding-top: 10px; }
+    @media (orientation: landscape) and (max-height: 520px) {
+      body.rdr.ready #logo { left: calc(12px + env(safe-area-inset-left, 0px)); top: 8px; transform: none; width: min(21vw, 200px); }
+      body.rdr #menu { flex-direction: row !important; justify-content: center !important; align-items: center; gap: 26px !important; padding: 6px 12px 6px 12px !important; }
+      #radar { --S: min(calc(100vh - 84px), 50vw); margin: 0 0 40px; } .rbar { flex-direction: column; margin: 0; gap: 6px; } .rbar .rb button { width: 44px; height: 44px; } body.rdr #menu .credits { display: none; }
+    }
     #menu { display: flex; background: transparent !important; justify-content: flex-start !important; padding-top: calc(var(--logoSmall) * 0.583 + 12px + env(safe-area-inset-top, 0px)); /* the buttons start below the logo */ padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); gap: 8px !important; z-index: 1; }
     #menu > * { opacity: 0; transform: translateY(24px) scale(.96); transition: opacity .35s, transform .45s cubic-bezier(.2, 1.4, .4, 1); }
     body.ready #menu > * { opacity: 1; transform: none; }
@@ -61,6 +91,12 @@
     .choice.bonus { border-color: #ff5ae0 !important; box-shadow: 0 4px 0 #5a1a4a !important; } .choice.bonus b { color: #ff9af0; }
     #quickBox .game.kj { border-color: #ff7a3a; } #quickBox .game.ar { border-color: #b8d84a; } #quickBox .game.ar b { color: #d8f06a; } #quickBox .game.bu { border-color: #7dffb0; } #quickBox .game.bu b { color: #9affc8; }
     /* QUICK PLAY's own screen: pick a game and you're in */
+    /* PICK A GAME and BONUS GAMES in the radar style: the main one in the middle (Tornado Time!, or the daily challenge), the rest as blips round it */
+    #quickBox .qr { --S: min(92vw, 380px, calc(100vh - 230px)); position: relative; flex: none; width: var(--S); height: var(--S); }
+    #quickBox .qr .game { --k: #7dff3a; position: absolute; left: var(--x); top: var(--y); transform: translate(-50%, -50%); width: 29%; height: 29%; min-width: 0; padding: 0 !important; border-radius: 50%; display: grid; grid-template: none !important; place-content: center; justify-items: center; text-align: center !important; gap: 0; background-color: #1c0e34f2; border: 3px solid var(--k) !important; box-shadow: 0 0 16px var(--k); }
+    #quickBox .qr .game.kj { --k: #ff8a3a; } #quickBox .qr .game.ar { --k: #d8f06a; } #quickBox .qr .game.bu { --k: #7dffb0; } #quickBox .qr .game[data-fun] { --k: #ff7ae0; } #quickBox .qr .game.mid[data-fun] { --k: #ffd24a; }
+    #quickBox .qr .game i { grid-row: auto; font-size: calc(var(--S) * 0.085); line-height: 1.05; } #quickBox .qr .game b { font-size: clamp(8.5px, calc(var(--S) * 0.03), 12px); letter-spacing: .2px; line-height: 1.05; color: var(--k) !important; max-width: calc(var(--S) * 0.25); } #quickBox .qr .game span { font-size: clamp(7.5px, calc(var(--S) * 0.024), 10px); line-height: 1.1; color: #fff; max-width: calc(var(--S) * 0.24); }
+    #quickBox .qr .game.mid { --x: 50%; --y: 50%; width: 38%; height: 38%; background-color: var(--k); box-shadow: 0 0 26px var(--k), 0 6px 0 #0008; } #quickBox .qr .game.mid i { font-size: calc(var(--S) * 0.1); } #quickBox .qr .game.mid b { color: #120a1f !important; font-size: clamp(11px, calc(var(--S) * 0.042), 16px); max-width: calc(var(--S) * 0.34); } #quickBox .qr .game.mid span { color: #120a1f; font-weight: 900; max-width: calc(var(--S) * 0.32); }
     #quickBox { position: fixed; inset: 0; z-index: 30; display: flex; flex-direction: column; align-items: center; justify-content: safe center; gap: 12px; padding: 16px; background: #1a0f2ef4; text-align: center; overflow-y: auto; }
     #quickBox.hidden { display: none; } #quickBox h2 { margin: 0; font-size: 30px; letter-spacing: 2px; color: #7dff3a; text-shadow: 0 2px 0 #5a2f80; } #quickBox p { margin: 0; font-size: 14px; color: #c9a6ff; }
     #quickBox .game { width: min(88vw, 360px); margin: 0; padding: 16px 14px; display: grid; gap: 3px; text-align: center; border: 3px solid #7dff3a; background-color: #24133f; color: #fff; border-radius: 16px; box-shadow: 0 6px 0 #0e0618, 0 8px 12px #0007; }
@@ -103,7 +139,8 @@
     import { startIntroScene } from './src/introScene.js';
     const B = document.body.classList, flashEl = document.getElementById('flash'), first = new URLSearchParams(location.search).has('intro'); let flashV = 0, flashT = 0;
     const flash = (v) => { flashV = Math.max(flashV, v); if (flashT) return; const tick = () => { flashV = Math.max(0, flashV - 0.03); flashEl.style.opacity = Math.min(0.8, flashV * 2.6); flashT = flashV > 0 ? requestAnimationFrame(tick) : 0; }; flashT = requestAnimationFrame(tick); };
-    const go = () => { if (B.contains('ready')) return; try { window.__menuMusic(); } catch { /* ignore */ } B.add('title', 'tap', 'ready'); };
+    let goAt = -1e9; addEventListener('click', (e) => { if (performance.now() - goAt < 600) { e.stopPropagation(); e.preventDefault(); } }, true); /* the tap that starts the game must not also press whatever menu button appears under the finger */
+    const go = () => { if (B.contains('ready')) return; goAt = performance.now(); try { window.__menuMusic(); } catch { /* ignore */ } B.add('title', 'tap', 'ready'); };
     if (!first) B.add('title', 'tap', 'ready');
     let scene = null; try { scene = startIntroScene(document.getElementById('scene'), { intro: first, onBeat(what, v) { if (what === 'ready') B.add('live'); else if (what === 'flash') { if (!B.contains('ready')) flash(v); } else if (what === 'logo') B.add('title'); else if (what === 'tap') B.add('tap'); } }); } catch (e) { console.warn(e); }
     if (!scene) B.add('nogl', 'title', 'tap');
@@ -126,6 +163,8 @@
       if (!box) box = document.getElementById('quickBox'); if (!box) { box = document.createElement('div'); box.id = 'quickBox'; document.body.appendChild(box); }
       box.innerHTML = bonus ? '<h2>🎁 BONUS GAMES</h2><p>More ways to wreck the town.</p>' + BONUS.map((b) => card(b[0], b[1], b[2], b[3], b[4], b[5], false)).join('') + (window.__funCards ? window.__funCards() : '') + '<button class="ghost back">◀ BACK</button>'
         : '<h2>▶ QUICK PLAY</h2><p>Pick a game. You go straight in.</p>' + card('tornado.html', '🌪️', 'TORNADO TIME!', '', 'ta', '', true) + BONUS.map((b) => card(b[0], b[1], b[2], '', b[4], b[5], true)).join('') + '<button class="ghost back">◀ BACK</button>';
+      { const gs = [...box.querySelectorAll('.game')], r = document.createElement('div'), mid = bonus ? (gs.find((g) => g.dataset.fun) || gs[0]) : gs[0], rest = gs.filter((g) => g !== mid); r.className = 'qr'; r.innerHTML = '<div class="scope"></div>'; gs[0].before(r); /* the radar: Tornado Time! (or the daily challenge) in the middle, the others evenly round it */
+        mid.classList.add('mid'); r.append(mid); rest.forEach((g, i) => { const a = -Math.PI / 2 + (i + (rest.length % 2 ? 0 : 0.5)) * 2 * Math.PI / rest.length; g.style.setProperty('--x', (50 + Math.cos(a) * 34) + '%'); g.style.setProperty('--y', (50 + Math.sin(a) * 34) + '%'); r.append(g); }); for (const p of [...box.querySelectorAll('p')].slice(1)) p.remove(); }
       for (const b of box.querySelectorAll('.game')) b.addEventListener('click', () => { if (b.dataset.fun) window.__funOpen(b.dataset.fun); else location.href = b.dataset.go + (b.dataset.q ? '?quick=1' : ''); }); /* (data-fun: the DAILY CHALLENGE and TOWN STREAK cards, below) */
       box.querySelector('.back').addEventListener('click', () => box.classList.add('hidden'));
       for (const el of box.querySelectorAll('[data-g]')) { const n = quickLevel(el.dataset.g); el.textContent = 'LEVEL ' + n + ' · ' + TOWNS[n - 1].toUpperCase(); }
@@ -159,5 +198,17 @@
     try { if (localStorage.getItem('oo_save_zv')) document.getElementById('zvSaved').textContent = 'Saved game: district ' + JSON.parse(localStorage.getItem('oo_save_zv')).level; } catch (e) {}
   </script>
 <script>/* EXIT: leave full screen and go back to the title screen (a web page cannot close its own tab) */ window.exitGame = function () { var w = window; try { if (parent !== window && parent.document) w = parent; } catch (e) {} try { var d = w.document, x = d.exitFullscreen || d.webkitExitFullscreen; if ((d.fullscreenElement || d.webkitFullscreenElement) && x) x.call(d); if (document.fullscreenElement) document.exitFullscreen(); } catch (e) {} w.location.href = "index.html"; };</script>
+  <script type="module">
+    /* the STORM RADAR menu: the buttons this page already has (with everything wired to them) are moved into a radar scope */
+    try { const menu = document.getElementById('menu'), q = document.getElementById('quickBtn'), pairs = [...menu.querySelectorAll(':scope > .pair > .choice')], pb = document.getElementById('pbMenu'), ex = menu.querySelector('.exitBtn'), snd = [...menu.querySelectorAll('.soundRow .soundBtn')], save = [...menu.querySelectorAll(':scope > .choice:not(.hidden):not(.quick)')][0];
+      if (q && pairs.length === 4) { const r = document.createElement('div'); r.id = 'radar'; r.innerHTML = '<div class="scope"></div>'; q.before(r);
+        const spot = [['27%', '25%', '#7dff3a', '-3.9s'], ['76%', '30%', '#ff7ae0', '-0.9s'], ['25%', '71%', '#ffd24a', '-3.0s'], ['75%', '74%', '#3af0ff', '-1.7s']]; /* Tornado Time!, Bonus, Shop, Radio: x, y, colour, when the sweep passes */
+        pairs.forEach((b, i) => { b.removeAttribute('style'); for (const c of b.querySelectorAll('b')) c.removeAttribute('style'); b.style.setProperty('--x', spot[i][0]); b.style.setProperty('--y', spot[i][1]); b.style.setProperty('--k', spot[i][2]); b.style.setProperty('--d', spot[i][3]); r.append(b); });
+        q.style.setProperty('--x', '50%'); q.style.setProperty('--y', '50%'); q.querySelector('b').textContent = '\u25B6 PLAY'; r.append(q); if (pb) { pb.removeAttribute('style'); r.append(pb); }
+        const bar = document.createElement('div'); bar.className = 'rbar'; const add = (b, label) => { if (!b) return; const w = document.createElement('div'); w.className = 'rb'; w.append(b, label); b.setAttribute('aria-label', label); bar.append(w); };
+        add(snd[0], 'SOUND'); add(snd[1], 'MUSIC'); if (save) { save.className = ''; save.innerHTML = '<b>\uD83D\uDCBE</b>'; add(save, 'SAVE'); } if (ex) { ex.textContent = '\u2716'; ex.removeAttribute('style'); add(ex, 'EXIT'); }
+        r.after(bar); document.body.classList.add('rdr'); }
+    } catch (e) { console.warn(e); }
+  </script>
 </body>
 </html>

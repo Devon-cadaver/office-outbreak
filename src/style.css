@@ -284,3 +284,19 @@ body.paused .foeTag, body.paused .planeArrow, body.paused .poiArrow, body.paused
 #menu .soundRow { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: min(88vw, 360px); } #menu .soundRow button { margin: 0; min-width: 0; padding-left: 6px; padding-right: 6px; }
 /* OFF: the same red line through the speaker and the note */
 .soundRow button .sIc { position: relative; display: inline-block; } .soundRow button.off .sIc::after { content: ''; position: absolute; left: -12%; right: -12%; top: 50%; height: 3px; border-radius: 2px; background: #ff3a2a; transform: rotate(-45deg); box-shadow: 0 0 2px #000; }
+
+/* ---- the radar look shared by the games' own menus (Nov 2026; the main menu has its own copy in menu.html). .rdr: the square the scope
+   fills (--S its size); .rgo: the one green button in the middle; .rblip: a round choice at --x, --y; .rrow > .rb: small round buttons with a label ---- */
+.rdr { --S: 340px; position: relative; flex: none; width: var(--S); height: var(--S); }
+.rdr > .rscope { position: absolute; inset: 0; border-radius: 50%; border: 3px solid #c96aff; overflow: hidden; box-shadow: 0 0 26px #c96aff66, inset 0 0 40px #0008; background: repeating-radial-gradient(circle, #160a2aea 0 12.2%, #2a1450ea 12.2% 12.8%); pointer-events: none; }
+.rdr > .rscope::before { content: ''; position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from 0deg, #c96aff00 0deg, #c96aff00 290deg, #c96affaa 360deg); animation: rdrSweep2 4.5s linear infinite; }
+.rdr > .rscope::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent calc(50% - .5px), #c96aff55 0 calc(50% + .5px), transparent 0), linear-gradient(0deg, transparent calc(50% - .5px), #c96aff55 0 calc(50% + .5px), transparent 0); }
+@keyframes rdrSweep2 { to { transform: rotate(360deg); } } @media (prefers-reduced-motion: reduce) { .rdr > .rscope::before { animation: none; } }
+.rdr .rblip, .rdr .rgo { position: absolute; left: var(--x, 50%); top: var(--y, 50%); transform: translate(-50%, -50%); min-width: 0; min-height: 0; margin: 0 !important; padding: 0 !important; border-radius: 50% !important; display: grid !important; place-content: center; justify-items: center; text-align: center; font-weight: 900; line-height: 1.08; white-space: normal !important; background-image: none !important; }
+.rdr .rblip { width: 23%; height: 23%; background-color: #1c0e34f2 !important; border: 3px solid var(--k, #7dff3a) !important; box-shadow: 0 0 14px var(--k, #7dff3a) !important; color: var(--k, #7dff3a) !important; font-size: clamp(8px, calc(var(--S) * 0.029), 11px) !important; letter-spacing: 0 !important; overflow: hidden; }
+.rdr .rgo { width: 36%; height: 36%; background-color: #7dff3a !important; color: #120a1f !important; border: 3px solid #d8ffc0 !important; box-shadow: 0 0 26px #7dff3a, 0 6px 0 #3f9a1f !important; font-size: clamp(15px, calc(var(--S) * 0.07), 28px) !important; letter-spacing: 1px; }
+.rdr .rgo:active, .rdr .rblip:active { transform: translate(-50%, -50%) scale(.94); }
+.rrow { display: flex; gap: 12px; justify-content: center; flex: none; }
+.rrow .rb { display: grid; justify-items: center; gap: 3px; font-size: 9px; font-weight: 900; letter-spacing: 1px; color: #c9b8e8; text-shadow: 0 1px 3px #000; }
+.rrow .rb > button { order: 0 !important; width: 52px !important; height: 52px; min-width: 0; margin: 0 !important; padding: 0 !important; border-radius: 50% !important; display: grid !important; place-content: center; background: #1c0e34f2 !important; border: 2px solid var(--k, #c96aff) !important; color: #fff !important; font-size: 21px !important; box-shadow: 0 4px 0 #3a1f5a !important; }
+.rrow .rb > button .sTx { display: none !important; } .rrow .rb > button .sIc { font-size: 23px !important; }

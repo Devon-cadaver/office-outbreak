@@ -243,6 +243,24 @@ const LOOK = {
       deco: rep(6, (i) => ['b', 0xff2ad0, 0.12, 0.012, 0.12, ((i % 3) - 1) * 0.16, 0.262, -0.2 + ((i / 3) | 0) * 0.4]) },
     u: { hull: [0x2a6aff, 0x0a1a5a], under: 0x1a1a22, lights: [0xff2a4a, 0x2aff6a], band: 0x2aff6a, dome: [0x2aff6a, 0x0a5a2a, 0.6], pods: 0xff2ad0, eye: 0xffffff, shield: 0xff2ad0, beam: [0x2af0ff, 0xff2ad0, 0x2aff6a, 0xff2a4a], ray: [0xff2ad0, 0xffffff], pilot: 'pixelAlien', fol: 'errors', glitch: true } },
 };
+/* ---- the ten silly storms (Nov 2026): one recipe, each storm's colours and things (a: body, b: trim, c: accent, dk: dark, gl: glass) ---- */
+const bandsB = (c) => rep(5, (i) => ['b', c, 0.44, 0.44, 0.07, 0, 0, -0.9 + i * 0.4, 0.4, 0, 0]), bandsH = (c) => rep(4, (i) => ['b', c, 0.23, 0.23, 0.06, 0, 0.12, -0.75 - i * 0.3, 0.45, 0, 0]);
+const mk = (a, b, c, dk, gl, o = {}) => ({ fire: [[a, b, c], a], blast: [a, b, c], ring: b, boom: [a, b, c], boomRing: a, ...(o.words ? { words: o.words, wordC: o.wordC } : {}),
+  b: { paint: { body: a, wing: dk, sand: b, glass: gl, dark: dk }, ...(o.tb ? { trail: o.tb } : {}), can: o.can, deco: bandsB(b) },
+  h: { paint: { body: a, belly: dk, stripe: b, fin: b, tip: c, dark: dk, glass: gl }, blur: b, ...(o.tb ? { trail: o.tb } : {}), rocket: o.rocket, deco: bandsH(b) },
+  u: { hull: [a, dk], ...(o.map ? { map: o.map } : {}), under: dk, lights: [b, c], band: b, dome: [gl, dk, 0.55], pods: c, eye: c, shield: b, beam: [b, c, 0xffffff, a], ray: [b, c], ...(o.tu ? { trail: o.tu } : {}), ...(o.u || {}) } });
+Object.assign(LOOK, {
+  toon: mk(0xffd400, 0xff3b30, 0x1e90ff, 0x111111, 0xffffff, { words: ['POW!', 'BAM!', 'ZAP!', 'WHAM!'], wordC: '#ffe100', tb: ['confetti'], tu: ['confettiU'], can: () => I.anvil(), rocket: () => I.anvil(), map: 'dots' }),
+  noir: mk(0x2a2a2e, 0xe6e6ea, 0x8a8a90, 0x0c0c0e, 0xe6e6ea, { tb: ['smoke'], tu: ['smokeU'], can: () => I.fedora(), rocket: () => I.paper(), map: 'checker' }),
+  slasher: mk(0xa80c14, 0x1a1a1c, 0xe8343a, 0x2a0406, 0xff5a5a, { words: ['SLASH!', 'CHOP!'], wordC: '#ff5a5a', tb: ['embers'], tu: ['embersU'], can: () => I.cleaver(), rocket: () => I.saw(), map: 'lava' }),
+  disco: mk(0xff3bd4, 0x19c3ff, 0xffe100, 0x2a0a3a, 0xffffff, { words: ['BOOGIE!'], wordC: '#ff9af0', tb: ['confetti'], tu: ['confettiU'], can: () => I.mirrorball(), rocket: () => I.record(), map: 'checker', u: { fastRing: true, spinRings: [0xff3bd4, 0x19c3ff] } }),
+  bit: mk(0x1a3cff, 0xffd21a, 0xff2a6a, 0x0a0a2a, 0x00c8ff, { tb: ['pixels'], can: () => I.qblock(), rocket: () => I.coin(), map: 'grid' }),
+  cat: mk(0xe8862a, 0xfff4e6, 0xff5aa8, 0x3a2010, 0x7dff3a, { words: ['MEOW!'], wordC: '#ff9ad8', can: () => I.yarn(), rocket: () => I.cat(), map: 'bands' }),
+  cash: mk(0x3aa84a, 0xffd21a, 0xe8f4d8, 0x0a2a10, 0xffd21a, { words: ['KA-CHING!'], wordC: '#ffd21a', tb: ['confetti'], tu: ['confettiU'], can: () => I.cash(), rocket: () => I.piggy() }),
+  duck: mk(0xffd21a, 0xff7a1a, 0xa8e4ff, 0x2a6a9a, 0xffffff, { words: ['QUACK!'], wordC: '#ffe27a', tb: ['bubbles'], tu: ['bubbles'], can: () => I.duck(), rocket: () => I.duck(), map: 'waves' }),
+  cow: mk(0xf4f2ec, 0x1c1c1e, 0xf0a0b0, 0x3a2a1a, 0xa8d8ff, { words: ['MOO!'], wordC: '#ffffff', tb: ['smoke'], tu: ['smokeU'], can: () => I.hay(), rocket: () => I.cow(), map: 'dots' }),
+  doodle: mk(0xf6f1e0, 0x2a2a30, 0x3c6edc, 0x8a8a90, 0xffffff, { words: ['SCRIBBLE!'], wordC: '#3c6edc', can: () => I.eraser(), rocket: () => I.pencil(), map: 'grid' }),
+});
 TEX.checkerDisc = () => tex('checkerDisc', 16, 16, (x) => { x.fillStyle = '#ff2ad0'; x.fillRect(0, 0, 16, 16); x.fillStyle = '#111118'; x.fillRect(0, 0, 8, 8); x.fillRect(8, 8, 8, 8); }, 6, 6);
 export const hasCraftLook = (key) => !!LOOK[key];
 // the colours of the victory smoke trail: the skin's own paint (body and its brightest trim), or red, white and blue with no skin

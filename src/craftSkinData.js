@@ -23,6 +23,16 @@ export const CRAFT_SKINS = {
     wormhole: { name: 'Warp Bomber', price: 3, desc: 'Blue with an orange drill spiral. Its fire swirls like a whirlpool.' },
     grid: { name: 'Grid Bomber', price: 3, desc: 'Black with glowing cyan edges, leaving a dotted trail of data cubes.' },
     void: { name: 'Void Bomber', price: 3, quirk: true, desc: 'QUIRK: gloopers have to be a little closer to spot you. Almost nothing to see.' },
+    toon: { name: "Toon Bomber", price: 3, desc: "Comic-book yellow, red and blue. POW! where it hits." },
+    noir: { name: "Noir Bomber", price: 3, desc: "Black, white and grey, like an old crime film." },
+    slasher: { name: "Slasher Bomber", price: 3, desc: "Blood red and black, trailing embers." },
+    disco: { name: "Disco Bomber", price: 3, desc: "Hot pink, electric blue and gold, shedding confetti." },
+    bit: { name: "Bit Bomber", price: 3, desc: "Old video game blue and gold, trailing pixels." },
+    cat: { name: "Cat Bomber", price: 3, desc: "Ginger and cream with a pink nose." },
+    cash: { name: "Cash Bomber", price: 3, desc: "Banknote green and gold." },
+    duck: { name: "Quack Bomber", price: 3, desc: "Rubber-duck yellow and orange, trailing bubbles." },
+    cow: { name: "Moo Bomber", price: 3, desc: "Black and white, like a dairy cow." },
+    doodle: { name: "Doodle Bomber", price: 3, desc: "Notebook paper with pencil and blue ink." },
     glitch: { name: 'Bug Bomber', price: 3, desc: 'Splits into red, green and blue, and drops error windows.' },
   },
   heli: {
@@ -42,6 +52,16 @@ export const CRAFT_SKINS = {
     wormhole: { name: 'Vortex Copter', price: 3, desc: 'A blue and orange spiral rotor, and drill rockets.' },
     grid: { name: 'Gridcopter', price: 3, desc: 'Glowing cyan edges and data-bolt rockets.' },
     void: { name: 'Blackout Copter', price: 3, quirk: true, desc: 'QUIRK: gloopers have to be a little closer to spot you.' },
+    toon: { name: "Tooncopter", price: 3, desc: "Comic-book yellow, red and blue. POW! where it hits." },
+    noir: { name: "Gumshoe Copter", price: 3, desc: "Black, white and grey, like an old crime film." },
+    slasher: { name: "Chop Chopper", price: 3, desc: "Blood red and black, trailing embers." },
+    disco: { name: "Discopter", price: 3, desc: "Hot pink, electric blue and gold, shedding confetti." },
+    bit: { name: "Bitcopter", price: 3, desc: "Old video game blue and gold, trailing pixels." },
+    cat: { name: "Purrcopter", price: 3, desc: "Ginger and cream with a pink nose." },
+    cash: { name: "Cashcopter", price: 3, desc: "Banknote green and gold." },
+    duck: { name: "Quackcopter", price: 3, desc: "Rubber-duck yellow and orange, trailing bubbles." },
+    cow: { name: "Moocopter", price: 3, desc: "Black and white, like a dairy cow." },
+    doodle: { name: "Doodlecopter", price: 3, desc: "Notebook paper with pencil and blue ink." },
     glitch: { name: 'Glitchcopter', price: 3, desc: 'Stutters, splits into colours and fires mouse pointers.' },
   },
   ufo: {
@@ -61,6 +81,16 @@ export const CRAFT_SKINS = {
     wormhole: { name: 'Warp Ring', price: 3, desc: 'Blue and orange, with a blue and orange beam and racing lights.' },
     grid: { name: 'Wireframe', price: 3, desc: 'Black, covered in a glowing green grid.' },
     void: { name: 'Eclipse', price: 3, quirk: true, desc: 'QUIRK: people let it get a little closer before they run.' },
+    toon: { name: "Toon Saucer", price: 3, desc: "Comic-book yellow, red and blue. POW! where it hits." },
+    noir: { name: "Noir Saucer", price: 3, desc: "Black, white and grey, like an old crime film." },
+    slasher: { name: "Slasher Saucer", price: 3, desc: "Blood red and black, trailing embers." },
+    disco: { name: "Disco Saucer", price: 3, desc: "Hot pink, electric blue and gold, shedding confetti." },
+    bit: { name: "Bit Saucer", price: 3, desc: "Old video game blue and gold, trailing pixels." },
+    cat: { name: "Cat Saucer", price: 3, desc: "Ginger and cream with a pink nose." },
+    cash: { name: "Gold Saucer", price: 3, desc: "Banknote green and gold." },
+    duck: { name: "Bath Saucer", price: 3, desc: "Rubber-duck yellow and orange, trailing bubbles." },
+    cow: { name: "Moo Saucer", price: 3, desc: "Black and white, like a dairy cow." },
+    doodle: { name: "Doodle Saucer", price: 3, desc: "Notebook paper with pencil and blue ink." },
     glitch: { name: 'Saucer Not Found', price: 3, desc: 'Flickers and jumps like a broken screen.' },
   },
   // the Longshanks, Beam 'Em Up!'s three-legged walker: looks only (its head, legs, glow and searchlight colours, walkerSkins.js)
@@ -85,4 +115,4 @@ export const CRAFT_SKINS = {
   },
 };
 // the storm each set matches, in shop order
-export const CRAFT_STORMS = ['poo', 'halloween', 'christmas', 'fire', 'shark', 'easter', 'acid', 'july4', 'clown', 'zombie', 'ghost', 'mallow', 'planet', 'wormhole', 'grid', 'void', 'glitch'];
+export const CRAFT_STORMS = ['poo', 'halloween', 'christmas', 'fire', 'shark', 'easter', 'acid', 'july4', 'clown', 'zombie', 'ghost', 'mallow', 'planet', 'wormhole', 'grid', 'void', 'glitch', 'toon', 'noir', 'slasher', 'disco', 'bit', 'cat', 'cash', 'duck', 'cow', 'doodle'];
